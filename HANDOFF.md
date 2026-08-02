@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phases 0.5A/0.5B provide reviewed observer candidates, and 0.5C1 provides reviewed background enumeration/stale/cancellation evidence; observer comparison and the remaining access/resource matrix are open. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phases 0.5A/0.5B provide reviewed observer candidates, 0.5C1 provides reviewed background enumeration/stale/cancellation evidence, and 0.5C2 provides a reviewed local observation/resource/teardown comparison; recovery and the remaining access matrix are open. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
 
 ## 1. What We Are Building
 
@@ -63,6 +63,21 @@ The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected
 
 ## 3. What Task Was Just Completed
 
+Phase 0.5C2 added the disposable observer comparison harness:
+
+- Runs the existing DispatchSource and FSEvents candidates in separate private-TMPDIR processes at 500, 1,000, and 5,000 pre-existing items.
+- Measures latency from the unique marker mutation, requires marker-path evidence for FSEvents, and keeps directory invalidation, item-record, and callback-batch counts semantically separate.
+- Treats marker, event timeout, teardown, resource, and cleanup failures as fatal; adds bounded descriptor settling and a matrix-level TERM/KILL watchdog.
+- Passes 97 Swift 6 warning-as-error assertions in three consecutive runs, including real FSEvents timeout cleanup and outer-watchdog paths.
+- The final 18-process matrix produced exactly three valid samples for every combination, empty stderr, zero FSEvents bridge failures, and local descriptor-baseline return in all samples.
+- Builds an arm64, minimum-macOS-15.0, SDK-26.5, system-framework/Swift-runtime-only, linker-ad-hoc-signed probe.
+
+MiMo created the initial buildable harness, but its original latency origin, event causality, callback semantics, polling lifetime, failure handling, matrix validation, and descriptor-baseline narrative were not acceptable. Codex corrected the implementation and replaced the invalid evidence. MiMo's original metrics are superseded.
+
+Phase 0.5C2 does not select an observer and does not test recovery. Symlinks, missing/moved roots, dropped/revoke recovery, TCC, removable media, networks, actual macOS 15, and long-running load remain open. Full Spike 0.5 remains incomplete.
+
+### Earlier Phase 0.5C1 background enumeration
+
 Phase 0.5C1 added the disposable background enumeration harness:
 
 - Runs immediate-child FileManager enumeration through a bounded concurrent worker and a typed request runner, never on MainActor.
@@ -73,7 +88,7 @@ Phase 0.5C1 added the disposable background enumeration harness:
 
 MiMo created the initial structure, but its serial worker made the required stale ordering impossible; the test waited for a 10-second timeout, discarded the real result, rebuilt a synthetic snapshot on MainActor, and still reported success. It also used unbounded waits and self-proving cancellation/cleanup tests. Codex replaced the orchestration and evidence. An independent Reviewer confirmed the original result was invalid; all listed defects were addressed before final verification.
 
-Phase 0.5C1 does not select an observer. Resource/recovery comparison, TCC, removable media, symlinks, networks, actual macOS 15, and load evidence remain open. Full Spike 0.5 remains incomplete.
+Phase 0.5C1 does not select an observer. Recovery, TCC, removable media, symlinks, networks, actual macOS 15, and sustained-load evidence remain open. Full Spike 0.5 remains incomplete.
 
 ### Earlier Phase 0.5B FSEvents candidate
 
@@ -386,6 +401,7 @@ The current baseline verification includes:
 - Phase 0.5A passes 45 real-filesystem Swift 6 warning-as-error assertions in three consecutive runs; its DispatchSource probe has minimum macOS 15.0 and independently confirmed descriptor teardown.
 - Phase 0.5B passes 69 real-filesystem Swift 6 warning-as-error assertions in three consecutive runs; its FSEvents probe has minimum macOS 15.0 and independently confirmed bounded teardown.
 - Phase 0.5C1 passes 67 Swift 6 warning-as-error assertions in three consecutive runs; its background enumeration probe has minimum macOS 15.0 and its stale/cancellation tests use real request results.
+- Phase 0.5C2 passes 97 Swift 6 warning-as-error assertions in three consecutive runs; its validated 18-process local matrix records causal event latency, count semantics, bounded teardown, process resources, and descriptor settling without selecting an observer.
 - `git diff --check` passes before each commit.
 
 Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless the user explicitly requests it. Do not delete `.DS_Store` unless explicitly asked.
@@ -394,7 +410,7 @@ Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless th
 
 The immediate next work is:
 
-1. Implement Phase 0.5C2 observer resource/recovery comparison; do not select either observer before the remaining comparison gates.
+1. Implement the next bounded Phase 0.5 comparison for root/child symlinks and missing/moved-root recovery; do not select either observer before the remaining gates.
 2. Manually verify material appearance on macOS 26 and an actual macOS 15 runtime, including accessibility settings and desktop-candidate level.
 3. Manually verify Quick Look rendering, carousel navigation, dismissal/focus behavior, desktop-candidate level behavior, and cleanup/reopen.
 4. Complete Spike 0.2's hardware matrix; geometry, inventory/UUID/notification bootstrap, and eviction-safe pure state are complete.
