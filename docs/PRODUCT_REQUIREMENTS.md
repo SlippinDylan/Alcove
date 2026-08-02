@@ -1,0 +1,288 @@
+# Product Requirements — Alcove
+
+## 1. Product Overview
+
+Alcove is a native macOS menu-bar utility that creates movable, resizable desktop-layer folder portals. Each portal displays the contents of a mapped local directory as a scrollable native icon grid. Portals support multiple tabs, Finder-consistent selection and interaction, and Quick Look integration.
+
+Alcove is **not** a Finder replacement. It does not provide directory navigation, file management mutations, or a full desktop shell. It is a focused read-only view into folders the user chooses, displayed on the desktop layer below normal application windows.
+
+---
+
+## 2. Goals
+
+| ID | Goal |
+|----|------|
+| G-1 | Provide persistent desktop-layer folder portals that survive display topology changes, Spaces, Stage Manager, sleep/wake, and resolution adjustments |
+| G-2 | Match Finder's selection and opening semantics for familiar, low-friction interaction |
+| G-3 | Offer Quick Look for selected items without leaving the portal |
+| G-4 | Support multiple independent portals across multiple displays |
+| G-5 | Adopt Liquid Glass on macOS 26 while remaining fully functional on macOS 15 |
+
+## 3. Non-Goals (MVP)
+
+| ID | Non-Goal | Rationale |
+|----|----------|-----------|
+| NG-1 | In-portal directory navigation | Folders open in Finder; Alcove is a viewport, not a file browser |
+| NG-2 | File mutations (rename, trash, new folder, move, copy) | Read-only MVP; reduces scope and permission surface |
+| NG-3 | Drag-in file imports | Mutation; deferred to post-MVP |
+| NG-4 | Drag-out from portals | Under investigation; deferred |
+| NG-5 | WidgetKit widgets | Alcove is a windowed utility, not a widget |
+| NG-6 | Finder extension or Finder integration beyond NSWorkspace | Out of scope |
+| NG-7 | Cloud drive sync status indicators | Deferred; adds complexity with provider-specific APIs |
+| NG-8 | Custom file preview/rendering inside the grid | Native icon grid only; Quick Look handles preview |
+
+---
+
+## 4. Personas & Use Cases
+
+### Persona: Developer / Power User
+- Keeps project folders, Downloads, and reference material visible on desktop
+- Uses multiple displays; portals must survive display disconnect/reconnect
+- Wants fast access without opening Finder windows
+
+### Persona: Creative Professional
+- Organizes assets into folders; wants visual overview on desktop
+- Uses Spaces and Stage Manager; portals must coexist without disruption
+- Needs Quick Look to preview files quickly
+
+### Core Use Cases
+
+| ID | Use Case |
+|----|----------|
+| UC-1 | Create a new portal by dragging a dashed rectangle on the desktop, then choosing a folder |
+| UC-2 | View folder contents as an icon grid inside a portal |
+| UC-3 | Select items with single-click, Command-click, Shift-click |
+| UC-4 | Open a file or folder with double-click |
+| UC-5 | Invoke Quick Look with Space for selected items |
+| UC-6 | Add, switch, and close tabs within a portal; preserve creation order and the selected tab across restarts |
+| UC-7 | Move and resize a portal; have it remember position across sessions |
+| UC-8 | Unplug a display, replug it, and see portals restored to their remembered positions |
+| UC-9 | Switch Spaces and continue seeing portals on every Space; exact system-transition behavior is resolved by the desktop-layer spike |
+
+---
+
+## 5. Interaction Contract
+
+### 5.1 Selection
+
+| Action | Behavior |
+|--------|----------|
+| Click | Select the clicked item; deselect all others |
+| Command-click | Toggle selection of the clicked item without affecting others |
+| Shift-click | Extend selection from the anchor to the clicked item (range select) |
+| Arrow keys | Move focus; Shift+arrow extends selection |
+| Select All (⌘A) | Select all items in the current tab |
+
+Selection state is per-tab. Changing tabs preserves each tab's selection independently.
+
+Return is reserved by Finder for rename; since Alcove MVP is read-only, Return is a no-op. Tab/Shift-Tab item cycling is not included.
+
+### 5.2 Opening
+
+| Action | Behavior |
+|--------|----------|
+| Double-click file | Open with default application via `NSWorkspace` |
+| Double-click folder | Open in Finder via `NSWorkspace.open(folderURL)` |
+| ⌘↓ (Command-Down) | Open selected item — same as double-click |
+| ⌘O (Command-O) | Open selected item — same as double-click |
+
+### 5.3 Quick Look
+
+| Action | Behavior |
+|--------|----------|
+| Space (with selection) | Present `QLPreviewPanel` for the selected item(s) |
+| Space (no selection) | No-op |
+| Space (during Quick Look) | Intended to dismiss Quick Look; exact behavior is resolved by the Quick Look spike |
+
+Quick Look follows the responder chain. The portal window owns the Quick Look responder integration.
+
+### 5.4 Portal Creation Flow
+
+1. User activates portal creation from the menu bar (clicks Alcove icon → "New Portal")
+2. A transparent overlay appears on the pointer's current display
+3. User drags a dashed rectangle constrained to `NSScreen.visibleFrame`
+4. On mouse-up, a folder chooser (standard `NSOpenPanel`) appears
+5. The selected folder becomes the first tab of the new portal
+6. Portal frame snaps to grid metrics (column count, icon spacing)
+
+### 5.5 Tab Management
+
+| Action | Behavior |
+|--------|----------|
+| Click tab | Switch to that tab's folder |
+| "+" button | Add a new tab (opens folder chooser) |
+| Close tab button | Remove tab; if last tab, prompt to remove the portal (never silently destroy it) |
+| Tab title | Defaults to the mapped folder name |
+
+Tabs remain in creation order in MVP. Drag-to-reorder is Post-MVP.
+
+### 5.6 Portal Window Behavior
+
+| Property | Value |
+|----------|-------|
+| Window level | Desktop-layer behavior required; the exact public-API strategy is selected by Spike 0.1. `desktopIconWindow + 1` is the first candidate, not a final configuration. |
+| Collection behavior | Selected by Spike 0.1 after comparing relevant combinations, including `.stationary`, `.moveToActiveSpace`, `.fullScreenAuxiliary`, and whether to use `.canJoinAllSpaces`. |
+| Movable | Yes — user-initiated drag |
+| Resizable | Yes — user-initiated resize from edges/corners |
+| Frame snap | Snaps to grid metrics and column count |
+| Min size | Enough to show at least 2 columns and 2 rows |
+
+---
+
+## 6. Requirement IDs
+
+### Functional Requirements
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-01 | Create portals via menu-bar → overlay → drag-rect → folder-choose flow | MVP |
+| FR-02 | Display folder contents as a native icon grid with file name and icon; default ordering is directories first, then localized standard name | MVP |
+| FR-03 | Support adding, switching, and closing tabs per portal; persist creation order and the currently selected tab. Closing the last tab prompts to remove the portal. Tab reordering is Post-MVP. | MVP |
+| FR-04 | Finder-consistent selection (single, Command, Shift, keyboard) | MVP |
+| FR-05 | Double-click file opens with default app; double-click folder opens in Finder via NSWorkspace.open(folderURL) | MVP |
+| FR-06 | Quick Look via Space key through responder chain | MVP |
+| FR-07 | Portal frames persist across app restarts | MVP |
+| FR-08 | Portal frames restore correctly after display topology changes | MVP |
+| FR-09 | Multiple portals supported simultaneously | MVP |
+| FR-10 | Multiple displays supported | MVP |
+| FR-11 | Menu-bar icon with portal management menu | MVP |
+| FR-12 | Liquid Glass on macOS 26 for portal chrome and controls | MVP |
+| FR-13 | NSVisualEffectView fallback on macOS 15–25 | MVP |
+| FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
+| FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
+| FR-16 | Automatic grid refresh when folder contents change | MVP |
+| FR-17 | Drag-out from portals | Investigate |
+| FR-18 | Alcove-owned Small/Medium/Large icon sizing presets | MVP |
+
+### Non-Functional Requirements
+
+| ID | Requirement | Target |
+|----|-------------|--------|
+| NFR-01 | Grid scroll performance (60 fps) | < 16 ms frame budget |
+| NFR-02 | Portal creation to first content display | < 1 s for folders with < 500 items |
+| NFR-03 | Folder enumeration for < 1000 items | < 500 ms |
+| NFR-04 | Portal frame restore after display change | < 2 s |
+| NFR-05 | App launch to menu-bar icon visible | < 1 s |
+
+---
+
+## 7. States
+
+### 7.1 Empty States
+
+| State | Display |
+|-------|---------|
+| Empty folder | Placeholder text: "This folder is empty" with folder icon |
+| Tab with no folder mapped | Should not occur; tab creation always requires folder selection |
+
+### 7.2 Error States
+
+| Error | Display | Action |
+|-------|---------|--------|
+| Folder not found (moved/deleted) | Error banner: "Folder not found" with path | Offer "Locate Folder…" to re-map |
+| Permission denied (TCC-protected) | Error banner: "Permission denied" with folder name | Report the system result accurately; Alcove does not fabricate or force a permission flow, while macOS may present its own prompt |
+| Read error (I/O) | Error banner: "Unable to read folder contents" | Show retry button |
+| Volume ejected | Error banner: "Volume not available" | Show path; wait for reconnection |
+
+### 7.3 Loading States
+
+| State | Display |
+|-------|---------|
+| Initial folder load | Skeleton/placeholder grid with progress indicator |
+| Refreshing after content change | No full-screen overlay; items update incrementally |
+
+---
+
+## 8. Accessibility
+
+| ID | Requirement |
+|----|-------------|
+| A-01 | Full VoiceOver support for grid items (role, label, value, position, actions) |
+| A-02 | Keyboard-only operation for all selection, opening, and Quick Look actions |
+| A-03 | Respects System Settings → Accessibility → Reduce Transparency |
+| A-04 | Respects System Settings → Accessibility → Increase Contrast |
+| A-05 | Standard macOS AppKit control sizes for interactive elements; sufficient focus indicators and contrast |
+| A-06 | User-configurable label/icon size via Alcove-owned presets (Small/Medium/Large) |
+| A-07 | Respects System Settings → Accessibility → Reduce Motion |
+| A-08 | VoiceOver labels and actions for all interactive elements |
+
+---
+
+## 9. Privacy & Permissions
+
+| ID | Requirement |
+|----|-------------|
+| PR-01 | No sandbox; non-sandboxed LSUIElement app |
+| PR-02 | No Accessibility permission required for core functionality |
+| PR-03 | No Full Disk Access required for core functionality |
+| PR-04 | TCC-protected folders (Desktop, Documents, Downloads) may trigger system permission prompts — surface explicit errors, do not silently fail |
+| PR-05 | No App Groups, Keychain, security-scoped bookmarks, or application-level provisioning-profile dependency in MVP; the non-sandboxed app persists a standardized file URL/path. Spike 0.6 separately inspects whether a signing workflow embeds a profile in the release candidate. |
+| PR-06 | No telemetry, analytics, or network calls in MVP |
+| PR-07 | All state stored locally under `~/Library/Application Support/Alcove/` |
+
+---
+
+## 10. Distribution
+
+The table below is the current release candidate, not a confirmed final-user distribution path. Spike 0.6 may run in parallel with MVP implementation, but must resolve the Apple Development and ad-hoc artifact behavior before the first public GitHub Release. Until then, no document may claim free Apple Development signing is a validated end-user distribution solution.
+
+| Aspect | Detail |
+|--------|--------|
+| PR builds | Unsigned; CI test gate only |
+| Main branch releases | Provisional Apple Development candidate: imported P12 in CI, not notarized; final signing mode is selected by Spike 0.6 |
+| First launch / quarantine | Spike 0.6 determines and documents the verified steps; right-click → Open and `sudo xattr -rd com.apple.quarantine /Applications/Alcove.app` are candidates to test, not assumed universal requirements |
+| DMG packaging | Standard DMG with app bundle and Applications symlink |
+| GitHub Releases | Tagged releases with DMG attached |
+| Explicit fallback workflow | Separately invoked ad-hoc signing (`codesign -s -`); the main release never switches signing modes automatically |
+
+**Note:** Apple reserves customer distribution and notarization for paid Developer ID certificates. The free Apple Development identity is for development and testing; Personal Team provisioning profiles, if generated or embedded, expire after 7 days. This is an unsupported self-hosted distribution compromise, not official free distribution. Right-click → Open is Apple's official guidance for unidentified developers; the `xattr` quarantine removal is a project operational workaround, not an Apple-endorsed method. See [Apple Membership Comparison](https://developer.apple.com/support/compare-memberships/), [Developer ID](https://developer.apple.com/support/developer-id/), and [Apple Support — Open apps from unidentified developer](https://support.apple.com/en-us/102445).
+
+---
+
+## 11. Acceptance Criteria (MVP and Release)
+
+AC-01 through AC-16 define MVP product acceptance. AC-17 is the separate first-public-release acceptance criterion and does not block MVP feature implementation.
+
+| ID | Criterion | Source |
+|----|-----------|--------|
+| AC-01 | User can create a portal by dragging a rectangle on the desktop and choosing a folder | FR-01 |
+| AC-02 | Portal displays folder contents as an icon grid with file names and icons | FR-02 |
+| AC-03 | Single-click selects; Command-click toggles; Shift-click extends range | FR-04 |
+| AC-04 | Double-click file opens with default app; double-click folder opens in Finder via NSWorkspace.open(folderURL) | FR-05 |
+| AC-05 | Space invokes Quick Look for selected items | FR-06 |
+| AC-06 | Portal supports adding, switching, and closing multiple tabs; each tab maps one folder, creation order and the selected tab survive restart, and closing the last tab prompts before removing the portal | FR-03 |
+| AC-07 | Portal frame persists across app restart and restores to the correct display | FR-07, FR-10 |
+| AC-08 | Portal frames restore correctly after display disconnect/reconnect | FR-08, FR-10 |
+| AC-09 | Portal frames restore correctly after resolution/scaling change | FR-08 |
+| AC-10 | Portal coexists with Spaces and Stage Manager without permanent eviction | G-1; Spike 0.1 product gate |
+| AC-11 | App runs on macOS 15 with NSVisualEffectView materials | FR-13 |
+| AC-12 | App uses Liquid Glass on macOS 26 for portal chrome and controls | FR-12 |
+| AC-13 | Folder contents update automatically when files are added/removed | FR-15, FR-16 |
+| AC-14 | No file mutations (rename, trash, new folder) are possible through the portal | NG-2 |
+| AC-15 | App is a menu-bar utility with no Dock icon | FR-11 |
+| AC-16 | Universal binary (arm64 + x86_64) builds and runs on both architectures | Distribution target |
+| AC-17 | Spike 0.6 validates the selected signed DMG installation and launch procedure on the supported test matrix, and the verified steps are documented | Spike 0.6 release gate |
+
+---
+
+## 12. MVP vs. Later
+
+### MVP (Phase 1)
+- Portal creation, display, selection, opening, Quick Look
+- Multiple tabs (add, switch, close, creation-order persistence, selected-tab persistence), multiple portals, multiple displays
+- Stable display identity and frame persistence
+- Liquid Glass (macOS 26) and NSVisualEffectView (macOS 15–25) compatibility
+- Menu-bar management UI
+- Read-only: no mutations
+- GitHub distribution readiness; signing mode and installation procedure remain gated by Spike 0.6
+
+### Deferred (Post-MVP)
+- Tab drag-to-reorder
+- Drag-out investigation (FR-17)
+- Custom icon size slider (beyond Small/Medium/Large presets)
+- Sorting UI (beyond default directories-first, localized-name ordering)
+- File mutations (rename, trash, new folder)
+- Drag-in file imports
+- Cloud drive sync status
+- Custom grid layouts beyond icon grid
+- Portal templates / presets
