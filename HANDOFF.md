@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phases 0.5A/0.5B provide reviewed observer candidates, 0.5C1 provides reviewed background enumeration/stale/cancellation evidence, 0.5C2 provides a local observation/resource/teardown comparison, 0.5C3 records local symlink/missing/moved/replacement path evidence, and 0.5C4 records bounded multiple-observer/load/lifecycle evidence; access, removable/network media, and dropped-event recovery remain open. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phases 0.5A/0.5B provide reviewed observer candidates, 0.5C1 provides reviewed background enumeration/stale/cancellation evidence, 0.5C2 provides a local observation/resource/teardown comparison, 0.5C3 records local symlink/missing/moved/replacement path evidence, 0.5C4 records bounded multiple-observer/load/lifecycle evidence, and 0.5C5 records local protected-path access plus owned-fixture error classification; controlled TCC denial, removable/network media, and dropped-event recovery remain open. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
 
 ## 1. What We Are Building
 
@@ -62,6 +62,22 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Phase 0.5C5 added the disposable folder-access and error-classification harness:
+
+- Enumerates Desktop, Documents, and Downloads read-only on an explicit background queue without printing child names or paths; all three were allowed locally with counts 30/12/9.
+- Carries a checked generation on every request/result and rejects a real returned result after its generation becomes stale.
+- Preserves actual top-level and underlying NSError metadata rather than rewriting it as POSIX; independent Darwin opens separately prove ENOENT, ENOTDIR, and EACCES for owned fixtures.
+- Makes fixture mismatch, permission restoration, cleanup, background timeout, and worker convergence failures fatal; active I/O suppresses internal deletion so the outer private-TMPDIR owner can clean after process exit.
+- Uses active stdout/stderr draining plus bounded TERM/SIGKILL process convergence and rejects unknown JSON keys at every output layer.
+- Passes 124 strict Swift 6 warning-as-error assertions in three consecutive final runs, including stale results, background timeout convergence, restoration/cleanup/double-error seams, 620,000-byte pipe backpressure, and a TERM-resistant child requiring SIGKILL.
+- Builds an arm64, minimum-macOS-15.0, SDK-26.5, system/Swift-only, linker-ad-hoc-signed probe.
+
+MiMo created a buildable initial harness and reported 46/46, but its error model fabricated POSIX metadata, cleanup and restoration failures still exited 0, fixture I/O ran on the main thread, generation was disconnected from results, SIGINT was mislabeled as SIGKILL, waits were unbounded, and several tests were self-proving. Codex replaced those paths and tests. Independent review found additional transaction/runner convergence and schema gaps across three passes; Codex fixed each, and the final Reviewer reported no remaining Critical/High/Medium issue.
+
+Current protected-location success is only a process/time-specific local fact. It does not establish TCC denial behavior, responsible-process attribution, authorization UI, or Full Disk Access state. Physical ejection, network volumes, dropped/revoke recovery, macOS 15, and observer selection remain open. Full Spike 0.5 remains incomplete.
+
+### Earlier Phase 0.5C4 multiple-observer and load evidence
 
 Phase 0.5C4 added the disposable multiple-observer and load harness:
 

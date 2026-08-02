@@ -54,6 +54,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [x] Observation coverage, teardown, latency, and resource comparison recorded; recovery remains open.
 - [x] Explicit background enumeration, stale-result, and truthful cancellation tests complete.
 - [x] Multiple-observer, 1,001-file load, and 25-cycle lifecycle evidence recorded locally.
+- [x] Local protected-path access and owned-fixture missing/not-directory/permission error metadata recorded.
 - [ ] TCC and removable-volume behavior recorded; local missing-root, symlink, rename, and replacement evidence is complete.
 - [ ] Observation strategy decision recorded.
 
@@ -110,3 +111,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-08-02: Phase 0.5C2 passed 97 Swift 6 warning-as-error assertions in three consecutive runs and a strict 18-process local matrix after Codex corrected MiMo's latency origin, event causality, callback semantics, unbounded polling, failure handling, and invalid descriptor narrative; no observer was selected.
 - 2026-08-02: Phase 0.5C3 passed 238 strict real-filesystem assertions in three consecutive runs after Codex replaced MiMo's dead second window, move/marker conflation, fabricated missing-root error, swallowed teardown, and selective JSON tests; no observer or recovery policy was selected.
 - 2026-08-02: Phase 0.5C4 passed 371 strict real-filesystem assertions in three consecutive final runs after MiMo exited 0 with no task output and Codex implemented the harness; independent review found and Codex fixed scenario-cardinality and subprocess-pipe/failure-convergence gaps. Eight standalone scenarios, timeout/error paths, and artifact inspection passed; no observer was selected.
+- 2026-08-02: Phase 0.5C5 passed 124 strict assertions in three consecutive final runs after Codex replaced MiMo's fabricated NSError metadata, non-fatal cleanup/restoration, main-thread fixture I/O, disconnected generation, false SIGKILL, unbounded waits, and self-proving tests. Local Desktop/Documents/Downloads access succeeded, owned fixtures preserved raw Cocoa/underlying metadata plus independent POSIX evidence, and final independent review found no Critical/High/Medium issue; controlled TCC denial remains open.
