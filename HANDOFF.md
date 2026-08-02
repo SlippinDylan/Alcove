@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phase 0.2A now provides verified pure placement geometry, and Phase 0.2B is next. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phase 0.2A provides verified pure placement geometry, and Phase 0.2B now provides verified real-session inventory and notification adapters. Eviction state and the hardware matrix remain. No production Alcove module has started.
 
 ## 1. What We Are Building
 
@@ -63,6 +63,21 @@ The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected
 
 ## 3. What Task Was Just Completed
 
+Phase 0.2B added a disposable AppKit-backed display inventory and notification probe:
+
+- Captures current `NSScreen.screens` index, name, exact display ID result, UUID result, frame, visible frame, scale, and main-screen state on MainActor.
+- Converts `CGDisplayCreateUUIDFromDisplayID` under the Core Foundation Create rule without forced bridging or ownership leaks.
+- Uses synchronous, idempotent notification registration and removal, with background posts handed to a MainActor snapshot handler.
+- Provides bounded `snapshot` and `observe --seconds` commands with decodable, sorted-key JSON.
+- Passes 80 XCTest cases from clean Swift 6 warning-as-error builds; standalone snapshot and 0.2-second observe probes exit 0 and decode as JSON.
+- Produces an arm64 diagnostic executable with minimum macOS 15.0, SDK 26.5, system frameworks only, and an ad-hoc signature.
+
+The current session contained three screens and one main screen; all frames were positive/finite and all three UUID calls returned canonical strings. Values are not recorded because one snapshot does not establish stable identity. The unchanged bounded observation captured zero events and proves only normal bounded exit.
+
+MiMo produced the initial module structure but its test suite recursively launched `swift build` inside `swift test`, deadlocking the package lock. Codex stopped the failed invocation, removed the recursive test, replaced the leaking observer lifecycle, tightened display-ID and CLI validation, removed unsafe test constructs, and independently rebuilt and ran the probes. Full Spike 0.2 remains incomplete.
+
+### Earlier Phase 0.2A placement geometry
+
 Phase 0.2A added a disposable, UI-free Swift package for placement geometry:
 
 - Captures absolute frame, save-time visible frame, preferred size, and movable-range-normalized anchor.
@@ -71,7 +86,7 @@ Phase 0.2A added a disposable, UI-free Swift package for placement geometry:
 - Uses an explicit nearest-away-from-zero grid rounding rule and handles negative display origins and zero movable ranges.
 - Passes 51 XCTest cases from clean Swift 6 builds with warnings treated as errors and a real macOS 15.0 test-binary deployment target.
 
-Phase 0.2A does not enumerate screens, claim UUID stability, observe topology notifications, or implement eviction state. Full Spike 0.2 remains in progress; Phase 0.2B must provide those adapters and real-hardware evidence.
+Phase 0.2A alone does not enumerate screens, claim UUID stability, observe topology notifications, or implement eviction state. Phase 0.2B now provides the adapters, while real-hardware evidence and eviction state remain outstanding. Full Spike 0.2 remains in progress.
 
 ### Earlier Phase 0.1C window-class harness
 
@@ -280,7 +295,7 @@ The current baseline verification includes:
 - Phase 0.1B independently launches and exits normally after Codex review corrected conflicting Space semantics, MainActor isolation, non-key ordering, and close ownership.
 - Phase 0.1C passes 140 strategy/class/window/lifecycle assertions; actual factory output and diagnostics text are tested for both concrete classes.
 - Phase 0.1C independently launches and exits normally after artifact, deployment-target, dependency, and ad-hoc signature inspection.
-- Phase 0.2A passes 51 UI-free geometry tests from clean Swift 6 warning-as-error builds; the generated XCTest binary has minimum macOS 15.0.
+- Phase 0.2A and 0.2B together pass 80 tests from clean Swift 6 warning-as-error builds; the probe has minimum macOS 15.0 and emits independently decoded JSON.
 - `git diff --check` passes before each commit.
 
 Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless the user explicitly requests it. Do not delete `.DS_Store` unless explicitly asked.
@@ -289,7 +304,7 @@ Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless th
 
 The immediate next work is:
 
-1. Complete Phase 0.2B: real screen inventory/UUID diagnostics, topology notifications, eviction-safe state tests, and an untouched hardware matrix.
+1. Complete Spike 0.2 with the eviction-safe pure state machine and an untouched hardware matrix; inventory/UUID/notification bootstrap is complete.
 2. Continue every independent automated part of Spikes 0.3–0.5 while manual Spike 0.1/0.2 evidence remains outstanding.
 3. Update the candidate architecture only from recorded spike evidence and lock it only after the product-and-architecture gate resolves.
 4. Implement the ten Phase 1 vertical slices only after their documented entry gates pass.
