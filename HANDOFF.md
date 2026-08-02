@@ -339,7 +339,7 @@ The immediate next work is:
 4. Continue every independent automated part of Spikes 0.3–0.5 while manual Phase 0 evidence remains outstanding.
 5. Update the candidate architecture only from recorded spike evidence and lock it only after the product-and-architecture gate resolves.
 6. Implement the ten Phase 1 vertical slices only after their documented entry gates pass.
-5. Run Spike 0.6 independently before the first public release.
+7. Run Spike 0.6 independently before the first public release.
 
 Do not resurrect the old infrastructure-first sequence. The first user-visible value after App Shell is a minimal single Portal, not a complete persistence/migration/display foundation.
 
