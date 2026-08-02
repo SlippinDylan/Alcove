@@ -1,8 +1,8 @@
 # Spike 0.2 — Display Identity and Placement
 
-**Status: In Progress — Phase 0.2B inventory bootstrap complete**
+**Status: In Progress — Phase 0.2C automated state bootstrap complete**
 
-Full Spike 0.2 remains incomplete. Phase 0.2A models pure placement geometry. Phase 0.2B adds a real-session inventory/notification probe, but does not establish identity stability or topology behavior.
+Full Spike 0.2 remains incomplete. Phase 0.2A models pure placement geometry, Phase 0.2B adds a real-session inventory/notification probe, and Phase 0.2C adds an eviction-safe pure state machine. Physical topology behavior and identity stability remain unverified.
 
 ---
 
@@ -20,6 +20,9 @@ The disposable Swift package under `spikes/display-placement/` contains the UI-f
 - Current `NSScreen.screens` inventory with array index, name, display ID, UUID result, frames, scale, and main-screen state
 - Synchronous, idempotent screen-parameter notification registration with MainActor snapshot delivery
 - Bounded `snapshot` and `observe` JSON commands
+- Pure home/active/displaced/awaiting placement state and typed window directives
+- User-confirmed placement as the only durable write path
+- Disconnect fallback and home-return restoration without mutation of remembered records
 
 **Still out of scope:**
 - Display ordering stability
@@ -38,7 +41,8 @@ The disposable Swift package under `spikes/display-placement/` contains the UI-f
 spikes/display-placement/
 ├── Package.swift                          # Swift 6, macOS 15, no dependencies
 ├── Sources/DisplayPlacement/
-│   └── PlacementGeometry.swift            # Pure model and operations
+│   ├── PlacementGeometry.swift             # Pure geometry operations
+│   └── PlacementStateMachine.swift         # Pure eviction-safe transitions
 ├── Sources/DisplayInventory/               # MainActor AppKit adapter and DTOs
 ├── Sources/DisplayProbe/main.swift          # Bounded diagnostic executable
 ├── Tests/DisplayInventoryTests/             # Adapter/observer/CLI tests
@@ -97,7 +101,7 @@ swift package clean
 swift build -Xswiftc -warnings-as-errors
 ```
 
-**Result:** Both commands exited 0. 80 tests executed with 0 failures; the standalone build emitted no warnings.
+**Result:** Both commands exited 0. 102 tests executed with 0 failures; the standalone build emitted no warnings.
 
 ### Real-Session Probe
 
@@ -114,7 +118,7 @@ The executable is arm64, has minimum macOS 15.0 and SDK 26.5, uses only system f
 
 ## 5. Automated Evidence
 
-All 80 test cases pass with warnings treated as errors. The original 51 exact geometry tests remain intact. Phase 0.2B adds coverage for:
+All 102 test cases pass with warnings treated as errors. The original 51 exact geometry tests remain intact. Phases 0.2B–0.2C add coverage for:
 
 | Category | Coverage |
 |----------|----------|
@@ -134,10 +138,21 @@ All 80 test cases pass with warnings treated as errors. The original 51 exact ge
 | Inventory | Current-session frame, scale, index, main-screen, and JSON round-trip invariants |
 | Observer lifecycle | Idempotent start/stop, immediate registration, fresh snapshot per event, stop suppression, and background post delivered to a MainActor handler |
 | CLI | Invalid/trailing arguments, bounded observe success, snapshot success, and standalone JSON decoding |
+| Placement state | Disconnect, repeated eviction, empty topology deferral, reconnect, resolution, rearrangement, unrelated display return, and explicit errors |
+| Durable-write boundary | System moves preserve all records; a user-confirmed move alone updates the record and home display |
 
 `CGDisplayCreateUUIDFromDisplayID` follows the Core Foundation Create rule. The adapter consumes the returned retained `CFUUID`, then formats its bytes without forced Objective-C bridging. Missing or invalid `NSScreenNumber` values produce explicit errors and a `nil` display ID rather than the ambiguous sentinel `0`.
 
 JSON key ordering is deterministic for a supplied ordered snapshot. The screen array intentionally preserves current `NSScreen.screens` order; no cross-snapshot ordering guarantee is claimed.
+
+### Phase 0.2C State Semantics
+
+- `placements` stores only user-confirmed records; topology reconciliation never writes it.
+- If home is unavailable, a constrained portal is centered on the current primary display, then grid-snapped and clamped. This is a transient directive, not a primary-display placement record.
+- If no display exists during reconfiguration, the state becomes `awaitingDisplay` and emits no frame directive until the next topology snapshot.
+- When home returns, only `homeDisplay` is considered. A historical non-home display cannot steal the portal.
+- A user who explicitly finishes a move or resize on the fallback display chooses a new home. The old record is retained but no longer auto-restored.
+- Resolution/rearrangement restores from the remembered record and current geometry without rewriting the record. This resolves the ambiguous parenthetical in candidate `ARCHITECTURE.md` §6.3 in favor of its stronger no-system-write rule and Slice 8 tests; the baseline architecture remains candidate until hardware evidence.
 
 ---
 
@@ -165,6 +180,8 @@ The following remain manual/hardware evidence:
 
 4. **Synthetic notification limits:** Tests prove registration, teardown, MainActor delivery, and fresh capture for a posted notification. They do not prove which real hardware transitions emit notifications or how many events a transition produces.
 
+5. **Pure reducer evidence only:** The eviction transitions are deterministic and tested, but no real `NSWindow` has yet been driven by them during physical disconnect, reconnect, or display rearrangement.
+
 ---
 
 ## 8. Full Spike 0.2 Work Still Required
@@ -176,11 +193,11 @@ The following items are required to resolve full Spike 0.2:
 - [x] Bounded `NSApplication.didChangeScreenParametersNotification` observer and synthetic lifecycle coverage
 - [ ] Real hardware notification event coverage
 - [ ] `NSScreen.screens` ordering stability across topology changes
-- [ ] Disconnect/reconnect state machine (displaced → active)
+- [x] Pure disconnect/reconnect state machine (active → displaced/awaiting → active)
 - [ ] Resolution/scaling change geometry re-read and restore
 - [ ] Display rearrangement in System Settings
 - [ ] Sleep/wake geometry re-read
-- [ ] Eviction-safe primary-screen fallback without overwriting home placement
+- [x] Pure eviction-safe primary-screen fallback without overwriting home placement
 - [ ] Integration with the Persistence layer (Slice 8)
 - [ ] Manual hardware matrix for multi-display scenarios
 

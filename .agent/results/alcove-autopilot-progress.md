@@ -31,7 +31,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [x] Pure movable-range placement model and automated tests complete.
 - [ ] Resolution/scaling and screen-order behavior recorded on available hardware.
 - [ ] Real display disconnect/reconnect and rearrangement manually recorded.
-- [ ] Eviction-safe restoration decision recorded.
+- [x] Eviction-safe pure-state semantics and automated decision recorded; hardware evidence remains open.
 
 ### Spike 0.3 — Quick Look Responder Chain
 
@@ -100,3 +100,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-08-02: Prepared the full Phase 0.1 manual protocol; no manual matrix cell was executed or marked passed.
 - 2026-08-02: Phase 0.2A passed 51 clean Swift 6 warning-as-error geometry tests after Codex added saved-record validation and corrected rounding semantics.
 - 2026-08-02: Phase 0.2B passed 80 clean Swift 6 warning-as-error tests and standalone JSON probe checks after Codex replaced MiMo's recursive-build deadlock and leaking observer lifecycle.
+- 2026-08-02: Phase 0.2C passed 102 clean Swift 6 warning-as-error tests; system eviction preserves home records, empty topology defers, and only explicit user moves change home.

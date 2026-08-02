@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phase 0.2A provides verified pure placement geometry, and Phase 0.2B now provides verified real-session inventory and notification adapters. Eviction state and the hardware matrix remain. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C now provide geometry, inventory/notification adapters, and an eviction-safe pure state machine. The display hardware matrix remains. No production Alcove module has started.
 
 ## 1. What We Are Building
 
@@ -63,6 +63,19 @@ The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected
 
 ## 3. What Task Was Just Completed
 
+Phase 0.2C added the UI-free eviction state machine:
+
+- Separates durable user-confirmed placement/home from active, temporarily displaced, and awaiting presentation state.
+- Makes user interaction end the only durable write path; system moves and topology reconciliation preserve every saved record.
+- Centers and constrains temporary primary-screen fallback, defers when no screen is available, and restores remembered home when it returns.
+- Prevents a historical non-home display from stealing placement.
+- Treats an explicit user move on fallback as selecting a new home, while retaining the old record.
+- Passes 102 total clean Swift 6 warning-as-error tests, including 22 state-machine cases.
+
+This is pure automated evidence. Real disconnect/reconnect, resolution/scaling, rearrangement, ordering, notification coverage, and sleep/wake remain manual and unverified. Full Spike 0.2 remains incomplete.
+
+### Earlier Phase 0.2B inventory bootstrap
+
 Phase 0.2B added a disposable AppKit-backed display inventory and notification probe:
 
 - Captures current `NSScreen.screens` index, name, exact display ID result, UUID result, frame, visible frame, scale, and main-screen state on MainActor.
@@ -86,7 +99,7 @@ Phase 0.2A added a disposable, UI-free Swift package for placement geometry:
 - Uses an explicit nearest-away-from-zero grid rounding rule and handles negative display origins and zero movable ranges.
 - Passes 51 XCTest cases from clean Swift 6 builds with warnings treated as errors and a real macOS 15.0 test-binary deployment target.
 
-Phase 0.2A alone does not enumerate screens, claim UUID stability, observe topology notifications, or implement eviction state. Phase 0.2B now provides the adapters, while real-hardware evidence and eviction state remain outstanding. Full Spike 0.2 remains in progress.
+Phase 0.2A alone does not enumerate screens, claim UUID stability, observe topology notifications, or implement eviction state. Phase 0.2B provides the adapters and Phase 0.2C provides pure eviction state, while real-hardware evidence remains outstanding. Full Spike 0.2 remains in progress.
 
 ### Earlier Phase 0.1C window-class harness
 
@@ -295,7 +308,7 @@ The current baseline verification includes:
 - Phase 0.1B independently launches and exits normally after Codex review corrected conflicting Space semantics, MainActor isolation, non-key ordering, and close ownership.
 - Phase 0.1C passes 140 strategy/class/window/lifecycle assertions; actual factory output and diagnostics text are tested for both concrete classes.
 - Phase 0.1C independently launches and exits normally after artifact, deployment-target, dependency, and ad-hoc signature inspection.
-- Phase 0.2A and 0.2B together pass 80 tests from clean Swift 6 warning-as-error builds; the probe has minimum macOS 15.0 and emits independently decoded JSON.
+- Phases 0.2A–0.2C together pass 102 tests from clean Swift 6 warning-as-error builds; the probe has minimum macOS 15.0 and emits independently decoded JSON.
 - `git diff --check` passes before each commit.
 
 Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless the user explicitly requests it. Do not delete `.DS_Store` unless explicitly asked.
@@ -304,7 +317,7 @@ Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless th
 
 The immediate next work is:
 
-1. Complete Spike 0.2 with the eviction-safe pure state machine and an untouched hardware matrix; inventory/UUID/notification bootstrap is complete.
+1. Complete Spike 0.2's untouched hardware matrix; geometry, inventory/UUID/notification bootstrap, and eviction-safe pure state are complete.
 2. Continue every independent automated part of Spikes 0.3–0.5 while manual Spike 0.1/0.2 evidence remains outstanding.
 3. Update the candidate architecture only from recorded spike evidence and lock it only after the product-and-architecture gate resolves.
 4. Implement the ten Phase 1 vertical slices only after their documented entry gates pass.
