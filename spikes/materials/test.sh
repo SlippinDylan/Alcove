@@ -11,9 +11,9 @@ if [[ $# -ne 0 ]]; then
 fi
 
 echo "=== Alcove Spike 0.4A — Material Boundary Tests ==="
-echo "Checking prohibited source patterns..."
+echo "Checking prohibited source patterns (conservative text scan)..."
 if grep -REn \
-    'nonisolated\(unsafe\)|@preconcurrency|try!|try\?|as!|fatalError|setValue\(|value\(forKey|isInteractive|NSGlassEffectView[^[:cntrl:]]*\.state|(^|[^[:alnum:]_])Any([^[:alnum:]_]|$)|(^|[^=!<>])([[:alnum:]_]+|\)|\])!([^=]|$)' \
+    'nonisolated\(unsafe\)|@preconcurrency|try!|try\?|as!|fatalError|setValue\(|value\(forKey|isInteractive|NSGlassEffectView[^[:cntrl:]]*\.state|(^|[^[:alnum:]_])Any([^[:alnum:]_]|$)|(^|[^=!])([[:alnum:]_]+|\)|\]|>)!([^=]|$)' \
     "${SCRIPT_DIR}/Sources" "${SCRIPT_DIR}/Tests"; then
     echo "Prohibited source pattern found."
     exit 1
