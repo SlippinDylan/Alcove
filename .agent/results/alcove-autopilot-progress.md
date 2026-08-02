@@ -35,8 +35,8 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 
 ### Spike 0.3 — Quick Look Responder Chain
 
-- [ ] Minimal collection host and responder ownership implemented.
-- [ ] Data-source/delegate lifecycle checks complete.
+- [x] Minimal collection host and responder ownership implemented.
+- [x] Data-source/delegate lifecycle checks complete with real shared-panel controller discovery.
 - [ ] Single- and multi-item presentation/dismissal manually recorded.
 - [ ] Quick Look integration decision recorded.
 
@@ -101,3 +101,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-08-02: Phase 0.2A passed 51 clean Swift 6 warning-as-error geometry tests after Codex added saved-record validation and corrected rounding semantics.
 - 2026-08-02: Phase 0.2B passed 80 clean Swift 6 warning-as-error tests and standalone JSON probe checks after Codex replaced MiMo's recursive-build deadlock and leaking observer lifecycle.
 - 2026-08-02: Phase 0.2C passed 102 clean Swift 6 warning-as-error tests; system eviction preserves home records, empty topology defers, and only explicit user moves change home.
+- 2026-08-02: Phase 0.3A passed 40 Swift 6 warning-as-error assertions plus clean artifact inspection, process launch, and Apple-event quit after Codex replaced MiMo's unsafe actor/KVC workarounds, incorrect Space responder, incomplete panel teardown, and self-proving lifecycle tests.

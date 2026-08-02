@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C now provide geometry, inventory/notification adapters, and an eviction-safe pure state machine. The display hardware matrix remains. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A now provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence; human GUI behavior remains unverified. No production Alcove module has started.
 
 ## 1. What We Are Building
 
@@ -62,6 +62,21 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Phase 0.3A added the disposable Quick Look responder bootstrap:
+
+- Hosts read-only temporary fixtures in a multiple-selection `NSCollectionView` with visible diagnostics and an actual Space-handling first responder.
+- Inserts one main-actor Quick Look responder between the portal window and `NSApplication`.
+- Uses typed panel APIs and identity-aware cleanup for QuickLookUI's Objective-C `assign` data-source/delegate references.
+- Supports the normal and `desktopIconWindow + 1` candidate levels without selecting a production strategy.
+- Passes 40 Swift 6 warning-as-error assertions from a LaunchServices-hosted test app, including real key-window, shared-panel controller discovery, system begin/end ownership, selection refresh, safe bounds, and cleanup checks.
+- Builds an arm64, minimum-macOS-15.0, system-framework-only, ad-hoc-signed app that launches and quits through an Apple event.
+
+MiMo created the initial harness structure, but Codex rejected its unsafe actor/KVC workarounds, incorrect Space responder, incomplete `assign` reference teardown, swallowed fixture errors, and self-proving lifecycle tests. Codex retained the bounded harness concept, corrected the implementation and evidence, then independently ran clean tests, artifact inspection, launch, and normal quit.
+
+Automated controller discovery does not prove preview rendering or human interaction. Single/multiple preview behavior, carousel navigation, focus handoff, candidate desktop level, repeated cleanup/reopen, and common content types remain `NR`. Full Spike 0.3 remains incomplete.
+
+### Earlier Phase 0.2C eviction state
 
 Phase 0.2C added the UI-free eviction state machine:
 
@@ -309,6 +324,7 @@ The current baseline verification includes:
 - Phase 0.1C passes 140 strategy/class/window/lifecycle assertions; actual factory output and diagnostics text are tested for both concrete classes.
 - Phase 0.1C independently launches and exits normally after artifact, deployment-target, dependency, and ad-hoc signature inspection.
 - Phases 0.2A–0.2C together pass 102 tests from clean Swift 6 warning-as-error builds; the probe has minimum macOS 15.0 and emits independently decoded JSON.
+- Phase 0.3A passes 40 Swift 6 warning-as-error assertions, including a real shared-panel responder discovery and ownership lifecycle integration; its app has minimum macOS 15.0 and launches/quits normally.
 - `git diff --check` passes before each commit.
 
 Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless the user explicitly requests it. Do not delete `.DS_Store` unless explicitly asked.
@@ -317,10 +333,12 @@ Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless th
 
 The immediate next work is:
 
-1. Complete Spike 0.2's untouched hardware matrix; geometry, inventory/UUID/notification bootstrap, and eviction-safe pure state are complete.
-2. Continue every independent automated part of Spikes 0.3–0.5 while manual Spike 0.1/0.2 evidence remains outstanding.
-3. Update the candidate architecture only from recorded spike evidence and lock it only after the product-and-architecture gate resolves.
-4. Implement the ten Phase 1 vertical slices only after their documented entry gates pass.
+1. Begin the independently automatable Spike 0.4 Liquid Glass/fallback harness while the Spike 0.1, 0.2, and 0.3 manual matrices remain open.
+2. Manually verify Quick Look rendering, carousel navigation, dismissal/focus behavior, desktop-candidate level behavior, and cleanup/reopen when a human can observe the GUI.
+3. Complete Spike 0.2's hardware matrix; geometry, inventory/UUID/notification bootstrap, and eviction-safe pure state are complete.
+4. Continue every independent automated part of Spikes 0.3–0.5 while manual Phase 0 evidence remains outstanding.
+5. Update the candidate architecture only from recorded spike evidence and lock it only after the product-and-architecture gate resolves.
+6. Implement the ten Phase 1 vertical slices only after their documented entry gates pass.
 5. Run Spike 0.6 independently before the first public release.
 
 Do not resurrect the old infrastructure-first sequence. The first user-visible value after App Shell is a minimal single Portal, not a complete persistence/migration/display foundation.
