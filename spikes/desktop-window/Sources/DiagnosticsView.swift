@@ -1,12 +1,15 @@
 // DiagnosticsView.swift
-// Alcove Spike 0.1 — Desktop Window Experiment
+// Alcove Spike 0.1B — Desktop Window Strategy Model
 // Disposable harness; not production architecture.
 
 import AppKit
 
-/// Lightweight diagnostics label that displays live window/screen state as
-/// attributed monospace text. Refreshed by the window controller on every
-/// relevant delegate/notification event.
+/// Lightweight diagnostics label that displays both configured intent and actual
+/// window state as attributed monospace text. Refreshed by the window controller
+/// on every relevant delegate/notification event.
+///
+/// Phase 0.1B adds: preset identifier, configured key eligibility, actual
+/// `canBecomeKey`, actual window type, and a clear intent-vs-actual distinction.
 final class DiagnosticsView: NSTextField {
 
     // MARK: - Initialization
@@ -33,16 +36,17 @@ final class DiagnosticsView: NSTextField {
         font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         lineBreakMode = .byClipping
         maximumNumberOfLines = 0
-        preferredMaxLayoutWidth = 540
+        preferredMaxLayoutWidth = 580
         translatesAutoresizingMaskIntoConstraints = false
     }
 
     // MARK: - Content Update
 
-    /// Rebuilds the diagnostics display from current window and application state.
+    /// Rebuilds the diagnostics display showing both configured intent and actual state.
     func refresh(
-        strategy: WindowStrategy,
+        preset: StrategyPreset,
         window: NSWindow?,
+        actualCanBecomeKey: Bool,
         activationPolicy: NSApplication.ActivationPolicy
     ) {
         let screen = window?.screen ?? NSScreen.main
@@ -58,7 +62,7 @@ final class DiagnosticsView: NSTextField {
             return CGDirectDisplayID(screenNumber.uint32Value)
         }
 
-        let collectionBehaviorStr = describeCollectionBehavior(
+        let actualBehaviorStr = StrategyPreset.describeCollectionBehavior(
             window?.collectionBehavior ?? []
         )
         let activationStr = describeActivationPolicy(activationPolicy)
@@ -66,12 +70,21 @@ final class DiagnosticsView: NSTextField {
         let windowType = window.map { String(describing: type(of: $0)) } ?? "N/A"
 
         let text = """
-            Strategy: \(strategy.description)
+            === CONFIGURED INTENT ===
+            Preset: \(preset.identifier)
+            Configured Level: \(preset.windowLevel.rawValue)
+            Configured Behavior: \(preset.configuredBehaviorDescription)
+            Configured Key Eligibility: \(preset.configuredKeyEligibilityDescription)
+
+            === ACTUAL STATE ===
             Window Type: \(windowType)
             Window Level: \(window?.level.rawValue ?? -1)
-            Collection Behavior: \(collectionBehaviorStr)
+            Actual Behavior: \(actualBehaviorStr)
+            canBecomeKey: \(actualCanBecomeKey)
             isKeyWindow: \(isKey)
             isMainWindow: \(isMain)
+
+            === GEOMETRY ===
             Window Frame: \(formatRect(frame))
             Screen Frame: \(formatRect(screenFrame))
             Visible Frame: \(formatRect(visibleFrame))
@@ -88,20 +101,6 @@ final class DiagnosticsView: NSTextField {
             format: "(%.1f, %.1f, %.1f, %.1f)",
             r.origin.x, r.origin.y, r.size.width, r.size.height
         )
-    }
-
-    private func describeCollectionBehavior(_ b: NSWindow.CollectionBehavior) -> String {
-        var parts: [String] = []
-        if b.contains(.canJoinAllSpaces) { parts.append("canJoinAllSpaces") }
-        if b.contains(.stationary) { parts.append("stationary") }
-        if b.contains(.ignoresCycle) { parts.append("ignoresCycle") }
-        if b.contains(.moveToActiveSpace) { parts.append("moveToActiveSpace") }
-        if b.contains(.fullScreenAuxiliary) { parts.append("fullScreenAuxiliary") }
-        if b.contains(.fullScreenPrimary) { parts.append("fullScreenPrimary") }
-        if b.contains(.fullScreenNone) { parts.append("fullScreenNone") }
-        if b.contains(.participatesInCycle) { parts.append("participatesInCycle") }
-        if parts.isEmpty { return "none" }
-        return parts.joined(separator: ", ")
     }
 
     private func describeActivationPolicy(_ p: NSApplication.ActivationPolicy) -> String {

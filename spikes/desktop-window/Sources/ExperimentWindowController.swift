@@ -1,5 +1,5 @@
 // ExperimentWindowController.swift
-// Alcove Spike 0.1 — Desktop Window Experiment
+// Alcove Spike 0.1B — Desktop Window Strategy Model
 // Disposable harness; not production architecture.
 
 import AppKit
@@ -14,15 +14,16 @@ final class ExperimentWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: - Properties
 
-    private let strategy: WindowStrategy
+    let preset: StrategyPreset
+    var onWindowWillClose: (() -> Void)?
     private let diagnosticsView = DiagnosticsView()
 
     // MARK: - Initialization
 
-    init(strategy: WindowStrategy) {
-        self.strategy = strategy
+    init(preset: StrategyPreset) {
+        self.preset = preset
 
-        let window = Self.makeWindow(strategy: strategy)
+        let window = Self.makeWindow(preset: preset)
         super.init(window: window)
 
         window.delegate = self
@@ -38,24 +39,26 @@ final class ExperimentWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: - Window Factory
 
-    private static func makeWindow(strategy: WindowStrategy) -> NSWindow {
+    private static func makeWindow(preset: StrategyPreset) -> AlcoveSpikeWindow {
         let contentRect = NSRect(x: 200, y: 200, width: 600, height: 500)
         let styleMask: NSWindow.StyleMask = [
             .resizable, .titled, .closable, .miniaturizable,
         ]
-        let window = NSWindow(
+        let window = AlcoveSpikeWindow(
             contentRect: contentRect,
             styleMask: styleMask,
             backing: .buffered,
-            defer: false
+            defer: false,
+            isKeyEligible: preset.isKeyEligible
         )
-        window.title = "Alcove Spike — \(strategy.description)"
+        window.title = "Alcove Spike — \(preset.description)"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
 
-        window.level = strategy.windowLevel
-        window.collectionBehavior = strategy.collectionBehavior
+        // Apply strategy configuration from the typed preset.
+        window.level = preset.windowLevel
+        window.collectionBehavior = preset.collectionBehavior
 
         // Translucent background via NSVisualEffectView
         let visualEffect = NSVisualEffectView()
@@ -89,10 +92,14 @@ final class ExperimentWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: - Show / Activate
 
-    /// Orders the window front and makes it key.
+    /// Orders the window front and makes it key (if eligible).
     func showAndActivate() {
         NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
+        if preset.isKeyEligible {
+            window?.makeKeyAndOrderFront(nil)
+        } else {
+            window?.orderFront(nil)
+        }
         refreshDiagnostics()
     }
 
@@ -168,14 +175,17 @@ final class ExperimentWindowController: NSWindowController, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         logEvent("windowWillClose")
+        onWindowWillClose?()
     }
 
     // MARK: - Diagnostics Refresh
 
     private func refreshDiagnostics() {
+        let spikeWindow = window as? AlcoveSpikeWindow
         diagnosticsView.refresh(
-            strategy: strategy,
+            preset: preset,
             window: window,
+            actualCanBecomeKey: spikeWindow?.canBecomeKey ?? false,
             activationPolicy: NSApp.activationPolicy()
         )
     }
@@ -196,7 +206,7 @@ final class ExperimentWindowController: NSWindowController, NSWindowDelegate {
             else { return nil }
             return String(n.uint32Value)
         } ?? "N/A"
-        print("[\(timestamp)] EVENT: \(name) | window=\(wFrame) screen=\(screenID)")
+        print("[\(timestamp)] EVENT: \(name) | preset=\(preset.identifier) | window=\(wFrame) screen=\(screenID)")
     }
 
     private static let dateFormatter: DateFormatter = {

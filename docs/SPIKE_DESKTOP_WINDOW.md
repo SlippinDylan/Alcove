@@ -1,26 +1,24 @@
 # Spike 0.1 — Desktop Window Behavior
 
-Status: In Progress — Phase 0.1A bootstrap only
+Status: In Progress — Phase 0.1A bootstrap and Phase 0.1B strategy model implemented and automatically built/tested. Full Spike 0.1 remains incomplete; manual system-transition testing and Phase 0.1C `NSPanel` comparison are not yet done.
 
 ---
 
 ## 1. Goal
 
-This Phase 0.1A spike validates whether a bounded implementation agent can:
+This spike validates whether a public AppKit window strategy can reliably provide Alcove's desktop-layer behavior across Show Desktop, Spaces, full-screen apps, Stage Manager, lock, and sleep/wake without permanent eviction.
 
-- create a correct small macOS project using native Swift and AppKit;
-- use public AppKit APIs to configure window level, collection behavior, and visual effects;
-- implement two switchable window strategies (Normal Baseline and Desktop Candidate);
-- build the result deterministically; and
-- honestly distinguish automated verification from manual verification.
+**Phase 0.1A** (bootstrap): validated that a bounded implementation agent can create a correct small macOS project, configure window level and collection behavior, implement switchable strategies, build deterministically, and honestly distinguish automated from manual verification.
 
-This does **not** resolve or complete Spike 0.1. The full spike requires manual testing across Show Desktop, Spaces, Stage Manager, full-screen apps, lock, and sleep/wake on real hardware.
+**Phase 0.1B** (strategy model): extended the harness with a typed strategy data model, focused preset combinations covering every required dimension, runtime switching, diagnostics showing configured intent vs. actual state, key-window eligibility control, and automated structural tests.
+
+**Phase 0.1C** (not yet implemented): `NSWindow` versus `NSPanel` comparison.
 
 ---
 
 ## 2. Project Form
 
-**Form:** `swiftc` + deterministic `.app` build script.
+**Form:** `swiftc` + deterministic `.app` build script + deterministic test script.
 
 **Why chosen:** A single `swiftc` invocation with an explicit build script is the most deterministic, inspectable, and dependency-free form for a disposable harness. It avoids Xcode project complexity and SwiftPM's `.app` bundling limitations. The build command is a single line; the output is a plain `.app` bundle with no hidden build system state.
 
@@ -31,40 +29,110 @@ This does **not** resolve or complete Spike 0.1. The full spike requires manual 
 ```text
 spikes/desktop-window/
 ├── Sources/
-│   ├── WindowStrategy.swift          — Strategy enum with level, behavior, labels
-│   ├── DiagnosticsView.swift         — Live diagnostics display (NSTextField)
+│   ├── WindowStrategy.swift          — StrategyConfiguration + StrategyPreset model
+│   ├── AlcoveSpikeWindow.swift       — NSWindow subclass with configurable canBecomeKey
+│   ├── DiagnosticsView.swift         — Live diagnostics (configured intent + actual state)
 │   ├── ExperimentWindowController.swift — Window lifecycle, delegate, notifications
-│   ├── AppDelegate.swift             — Menu bar, strategy switching, window management
+│   ├── AppDelegate.swift             — Menu bar, preset switching, window management
 │   └── main.swift                    — Application entry point
-├── build.sh                          — Deterministic build script
+├── Tests/
+│   └── main.swift                    — Structural strategy model tests
+├── build.sh                          — Deterministic app build script
+├── test.sh                           — Deterministic test build + run script
 └── build/                            — Generated build output (currently untracked)
     └── AlcoveSpike.app/
 ```
 
 ---
 
-## 4. Build and Run
+## 4. Strategy Model (Phase 0.1B)
 
-### Build Command
+### 4.1 Design
+
+The strategy identity/configuration is represented centrally with typed Swift values:
+
+- **`StrategyConfiguration`** — a struct holding typed Space behavior, full-screen participation, cycle participation, level, and key eligibility. It derives AppKit collection flags rather than storing an unchecked flag bag.
+- **`SpaceBehavior`** — represents either stationary behavior (with an explicit all-Spaces choice) or move-to-active-Space behavior, making invalid `.moveToActiveSpace` combinations unrepresentable.
+- **`StrategyPreset`** — an enum of named presets, each returning a `StrategyConfiguration`. Menu actions and controllers reference presets by name; they do not scatter collection-behavior flags.
+- **`AlcoveSpikeWindow`** — a minimal `NSWindow` subclass that exposes a configurable `canBecomeKey` override, enabling key-ineligible presets to accurately return `false`.
+
+### 4.2 Presets
+
+| # | Preset | Level | Collection Behavior | Key Eligible | Dimensions Exercised |
+|---|--------|-------|---------------------|--------------|----------------------|
+| 1 | Normal Baseline | `.normal` | none | yes | Control comparison |
+| 2 | Desktop Candidate | `desktopIconWindow + 1` | `canJoinAllSpaces, stationary, ignoresCycle` | yes | Original Phase 0.1A candidate |
+| 3 | Desktop (No JoinAllSpaces) | `desktopIconWindow + 1` | `stationary, ignoresCycle` | yes | `.canJoinAllSpaces` absent |
+| 4 | Desktop (MoveToActiveSpace) | `desktopIconWindow + 1` | `moveToActiveSpace, ignoresCycle` | yes | `.moveToActiveSpace` |
+| 5 | Desktop (No Key) | `desktopIconWindow + 1` | `canJoinAllSpaces, stationary, ignoresCycle` | no | Key-window ineligible |
+| 6 | Desktop (FullScreenAuxiliary) | `desktopIconWindow + 1` | `canJoinAllSpaces, stationary, fullScreenAuxiliary, ignoresCycle` | yes | `.fullScreenAuxiliary` |
+
+### 4.3 Why Focused, Not Cartesian
+
+The six presets cover every required dimension without generating an unwieldy Cartesian product:
+
+- **`.stationary`** — presets 2, 3, 5, 6
+- **`.moveToActiveSpace`** — preset 4
+- **`.fullScreenAuxiliary`** — preset 6
+- **`.canJoinAllSpaces` present** — presets 2, 5, 6
+- **`.canJoinAllSpaces` absent** — presets 1, 3, 4
+- **Key eligible** — presets 1, 2, 3, 4, 6
+- **Key ineligible** — preset 5
+
+`.moveToActiveSpace` is never combined with `.stationary` or `.canJoinAllSpaces`. Phase 0.1B treats all-Spaces membership and movement to the active Space as exclusive candidate semantics so each preset has an interpretable purpose; this structural choice is not evidence of runtime Space behavior. The normal baseline remains a comparison control. The original desktop candidate is preserved exactly.
+
+### 4.4 Runtime Switching
+
+Menu entries ⌘1–⌘6 switch between presets. Switching tears down the current window and creates a new one with the selected preset. Closing and recreating a window preserves the selected preset. The `AppDelegate` holds a strong reference to the `ExperimentWindowController`; a weak-capture close callback clears that owner reference for both menu-driven and titlebar-driven closes.
+
+### 4.5 Diagnostics
+
+The diagnostics display shows both configured intent and actual state. The block below is an illustrative format, not an observed runtime transcript or GUI-verification result:
+
+```
+=== CONFIGURED INTENT ===
+Preset: Desktop Candidate
+Configured Level: 1001
+Configured Behavior: canJoinAllSpaces, stationary, ignoresCycle
+Configured Key Eligibility: eligible
+
+=== ACTUAL STATE ===
+Window Type: AlcoveSpikeWindow
+Window Level: 1001
+Actual Behavior: canJoinAllSpaces, stationary, ignoresCycle
+canBecomeKey: true
+isKeyWindow: true
+isMainWindow: true
+
+=== GEOMETRY ===
+Window Frame: (200.0, 200.0, 600.0, 500.0)
+Screen Frame: (0.0, 0.0, 1920.0, 1080.0)
+Visible Frame: (0.0, 25.0, 1920.0, 1055.0)
+Display ID: 1234567890
+Activation Policy: accessory
+```
+
+---
+
+## 5. Build and Run
+
+### App Build Command
 
 ```bash
 cd spikes/desktop-window
 bash build.sh
 ```
 
-The script runs:
+Exit result: **0** (clean compile, no errors, no warnings).
+
+### Test Command
 
 ```bash
-xcrun swiftc \
-    -target arm64-apple-macosx15.0 \
-    -framework AppKit \
-    -framework CoreGraphics \
-    -framework Foundation \
-    -o build/AlcoveSpike.app/Contents/MacOS/AlcoveSpike \
-    Sources/*.swift
+cd spikes/desktop-window
+bash test.sh
 ```
 
-Then creates `Info.plist` (with `LSUIElement = YES`), `PkgInfo`, and ad-hoc code-signs the bundle via `xcrun codesign`.
+Exit result: **0** (66 assertions passed, 0 failed after Codex review fixes).
 
 ### Run Command
 
@@ -74,101 +142,48 @@ open spikes/desktop-window/build/AlcoveSpike.app
 
 ---
 
-## 5. Window Strategies
-
-### Strategy A: Normal Baseline
-
-- Window level: `.normal` (default `NSWindow.Level`)
-- Collection behavior: none (default)
-- Purpose: comparison control only
-
-### Strategy B: Desktop Candidate
-
-- Window level: `NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)`
-- Collection behavior: `[.canJoinAllSpaces, .stationary, .ignoresCycle]`
-- Purpose: initial Phase 0.1 candidate — **not final or selected production behavior**
-
-Both strategies use:
-- `NSWindow` (not `NSPanel`) — NSWindow vs NSPanel comparison is deferred to the full spike
-- Titleless style (`titlebarAppearsTransparent = true`, `titleVisibility = .hidden`)
-- Translucent background via `NSVisualEffectView` (material: `.dark`, blending: `.behindWindow`)
-- `isMovableByWindowBackground = true`
-- Standard resizable style mask
-
----
-
-## 6. Required Operations
-
-All operations are available via menu commands (⌘ shortcuts):
-
-| Operation | Shortcut | Implementation |
-|-----------|----------|----------------|
-| Switch to Normal Baseline | ⌘1 | Tears down current window, creates new with `.normal` level |
-| Switch to Desktop Candidate | ⌘2 | Tears down current window, creates new with desktop candidate level |
-| Activate / Make Key | ⌘A | `NSApp.activate(ignoringOtherApps:)` + `makeKeyAndOrderFront` |
-| Close Window | ⌘W | Closes window, nils controller reference |
-| Recreate Window | ⌘N | Closes existing (if any), creates fresh controller + window |
-| Quit | ⌘Q | Standard `NSApplication.terminate` |
-
-Closing and recreating work without dangling/deallocated controller issues because:
-1. `AppDelegate` holds a strong reference to the `ExperimentWindowController`.
-2. `closeWindow()` explicitly nils the reference after closing.
-3. `recreateWindow()` closes, nils, then creates a fresh instance.
-
----
-
-## 7. Diagnostics
-
-The window displays these live values, refreshed on every delegate/notification event:
-
-| Value | Source |
-|-------|--------|
-| Current strategy name | `WindowStrategy.rawValue` |
-| Current window type | Runtime `type(of: NSWindow)` |
-| Window level (numeric) | `NSWindow.level.rawValue` |
-| Collection behavior | `NSWindow.collectionBehavior` flags |
-| `isKeyWindow` | `NSWindow.isKeyWindow` |
-| `isMainWindow` | `NSWindow.isMainWindow` |
-| Window frame | `NSWindow.frame` |
-| Screen frame | `NSScreen.frame` |
-| Visible frame | `NSScreen.visibleFrame` |
-| Display ID | `NSScreen.deviceDescription["NSScreenNumber"]` cast to `CGDirectDisplayID` |
-| Activation policy | `NSApplication.activationPolicy` |
-
-### Logged Events
-
-All events are logged to stdout with timestamps:
-
-- `windowDidBecomeKey`
-- `windowDidResignKey`
-- `windowDidBecomeMain`
-- `windowDidResignMain`
-- `windowDidMove`
-- `windowDidResize`
-- `windowDidChangeScreen`
-- `applicationDidBecomeActive`
-- `applicationDidResignActive`
-- `didChangeScreenParameters`
-- `windowWillClose`
-
----
-
-## 8. Automated Verification Actually Executed
+## 6. Automated Verification Actually Executed
 
 | Check | Result |
 |-------|--------|
-| `xcrun swiftc` compilation (arm64, macOS 15 target) | **Pass** — exit code 0, no errors, no warnings |
-| Build exit code 0 | **Pass** |
-| Binary exists in `.app` bundle | **Pass** — `AlcoveSpike` Mach-O arm64, 185KB |
+| Swift 6 strict-concurrency `xcrun swiftc` compilation (arm64, macOS 15 target) — app | **Pass** — exit code 0, warnings treated as errors |
+| Swift 6 strict-concurrency `xcrun swiftc` compilation (arm64, macOS 15 target) — tests | **Pass** — exit code 0, warnings treated as errors |
+| App binary exists in `.app` bundle | **Pass** — `AlcoveSpike` Mach-O arm64 |
 | Info.plist contains `LSUIElement = YES` | **Pass** |
-| Ad-hoc code signing | **Pass** — `xcrun codesign --force --sign -`, confirmed `flags=0x2(adhoc)` |
-| Source files contain no force unwraps | **Verified by inspection** — `!flag` is logical negation, not a force unwrap |
+| Ad-hoc code signing | **Pass** — build script `xcrun codesign --force --sign -` succeeded |
+| Source files contain no force unwraps | **Verified by inspection** |
 | Source files contain no `as!` casts | **Verified by inspection** |
 | Modification boundary respected | **Verified by inspection** — only files within allowed paths |
+| **Structural tests (66 assertions)** | **All pass** — see §7 |
+
+### 6.1 Structural Tests Prove
+
+The `Tests/main.swift` executable verifies these model properties without GUI or system interaction:
+
+1. Preset identifiers are unique across all 6 presets.
+2. Preset names are unique across all 6 presets.
+3. Normal Baseline has `.normal` window level and empty (minimal) collection behavior.
+4. Desktop Candidate retains `desktopIconWindow + 1`, `.canJoinAllSpaces`, `.stationary`, `.ignoresCycle`, and key eligibility — preserving the Phase 0.1A configuration exactly.
+5. Every preset's emitted `collectionBehavior` matches an independently declared expected flag set.
+6. Every preset's `windowLevel` accessor matches its typed configuration.
+7. Every preset's `isKeyEligible` accessor matches its typed configuration.
+8. At least one preset includes `.stationary`.
+9. At least one preset includes `.moveToActiveSpace`.
+10. At least one preset includes `.fullScreenAuxiliary`.
+11. At least one preset includes `.canJoinAllSpaces`.
+12. At least one preset omits `.canJoinAllSpaces`.
+13. At least one preset is key-eligible.
+14. At least one preset is key-ineligible.
+15. No preset combines `.stationary` and `.moveToActiveSpace`.
+16. No preset combines `.canJoinAllSpaces` and `.moveToActiveSpace`.
+17. All non-normal presets use `desktopIconWindow + 1` level.
+18. All non-normal desktop presets include `.ignoresCycle`.
+19. The concrete `NSWindow` subclass reports configured key eligibility for both allowed values.
+20. Closing the controller's concrete window notifies its lifecycle owner exactly once.
 
 ---
 
-## 9. Manual Verification Not Yet Executed
+## 7. Manual Verification Not Yet Executed
 
 The following require real macOS GUI interaction and **cannot** be verified by headless automation:
 
@@ -186,80 +201,63 @@ The following require real macOS GUI interaction and **cannot** be verified by h
 | Full-screen applications | **Unverified** |
 | Lock screen | **Unverified** |
 | Sleep / wake | **Unverified** |
-| Diagnostics values update correctly | **Unverified** |
+| Key-eligible presets can actually become key | **Unverified** |
+| Key-ineligible presets accurately return false from canBecomeKey | **Unverified** |
+| Diagnostics values update correctly on all events | **Unverified** |
 | Menu shortcuts all functional | **Unverified** |
-| Window recreation lifecycle | **Unverified** |
+| Window recreation lifecycle preserves preset | **Unverified** |
+| Preset switching applies correct behavior | **Unverified** |
 
 ---
 
-## 10. Known Issues
+## 8. Known Issues
 
-1. **No automated GUI assertions.** Compilation and artifact checks passed, but Claude did not execute GUI interaction tests.
+1. **No automated GUI assertions.** Compilation, artifact checks, and structural model tests passed, but Claude did not execute GUI interaction tests.
 2. **Single architecture.** Build targets `arm64` only. Universal binary (arm64 + x86_64) is deferred to production.
-3. **No NSPanel comparison.** Both strategies use `NSWindow`. The `NSWindow` vs `NSPanel` comparison is a required future spike item.
-4. **No key-window eligibility control.** Both strategies allow the window to become key. The "allow vs prohibit key-window" comparison is a required future spike item.
-5. **No `.moveToActiveSpace` or `.fullScreenAuxiliary` strategies.** These are required future comparison items for the full spike.
-6. **Diagnostics update on move/resize may lag** during rapid interaction due to notification coalescing.
-7. **Limited reactivation path.** With `LSUIElement = YES` and no status item, the app has no Dock or normal Command-Tab entry. Recreate works from the application menu while it remains active, but reactivation after closing and deactivating remains unverified.
-8. **Dark material only.** No light-mode or accessibility (Reduce Transparency) adaptation.
+3. **Phase 0.1C not implemented.** `NSWindow` versus `NSPanel` comparison belongs to Phase 0.1C.
+4. **No runtime key-window activation verification.** The `AlcoveSpikeWindow.canBecomeKey` override is structurally correct but not runtime-verified.
+5. **Diagnostics update on move/resize may lag** during rapid interaction due to notification coalescing.
+6. **Limited reactivation path.** With `LSUIElement = YES` and no status item, the app has no Dock or normal Command-Tab entry.
+7. **Dark material only.** No light-mode or accessibility (Reduce Transparency) adaptation.
 
 ---
 
-## 11. Strategies Still Required for Full Spike 0.1
+## 9. Phase 0.1C Is Not Implemented
 
-The full spike must compare these additional combinations:
-
-| # | Comparison | Status |
-|---|-----------|--------|
-| 1 | `.stationary` behavior | Candidate implemented; manual testing pending |
-| 2 | `.moveToActiveSpace` behavior | **Not implemented** |
-| 3 | `.fullScreenAuxiliary` behavior | **Not implemented** |
-| 4 | With vs without `.canJoinAllSpaces` | **Not implemented** (only "with" is tested) |
-| 5 | `NSWindow` vs `NSPanel` | **Not implemented** |
-| 6 | Key-window eligibility (allow vs prohibit) | **Not implemented** |
+Phase 0.1C — `NSWindow` versus `NSPanel` comparison — is **not yet implemented**. The current harness uses `NSWindow` (via `AlcoveSpikeWindow` subclass) for all presets. Adding `NSPanel` as an alternative window class with its own key-window and activation behavior is future work.
 
 ---
 
-## 12. Phase 0.1 Is Not Complete
+## 10. Full Spike 0.1 Remains Incomplete
 
-**Phase 0.1 is not complete.** This document records only the Phase 0.1A bootstrap:
+**Full Spike 0.1 is not complete.** What has been accomplished:
 
-- The harness is built and source-verified but not runtime-verified.
-- Only 2 of the required 6+ strategy comparisons are implemented.
-- Zero manual GUI tests have been executed.
-- No evidence has been recorded for Show Desktop, Spaces, Stage Manager, full-screen, lock, or sleep/wake behavior.
-- No architecture or product-scope decision can be made from this phase alone.
+- Phase 0.1A: harness bootstrap and initial 2-strategy comparison.
+- Phase 0.1B: typed strategy model, 6 focused presets covering all required dimensions, runtime switching, diagnostics with intent-vs-actual display, key-window eligibility control, and 66 automated structural assertions after Codex review.
 
-The full Spike 0.1 requires:
-1. Implementing additional strategy switches (at minimum: `.moveToActiveSpace`, `.fullScreenAuxiliary`, with/without `.canJoinAllSpaces`, `NSPanel`, key-window eligibility).
-2. Manually testing every strategy across all required system transitions.
-3. Recording observations in this document.
-4. Selecting the evidence-backed window configuration (or declaring feasibility failure).
+What remains:
+
+1. **Phase 0.1C:** `NSWindow` versus `NSPanel` comparison (not implemented).
+2. **Manual system-transition testing:** Every preset must be tested against Show Desktop, Spaces, Mission Control, Stage Manager, full-screen, lock, and sleep/wake on real hardware.
+3. **Architecture decision:** Select the evidence-backed window strategy from measured results, or declare feasibility failure.
+4. **No evidence has been recorded** for any system transition behavior.
+5. **No architecture or product-scope decision** can be made from automated tests alone.
 
 ---
 
-## 13. Future Comparison List (Minimum Required)
+## 11. Required Operations
 
-For the full Spike 0.1, the harness must support runtime switching between at least:
+All operations are available via menu commands (⌘ shortcuts):
 
-- `.stationary` (implemented as part of Desktop Candidate)
-- `.moveToActiveSpace`
-- `.fullScreenAuxiliary`
-- With `.canJoinAllSpaces` (implemented)
-- Without `.canJoinAllSpaces`
-- `NSWindow` (implemented)
-- `NSPanel`
-- Key-window allowed (implemented)
-- Key-window prohibited (via `NSWindow.Level` or `NSPanel` style)
-
-Each combination must be tested against:
-- Finder desktop icon layer ordering
-- Normal application window coverage
-- Click, move, resize behavior
-- Space switching
-- Show Desktop
-- Mission Control
-- Stage Manager
-- Full-screen applications
-- Lock/unlock
-- Sleep/wake
+| Operation | Shortcut | Implementation |
+|-----------|----------|----------------|
+| Normal Baseline | ⌘1 | Switch to `.normal` level, no collection behavior |
+| Desktop Candidate | ⌘2 | Switch to original Phase 0.1A candidate |
+| Desktop (No JoinAllSpaces) | ⌘3 | Desktop candidate without `.canJoinAllSpaces` |
+| Desktop (MoveToActiveSpace) | ⌘4 | `.moveToActiveSpace` instead of `.stationary` |
+| Desktop (No Key) | ⌘5 | Desktop candidate with key-window disabled |
+| Desktop (FullScreenAuxiliary) | ⌘6 | Desktop candidate with `.fullScreenAuxiliary` |
+| Activate / Make Key | ⌘A | Activates the app, then uses `makeKeyAndOrderFront` for eligible presets or `orderFront` for non-key presets |
+| Close Window | ⌘W | Closes window; the close callback clears the controller owner reference |
+| Recreate Window | ⌘N | Closes existing (if any), creates fresh controller + window |
+| Quit | ⌘Q | Standard `NSApplication.terminate` |

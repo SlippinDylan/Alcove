@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phase 0.1A produced and independently verified a disposable AppKit desktop-window harness. Full Spike 0.1 remains in progress; Phase 0.1B is the next implementation unit. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phase 0.1A bootstrapped the disposable AppKit desktop-window harness, and Phase 0.1B added the independently verified `NSWindow` strategy model. Full Spike 0.1 remains in progress; Phase 0.1C is the next implementation unit. No production Alcove module has started.
 
 ## 1. What We Are Building
 
@@ -62,6 +62,19 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Phase 0.1B expanded the disposable `NSWindow` harness without selecting a production strategy:
+
+- Added six focused presets covering stationary, move-to-active-Space, full-screen auxiliary, all-Spaces membership, and key eligibility.
+- Replaced unchecked collection flag combinations with typed Space behavior and stable preset identifiers.
+- Added a configurable `NSWindow.canBecomeKey` subclass and diagnostics that separate configured intent from actual state.
+- Added Swift 6 strict-concurrency builds with warnings treated as errors and 66 structural assertions.
+- Preserved selected strategy across close/recreate and cleared controller ownership for both menu and titlebar close paths.
+- Independently rebuilt, inspected, launched, and normally quit the app after Codex review fixes.
+
+Phase 0.1B is complete as an automated strategy-model work unit. It did not validate Spaces or system-transition behavior, resolve full Spike 0.1, select a production window strategy, or begin production implementation.
+
+### Earlier Phase 0.1A bootstrap
 
 Phase 0.1A validated the bounded Claude Code + Xiaomi MiMo implementation workflow and bootstrapped the disposable desktop-window harness:
 
@@ -175,7 +188,7 @@ Temporary system eviction to another display must never overwrite the user's rem
 
 The production architecture cannot be locked until Spikes 0.1–0.5 are resolved. Phase 0 is now active, but full Spike 0.1 still lacks its strategy matrix and manual system-transition evidence.
 
-Phase 0.1B next expands the `NSWindow` strategy model for `.stationary`, `.moveToActiveSpace`, `.fullScreenAuxiliary`, optional `.canJoinAllSpaces`, and key-window eligibility. Phase 0.1C then compares `NSWindow` and `NSPanel` separately. GUI evidence requiring Show Desktop, Spaces, Mission Control, Stage Manager, full-screen, lock, or sleep/wake remains a manual gate rather than an automated pass.
+Phase 0.1B now provides the `NSWindow` strategy model for `.stationary`, `.moveToActiveSpace`, `.fullScreenAuxiliary`, optional `.canJoinAllSpaces`, and key-window eligibility. Phase 0.1C next compares `NSWindow` and `NSPanel` separately. GUI evidence requiring Show Desktop, Spaces, Mission Control, Stage Manager, full-screen, lock, or sleep/wake remains a manual gate rather than an automated pass.
 
 ### Product-and-architecture gate
 
@@ -236,6 +249,8 @@ The current baseline verification includes:
 - Phase 0.1A builds with minimum macOS 15.0 using Xcode 26.6 / SDK 26.5.
 - The generated app passes Info.plist, dependency, and ad-hoc signature inspection.
 - The generated app launches and exits through a normal Quit event.
+- Phase 0.1B passes 66 strategy/window/lifecycle assertions and both app/test targets compile in Swift 6 strict-concurrency mode with warnings treated as errors.
+- Phase 0.1B independently launches and exits normally after Codex review corrected conflicting Space semantics, MainActor isolation, non-key ordering, and close ownership.
 - `git diff --check` passes before each commit.
 
 Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless the user explicitly requests it. Do not delete `.DS_Store` unless explicitly asked.
@@ -244,13 +259,12 @@ Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless th
 
 The immediate next work is:
 
-1. Complete Phase 0.1B: `NSWindow` strategy data model, combinations, runtime switching, diagnostics, and automated structural tests.
-2. Complete Phase 0.1C: `NSWindow` versus `NSPanel`, key eligibility, activation, and lifecycle harness support.
-3. Record a reproducible manual matrix for all required desktop/system transitions; do not call unexecuted cells passes.
-4. Continue every independent automated part of Spikes 0.2–0.5 while manual Spike 0.1 evidence remains outstanding.
-5. Update the candidate architecture only from recorded spike evidence and lock it only after the product-and-architecture gate resolves.
-6. Implement the ten Phase 1 vertical slices only after their documented entry gates pass.
-7. Run Spike 0.6 independently before the first public release.
+1. Complete Phase 0.1C: `NSWindow` versus `NSPanel`, key eligibility, activation, and lifecycle harness support.
+2. Record a reproducible manual matrix for all required desktop/system transitions; do not call unexecuted cells passes.
+3. Continue every independent automated part of Spikes 0.2–0.5 while manual Spike 0.1 evidence remains outstanding.
+4. Update the candidate architecture only from recorded spike evidence and lock it only after the product-and-architecture gate resolves.
+5. Implement the ten Phase 1 vertical slices only after their documented entry gates pass.
+6. Run Spike 0.6 independently before the first public release.
 
 Do not resurrect the old infrastructure-first sequence. The first user-visible value after App Shell is a minimal single Portal, not a complete persistence/migration/display foundation.
 

@@ -1,5 +1,5 @@
 // AppDelegate.swift
-// Alcove Spike 0.1 — Desktop Window Experiment
+// Alcove Spike 0.1B — Desktop Window Strategy Model
 // Disposable harness; not production architecture.
 
 import AppKit
@@ -10,18 +10,22 @@ import AppKit
 /// nils the reference so the controller and window are deallocated cleanly;
 /// "Recreate" creates a fresh instance. This avoids dangling/deallocated
 /// controller problems.
+///
+/// Phase 0.1B: all preset menu actions dispatch through a single `switchToPreset`
+/// method. The selected preset is preserved across close/recreate.
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Properties
 
-    private var currentStrategy: WindowStrategy = .desktopCandidate
+    private var currentPreset: StrategyPreset = .desktopCandidate
     private var controller: ExperimentWindowController?
 
     // MARK: - NSApplicationDelegate
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenu()
-        createAndShowWindow(strategy: currentStrategy)
+        createAndShowWindow(preset: currentPreset)
     }
 
     func applicationShouldHandleReopen(
@@ -29,7 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ) -> Bool {
         if !flag {
             if controller == nil {
-                createAndShowWindow(strategy: currentStrategy)
+                createAndShowWindow(preset: currentPreset)
             } else {
                 controller?.showAndActivate()
             }
@@ -55,27 +59,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitItem.keyEquivalentModifierMask = .command
         appMenu.addItem(quitItem)
 
-        // Strategy menu
+        // Strategy menu — one entry per preset
         let strategyMenu = NSMenu(title: "Strategy")
         let strategyMenuItem = NSMenuItem()
         strategyMenuItem.submenu = strategyMenu
         mainMenu.addItem(strategyMenuItem)
 
-        let normalItem = NSMenuItem(
-            title: "Normal Baseline",
-            action: #selector(switchToNormalBaseline),
-            keyEquivalent: "1")
-        normalItem.target = self
-        normalItem.keyEquivalentModifierMask = .command
-        strategyMenu.addItem(normalItem)
-
-        let desktopItem = NSMenuItem(
-            title: "Desktop Candidate",
-            action: #selector(switchToDesktopCandidate),
-            keyEquivalent: "2")
-        desktopItem.target = self
-        desktopItem.keyEquivalentModifierMask = .command
-        strategyMenu.addItem(desktopItem)
+        for preset in StrategyPreset.allCases {
+            let item = NSMenuItem(
+                title: preset.description,
+                action: #selector(switchPresetFromMenu(_:)),
+                keyEquivalent: preset.menuKeyEquivalent
+            )
+            item.target = self
+            item.keyEquivalentModifierMask = .command
+            item.representedObject = preset
+            strategyMenu.addItem(item)
+        }
 
         strategyMenu.addItem(NSMenuItem.separator())
 
@@ -114,35 +114,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Window Management
 
-    private func createAndShowWindow(strategy: WindowStrategy) {
-        let ctrl = ExperimentWindowController(strategy: strategy)
+    private func createAndShowWindow(preset: StrategyPreset) {
+        let ctrl = ExperimentWindowController(preset: preset)
+        ctrl.onWindowWillClose = { [weak self, weak ctrl] in
+            guard let self, self.controller === ctrl else { return }
+            self.controller = nil
+        }
         controller = ctrl
         ctrl.showAndActivate()
     }
 
     // MARK: - Menu Actions
 
-    @objc private func switchToNormalBaseline() {
-        switchStrategy(.normalBaseline)
+    @objc private func switchPresetFromMenu(_ sender: NSMenuItem) {
+        guard let preset = sender.representedObject as? StrategyPreset else { return }
+        switchToPreset(preset)
     }
 
-    @objc private func switchToDesktopCandidate() {
-        switchStrategy(.desktopCandidate)
-    }
+    private func switchToPreset(_ newPreset: StrategyPreset) {
+        guard newPreset != currentPreset else { return }
+        currentPreset = newPreset
 
-    private func switchStrategy(_ newStrategy: WindowStrategy) {
-        guard newStrategy != currentStrategy else { return }
-        currentStrategy = newStrategy
-
-        // Tear down old window, create new one with the new strategy.
+        // Tear down old window, create new one with the new preset.
         controller?.close()
         controller = nil
-        createAndShowWindow(strategy: currentStrategy)
+        createAndShowWindow(preset: currentPreset)
     }
 
     @objc private func activateApp() {
         if controller == nil {
-            createAndShowWindow(strategy: currentStrategy)
+            createAndShowWindow(preset: currentPreset)
         } else {
             controller?.showAndActivate()
         }
@@ -150,9 +151,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func closeWindow() {
         controller?.close()
-        // controller reference remains until explicitly nilled;
-        // windowWillClose fires but does not deallocate us.
-        // Nil it now so recreate creates fresh.
         controller = nil
     }
 
@@ -161,6 +159,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             controller?.close()
             controller = nil
         }
-        createAndShowWindow(strategy: currentStrategy)
+        createAndShowWindow(preset: currentPreset)
     }
 }

@@ -9,14 +9,14 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [x] Requirements, research, candidate architecture, delivery plan, README, and HANDOFF reviewed.
 - [x] Palmos `.gitignore` and macOS/Xcode/Swift build layout inspected read-only.
 - [x] Alcove `.gitignore` covers local memory, logs, build products, user state, local configuration, and credentials.
-- [ ] Initial local baseline commit created.
+- [x] Initial local baseline commit created.
 
 ## Phase 0 — Technical Spikes
 
 ### Spike 0.1 — Desktop Window Behavior
 
 - [x] Phase 0.1A disposable AppKit harness created, built, inspected, launched, and quit.
-- [ ] Phase 0.1B `NSWindow` strategy model and switchable combinations complete.
+- [x] Phase 0.1B `NSWindow` strategy model and switchable combinations complete.
 - [ ] Phase 0.1C `NSWindow`/`NSPanel` and key-window lifecycle comparison complete.
 - [ ] Finder icon and normal-window layer ordering manually recorded.
 - [ ] Spaces, Show Desktop, and Mission Control manually recorded.
@@ -93,3 +93,5 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 
 - 2026-08-02: Phase 0.1A independently rebuilt with Xcode 26.6 / SDK 26.5, minimum macOS 15.0; app launch and normal quit passed.
 - 2026-08-02: Long-running unattended development mode started; `.gitignore` prepared for the initial baseline commit.
+- 2026-08-02: Created local baseline commit `efecc73`; no push performed.
+- 2026-08-02: Phase 0.1B passed 66 Swift 6 strict-concurrency assertions, clean app build, artifact inspection, launch, and normal quit after Codex review fixes.

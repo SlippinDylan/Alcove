@@ -13,7 +13,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 > **Phase 0 — Technical Spikes**
 >
 > The documentation baseline is complete and the disposable AppKit desktop-window harness is
-> under active development. Phase 0.1A is verified; full Spike 0.1 and the remaining product-and-
+> under active development. Phases 0.1A and 0.1B are verified; full Spike 0.1 and the remaining product-and-
 > architecture spikes are still in progress. Production Alcove modules have not started.
 
 ## Platform

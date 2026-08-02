@@ -14,6 +14,7 @@ CONTENTS_DIR="${APP_BUNDLE}/Contents"
 
 SOURCES=(
     "${SCRIPT_DIR}/Sources/WindowStrategy.swift"
+    "${SCRIPT_DIR}/Sources/AlcoveSpikeWindow.swift"
     "${SCRIPT_DIR}/Sources/DiagnosticsView.swift"
     "${SCRIPT_DIR}/Sources/ExperimentWindowController.swift"
     "${SCRIPT_DIR}/Sources/AppDelegate.swift"
@@ -30,6 +31,9 @@ mkdir -p "${MACOS_DIR}"
 # Compile
 echo "Compiling..."
 xcrun swiftc \
+    -swift-version 6 \
+    -strict-concurrency=complete \
+    -warnings-as-errors \
     -target arm64-apple-macosx15.0 \
     -framework AppKit \
     -framework CoreGraphics \
