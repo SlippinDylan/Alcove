@@ -1,5 +1,5 @@
 // AlcoveSpikeWindow.swift
-// Alcove Spike 0.1B — Desktop Window Strategy Model
+// Alcove Spike 0.1C — Desktop Window Class Comparison
 // Disposable harness; not production architecture.
 
 import AppKit

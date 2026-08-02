@@ -1,5 +1,5 @@
 // ExperimentWindowController.swift
-// Alcove Spike 0.1B — Desktop Window Strategy Model
+// Alcove Spike 0.1C — Desktop Window Class Comparison
 // Disposable harness; not production architecture.
 
 import AppKit
@@ -15,15 +15,17 @@ final class ExperimentWindowController: NSWindowController, NSWindowDelegate {
     // MARK: - Properties
 
     let preset: StrategyPreset
+    let windowClass: WindowClassCandidate
     var onWindowWillClose: (() -> Void)?
     private let diagnosticsView = DiagnosticsView()
 
     // MARK: - Initialization
 
-    init(preset: StrategyPreset) {
+    init(preset: StrategyPreset, windowClass: WindowClassCandidate) {
         self.preset = preset
+        self.windowClass = windowClass
 
-        let window = Self.makeWindow(preset: preset)
+        let window = Self.makeWindow(preset: preset, windowClass: windowClass)
         super.init(window: window)
 
         window.delegate = self
@@ -39,19 +41,43 @@ final class ExperimentWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: - Window Factory
 
-    private static func makeWindow(preset: StrategyPreset) -> AlcoveSpikeWindow {
+    /// Creates the actual runtime window for the given preset and window class.
+    ///
+    /// Both `NSWindow` and `NSPanel` share one construction path after creation.
+    /// Class-specific setup (e.g., panel experimental properties) branches only
+    /// where the class actually requires it.
+    private static func makeWindow(
+        preset: StrategyPreset,
+        windowClass: WindowClassCandidate
+    ) -> NSWindow {
         let contentRect = NSRect(x: 200, y: 200, width: 600, height: 500)
         let styleMask: NSWindow.StyleMask = [
             .resizable, .titled, .closable, .miniaturizable,
         ]
-        let window = AlcoveSpikeWindow(
-            contentRect: contentRect,
-            styleMask: styleMask,
-            backing: .buffered,
-            defer: false,
-            isKeyEligible: preset.isKeyEligible
-        )
-        window.title = "Alcove Spike — \(preset.description)"
+
+        let window: NSWindow
+        switch windowClass {
+        case .nsWindow:
+            window = AlcoveSpikeWindow(
+                contentRect: contentRect,
+                styleMask: styleMask,
+                backing: .buffered,
+                defer: false,
+                isKeyEligible: preset.isKeyEligible
+            )
+        case .nsPanel:
+            let panel = AlcoveSpikePanel(
+                contentRect: contentRect,
+                styleMask: styleMask,
+                backing: .buffered,
+                defer: false,
+                isKeyEligible: preset.isKeyEligible
+            )
+            window = panel
+        }
+
+        // Shared setup — applies to both classes identically.
+        window.title = "Alcove Spike — \(preset.description) [\(windowClass.displayName)]"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
@@ -181,11 +207,12 @@ final class ExperimentWindowController: NSWindowController, NSWindowDelegate {
     // MARK: - Diagnostics Refresh
 
     private func refreshDiagnostics() {
-        let spikeWindow = window as? AlcoveSpikeWindow
+        let actualCanBecomeKey = window?.canBecomeKey ?? false
         diagnosticsView.refresh(
             preset: preset,
+            windowClass: windowClass,
             window: window,
-            actualCanBecomeKey: spikeWindow?.canBecomeKey ?? false,
+            actualCanBecomeKey: actualCanBecomeKey,
             activationPolicy: NSApp.activationPolicy()
         )
     }

@@ -1,10 +1,12 @@
 // StrategyPresetTests.swift
-// Alcove Spike 0.1B — Structural strategy model tests.
-// Compiles with WindowStrategy.swift to verify model invariants without GUI.
+// Alcove Spike 0.1C — Structural strategy and window-class model tests.
+// Compiles with WindowStrategy.swift, WindowClassCandidate.swift, and subclasses
+// to verify model invariants without GUI.
 //
-// This test executable verifies structural properties of the strategy model.
-// It does NOT test GUI behavior, Spaces, Show Desktop, key-window activation,
-// or any system-level transitions — those require manual verification.
+// This test executable verifies structural properties of the strategy model
+// and the window-class comparison model. It does NOT test GUI behavior, Spaces,
+// Show Desktop, key-window activation, or any system-level transitions — those
+// require manual verification.
 
 import AppKit
 import CoreGraphics
@@ -40,7 +42,7 @@ let desktopIconWindowLevel = NSWindow.Level(
     rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1
 )
 
-// MARK: - Tests
+// MARK: - Strategy Preset Tests (Phase 0.1B — preserved)
 
 @MainActor func testPresetIdentifiersAreUnique() {
     let identifiers = StrategyPreset.allCases.map { $0.identifier }
@@ -101,8 +103,6 @@ let desktopIconWindowLevel = NSWindow.Level(
 }
 
 @MainActor func testCollectionBehaviorMatchesTypedConfiguration() {
-    // Verify that every preset's collectionBehavior matches its typed
-    // configuration — no flags are added or lost in the property accessor.
     for preset in StrategyPreset.allCases {
         assertEqual(
             preset.collectionBehavior,
@@ -222,7 +222,6 @@ let desktopIconWindowLevel = NSWindow.Level(
 }
 
 @MainActor func testAllDesktopPresetsUseDesktopIconWindowPlusOne() {
-    // Every non-normal preset should use the desktop candidate level.
     for preset in StrategyPreset.allCases where preset != .normalBaseline {
         assertEqual(
             preset.windowLevel, desktopIconWindowLevel,
@@ -232,7 +231,6 @@ let desktopIconWindowLevel = NSWindow.Level(
 }
 
 @MainActor func testAllDesktopPresetsHaveIgnoresCycle() {
-    // Every non-normal desktop preset should have .ignoresCycle.
     for preset in StrategyPreset.allCases where preset != .normalBaseline {
         assert(
             preset.collectionBehavior.contains(.ignoresCycle),
@@ -240,6 +238,8 @@ let desktopIconWindowLevel = NSWindow.Level(
         )
     }
 }
+
+// MARK: - Phase 0.1B Window Subclass Tests (preserved)
 
 @MainActor func testWindowSubclassReportsConfiguredKeyEligibility() {
     let contentRect = NSRect(x: 0, y: 0, width: 100, height: 100)
@@ -257,13 +257,13 @@ let desktopIconWindowLevel = NSWindow.Level(
         defer: false,
         isKeyEligible: false
     )
-    assert(eligibleWindow.canBecomeKey, "Key-eligible window must report canBecomeKey")
-    assert(!ineligibleWindow.canBecomeKey, "Key-ineligible window must reject canBecomeKey")
+    assert(eligibleWindow.canBecomeKey, "Key-eligible NSWindow must report canBecomeKey")
+    assert(!ineligibleWindow.canBecomeKey, "Key-ineligible NSWindow must reject canBecomeKey")
 }
 
 @MainActor func testControllerSignalsWindowClose() {
     _ = NSApplication.shared
-    let controller = ExperimentWindowController(preset: .normalBaseline)
+    let controller = ExperimentWindowController(preset: .normalBaseline, windowClass: .nsWindow)
     var closeCallbackCount = 0
     controller.onWindowWillClose = {
         closeCallbackCount += 1
@@ -272,15 +272,262 @@ let desktopIconWindowLevel = NSWindow.Level(
     assertEqual(
         closeCallbackCount,
         1,
-        "Controller must notify its owner exactly once when the window closes"
+        "NSWindow controller must notify its owner exactly once when the window closes"
     )
+}
+
+// MARK: - Phase 0.1C Window Class Candidate Tests
+
+func expectedRuntimeTypeName(for candidate: WindowClassCandidate) -> String {
+    switch candidate {
+    case .nsWindow: return "AlcoveSpikeWindow"
+    case .nsPanel: return "AlcoveSpikePanel"
+    }
+}
+
+@MainActor
+func runtimeClassMatches(
+    _ window: NSWindow?,
+    candidate: WindowClassCandidate
+) -> Bool {
+    switch candidate {
+    case .nsWindow: return window is AlcoveSpikeWindow
+    case .nsPanel: return window is AlcoveSpikePanel
+    }
+}
+
+@MainActor func testExactlyTwoClassCandidatesExist() {
+    assertEqual(
+        WindowClassCandidate.allCases.count, 2,
+        "Exactly two window class candidates must exist"
+    )
+}
+
+@MainActor func testClassCandidateIdentifiersAreUnique() {
+    let identifiers = WindowClassCandidate.allCases.map { $0.identifier }
+    let unique = Set(identifiers)
+    assertEqual(
+        identifiers.count, unique.count,
+        "Window class candidate identifiers must be unique"
+    )
+}
+
+@MainActor func testClassCandidateDisplayNamesAreUnique() {
+    let names = WindowClassCandidate.allCases.map { $0.displayName }
+    let unique = Set(names)
+    assertEqual(
+        names.count, unique.count,
+        "Window class candidate display names must be unique"
+    )
+}
+
+@MainActor func testFactoryCreatesCorrectRuntimeClass() {
+    let expectedStyleMask: NSWindow.StyleMask = [
+        .resizable, .titled, .closable, .miniaturizable,
+    ]
+    for windowClass in WindowClassCandidate.allCases {
+        let controller = ExperimentWindowController(
+            preset: .normalBaseline,
+            windowClass: windowClass
+        )
+        assert(
+            runtimeClassMatches(controller.window, candidate: windowClass),
+            "Factory must create the concrete runtime type requested by \(windowClass.displayName)"
+        )
+        assertEqual(
+            controller.window?.styleMask,
+            expectedStyleMask,
+            "Both class candidates must use the same reviewed style mask"
+        )
+        controller.close()
+    }
+}
+
+@MainActor func testPanelSubclassReportsConfiguredKeyEligibility() {
+    let contentRect = NSRect(x: 0, y: 0, width: 100, height: 100)
+    let eligiblePanel = AlcoveSpikePanel(
+        contentRect: contentRect,
+        styleMask: [.titled],
+        backing: .buffered,
+        defer: false,
+        isKeyEligible: true
+    )
+    let ineligiblePanel = AlcoveSpikePanel(
+        contentRect: contentRect,
+        styleMask: [.titled],
+        backing: .buffered,
+        defer: false,
+        isKeyEligible: false
+    )
+    assert(eligiblePanel.canBecomeKey, "Key-eligible NSPanel must report canBecomeKey")
+    assert(!ineligiblePanel.canBecomeKey, "Key-ineligible NSPanel must reject canBecomeKey")
+}
+
+@MainActor func testDiagnosticsLabelsComeFromClassCandidateNotStrategyLabel() {
+    for windowClass in WindowClassCandidate.allCases {
+        let controller = ExperimentWindowController(
+            preset: .desktopCandidate,
+            windowClass: windowClass
+        )
+        let diagnostics = DiagnosticsView()
+        diagnostics.refresh(
+            preset: controller.preset,
+            windowClass: controller.windowClass,
+            window: controller.window,
+            actualCanBecomeKey: controller.window?.canBecomeKey ?? false,
+            activationPolicy: NSApp.activationPolicy()
+        )
+        let output = diagnostics.attributedStringValue.string
+        assert(
+            output.contains("Window Class: \(windowClass.displayName)"),
+            "Diagnostics must render the configured typed class label"
+        )
+        assert(
+            output.contains("Window Type: \(expectedRuntimeTypeName(for: windowClass))"),
+            "Diagnostics must render the actual concrete runtime type"
+        )
+        controller.close()
+    }
+}
+
+@MainActor func testAllSixPresetsAvailableWithBothClasses() {
+    // Every strategy preset must be constructible with either window class.
+    // This verifies the enum cases cover the required set.
+    assertEqual(
+        StrategyPreset.allCases.count, 6,
+        "All six strategy presets must remain available"
+    )
+    for windowClass in WindowClassCandidate.allCases {
+        for preset in StrategyPreset.allCases {
+            let controller = ExperimentWindowController(
+                preset: preset, windowClass: windowClass
+            )
+            assert(
+                controller.preset == preset,
+                "\(windowClass.displayName) + \(preset.identifier): preset must be preserved"
+            )
+            assert(
+                controller.windowClass == windowClass,
+                "\(windowClass.displayName) + \(preset.identifier): window class must be preserved"
+            )
+            assert(
+                runtimeClassMatches(controller.window, candidate: windowClass),
+                "\(windowClass.displayName) + \(preset.identifier): factory runtime class must match"
+            )
+            controller.close()
+        }
+    }
+}
+
+@MainActor func testPanelExperimentalPropertiesAreApplied() {
+    let controller = ExperimentWindowController(
+        preset: .desktopCandidate,
+        windowClass: .nsPanel
+    )
+    defer { controller.close() }
+    guard let panel = controller.window as? AlcoveSpikePanel else {
+        assert(false, "Panel candidate factory must return AlcoveSpikePanel")
+        return
+    }
+    assert(!panel.isFloatingPanel, "Panel candidate must disable the floating-panel flag")
+    assert(!panel.hidesOnDeactivate, "Panel candidate must request visibility on deactivation")
+}
+
+@MainActor func testBothClassesWithNormalBaseline() {
+    _ = NSApplication.shared
+    for windowClass in WindowClassCandidate.allCases {
+        let controller = ExperimentWindowController(
+            preset: .normalBaseline, windowClass: windowClass
+        )
+        let window = controller.window
+        assertEqual(
+            window?.level, .normal,
+            "\(windowClass.displayName) + Normal Baseline: level must be .normal"
+        )
+        assert(
+            window?.collectionBehavior.isEmpty == true,
+            "\(windowClass.displayName) + Normal Baseline: collection behavior must be empty"
+        )
+        controller.close()
+    }
+}
+
+@MainActor func testBothClassesWithDesktopCandidate() {
+    _ = NSApplication.shared
+    for windowClass in WindowClassCandidate.allCases {
+        let controller = ExperimentWindowController(
+            preset: .desktopCandidate, windowClass: windowClass
+        )
+        let window = controller.window
+        assertEqual(
+            window?.level, desktopIconWindowLevel,
+            "\(windowClass.displayName) + Desktop Candidate: level must be desktopIconWindow + 1"
+        )
+        assert(
+            window?.collectionBehavior.contains(.canJoinAllSpaces) == true,
+            "\(windowClass.displayName) + Desktop Candidate: must have .canJoinAllSpaces"
+        )
+        assert(
+            window?.collectionBehavior.contains(.stationary) == true,
+            "\(windowClass.displayName) + Desktop Candidate: must have .stationary"
+        )
+        assert(
+            window?.collectionBehavior.contains(.ignoresCycle) == true,
+            "\(windowClass.displayName) + Desktop Candidate: must have .ignoresCycle"
+        )
+        controller.close()
+    }
+}
+
+@MainActor func testBothClassesWithNoKeyPreset() {
+    _ = NSApplication.shared
+    for windowClass in WindowClassCandidate.allCases {
+        let controller = ExperimentWindowController(
+            preset: .desktopNoKey, windowClass: windowClass
+        )
+        let window = controller.window
+        assert(
+            window?.canBecomeKey == false,
+            "\(windowClass.displayName) + Desktop (No Key): canBecomeKey must be false"
+        )
+        assertEqual(
+            window?.level, desktopIconWindowLevel,
+            "\(windowClass.displayName) + Desktop (No Key): level must be desktopIconWindow + 1"
+        )
+        assert(
+            window?.collectionBehavior.contains(.canJoinAllSpaces) == true,
+            "\(windowClass.displayName) + Desktop (No Key): must have .canJoinAllSpaces"
+        )
+        assert(
+            window?.collectionBehavior.contains(.stationary) == true,
+            "\(windowClass.displayName) + Desktop (No Key): must have .stationary"
+        )
+        controller.close()
+    }
+}
+
+@MainActor func testControllerCloseFiresOnceForBothClasses() {
+    _ = NSApplication.shared
+    for windowClass in WindowClassCandidate.allCases {
+        let controller = ExperimentWindowController(
+            preset: .desktopCandidate, windowClass: windowClass
+        )
+        var closeCount = 0
+        controller.onWindowWillClose = { closeCount += 1 }
+        controller.close()
+        assertEqual(
+            closeCount, 1,
+            "\(windowClass.displayName): close callback must fire exactly once"
+        )
+    }
 }
 
 // MARK: - Run All Tests
 
-print("=== Alcove Spike 0.1B — Strategy Model Tests ===")
+print("=== Alcove Spike 0.1C — Strategy & Window Class Model Tests ===")
 print("")
 
+// Phase 0.1B strategy preset tests (preserved)
 testPresetIdentifiersAreUnique()
 testPresetNamesAreUnique()
 testNormalBaselineHasNormalLevelAndMinimalBehavior()
@@ -300,8 +547,24 @@ testNoPresetCombinesJoinAllSpacesAndMoveToActiveSpace()
 testPresetBehaviorsMatchExpectedFlags()
 testAllDesktopPresetsUseDesktopIconWindowPlusOne()
 testAllDesktopPresetsHaveIgnoresCycle()
+
+// Phase 0.1B window subclass tests (preserved)
 testWindowSubclassReportsConfiguredKeyEligibility()
 testControllerSignalsWindowClose()
+
+// Phase 0.1C window class candidate tests
+testExactlyTwoClassCandidatesExist()
+testClassCandidateIdentifiersAreUnique()
+testClassCandidateDisplayNamesAreUnique()
+testFactoryCreatesCorrectRuntimeClass()
+testPanelSubclassReportsConfiguredKeyEligibility()
+testDiagnosticsLabelsComeFromClassCandidateNotStrategyLabel()
+testAllSixPresetsAvailableWithBothClasses()
+testPanelExperimentalPropertiesAreApplied()
+testBothClassesWithNormalBaseline()
+testBothClassesWithDesktopCandidate()
+testBothClassesWithNoKeyPreset()
+testControllerCloseFiresOnceForBothClasses()
 
 print("")
 print("=== Results: \(passed) passed, \(failed) failed ===")

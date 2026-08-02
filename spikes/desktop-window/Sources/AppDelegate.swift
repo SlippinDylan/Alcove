@@ -1,5 +1,5 @@
 // AppDelegate.swift
-// Alcove Spike 0.1B — Desktop Window Strategy Model
+// Alcove Spike 0.1C — Desktop Window Class Comparison
 // Disposable harness; not production architecture.
 
 import AppKit
@@ -11,21 +11,23 @@ import AppKit
 /// "Recreate" creates a fresh instance. This avoids dangling/deallocated
 /// controller problems.
 ///
-/// Phase 0.1B: all preset menu actions dispatch through a single `switchToPreset`
-/// method. The selected preset is preserved across close/recreate.
+/// Phase 0.1C: both selected strategy preset and selected window class are
+/// preserved across close/recreate. Two independent menus allow switching
+/// strategy and window class without a Cartesian product.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Properties
 
     private var currentPreset: StrategyPreset = .desktopCandidate
+    private var currentWindowClass: WindowClassCandidate = .nsWindow
     private var controller: ExperimentWindowController?
 
     // MARK: - NSApplicationDelegate
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenu()
-        createAndShowWindow(preset: currentPreset)
+        createAndShowWindow(preset: currentPreset, windowClass: currentWindowClass)
     }
 
     func applicationShouldHandleReopen(
@@ -33,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ) -> Bool {
         if !flag {
             if controller == nil {
-                createAndShowWindow(preset: currentPreset)
+                createAndShowWindow(preset: currentPreset, windowClass: currentWindowClass)
             } else {
                 controller?.showAndActivate()
             }
@@ -87,6 +89,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         activateItem.keyEquivalentModifierMask = .command
         strategyMenu.addItem(activateItem)
 
+        // Window Class menu — one entry per class candidate
+        let classMenu = NSMenu(title: "Window Class")
+        let classMenuItem = NSMenuItem()
+        classMenuItem.submenu = classMenu
+        mainMenu.addItem(classMenuItem)
+
+        for windowClass in WindowClassCandidate.allCases {
+            let item = NSMenuItem(
+                title: windowClass.displayName,
+                action: #selector(switchWindowClassFromMenu(_:)),
+                keyEquivalent: windowClass.menuKeyEquivalent
+            )
+            item.target = self
+            item.keyEquivalentModifierMask = .command
+            item.representedObject = windowClass
+            classMenu.addItem(item)
+        }
+
         // Window menu
         let windowMenu = NSMenu(title: "Window")
         let windowMenuItem = NSMenuItem()
@@ -114,8 +134,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Window Management
 
-    private func createAndShowWindow(preset: StrategyPreset) {
-        let ctrl = ExperimentWindowController(preset: preset)
+    private func createAndShowWindow(preset: StrategyPreset, windowClass: WindowClassCandidate) {
+        let ctrl = ExperimentWindowController(preset: preset, windowClass: windowClass)
         ctrl.onWindowWillClose = { [weak self, weak ctrl] in
             guard let self, self.controller === ctrl else { return }
             self.controller = nil
@@ -136,14 +156,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         currentPreset = newPreset
 
         // Tear down old window, create new one with the new preset.
+        // Preserves the selected window class.
         controller?.close()
         controller = nil
-        createAndShowWindow(preset: currentPreset)
+        createAndShowWindow(preset: currentPreset, windowClass: currentWindowClass)
+    }
+
+    @objc private func switchWindowClassFromMenu(_ sender: NSMenuItem) {
+        guard let windowClass = sender.representedObject as? WindowClassCandidate else { return }
+        switchWindowClass(windowClass)
+    }
+
+    private func switchWindowClass(_ newClass: WindowClassCandidate) {
+        guard newClass != currentWindowClass else { return }
+        currentWindowClass = newClass
+
+        // Tear down old window, create new one with the new class.
+        // Preserves the selected strategy preset.
+        controller?.close()
+        controller = nil
+        createAndShowWindow(preset: currentPreset, windowClass: currentWindowClass)
     }
 
     @objc private func activateApp() {
         if controller == nil {
-            createAndShowWindow(preset: currentPreset)
+            createAndShowWindow(preset: currentPreset, windowClass: currentWindowClass)
         } else {
             controller?.showAndActivate()
         }
@@ -159,6 +196,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             controller?.close()
             controller = nil
         }
-        createAndShowWindow(preset: currentPreset)
+        createAndShowWindow(preset: currentPreset, windowClass: currentWindowClass)
     }
 }

@@ -1,5 +1,5 @@
 // DiagnosticsView.swift
-// Alcove Spike 0.1B — Desktop Window Strategy Model
+// Alcove Spike 0.1C — Desktop Window Class Comparison
 // Disposable harness; not production architecture.
 
 import AppKit
@@ -45,6 +45,7 @@ final class DiagnosticsView: NSTextField {
     /// Rebuilds the diagnostics display showing both configured intent and actual state.
     func refresh(
         preset: StrategyPreset,
+        windowClass: WindowClassCandidate,
         window: NSWindow?,
         actualCanBecomeKey: Bool,
         activationPolicy: NSApplication.ActivationPolicy
@@ -52,6 +53,7 @@ final class DiagnosticsView: NSTextField {
         let screen = window?.screen ?? NSScreen.main
         let isKey = window?.isKeyWindow ?? false
         let isMain = window?.isMainWindow ?? false
+        let canBecomeMain = window?.canBecomeMain ?? false
         let frame = window?.frame ?? .zero
         let screenFrame = screen?.frame ?? .zero
         let visibleFrame = screen?.visibleFrame ?? .zero
@@ -72,6 +74,7 @@ final class DiagnosticsView: NSTextField {
         let text = """
             === CONFIGURED INTENT ===
             Preset: \(preset.identifier)
+            Window Class: \(windowClass.displayName)
             Configured Level: \(preset.windowLevel.rawValue)
             Configured Behavior: \(preset.configuredBehaviorDescription)
             Configured Key Eligibility: \(preset.configuredKeyEligibilityDescription)
@@ -81,6 +84,7 @@ final class DiagnosticsView: NSTextField {
             Window Level: \(window?.level.rawValue ?? -1)
             Actual Behavior: \(actualBehaviorStr)
             canBecomeKey: \(actualCanBecomeKey)
+            canBecomeMain: \(canBecomeMain)
             isKeyWindow: \(isKey)
             isMainWindow: \(isMain)
 

@@ -17,7 +17,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 
 - [x] Phase 0.1A disposable AppKit harness created, built, inspected, launched, and quit.
 - [x] Phase 0.1B `NSWindow` strategy model and switchable combinations complete.
-- [ ] Phase 0.1C `NSWindow`/`NSPanel` and key-window lifecycle comparison complete.
+- [x] Phase 0.1C `NSWindow`/`NSPanel` and key-window lifecycle comparison complete.
 - [ ] Finder icon and normal-window layer ordering manually recorded.
 - [ ] Spaces, Show Desktop, and Mission Control manually recorded.
 - [ ] Stage Manager and full-screen behavior manually recorded.
@@ -95,3 +95,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-08-02: Long-running unattended development mode started; `.gitignore` prepared for the initial baseline commit.
 - 2026-08-02: Created local baseline commit `efecc73`; no push performed.
 - 2026-08-02: Phase 0.1B passed 66 Swift 6 strict-concurrency assertions, clean app build, artifact inspection, launch, and normal quit after Codex review fixes.
+- 2026-08-02: Phase 0.1C passed 140 Swift 6 strict-concurrency assertions, clean app build, artifact inspection, launch, and normal quit after Codex corrected proxy tests and a style-mask confounder.

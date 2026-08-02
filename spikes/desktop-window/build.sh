@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# build.sh — Alcove Spike 0.1 Desktop Window Experiment
+# build.sh — Alcove Spike 0.1C Desktop Window Class Comparison
 # Deterministic .app bundle build using swiftc.
 # Usage: bash build.sh [--run]
 
@@ -14,7 +14,9 @@ CONTENTS_DIR="${APP_BUNDLE}/Contents"
 
 SOURCES=(
     "${SCRIPT_DIR}/Sources/WindowStrategy.swift"
+    "${SCRIPT_DIR}/Sources/WindowClassCandidate.swift"
     "${SCRIPT_DIR}/Sources/AlcoveSpikeWindow.swift"
+    "${SCRIPT_DIR}/Sources/AlcoveSpikePanel.swift"
     "${SCRIPT_DIR}/Sources/DiagnosticsView.swift"
     "${SCRIPT_DIR}/Sources/ExperimentWindowController.swift"
     "${SCRIPT_DIR}/Sources/AppDelegate.swift"

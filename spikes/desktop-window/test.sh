@@ -1,15 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-# test.sh — Alcove Spike 0.1B Strategy Model Tests
-# Compiles and runs the structural strategy model tests.
+# test.sh — Alcove Spike 0.1C Strategy & Window Class Model Tests
+# Compiles and runs the structural strategy and window-class model tests.
 # Usage: bash test.sh
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${SCRIPT_DIR}/build"
 TEST_BINARY="${BUILD_DIR}/StrategyPresetTests"
 
-echo "=== Alcove Spike 0.1B — Strategy Model Tests ==="
+echo "=== Alcove Spike 0.1C — Strategy & Window Class Model Tests ==="
 echo ""
 
 # Compile test executable with the model source
@@ -26,7 +26,9 @@ xcrun swiftc \
     -framework Foundation \
     -o "${TEST_BINARY}" \
     "${SCRIPT_DIR}/Sources/WindowStrategy.swift" \
+    "${SCRIPT_DIR}/Sources/WindowClassCandidate.swift" \
     "${SCRIPT_DIR}/Sources/AlcoveSpikeWindow.swift" \
+    "${SCRIPT_DIR}/Sources/AlcoveSpikePanel.swift" \
     "${SCRIPT_DIR}/Sources/DiagnosticsView.swift" \
     "${SCRIPT_DIR}/Sources/ExperimentWindowController.swift" \
     "${SCRIPT_DIR}/Tests/main.swift"
