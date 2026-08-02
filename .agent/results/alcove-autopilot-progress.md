@@ -28,7 +28,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 ### Spike 0.2 — Display Identity and Placement
 
 - [ ] Display inventory and UUID diagnostics implemented.
-- [ ] Pure movable-range placement model and automated tests complete.
+- [x] Pure movable-range placement model and automated tests complete.
 - [ ] Resolution/scaling and screen-order behavior recorded on available hardware.
 - [ ] Real display disconnect/reconnect and rearrangement manually recorded.
 - [ ] Eviction-safe restoration decision recorded.
@@ -98,3 +98,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-08-02: Phase 0.1B passed 66 Swift 6 strict-concurrency assertions, clean app build, artifact inspection, launch, and normal quit after Codex review fixes.
 - 2026-08-02: Phase 0.1C passed 140 Swift 6 strict-concurrency assertions, clean app build, artifact inspection, launch, and normal quit after Codex corrected proxy tests and a style-mask confounder.
 - 2026-08-02: Prepared the full Phase 0.1 manual protocol; no manual matrix cell was executed or marked passed.
+- 2026-08-02: Phase 0.2A passed 51 clean Swift 6 warning-as-error geometry tests after Codex added saved-record validation and corrected rounding semantics.

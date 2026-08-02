@@ -45,6 +45,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 | [Research](docs/RESEARCH.md) | Evidence table, API analysis, reference project inspections |
 | [Delivery Plan](docs/DELIVERY_PLAN.md) | Phase 0 spikes, incremental slices, test matrix, gates |
 | [Desktop Window Spike](docs/SPIKE_DESKTOP_WINDOW.md) | Disposable AppKit harness, automated evidence, and pending manual matrix |
+| [Display Placement Spike](docs/SPIKE_DISPLAY_PLACEMENT.md) | Pure placement geometry evidence and pending screen/topology validation |
 
 ## License
 
