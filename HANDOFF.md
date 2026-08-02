@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A now provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phase 0.5A now provides a reviewed DispatchSource candidate adapter and local real-filesystem evidence; FSEvents and the remaining access/resource matrix are open. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
 
 ## 1. What We Are Building
 
@@ -62,6 +62,20 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Phase 0.5A added the disposable DispatchSource observation candidate:
+
+- Opens one directory with `O_EVTONLY | O_CLOEXEC`, validates the actual descriptor with `fstat`, and records device/inode identity.
+- Uses an atomic start transaction, immutable callback, registration identity, independent fixed-FD cancellation owner, reentrant stop initiation, bounded teardown wait, and typed POSIX/teardown errors.
+- Treats directory events as invalidation signals rather than inventing child paths.
+- Passes 45 explicit Swift 6 warning-as-error assertions in three consecutive runs using isolated real temporary-directory mutations, including separate child create/rename/delete `.write` delivery, observed-directory rename/delete flags, inode-controlled replacement behavior, callback-stop and external-stop concurrency, post-teardown suppression, explicit/deinit FD closure, EBADF, and transactional cleanup.
+- Builds an arm64, minimum-macOS-15.0, SDK-26.5, system/Swift-runtime-only, linker-ad-hoc-signed probe. Repeated bounded probes observed one or two `.write` callbacks for the same spaced create/delete operations and exited with descriptor teardown confirmed.
+
+MiMo created the initial adapter/harness shape, but Codex rejected its weak-self FD teardown, start/stop race, callback deadlock, shared queue key, unsynchronized callback/group state, wall-clock/reversed latency, swallowed cleanup, and self-proving replacement/post-stop tests. Codex rebuilt the lifecycle and test evidence before independent verification.
+
+This is candidate-A evidence only. DispatchSource is not selected. FSEvents, TCC-protected folders, removable media/ejection, an actual macOS 15 runtime, symlinks, network volumes, resource/load measurements, long-running behavior, and explicit background enumeration/cancellation evidence remain open. Full Spike 0.5 remains incomplete.
+
+### Earlier Phase 0.4A material boundary
 
 Phase 0.4A added the disposable material compatibility boundary:
 
@@ -341,6 +355,7 @@ The current baseline verification includes:
 - Phases 0.2A–0.2C together pass 102 tests from clean Swift 6 warning-as-error builds; the probe has minimum macOS 15.0 and emits independently decoded JSON.
 - Phase 0.3A passes 40 Swift 6 warning-as-error assertions, including a real shared-panel responder discovery and ownership lifecycle integration; its app has minimum macOS 15.0 and launches/quits normally.
 - Phase 0.4A passes 72 explicit Swift 6 warning-as-error assertions in three consecutive runs; the app contains real Glass/fallback/opaque construction paths, has minimum macOS 15.0, and launches/quits normally.
+- Phase 0.5A passes 45 real-filesystem Swift 6 warning-as-error assertions in three consecutive runs; its DispatchSource probe has minimum macOS 15.0 and independently confirmed descriptor teardown.
 - `git diff --check` passes before each commit.
 
 Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless the user explicitly requests it. Do not delete `.DS_Store` unless explicitly asked.
@@ -349,7 +364,7 @@ Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless th
 
 The immediate next work is:
 
-1. Begin the independently automatable Spike 0.5 folder-observation comparison while manual Phase 0 matrices remain open.
+1. Implement Phase 0.5B as a separate FSEvents candidate and compare its path, lifecycle, coalescing, latency, and replacement behavior with Phase 0.5A.
 2. Manually verify material appearance on macOS 26 and an actual macOS 15 runtime, including accessibility settings and desktop-candidate level.
 3. Manually verify Quick Look rendering, carousel navigation, dismissal/focus behavior, desktop-candidate level behavior, and cleanup/reopen.
 4. Complete Spike 0.2's hardware matrix; geometry, inventory/UUID/notification bootstrap, and eviction-safe pure state are complete.
