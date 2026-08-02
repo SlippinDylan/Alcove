@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A now provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence; human GUI behavior remains unverified. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A now provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
 
 ## 1. What We Are Building
 
@@ -62,6 +62,21 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Phase 0.4A added the disposable material compatibility boundary:
+
+- Builds equivalent representative chrome through automatic macOS 26 Glass, forced `NSVisualEffectView`, and Reduce Transparency opaque paths.
+- Uses one `NSGlassEffectContainerView` with two real `NSGlassEffectView` descendants while keeping the file-content canvas outside every effect.
+- Observes accessibility changes on the SDK-required `NSWorkspace.shared.notificationCenter`, rejects callbacks queued before stop, and owns the block observer through an explicit RAII token.
+- Preserves candidate material and window-level intent across close/recreate without implementing tab state.
+- Passes 72 explicit Swift 6 warning-as-error assertions in three consecutive runs, including real workspace notification delivery, hierarchy, constraints, resolver, stale-event, and ownership checks.
+- Builds an arm64, minimum-macOS-15.0, SDK-26.5, system-framework-only, ad-hoc-signed app that launches and quits through an Apple event.
+
+MiMo created the initial model and harness shape, but Codex rejected its container-without-Glass construction, hard-coded initial Glass path, wrong notification center, queued-task race, discarded recreation state, out-of-scope tab state, forbidden unavailable initializers, fake passes, and inflated 8115-assertion report. Codex corrected the implementation and replaced the tests before independent clean verification.
+
+This is structural and lifecycle evidence, not pixel evidence. Glass/fallback appearance, actual macOS 15 runtime behavior, light/dark appearance, Reduce Transparency, Increase Contrast, readability, hit testing, resizing, desktop-level appearance, wallpaper variation, and multiple displays remain `NR`. Full Spike 0.4 remains incomplete.
+
+### Earlier Phase 0.3A Quick Look bootstrap
 
 Phase 0.3A added the disposable Quick Look responder bootstrap:
 
@@ -325,6 +340,7 @@ The current baseline verification includes:
 - Phase 0.1C independently launches and exits normally after artifact, deployment-target, dependency, and ad-hoc signature inspection.
 - Phases 0.2A–0.2C together pass 102 tests from clean Swift 6 warning-as-error builds; the probe has minimum macOS 15.0 and emits independently decoded JSON.
 - Phase 0.3A passes 40 Swift 6 warning-as-error assertions, including a real shared-panel responder discovery and ownership lifecycle integration; its app has minimum macOS 15.0 and launches/quits normally.
+- Phase 0.4A passes 72 explicit Swift 6 warning-as-error assertions in three consecutive runs; the app contains real Glass/fallback/opaque construction paths, has minimum macOS 15.0, and launches/quits normally.
 - `git diff --check` passes before each commit.
 
 Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless the user explicitly requests it. Do not delete `.DS_Store` unless explicitly asked.
@@ -333,13 +349,14 @@ Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless th
 
 The immediate next work is:
 
-1. Begin the independently automatable Spike 0.4 Liquid Glass/fallback harness while the Spike 0.1, 0.2, and 0.3 manual matrices remain open.
-2. Manually verify Quick Look rendering, carousel navigation, dismissal/focus behavior, desktop-candidate level behavior, and cleanup/reopen when a human can observe the GUI.
-3. Complete Spike 0.2's hardware matrix; geometry, inventory/UUID/notification bootstrap, and eviction-safe pure state are complete.
-4. Continue every independent automated part of Spikes 0.3–0.5 while manual Phase 0 evidence remains outstanding.
-5. Update the candidate architecture only from recorded spike evidence and lock it only after the product-and-architecture gate resolves.
-6. Implement the ten Phase 1 vertical slices only after their documented entry gates pass.
-7. Run Spike 0.6 independently before the first public release.
+1. Begin the independently automatable Spike 0.5 folder-observation comparison while manual Phase 0 matrices remain open.
+2. Manually verify material appearance on macOS 26 and an actual macOS 15 runtime, including accessibility settings and desktop-candidate level.
+3. Manually verify Quick Look rendering, carousel navigation, dismissal/focus behavior, desktop-candidate level behavior, and cleanup/reopen.
+4. Complete Spike 0.2's hardware matrix; geometry, inventory/UUID/notification bootstrap, and eviction-safe pure state are complete.
+5. Continue every independent automated part of Spikes 0.3–0.5 while manual Phase 0 evidence remains outstanding.
+6. Update the candidate architecture only from recorded spike evidence and lock it only after the product-and-architecture gate resolves.
+7. Implement the ten Phase 1 vertical slices only after their documented entry gates pass.
+8. Run Spike 0.6 independently before the first public release.
 
 Do not resurrect the old infrastructure-first sequence. The first user-visible value after App Shell is a minimal single Portal, not a complete persistence/migration/display foundation.
 

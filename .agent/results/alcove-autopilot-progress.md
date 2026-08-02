@@ -42,8 +42,8 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 
 ### Spike 0.4 — Liquid Glass and Fallback
 
-- [ ] macOS 26 Liquid Glass chrome path implemented and built.
-- [ ] macOS 15–25 `NSVisualEffectView` fallback implemented and built.
+- [x] macOS 26 Liquid Glass chrome path implemented and built with real Glass descendants.
+- [x] macOS 15–25 `NSVisualEffectView` fallback implemented and built; actual macOS 15 runtime remains unverified.
 - [ ] Accessibility material responses manually recorded on available OS versions.
 - [ ] Material boundary decision recorded.
 
@@ -102,3 +102,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-08-02: Phase 0.2B passed 80 clean Swift 6 warning-as-error tests and standalone JSON probe checks after Codex replaced MiMo's recursive-build deadlock and leaking observer lifecycle.
 - 2026-08-02: Phase 0.2C passed 102 clean Swift 6 warning-as-error tests; system eviction preserves home records, empty topology defers, and only explicit user moves change home.
 - 2026-08-02: Phase 0.3A passed 40 Swift 6 warning-as-error assertions plus clean artifact inspection, process launch, and Apple-event quit after Codex replaced MiMo's unsafe actor/KVC workarounds, incorrect Space responder, incomplete panel teardown, and self-proving lifecycle tests.
+- 2026-08-02: Phase 0.4A passed 72 explicit Swift 6 warning-as-error assertions in three consecutive runs plus clean artifact/launch/quit checks after Codex replaced MiMo's missing Glass descendants, wrong workspace notification center, stale observer tasks, fake passes, and inflated assertion report.
