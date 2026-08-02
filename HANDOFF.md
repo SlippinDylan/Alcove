@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phases 0.5A/0.5B provide reviewed observer candidates, 0.5C1 provides reviewed background enumeration/stale/cancellation evidence, 0.5C2 provides a local observation/resource/teardown comparison, and 0.5C3 records local symlink/missing/moved/replacement path evidence; access, removable/network media, dropped-event recovery, and load remain open. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phases 0.5A/0.5B provide reviewed observer candidates, 0.5C1 provides reviewed background enumeration/stale/cancellation evidence, 0.5C2 provides a local observation/resource/teardown comparison, 0.5C3 records local symlink/missing/moved/replacement path evidence, and 0.5C4 records bounded multiple-observer/load/lifecycle evidence; access, removable/network media, and dropped-event recovery remain open. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
 
 ## 1. What We Are Building
 
@@ -62,6 +62,21 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Phase 0.5C4 added the disposable multiple-observer and load harness:
+
+- Runs eight independent roots, eight registrations on one shared root, a 1,000-file-plus-sentinel load, and 25 sequential lifecycle cycles for both reviewed candidates.
+- Requires a separate gate for every registration; FSEvents additionally requires exact canonical marker paths and distinct registration identities.
+- Keeps invalidation callbacks, FSEvents item records, callback batches, mutations, cumulative process CPU, process `ru_maxrss` high-water, and descriptor snapshots semantically separate.
+- Uses throwing bounded teardown, descriptor settling, transactional fixture cleanup, active subprocess pipe draining, and TERM/SIGKILL convergence on timeouts and post-launch failures.
+- Passes 371 strict Swift 6 warning-as-error assertions in three consecutive final runs, including exact scenario cardinalities, 1,001-file enumeration, a real FSEvents timeout, 620,000-byte pipe backpressure, and outer-watchdog cleanup.
+- Builds an arm64, minimum-macOS-15.0, SDK-26.5, system-framework/Swift-runtime-only, linker-ad-hoc-signed probe.
+
+The MiMo invocation exited 0 but stopped before creating any required file, so it supplied no code or evidence for this work unit. Codex implemented the bounded harness. Independent review then found two Medium gaps in scenario-specific contradiction checks and subprocess failure convergence; Codex fixed both, and the Reviewer found no remaining Critical/High/Medium issue.
+
+Phase 0.5C4 does not select an observer, induce dropped-event flags, or establish benchmark-quality performance. TCC, removable/network media, actual macOS 15, dropped/revoke recovery, and longer-duration observation remain open. Full Spike 0.5 remains incomplete.
+
+### Earlier Phase 0.5C3 path recovery comparison
 
 Phase 0.5C3 added the disposable path-transition comparison harness:
 
