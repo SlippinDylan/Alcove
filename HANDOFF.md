@@ -74,6 +74,8 @@ Phase 0.1C added an independently switchable window-class dimension without sele
 
 Phase 0.1C is complete as an automated comparison-harness work unit. Neither `NSWindow` nor `NSPanel` is selected. Full Spike 0.1 still requires the manual system-transition matrix and an evidence-backed decision.
 
+The complete 12-variant procedure is prepared in `docs/SPIKE_DESKTOP_WINDOW_MANUAL_MATRIX.md`. Every result remains `NR`; authoring the procedure is not evidence that any GUI or system behavior passed.
+
 ### Earlier Phase 0.1B strategy model
 
 Phase 0.1B expanded the disposable `NSWindow` harness without selecting a production strategy:

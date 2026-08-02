@@ -2,6 +2,8 @@
 
 Status: In Progress — Phase 0.1A bootstrap, Phase 0.1B strategy model, and Phase 0.1C window class comparison implemented and automatically built/tested. Full Spike 0.1 remains incomplete; manual system-transition testing is not yet done. No window class is selected.
 
+The reproducible manual protocol and untouched 12-variant result matrix are in [`SPIKE_DESKTOP_WINDOW_MANUAL_MATRIX.md`](SPIKE_DESKTOP_WINDOW_MANUAL_MATRIX.md). Every cell remains `NR` until a person executes it on a real desktop.
+
 ---
 
 ## 1. Goal
