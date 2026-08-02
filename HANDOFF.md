@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phase 0.5A now provides a reviewed DispatchSource candidate adapter and local real-filesystem evidence; FSEvents and the remaining access/resource matrix are open. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phases 0.5A and 0.5B provide reviewed DispatchSource and FSEvents candidate adapters with local real-filesystem evidence; comparison, enumeration, and the remaining access/resource matrix are open. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
 
 ## 1. What We Are Building
 
@@ -62,6 +62,20 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Phase 0.5B added the disposable FSEvents observation candidate:
+
+- Uses `FileEvents`, `WatchRoot`, and `UseCFTypes` with a provisional 0.3-second latency, checked CFArray bridging, immutable registration identity/generation, and uptime timestamps.
+- Uses explicit `idle/running/stopping/stopped` state; callback-safe `stop()` only initiates queued teardown, while `waitUntilStopped` provides a real bounded completion boundary.
+- Owns the stream and callback context through a registration and single-consume context lease; teardown runs Stop, Invalidate, Release, context release, final state, and completion after active callbacks return.
+- Passes 69 explicit Swift 6 warning-as-error assertions in three consecutive runs. Fixtures cover typed open/path failures, item create/rename/delete flags, root changes, old-inode-negative/new-path-positive replacement, one-batch rapid operations, callback-stop mutation suppression, real teardown timeout, bridge failures, context lifetime, deinit, and transactional cleanup.
+- Builds an arm64, minimum-macOS-15.0, SDK-26.5, system-framework-only, linker-ad-hoc-signed probe. A bounded create/delete probe observed a real coalesced item event and exited cleanly.
+
+MiMo created the initial harness shape, but Codex rejected its prematurely published stopped state, fake timeout wait, inline C-callback resource release, unsafe callback bridge, weak replacement proof, and overstated ownership/coalescing documentation. Codex replaced the lifecycle core and strengthened the tests. A second independent Reviewer found no remaining High/Critical code issue; Codex then added post-callback-stop mutation and zero-bridge-failure assertions before final verification.
+
+This is candidate-B evidence only. Neither FSEvents nor DispatchSource is selected. Phase 0.5C comparison, explicit background enumeration/stale-result/cancellation evidence, TCC-protected folders, removable media/ejection, actual macOS 15, symlinks, network volumes, resources, and long-running behavior remain open. Full Spike 0.5 remains incomplete.
+
+### Earlier Phase 0.5A DispatchSource candidate
 
 Phase 0.5A added the disposable DispatchSource observation candidate:
 
@@ -356,6 +370,7 @@ The current baseline verification includes:
 - Phase 0.3A passes 40 Swift 6 warning-as-error assertions, including a real shared-panel responder discovery and ownership lifecycle integration; its app has minimum macOS 15.0 and launches/quits normally.
 - Phase 0.4A passes 72 explicit Swift 6 warning-as-error assertions in three consecutive runs; the app contains real Glass/fallback/opaque construction paths, has minimum macOS 15.0, and launches/quits normally.
 - Phase 0.5A passes 45 real-filesystem Swift 6 warning-as-error assertions in three consecutive runs; its DispatchSource probe has minimum macOS 15.0 and independently confirmed descriptor teardown.
+- Phase 0.5B passes 69 real-filesystem Swift 6 warning-as-error assertions in three consecutive runs; its FSEvents probe has minimum macOS 15.0 and independently confirmed bounded teardown.
 - `git diff --check` passes before each commit.
 
 Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless the user explicitly requests it. Do not delete `.DS_Store` unless explicitly asked.
@@ -364,7 +379,7 @@ Do not modify or delete `ChatGPT-macOS 小组件与文件夹管理.md` unless th
 
 The immediate next work is:
 
-1. Implement Phase 0.5B as a separate FSEvents candidate and compare its path, lifecycle, coalescing, latency, and replacement behavior with Phase 0.5A.
+1. Implement Phase 0.5C comparison and explicit-background enumeration with stale-result and truthful cancellation evidence; do not select either observer before the remaining comparison gates.
 2. Manually verify material appearance on macOS 26 and an actual macOS 15 runtime, including accessibility settings and desktop-candidate level.
 3. Manually verify Quick Look rendering, carousel navigation, dismissal/focus behavior, desktop-candidate level behavior, and cleanup/reopen.
 4. Complete Spike 0.2's hardware matrix; geometry, inventory/UUID/notification bootstrap, and eviction-safe pure state are complete.

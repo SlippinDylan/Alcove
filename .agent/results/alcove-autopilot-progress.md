@@ -50,7 +50,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 ### Spike 0.5 — Folder Observation and Permissions
 
 - [x] DispatchSource adapter and automated fixture checks complete; candidate remains unselected.
-- [ ] FSEvents adapter and automated fixture checks complete.
+- [x] FSEvents adapter and automated fixture checks complete; candidate remains unselected.
 - [ ] Observation coverage, teardown, latency, and resource comparison recorded.
 - [ ] Explicit background enumeration and stale-result tests complete.
 - [ ] TCC, missing folder, removable volume, and symlink behavior recorded where available.
@@ -104,3 +104,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-08-02: Phase 0.3A passed 40 Swift 6 warning-as-error assertions plus clean artifact inspection, process launch, and Apple-event quit after Codex replaced MiMo's unsafe actor/KVC workarounds, incorrect Space responder, incomplete panel teardown, and self-proving lifecycle tests.
 - 2026-08-02: Phase 0.4A passed 72 explicit Swift 6 warning-as-error assertions in three consecutive runs plus clean artifact/launch/quit checks after Codex replaced MiMo's missing Glass descendants, wrong workspace notification center, stale observer tasks, fake passes, and inflated assertion report.
 - 2026-08-02: Phase 0.5A passed 45 real-filesystem Swift 6 warning-as-error assertions in three consecutive runs plus probe/artifact/error-path checks after Codex replaced MiMo's racy FD lifecycle, callback deadlocks, wall-clock latency, and self-proving replacement/post-stop tests.
+- 2026-08-02: Phase 0.5B passed 69 real-filesystem Swift 6 warning-as-error assertions in three consecutive runs plus probe/artifact/error-path checks after Codex replaced MiMo's premature stop state, fake timeout wait, inline C-callback teardown, unsafe bridge, and weak replacement evidence; a second Reviewer found no remaining High/Critical code issue.
