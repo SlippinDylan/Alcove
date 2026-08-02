@@ -53,7 +53,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [x] FSEvents adapter and automated fixture checks complete; candidate remains unselected.
 - [x] Observation coverage, teardown, latency, and resource comparison recorded; recovery remains open.
 - [x] Explicit background enumeration, stale-result, and truthful cancellation tests complete.
-- [ ] TCC, missing folder, removable volume, and symlink behavior recorded where available.
+- [ ] TCC and removable-volume behavior recorded; local missing-root, symlink, rename, and replacement evidence is complete.
 - [ ] Observation strategy decision recorded.
 
 ### Product-and-Architecture Gate
@@ -107,3 +107,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-08-02: Phase 0.5B passed 69 real-filesystem Swift 6 warning-as-error assertions in three consecutive runs plus probe/artifact/error-path checks after Codex replaced MiMo's premature stop state, fake timeout wait, inline C-callback teardown, unsafe bridge, and weak replacement evidence; a second Reviewer found no remaining High/Critical code issue.
 - 2026-08-02: Phase 0.5C1 passed 67 Swift 6 warning-as-error assertions in three consecutive runs plus isolated probe/artifact/error-path checks after Codex replaced MiMo's serial stale-test deadlock, synthetic result, unbounded wait, test-only cancellation, and self-proving cleanup evidence.
 - 2026-08-02: Phase 0.5C2 passed 97 Swift 6 warning-as-error assertions in three consecutive runs and a strict 18-process local matrix after Codex corrected MiMo's latency origin, event causality, callback semantics, unbounded polling, failure handling, and invalid descriptor narrative; no observer was selected.
+- 2026-08-02: Phase 0.5C3 passed 238 strict real-filesystem assertions in three consecutive runs after Codex replaced MiMo's dead second window, move/marker conflation, fabricated missing-root error, swallowed teardown, and selective JSON tests; no observer or recovery policy was selected.
