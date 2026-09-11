@@ -76,11 +76,13 @@ final class TabBarView: NSView {
         selectionButton.bezelStyle = .texturedRounded
         selectionButton.state = selected ? .on : .off
         selectionButton.setAccessibilityLabel("Select \(tab.folderURL.lastPathComponent)")
+        selectionButton.setAccessibilityHelp("Switch to this folder tab")
         selectionButton.translatesAutoresizingMaskIntoConstraints = false
 
         let closeButton = NSButton(title: "×", target: nil, action: nil)
         closeButton.bezelStyle = .inline
         closeButton.setAccessibilityLabel("Close \(tab.folderURL.lastPathComponent)")
+        closeButton.setAccessibilityHelp("Close this folder tab")
         closeButton.translatesAutoresizingMaskIntoConstraints = false
 
         let selectTarget = TabActionTarget(action: .select(tab.id), owner: self)
@@ -112,6 +114,7 @@ final class TabBarView: NSView {
         let addButton = NSButton(title: "+", target: nil, action: nil)
         addButton.bezelStyle = .texturedRounded
         addButton.setAccessibilityLabel("Add tab")
+        addButton.setAccessibilityHelp("Choose another folder for this portal")
 
         let addTarget = TabActionTarget(action: .add, owner: self)
         addButton.target = addTarget

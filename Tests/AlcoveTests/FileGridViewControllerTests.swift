@@ -132,7 +132,8 @@ final class FileGridViewControllerTests: XCTestCase {
 
     @MainActor
     func testIconSizeUpdatesLayoutAndCellAccessibility() throws {
-        let controller = FileGridViewController(iconSize: .small)
+        let opener = WorkspaceOpenerSpy()
+        let controller = FileGridViewController(workspaceOpener: opener, iconSize: .small)
         controller.loadView()
         let item = FileItem(
             url: URL(fileURLWithPath: "/tmp/Folder"),
@@ -155,8 +156,11 @@ final class FileGridViewControllerTests: XCTestCase {
         )
         XCTAssertEqual(cell.view.accessibilityRole(), .button)
         XCTAssertEqual(cell.view.accessibilityLabel(), "Folder")
-        XCTAssertEqual(cell.view.accessibilityValue() as? String, "Not selected")
+        XCTAssertEqual(cell.view.accessibilityValue() as? String, "Not selected, item 1 of 1")
         XCTAssertEqual(cell.view.accessibilityHelp(), "Folder. Double-click to open in Finder.")
+        XCTAssertEqual(cell.view.accessibilityCustomActions()?.map(\.name), ["Open"])
+        XCTAssertTrue(cell.performAccessibilityOpen())
+        XCTAssertEqual(opener.openedURLs, [item.url])
     }
 
     private func makeItems(count: Int) -> [FileItem] {

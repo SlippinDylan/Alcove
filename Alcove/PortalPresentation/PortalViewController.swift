@@ -18,7 +18,8 @@ final class PortalViewController: NSViewController {
 
     private var portal: Portal
     private let loadingCoordinator: FolderLoadingCoordinator
-    private let tabBarView = TabBarView()
+    private let tabBarView: TabBarView
+    private let chromeMaterialView: PortalChromeMaterialView
     private let gridViewController: FileGridViewController
     private let stateLabel = NSTextField(labelWithString: "")
     private let progressIndicator = NSProgressIndicator()
@@ -40,6 +41,9 @@ final class PortalViewController: NSViewController {
     init(portal: Portal, loadingCoordinator: FolderLoadingCoordinator) {
         self.portal = portal
         self.loadingCoordinator = loadingCoordinator
+        let tabBarView = TabBarView()
+        self.tabBarView = tabBarView
+        chromeMaterialView = PortalChromeMaterialView(contentView: tabBarView)
         gridViewController = FileGridViewController(iconSize: portal.iconSize)
         super.init(nibName: nil, bundle: nil)
     }
@@ -59,12 +63,12 @@ final class PortalViewController: NSViewController {
         rootView.wantsLayer = true
         rootView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
 
-        tabBarView.translatesAutoresizingMaskIntoConstraints = false
+        chromeMaterialView.translatesAutoresizingMaskIntoConstraints = false
         tabBarView.onSelect = { [weak self] id in self?.onSelectTab?(id) }
         tabBarView.onAdd = { [weak self] in self?.onAddTab?() }
         tabBarView.onClose = { [weak self] id in self?.onCloseTab?(id) }
         tabBarView.configure(with: portal)
-        rootView.addSubview(tabBarView)
+        rootView.addSubview(chromeMaterialView)
 
         addChild(gridViewController)
         gridViewController.onQuickLookRequested = { [weak self] urls in
@@ -92,11 +96,11 @@ final class PortalViewController: NSViewController {
         NSLayoutConstraint.activate([
             gridView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            tabBarView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
-            tabBarView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            tabBarView.topAnchor.constraint(equalTo: rootView.topAnchor),
-            tabBarView.heightAnchor.constraint(equalToConstant: Self.tabBarHeight),
-            gridView.topAnchor.constraint(equalTo: tabBarView.bottomAnchor),
+            chromeMaterialView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            chromeMaterialView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            chromeMaterialView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            chromeMaterialView.heightAnchor.constraint(equalToConstant: Self.tabBarHeight),
+            gridView.topAnchor.constraint(equalTo: chromeMaterialView.bottomAnchor),
             gridView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
             stateLabel.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             stateLabel.centerYAnchor.constraint(equalTo: rootView.centerYAnchor),

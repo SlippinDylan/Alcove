@@ -214,10 +214,13 @@ final class FileGridViewController: NSViewController {
         }
     }
 
-    private func open(_ item: FileItem) {
-        if !workspaceOpener.open(item.url) {
+    @discardableResult
+    private func open(_ item: FileItem) -> Bool {
+        let didOpen = workspaceOpener.open(item.url)
+        if !didOpen {
             failedOpenURLs.append(item.url)
         }
+        return didOpen
     }
 
     private func applySelection() {
@@ -253,7 +256,14 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
         guard let fileCell = cell as? FileItemCell else {
             preconditionFailure("FileItemCell registration contract violated")
         }
-        fileCell.configure(with: items[indexPath.item], iconSize: metrics.iconSize)
+        let item = items[indexPath.item]
+        fileCell.configure(
+            with: item,
+            iconSize: metrics.iconSize,
+            position: indexPath.item + 1,
+            itemCount: items.count,
+            onOpen: { [weak self] in self?.open(item) ?? false }
+        )
         return fileCell
     }
 }

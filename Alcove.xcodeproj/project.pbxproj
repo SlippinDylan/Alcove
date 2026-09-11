@@ -37,6 +37,8 @@
 		10000000000000000000002B /* DisplayPlacementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002D /* DisplayPlacementTests.swift */; };
 		10000000000000000000002C /* FolderObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002E /* FolderObserver.swift */; };
 		10000000000000000000002D /* FolderObserverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002F /* FolderObserverTests.swift */; };
+		10000000000000000000002E /* PortalChromeMaterialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000030 /* PortalChromeMaterialView.swift */; };
+		10000000000000000000002F /* PortalChromeMaterialViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000031 /* PortalChromeMaterialViewTests.swift */; };
 		100000000000000000000014 /* FolderAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* FolderAccessTests.swift */; };
 		100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000017 /* PortalCoordinatorTests.swift */; };
 		100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000018 /* FileGridViewControllerTests.swift */; };
@@ -97,6 +99,8 @@
 		20000000000000000000002D /* DisplayPlacementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayPlacementTests.swift; sourceTree = "<group>"; };
 		20000000000000000000002E /* FolderObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderObserver.swift; sourceTree = "<group>"; };
 		20000000000000000000002F /* FolderObserverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderObserverTests.swift; sourceTree = "<group>"; };
+		200000000000000000000030 /* PortalChromeMaterialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalChromeMaterialView.swift; sourceTree = "<group>"; };
+		200000000000000000000031 /* PortalChromeMaterialViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalChromeMaterialViewTests.swift; sourceTree = "<group>"; };
 		200000000000000000000016 /* FolderAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAccessTests.swift; sourceTree = "<group>"; };
 		200000000000000000000017 /* PortalCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCoordinatorTests.swift; sourceTree = "<group>"; };
 		200000000000000000000018 /* FileGridViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridViewControllerTests.swift; sourceTree = "<group>"; };
@@ -199,6 +203,7 @@
 				200000000000000000000016 /* FolderAccessTests.swift */,
 				20000000000000000000002F /* FolderObserverTests.swift */,
 				200000000000000000000017 /* PortalCoordinatorTests.swift */,
+				200000000000000000000031 /* PortalChromeMaterialViewTests.swift */,
 				200000000000000000000020 /* PortalCreationCoordinatorTests.swift */,
 				200000000000000000000024 /* PortalStoreTests.swift */,
 				20000000000000000000002A /* QuickLookIntegrationTests.swift */,
@@ -256,6 +261,7 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000027 /* LastTabRemovalConfirmer.swift */,
+				200000000000000000000030 /* PortalChromeMaterialView.swift */,
 				200000000000000000000012 /* PortalViewController.swift */,
 				200000000000000000000026 /* TabBarView.swift */,
 			);
@@ -433,6 +439,7 @@
 				100000000000000000000020 /* PortalStoreFileSystem.swift in Sources */,
 				10000000000000000000001F /* PortalStoreModels.swift in Sources */,
 				100000000000000000000010 /* PortalViewController.swift in Sources */,
+				10000000000000000000002E /* PortalChromeMaterialView.swift in Sources */,
 				100000000000000000000024 /* TabBarView.swift in Sources */,
 				100000000000000000000025 /* LastTabRemovalConfirmer.swift in Sources */,
 				100000000000000000000011 /* PortalWindowStrategy.swift in Sources */,
@@ -454,6 +461,7 @@
 				100000000000000000000014 /* FolderAccessTests.swift in Sources */,
 				10000000000000000000002D /* FolderObserverTests.swift in Sources */,
 				100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */,
+				10000000000000000000002F /* PortalChromeMaterialViewTests.swift in Sources */,
 				10000000000000000000001E /* PortalCreationCoordinatorTests.swift in Sources */,
 				100000000000000000000022 /* PortalStoreTests.swift in Sources */,
 				100000000000000000000028 /* QuickLookIntegrationTests.swift in Sources */,
