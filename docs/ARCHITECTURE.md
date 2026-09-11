@@ -176,14 +176,14 @@ All types live in `AlcoveCore`. No force unwraps (`!`), no broad casts (`as!`, `
 
 ```swift
 struct Portal: Identifiable, Sendable {
-    let id: UUID
+    let id: PortalID
     var tabs: [FolderTab]
-    var selectedTabID: UUID
+    var selectedTabID: FolderTabID
     var iconSize: IconSize
-    var placement: PlacementRecord  // per-display placement, see §6
+    var frame: CGRect               // Slice 5; upgraded to PlacementRecord in Slice 8
 
-    init(id: UUID = UUID(), tabs: [FolderTab], selectedTabID: UUID,
-         iconSize: IconSize = .medium, placement: PlacementRecord) { ... }
+    init(id: PortalID = PortalID(), tabs: [FolderTab], selectedTabID: FolderTabID,
+         iconSize: IconSize = .medium, frame: CGRect) throws { ... }
 }
 ```
 
@@ -191,14 +191,12 @@ struct Portal: Identifiable, Sendable {
 
 ```swift
 struct FolderTab: Identifiable, Sendable {
-    let id: UUID
+    let id: FolderTabID
     var folderURL: URL           // standardized file URL (non-sandboxed, no bookmark)
-    var showHiddenFiles: Bool
 
     var displayName: String { folderURL.lastPathComponent }
 
-    init(id: UUID = UUID(), folderURL: URL,
-         showHiddenFiles: Bool = false) { ... }
+    init(id: FolderTabID = FolderTabID(), folderURL: URL) { ... }
 }
 ```
 
