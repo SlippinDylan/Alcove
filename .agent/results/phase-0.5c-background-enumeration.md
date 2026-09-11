@@ -47,6 +47,10 @@ isolated real-directory probe: exit 0; 3 immediate children, 0 metadata errors
 build invalid / test invalid / probe no args / missing path: 64 / 64 / 64 / 1
 ```
 
+On 2026-09-11, a real child-symlink non-traversal test was added. Three further
+consecutive runs passed 71 assertions with 0 failures each. The returned entry
+retained symlink identity through `lstat`, and no target child was enumerated.
+
 The probe is arm64, minimum macOS 15.0, SDK 26.5, system/Swift runtime only, and
 linker ad-hoc signed.
 
@@ -56,8 +60,9 @@ linker ad-hoc signed.
    call returns; this harness does not claim mid-call interruption.
 2. The CLI waits synchronously for the background result; production still needs
    an async/completion boundary that never blocks MainActor.
-3. TCC, removable/network volumes, symlinks, actual macOS 15, large-directory
-   resource measurements, and sustained load remain untested.
+3. An actual macOS 15 runtime and production AppKit async integration remain
+   untested here; later Phase 0.5 work covers resource/load, access, observer,
+   recovery-policy, and unsupported-volume boundaries.
 
 DispatchSource/FSEvents resource and recovery comparison remains open.
 

@@ -44,7 +44,8 @@ Dispatch, and Darwin APIs are used.
 ## Automated Evidence Executed by Codex
 
 On 2026-08-02, three consecutive clean test runs each passed **67 assertions with
-0 failures**:
+0 failures**. A 2026-09-11 child-symlink extension brought the current suite to
+**71 assertions with 0 failures** in three further consecutive runs:
 
 - empty and populated real directories produced typed immediate-child snapshots,
   deterministic directory/file ordering, and no grandchildren;
@@ -61,6 +62,8 @@ On 2026-08-02, three consecutive clean test runs each passed **67 assertions wit
 - later requests recovered after stale/cancelled work;
 - fixture creation/close helpers throw on failure, and an injected cleanup
   failure is observed and propagated rather than logged and ignored.
+- a real child symlink is returned as the immediate entry, retains symlink
+  identity through `lstat`, and does not expose a child from its target directory.
 
 `bash build.sh` exited 0. An isolated probe enumerated one directory and two files
 in deterministic order with zero metadata errors and exited 0. The arm64 Mach-O
@@ -76,10 +79,10 @@ linker-generated ad-hoc signature.
 
 ## Deferred Evidence
 
-The following remain not run: TCC-protected folders, removable/ejected volumes,
-actual macOS 15, symlink and network-volume behavior, 500/1000/5000-item resource
-measurements, sustained load, incremental enumeration, and observer resource and
-recovery comparison.
+This work unit still lacks an actual macOS 15 runtime and production AppKit
+async/completion integration. Removable, ejectable, and network-volume folders
+are now rejected by product scope. Resource/load and observer comparisons are
+recorded in the later Phase 0.5C2–0.5C7 evidence.
 
 A synchronous `FileManager.contentsOfDirectory` call cannot be cancelled midway.
 Cancellation and timeout can suppress acceptance before or after the call; they

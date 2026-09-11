@@ -57,6 +57,7 @@ private final class TestHarness {
     func run() -> Int32 {
         runTest("empty and populated enumeration with deterministic ordering", testBasicEnumeration)
         runTest("no recursive grandchildren in the result", testNoGrandchildren)
+        runTest("child symlink is returned without traversing its target", testChildSymlink)
         runTest("missing path and regular-file errors", testPathErrors)
         runTest("enumeration runs off main thread on configured worker queue", testWorkerQueueBoundary)
         runTest("worker timeout is bounded and does not cancel the call", testWorkerTimeout)
@@ -193,6 +194,38 @@ private final class TestHarness {
                 expect(entryParentName == parentName,
                        "\(entry.name) should be an immediate child of \(parentName), got parent \(entryParentName)")
             }
+        }
+    }
+
+    private func testChildSymlink() throws {
+        try withTemporaryDirectory(prefix: "alcove-child-symlink") { directory in
+            let observed = directory.appendingPathComponent("observed", isDirectory: true)
+            let target = directory.appendingPathComponent("target", isDirectory: true)
+            let targetChild = target.appendingPathComponent("target-child.txt")
+            let link = observed.appendingPathComponent("linked-target", isDirectory: true)
+
+            try FileManager.default.createDirectory(at: observed, withIntermediateDirectories: false)
+            try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false)
+            try createFile(at: targetChild)
+            try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+
+            let snapshot = try enumerateOffMain(
+                path: observed.path,
+                generation: 1,
+                enumerator: .defaultManager()
+            )
+
+            expect(snapshot.count == 1, "observed root should contain only the symlink entry")
+            guard let entry = snapshot.entries.first else {
+                throw HarnessError.message("child symlink entry was not returned")
+            }
+            var metadata = stat()
+            expect(lstat(entry.url.path, &metadata) == 0 && (metadata.st_mode & S_IFMT) == S_IFLNK,
+                   "enumeration should retain a URL that identifies the child symlink")
+            expect(entry.name == "linked-target",
+                   "enumeration should name the link rather than its target")
+            expect(!snapshot.entries.contains { $0.name == "target-child.txt" },
+                   "enumeration must not traverse the child symlink target")
         }
     }
 
