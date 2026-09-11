@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phases 0.5A/0.5B provide reviewed observer candidates, 0.5C1–0.5C6 cover enumeration, comparison, local recovery, load, access errors, and folder eligibility, and 0.5C7 selects FSEvents with a fail-closed recovery contract. Removable, ejectable, and network-volume folders are explicitly outside product scope; controlled TCC denial, production recovery orchestration, and an actual macOS 15 runtime remain open. Human GUI behavior remains unverified. No production Alcove module has started.
+**Current phase:** Phase 0 manual/system evidence remains open while replaceable development defaults unblock production work. Phase 0.5C7 selects FSEvents with a fail-closed recovery contract. Production Slice 1 now provides the tested universal AppKit LSUIElement shell and status-menu lifecycle. Removable, ejectable, and network-volume folders are outside product scope; controlled TCC denial, production recovery orchestration, an actual macOS 15 runtime, and human GUI behavior remain open.
 
 Historical spike summaries below retain the scope that applied when they were run. Their references to removable or network-volume investigation are superseded by the 2026-09-11 product decision.
 
@@ -68,6 +68,14 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Production Slice 1 created `Alcove.xcodeproj`, the Swift 6 AppKit application
+target, hosted XCTest target, shared scheme, LSUIElement Info.plist, and owned
+status-menu lifecycle. Three host tests pass. The unsigned Release app builds for
+arm64 and x86_64 with minimum macOS 15.0. Manual menu-bar visibility, Dock
+absence, and interactive Quit remain unverified.
+
+### Earlier Phase 0.5C7 observer selection
 
 Phase 0.5C7 selected FSEvents as Alcove's sole production observer and defined
 its recovery contract:

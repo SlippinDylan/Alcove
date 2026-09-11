@@ -154,7 +154,7 @@ Each slice produces a runnable, observable increment and adds only the domain or
 - Manual: app launches, menu-bar icon appears, no Dock icon, Quit works.
 
 **Exit Gate:**
-- [ ] Universal target builds for arm64 and x86_64.
+- [x] Universal target builds for arm64 and x86_64.
 - [ ] Menu-bar icon is visible; no Dock icon appears.
 - [ ] Quit exits cleanly.
 

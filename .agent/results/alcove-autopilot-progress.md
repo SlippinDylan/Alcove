@@ -76,7 +76,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 
 ## Phase 1 — Vertical Slices
 
-- [ ] Slice 1 — App Shell and Menu Bar.
+- [ ] Slice 1 — App Shell and Menu Bar: production project, universal build, and host tests complete; manual menu-bar/Dock/Quit checks remain.
 - [ ] Slice 2 — Minimal Single Portal.
 - [ ] Slice 3 — Selection and Opening.
 - [ ] Slice 4 — Portal Creation Flow.
@@ -92,8 +92,8 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [ ] AC-01 through AC-06 — creation, grid, interaction, opening, Quick Look, and tabs.
 - [ ] AC-07 through AC-10 — persistence, display restoration, Spaces, and Stage Manager.
 - [ ] AC-11 through AC-13 — macOS 15/26 materials and folder refresh.
-- [ ] AC-14 through AC-16 — read-only boundary, menu-bar behavior, and universal build.
-- [ ] AC-17 — selected release artifact installation and launch procedure verified.
+- [ ] AC-14 through AC-17 — read-only boundary, menu-bar behavior, universal build, and supported folder locations.
+- [ ] AC-18 — selected release artifact installation and launch procedure verified.
 
 ## Execution Log
 
@@ -115,3 +115,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-08-02: Phase 0.5C3 passed 238 strict real-filesystem assertions in three consecutive runs after Codex replaced MiMo's dead second window, move/marker conflation, fabricated missing-root error, swallowed teardown, and selective JSON tests; no observer or recovery policy was selected.
 - 2026-08-02: Phase 0.5C4 passed 371 strict real-filesystem assertions in three consecutive final runs after MiMo exited 0 with no task output and Codex implemented the harness; independent review found and Codex fixed scenario-cardinality and subprocess-pipe/failure-convergence gaps. Eight standalone scenarios, timeout/error paths, and artifact inspection passed; no observer was selected.
 - 2026-08-02: Phase 0.5C5 passed 124 strict assertions in three consecutive final runs after Codex replaced MiMo's fabricated NSError metadata, non-fatal cleanup/restoration, main-thread fixture I/O, disconnected generation, false SIGKILL, unbounded waits, and self-proving tests. Local Desktop/Documents/Downloads access succeeded, owned fixtures preserved raw Cocoa/underlying metadata plus independent POSIX evidence, and final independent review found no Critical/High/Medium issue; controlled TCC denial remains open.
+- 2026-09-11: Production Slice 1 added the Swift 6 AppKit LSUIElement shell. Three host tests passed and the unsigned Release app built as universal arm64/x86_64 with minimum macOS 15.0; manual menu-bar, Dock, and Quit checks remain.
