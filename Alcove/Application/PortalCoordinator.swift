@@ -27,7 +27,8 @@ final class PortalCoordinator: PortalCoordinating {
     private var nextUserPlacementGeneration: UInt64 = 0
     private var mutationTail: Task<Void, Never>?
     private var mutationGeneration: UInt64 = 0
-    private var tabTask: Task<Void, Never>?
+    private var folderSelectionTask: Task<Void, Never>?
+    private var tabMutationTasks: [UUID: Task<Void, Never>] = [:]
     private var hasLoadedPersistentState = false
     private(set) var portalStates: [Portal] = []
     private(set) var persistenceError: Error?
@@ -116,7 +117,7 @@ final class PortalCoordinator: PortalCoordinating {
     }
 
     func waitForTabMutationForTesting() async {
-        await tabTask?.value
+        await waitForTabTasks()
     }
 
     func stop() {
@@ -126,8 +127,11 @@ final class PortalCoordinator: PortalCoordinating {
     func prepareForTermination() async {
         displayObserver.stop()
         tabFolderPicker.cancel()
-        tabTask?.cancel()
-        await tabTask?.value
+        folderSelectionTask?.cancel()
+        for task in tabMutationTasks.values {
+            task.cancel()
+        }
+        await waitForTabTasks()
         await waitForMutationQuiescence()
         if !pendingUserPlacements.isEmpty {
             applyDisplayTopology(displaySnapshotProvider())
@@ -206,22 +210,22 @@ final class PortalCoordinator: PortalCoordinating {
             self?.retryDeferredTopology(for: portal.id)
         }
         window.onSelectTab = { [weak self] tabID in
-            self?.startTabTask {
+            self?.startTabMutationTask {
                 try await self?.selectTab(tabID, in: portal.id)
             }
         }
         window.onAddTab = { [weak self] in
-            self?.startTabTask {
+            self?.startFolderSelectionTask {
                 await self?.addTab(to: portal.id)
             }
         }
         window.onCloseTab = { [weak self] tabID in
-            self?.startTabTask {
+            self?.startTabMutationTask {
                 await self?.closeTab(tabID, in: portal.id)
             }
         }
         window.onLocateFolder = { [weak self] tabID in
-            self?.startTabTask {
+            self?.startFolderSelectionTask {
                 await self?.relocateTab(tabID, in: portal.id)
             }
         }
@@ -352,16 +356,46 @@ final class PortalCoordinator: PortalCoordinating {
         }
     }
 
-    private func startTabTask(_ operation: @escaping @MainActor () async throws -> Void) {
-        guard tabTask == nil else { return }
-        tabTask = Task { [weak self] in
+    private func startFolderSelectionTask(
+        _ operation: @escaping @MainActor () async throws -> Void
+    ) {
+        guard folderSelectionTask == nil else { return }
+        folderSelectionTask = Task { [weak self] in
             guard let self else { return }
             do {
                 try await operation()
             } catch {
                 persistenceError = error
             }
-            tabTask = nil
+            folderSelectionTask = nil
+        }
+    }
+
+    private func startTabMutationTask(
+        _ operation: @escaping @MainActor () async throws -> Void
+    ) {
+        let taskID = UUID()
+        tabMutationTasks[taskID] = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await operation()
+            } catch {
+                persistenceError = error
+            }
+            tabMutationTasks.removeValue(forKey: taskID)
+        }
+    }
+
+    private func waitForTabTasks() async {
+        while true {
+            let tasks = Array(tabMutationTasks.values)
+            let folderTask = folderSelectionTask
+            for task in tasks {
+                await task.value
+            }
+            await folderTask?.value
+            guard tabMutationTasks.isEmpty, folderSelectionTask == nil else { continue }
+            return
         }
     }
 

@@ -55,8 +55,10 @@ final class FileGridViewControllerTests: XCTestCase {
         controller.handleClick(index: 0, modifiers: [])
         controller.handleKeyCommand(.moveRight(extending: false))
         XCTAssertEqual(controller.selectionState.selectedIDs, [items[1].id])
+        XCTAssertEqual(controller.lastKeyboardScrollPosition, .nearestHorizontalEdge)
         controller.handleKeyCommand(.moveDown(extending: true))
         XCTAssertTrue(controller.selectionState.selectedIDs.contains(items[7].id))
+        XCTAssertEqual(controller.lastKeyboardScrollPosition, .nearestVerticalEdge)
 
         let stateBeforeReturn = controller.selectionState.selectedIDs
         controller.handleKeyCommand(.noOperation)
@@ -166,6 +168,10 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(cell.view.accessibilityCustomActions()?.map(\.name), ["Open"])
         XCTAssertTrue(cell.performAccessibilityOpen())
         XCTAssertEqual(opener.openedURLs, [item.url])
+
+        controller.handleClick(index: 0, modifiers: [])
+        controller.updateIconSize(.medium)
+        XCTAssertEqual(collectionView.selectionIndexPaths, [IndexPath(item: 0, section: 0)])
     }
 
     private func makeItems(count: Int) -> [FileItem] {

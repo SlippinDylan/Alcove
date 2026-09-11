@@ -101,12 +101,40 @@ final class AppDelegateTests: XCTestCase {
         XCTAssertEqual(errorPresenter.presentedErrors.count, 1)
         XCTAssertEqual(stopCount, 1)
     }
+
+    @MainActor
+    func testStartupRestoreCanRetryWithoutOverwritingState() async {
+        let statusSpy = StatusMenuControllerSpy()
+        let portalSpy = PortalCoordinatorSpy()
+        portalSpy.error = StartupFixtureError.rejected
+        let errorPresenter = StartupErrorPresenterSpy(resolutions: [.retry])
+        errorPresenter.onPresent = { portalSpy.error = nil }
+        var stopCount = 0
+        let delegate = AppDelegate(
+            statusMenuController: statusSpy,
+            portalCoordinator: portalSpy,
+            startupFolderURL: nil,
+            startupErrorPresenter: errorPresenter,
+            stopAfterStartupFailure: { stopCount += 1 }
+        )
+
+        delegate.applicationDidFinishLaunching(
+            Notification(name: NSApplication.didFinishLaunchingNotification)
+        )
+        await delegate.waitForStartupForTesting()
+
+        XCTAssertEqual(portalSpy.restoreCount, 2)
+        XCTAssertNil(delegate.startupError)
+        XCTAssertEqual(errorPresenter.presentedErrors.count, 1)
+        XCTAssertEqual(stopCount, 0)
+    }
 }
 
 @MainActor
 private final class StartupErrorPresenterSpy: StartupErrorPresenting {
     private var resolutions: [StartupFailureResolution]
     private(set) var presentedErrors: [Error] = []
+    var onPresent: (() -> Void)?
 
     init(resolutions: [StartupFailureResolution]) {
         self.resolutions = resolutions
@@ -114,6 +142,7 @@ private final class StartupErrorPresenterSpy: StartupErrorPresenting {
 
     func present(_ error: Error) -> StartupFailureResolution {
         presentedErrors.append(error)
+        onPresent?()
         guard !resolutions.isEmpty else { return .stop }
         return resolutions.removeFirst()
     }

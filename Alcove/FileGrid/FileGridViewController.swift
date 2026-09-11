@@ -15,6 +15,7 @@ final class FileGridViewController: NSViewController {
     private var items: [FileItem] = []
     private(set) var selectionState = SelectionState()
     private(set) var failedOpenURLs: [URL] = []
+    private(set) var lastKeyboardScrollPosition: NSCollectionView.ScrollPosition?
     var onQuickLookRequested: (([URL]) -> Void)?
     var onSelectionChanged: (([URL]) -> Void)?
 
@@ -107,6 +108,7 @@ final class FileGridViewController: NSViewController {
         )
         flowLayout.invalidateLayout()
         collectionView.reloadData()
+        applySelection()
     }
 
     func captureRuntimeState() -> FileGridRuntimeState {
@@ -153,13 +155,13 @@ final class FileGridViewController: NSViewController {
     func handleKeyCommand(_ command: FileGridKeyCommand) {
         switch command {
         case .moveLeft(let extending):
-            moveFocus(offset: -1, extending: extending)
+            moveFocus(offset: -1, extending: extending, scrollPosition: .nearestHorizontalEdge)
         case .moveRight(let extending):
-            moveFocus(offset: 1, extending: extending)
+            moveFocus(offset: 1, extending: extending, scrollPosition: .nearestHorizontalEdge)
         case .moveUp(let extending):
-            moveFocus(offset: -columnCount, extending: extending)
+            moveFocus(offset: -columnCount, extending: extending, scrollPosition: .nearestVerticalEdge)
         case .moveDown(let extending):
-            moveFocus(offset: columnCount, extending: extending)
+            moveFocus(offset: columnCount, extending: extending, scrollPosition: .nearestVerticalEdge)
         case .selectAll:
             selectionState.selectAll(orderedIDs)
             applySelection()
@@ -187,7 +189,11 @@ final class FileGridViewController: NSViewController {
             .columnCount
     }
 
-    private func moveFocus(offset: Int, extending: Bool) {
+    private func moveFocus(
+        offset: Int,
+        extending: Bool,
+        scrollPosition: NSCollectionView.ScrollPosition
+    ) {
         guard !items.isEmpty else { return }
         let currentIndex = selectionState.focusID
             .flatMap { focusedID in items.firstIndex { $0.id == focusedID } }
@@ -207,7 +213,11 @@ final class FileGridViewController: NSViewController {
             selectionState.moveFocus(to: targetID)
         }
         applySelection()
-        collectionView.scrollToItems(at: [IndexPath(item: targetIndex, section: 0)], scrollPosition: .nearestHorizontalEdge)
+        lastKeyboardScrollPosition = scrollPosition
+        collectionView.scrollToItems(
+            at: [IndexPath(item: targetIndex, section: 0)],
+            scrollPosition: scrollPosition
+        )
     }
 
     private func openSelection() {

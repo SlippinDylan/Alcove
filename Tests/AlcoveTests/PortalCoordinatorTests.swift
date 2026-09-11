@@ -581,6 +581,38 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testFolderSelectionInOnePortalDoesNotBlockAnotherPortalTabMutation() async throws {
+        let firstPortal = try makePortal(path: "/tmp/first", x: 10)
+        var secondPortal = try makePortal(path: "/tmp/second", x: 400)
+        let secondTabID = try secondPortal.appendTab(
+            folderURL: URL(fileURLWithPath: "/tmp/second-extra")
+        )
+        let picker = SuspendedTabFolderPicker()
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(
+            store: PortalStoreSpy(portals: [firstPortal, secondPortal]),
+            windowFactory: factory,
+            tabFolderPicker: picker
+        )
+        try await coordinator.restorePortals()
+
+        factory.windows[0].onAddTab?()
+        for _ in 0..<100 where picker.selectionCount == 0 {
+            await Task.yield()
+        }
+        XCTAssertEqual(picker.selectionCount, 1)
+
+        factory.windows[1].onSelectTab?(secondTabID)
+        for _ in 0..<100 where coordinator.portalStates[1].selectedTabID != secondTabID {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(coordinator.portalStates[1].selectedTabID, secondTabID)
+        picker.complete(with: nil)
+        await coordinator.waitForTabMutationForTesting()
+    }
+
+    @MainActor
     func testPortalManagementPublishesShowsAndPersistsBeforeUpdating() async throws {
         var portal = try makePortal(path: "/tmp/first", x: 10)
         let selectedID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/selected"))
@@ -980,6 +1012,29 @@ private final class TabFolderPickerStub: FolderPicking {
     }
 
     func cancel() {}
+}
+
+@MainActor
+private final class SuspendedTabFolderPicker: FolderPicking {
+    private var continuation: CheckedContinuation<URL?, Never>?
+    private(set) var selectionCount = 0
+
+    func chooseFolder() async -> URL? {
+        selectionCount += 1
+        return await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func cancel() {
+        complete(with: nil)
+    }
+
+    func complete(with url: URL?) {
+        guard let continuation else { return }
+        self.continuation = nil
+        continuation.resume(returning: url)
+    }
 }
 
 @MainActor
