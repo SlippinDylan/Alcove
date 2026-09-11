@@ -215,6 +215,10 @@ private final class PortalCoordinatorStub: PortalCoordinating {
 
     func restorePortals() async throws {}
 
+    func stop() {}
+
+    func prepareForTermination() async {}
+
     func createPortal(for folderURL: URL, frame: NSRect?) async throws {
         requests.append(PortalRequest(folder: folderURL, frame: frame))
         if !errors.isEmpty, let error = errors.removeFirst() {

@@ -352,8 +352,12 @@ are observed on the supported desktop-window configurations.
 
 **Exit Gate:**
 - [ ] Placement survives the verified topology scenarios.
-- [ ] Home placement is preserved across system-driven moves.
+- [x] Automated integration preserves home placement across system-driven moves.
 - [x] Production AlcoveCore placement-state tests cover critical and exceptional paths.
+
+Production code, v1→v2 migration, screen/wake observation, user-only commit boundaries,
+and automated topology orchestration are complete. Physical display and WindowServer
+scenarios remain open until manually exercised on supported hardware.
 
 ---
 

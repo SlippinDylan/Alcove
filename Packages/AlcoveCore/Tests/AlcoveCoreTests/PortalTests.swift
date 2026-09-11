@@ -4,9 +4,17 @@ import XCTest
 
 final class PortalTests: XCTestCase {
     private let frame = CGRect(x: 20, y: 40, width: 320, height: 240)
+    private let display = DisplayDescriptor(
+        identity: DisplayIdentity(rawValue: "display-a"),
+        visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 900)
+    )
 
     func testOneTabCreationUsesStandardizedFolderURLAndFreshIdentities() throws {
-        let portal = try Portal(folderURL: URL(fileURLWithPath: "/tmp/alcove/../folder"), frame: frame)
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/alcove/../folder"),
+            frame: frame,
+            display: display
+        )
 
         XCTAssertEqual(portal.tabs.count, 1)
         XCTAssertEqual(portal.tabs[0].folderURL.path, "/tmp/folder")
@@ -26,47 +34,126 @@ final class PortalTests: XCTestCase {
         let unknownID = FolderTabID(rawValue: UUID())
 
         XCTAssertThrowsError(
-            try Portal(tabs: [], selectedTabID: firstID, frame: frame)
+            try Portal(tabs: [], selectedTabID: firstID, placement: makePlacement())
         ) { error in
             XCTAssertEqual(error as? PortalError, .emptyTabs)
         }
         XCTAssertThrowsError(
-            try Portal(tabs: [firstTab, firstTab], selectedTabID: firstID, frame: frame)
+            try Portal(
+                tabs: [firstTab, firstTab],
+                selectedTabID: firstID,
+                placement: makePlacement()
+            )
         ) { error in
             XCTAssertEqual(error as? PortalError, .duplicateTabID(firstID))
         }
         XCTAssertThrowsError(
-            try Portal(tabs: [firstTab], selectedTabID: unknownID, frame: frame)
+            try Portal(
+                tabs: [firstTab],
+                selectedTabID: unknownID,
+                placement: makePlacement()
+            )
         ) { error in
             XCTAssertEqual(error as? PortalError, .selectedTabNotFound(unknownID))
         }
     }
 
-    func testRestoreRejectsNonFiniteAndNonPositiveFrames() {
-        let tab = FolderTab(folderURL: URL(fileURLWithPath: "/tmp/folder"))
+    func testPlacementRecordRejectsMissingHomeAndInvalidEntries() throws {
+        let identity = display.identity
+        let validEntry = try PlacementGeometry.capture(
+            windowFrame: frame,
+            visibleFrame: display.visibleFrame
+        )
+        XCTAssertThrowsError(
+            try PlacementRecord(framesByDisplay: [identity: validEntry], homeDisplay: .init(rawValue: "missing"))
+        ) { error in
+            XCTAssertEqual(
+                error as? PlacementRecordError,
+                .missingHomePlacement(.init(rawValue: "missing"))
+            )
+        }
+
+        let invalidEntry = DisplayPlacementEntry(
+            absoluteFrame: frame,
+            referenceVisibleFrame: CGRect(
+                x: 0,
+                y: 0,
+                width: CGFloat.infinity,
+                height: 900
+            ),
+            preferredSize: frame.size,
+            normalizedAnchor: .center
+        )
+        XCTAssertThrowsError(
+            try PlacementRecord(framesByDisplay: [identity: invalidEntry], homeDisplay: identity)
+        ) { error in
+            XCTAssertEqual(
+                error as? PlacementRecordError,
+                .invalidEntry(identity, .nonFiniteValue("currentVisibleFrame.size"))
+            )
+        }
+    }
+
+    func testPlacementRecordRejectsNonPositiveFrames() {
+        XCTAssertThrowsError(
+            try PlacementRecord(
+                frame: CGRect(x: 0, y: 0, width: 0, height: 240),
+                display: display
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? PlacementRecordError,
+                .nonPositiveFrameSize(display.identity)
+            )
+        }
+    }
+
+    func testPlacementRecordRejectsNonPositivePreferredSize() throws {
+        let identity = display.identity
+        let invalidEntry = DisplayPlacementEntry(
+            absoluteFrame: frame,
+            referenceVisibleFrame: display.visibleFrame,
+            preferredSize: CGSize(width: 0, height: frame.height),
+            normalizedAnchor: .center
+        )
+
+        XCTAssertThrowsError(
+            try PlacementRecord(framesByDisplay: [identity: invalidEntry], homeDisplay: identity)
+        ) { error in
+            XCTAssertEqual(
+                error as? PlacementRecordError,
+                .nonPositivePreferredSize(identity)
+            )
+        }
+    }
+
+    func testPortalCreationWrapsPlacementGeometryErrors() {
+        let invalidDisplay = DisplayDescriptor(
+            identity: display.identity,
+            visibleFrame: CGRect(x: 0, y: 0, width: CGFloat.infinity, height: 900)
+        )
 
         XCTAssertThrowsError(
             try Portal(
-                tabs: [tab],
-                selectedTabID: tab.id,
-                frame: CGRect(x: CGFloat.infinity, y: 0, width: 320, height: 240)
+                folderURL: URL(fileURLWithPath: "/tmp/folder"),
+                frame: frame,
+                display: invalidDisplay
             )
         ) { error in
-            XCTAssertEqual(error as? PortalError, .nonFiniteFrame)
-        }
-        XCTAssertThrowsError(
-            try Portal(
-                tabs: [tab],
-                selectedTabID: tab.id,
-                frame: CGRect(x: 0, y: 0, width: 0, height: 240)
+            XCTAssertEqual(
+                error as? PortalError,
+                .invalidPlacement(
+                    .invalidEntry(
+                        display.identity,
+                        .nonFiniteValue("visibleFrame.size")
+                    )
+                )
             )
-        ) { error in
-            XCTAssertEqual(error as? PortalError, .nonPositiveFrameSize)
         }
     }
 
     func testTabsRemainInCreationOrderAndSelectionCanChange() throws {
-        var portal = try Portal(folderURL: URL(fileURLWithPath: "/tmp/first"), frame: frame)
+        var portal = try makePortal(path: "/tmp/first")
         let secondID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
         let thirdID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/third"))
 
@@ -78,7 +165,7 @@ final class PortalTests: XCTestCase {
     }
 
     func testRemovingSelectedTabSelectsItsSuccessorOrPredecessor() throws {
-        var portal = try Portal(folderURL: URL(fileURLWithPath: "/tmp/first"), frame: frame)
+        var portal = try makePortal(path: "/tmp/first")
         let secondID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
         let thirdID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/third"))
 
@@ -91,7 +178,7 @@ final class PortalTests: XCTestCase {
     }
 
     func testTabOperationsRejectInvalidTargetsAndPreserveTheLastTab() throws {
-        var portal = try Portal(folderURL: URL(fileURLWithPath: "/tmp/first"), frame: frame)
+        var portal = try makePortal(path: "/tmp/first")
         let unknownID = FolderTabID(rawValue: UUID())
 
         XCTAssertThrowsError(try portal.selectTab(unknownID)) { error in
@@ -105,14 +192,32 @@ final class PortalTests: XCTestCase {
         }
     }
 
-    func testFrameAndIconSizeUpdatesPreserveValidatedState() throws {
-        var portal = try Portal(folderURL: URL(fileURLWithPath: "/tmp/folder"), frame: frame)
+    func testUserPlacementChangesHomeAndRetainsPriorDisplayEntry() throws {
+        var portal = try makePortal(path: "/tmp/folder")
         let updatedFrame = CGRect(x: -10, y: 5, width: 640, height: 480)
+        let secondDisplay = DisplayDescriptor(
+            identity: DisplayIdentity(rawValue: "display-b"),
+            visibleFrame: CGRect(x: -1200, y: 0, width: 1200, height: 800)
+        )
 
-        try portal.updateFrame(updatedFrame)
+        try portal.recordUserPlacement(frame: updatedFrame, display: secondDisplay)
         portal.updateIconSize(.large)
 
         XCTAssertEqual(portal.frame, updatedFrame)
+        XCTAssertEqual(portal.placement.homeDisplay, secondDisplay.identity)
+        XCTAssertEqual(Set(portal.placement.framesByDisplay.keys), [display.identity, secondDisplay.identity])
+        XCTAssertEqual(
+            portal.placement.framesByDisplay[secondDisplay.identity],
+            portal.placement.homeEntry
+        )
         XCTAssertEqual(portal.iconSize, .large)
+    }
+
+    private func makePlacement() throws -> PlacementRecord {
+        try PlacementRecord(frame: frame, display: display)
+    }
+
+    private func makePortal(path: String) throws -> Portal {
+        try Portal(folderURL: URL(fileURLWithPath: path), frame: frame, display: display)
     }
 }

@@ -198,7 +198,7 @@ The following items are required to resolve full Spike 0.2:
 - [ ] Display rearrangement in System Settings
 - [ ] Sleep/wake geometry re-read
 - [x] Pure eviction-safe primary-screen fallback without overwriting home placement
-- [ ] Integration with the Persistence layer (Slice 8)
+- [x] Integration with the Persistence layer (Slice 8; automated production boundary)
 - [ ] Manual hardware matrix for multi-display scenarios
 
 **Explicit statement:** Display UUID stability is not an Apple guarantee. Apple does not document `CGDisplayCreateUUIDFromDisplayID` as stable through every disconnect/reconnect scenario. Full Spike 0.2 is incomplete.

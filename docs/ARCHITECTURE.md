@@ -102,10 +102,10 @@ App entry point and global coordination.
 - Final window level, collection behaviors, window class, and key-window policy are provisional until Spike 0.1 is resolved.
 - Production development uses the replaceable Phase 0.1D default: key-eligible `NSWindow`, `desktopIconWindow + 1`, and `[.canJoinAllSpaces, .stationary, .ignoresCycle]`. This is an implementation starting point, not a claim that the manual WindowServer matrix passed.
 - Regardless of the selected strategy, the portal must provide:
-  - `isMovableByWindowBackground = true`
+  - Application-tracked dragging from the non-control titlebar region
   - Standard resize from edges/corners
   - Frame snap to grid metrics on move/resize end
-- `PortalWindowController` — manages window lifecycle, delegates to `DisplayPlacement` on frame changes
+- `PortalWindowController` — emits placement commits only after tracked drag mouse-up or live-resize end; generic frame notifications never imply user intent
 
 ### 3.4 PortalPresentation
 
@@ -154,8 +154,10 @@ Display identity, coordinate normalization, and placement state machine.
 
 - `DisplayIdentity` — wraps `CGDisplayCreateUUIDFromDisplayID` output (stability through disconnect/reconnect is inference, requires spike validation)
 - `NormalizedAnchor` — portal origin expressed as fractions of the actual movable range within `NSScreen.visibleFrame`, after constraining the portal size
-- `PlacementStore` — read/write per-portal, per-display placement records
-- State machine (§6) — distinguishes user-initiated moves from system-driven evictions
+- `DisplaySnapshot` — captures canonical display UUIDs, visible frames, and the explicit primary display without treating `NSScreen.screens` order as identity
+- `DisplayPlacementObserver` — refreshes topology after screen-parameter changes and wake notifications
+- `PortalStore` — persists per-portal, per-display placement records
+- State machine (§6) — distinguishes explicit user placement commits from system-driven evictions
 
 ### 3.9 Persistence
 
@@ -183,10 +185,10 @@ struct Portal: Identifiable, Sendable {
     var tabs: [FolderTab]
     var selectedTabID: FolderTabID
     var iconSize: IconSize
-    var frame: CGRect               // Slice 5; upgraded to PlacementRecord in Slice 8
+    var placement: PlacementRecord
 
     init(id: PortalID = PortalID(), tabs: [FolderTab], selectedTabID: FolderTabID,
-         iconSize: IconSize = .medium, frame: CGRect) throws { ... }
+         placement: PlacementRecord, iconSize: IconSize = .medium) throws { ... }
 }
 ```
 
@@ -319,7 +321,7 @@ struct NormalizedAnchor: Sendable {
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "portals": [ ... ]
 }
 ```
@@ -337,7 +339,11 @@ All JSON keys are `snake_case`. Dates are ISO 8601.
 
 ### 5.3 Migration Strategy
 
-MVP starts with a versioned v1 envelope and preserves room for future migration, but it does not build a speculative migration chain before a second schema exists. When v2 is introduced, that change must add and test the concrete v1→v2 migration using the real old and new schemas. Later migrations are explicit and sequential; the implementation shape is chosen from the needs of those schemas rather than a mock migration framework.
+The concrete v1→v2 migration maps each legacy frame to the display with the largest
+positive visible-frame intersection, falling back to the explicit primary display.
+Before conversion it writes `portals.v1.json.bak` once and never replaces a different
+existing backup. Only successful mapping is atomically rewritten as v2. Later migrations
+remain explicit and sequential rather than using a speculative generic framework.
 
 ### 5.4 Failure Policy
 
@@ -351,7 +357,8 @@ MVP starts with a versioned v1 envelope and preserves room for future migration,
 
 ### 5.5 Backup
 
-When the first real migration is introduced, preserve the pre-migration file as `portals.v<N>.json.bak` before transforming it. A retention policy should be added with that migration based on actual storage and recovery requirements.
+The v1→v2 migration preserves the original as `portals.v1.json.bak`. The first backup is
+write-once; a different existing backup stops migration instead of overwriting evidence.
 
 ---
 
@@ -387,11 +394,11 @@ When the first real migration is introduced, preserve the pre-migration file as 
 
 The display placement state machine writes only at the end of explicitly tracked user drag and live-resize sessions. Both the drag handle and window resize edges are tracked. Window frame notifications alone are not proof of user origin — this remains spike-validated.
 
-The `PortalWindowController` tracks a `isUserInteracting: Bool` flag:
-
-- Set to `true` on `mouseDown` in the title bar, drag area, or resize edge.
-- Set to `false` on `mouseUp`.
-- All frame-change notifications while `isUserInteracting == false` are treated as system-driven and do **not** write to `framesByDisplay` (except when restoring from normalized coordinates after a resolution change).
+`PortalWindow` disables server-side background dragging and intercepts mouse-down only in
+the non-control titlebar region. It tracks global pointer drag events to mouse-up and emits
+one user placement commit only after an actual drag. Live resize uses
+`windowWillStartLiveResize`/`windowDidEndLiveResize`. `windowDidMove`, `windowDidResize`,
+Spaces, Stage Manager, and topology-driven `setFrame` calls never write placement state.
 
 This prevents Show Desktop, Spaces transitions, or Stage Manager reflow from overwriting the user's chosen position.
 

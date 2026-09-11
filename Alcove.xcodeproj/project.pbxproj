@@ -33,6 +33,8 @@
 		100000000000000000000027 /* QuickLookIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000029 /* QuickLookIntegration.swift */; };
 		100000000000000000000028 /* QuickLookIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002A /* QuickLookIntegrationTests.swift */; };
 		100000000000000000000029 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002B /* Quartz.framework */; };
+		10000000000000000000002A /* DisplayPlacement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002C /* DisplayPlacement.swift */; };
+		10000000000000000000002B /* DisplayPlacementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002D /* DisplayPlacementTests.swift */; };
 		100000000000000000000014 /* FolderAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* FolderAccessTests.swift */; };
 		100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000017 /* PortalCoordinatorTests.swift */; };
 		100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000018 /* FileGridViewControllerTests.swift */; };
@@ -89,6 +91,8 @@
 		200000000000000000000029 /* QuickLookIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookIntegration.swift; sourceTree = "<group>"; };
 		20000000000000000000002A /* QuickLookIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookIntegrationTests.swift; sourceTree = "<group>"; };
 		20000000000000000000002B /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
+		20000000000000000000002C /* DisplayPlacement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayPlacement.swift; sourceTree = "<group>"; };
+		20000000000000000000002D /* DisplayPlacementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayPlacementTests.swift; sourceTree = "<group>"; };
 		200000000000000000000016 /* FolderAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAccessTests.swift; sourceTree = "<group>"; };
 		200000000000000000000017 /* PortalCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCoordinatorTests.swift; sourceTree = "<group>"; };
 		200000000000000000000018 /* FileGridViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridViewControllerTests.swift; sourceTree = "<group>"; };
@@ -147,6 +151,7 @@
 				70000000000000000000000D /* PortalCreation */,
 				70000000000000000000000B /* PortalPresentation */,
 				70000000000000000000000C /* PortalWindowing */,
+				700000000000000000000010 /* DisplayPlacement */,
 				70000000000000000000000F /* QuickLookIntegration */,
 				70000000000000000000000E /* Persistence */,
 				700000000000000000000004 /* Resources */,
@@ -185,6 +190,7 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000005 /* AppDelegateTests.swift */,
+				20000000000000000000002D /* DisplayPlacementTests.swift */,
 				200000000000000000000018 /* FileGridViewControllerTests.swift */,
 				200000000000000000000016 /* FolderAccessTests.swift */,
 				200000000000000000000017 /* PortalCoordinatorTests.swift */,
@@ -267,6 +273,14 @@
 				200000000000000000000029 /* QuickLookIntegration.swift */,
 			);
 			path = QuickLookIntegration;
+			sourceTree = "<group>";
+		};
+		700000000000000000000010 /* DisplayPlacement */ = {
+			isa = PBXGroup;
+			children = (
+				20000000000000000000002C /* DisplayPlacement.swift */,
+			);
+			path = DisplayPlacement;
 			sourceTree = "<group>";
 		};
 		70000000000000000000000D /* PortalCreation */ = {
@@ -419,6 +433,7 @@
 				100000000000000000000013 /* PortalWindowController.swift in Sources */,
 				100000000000000000000023 /* PortalWindowFactory.swift in Sources */,
 				100000000000000000000027 /* QuickLookIntegration.swift in Sources */,
+				10000000000000000000002A /* DisplayPlacement.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -427,6 +442,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				100000000000000000000005 /* AppDelegateTests.swift in Sources */,
+				10000000000000000000002B /* DisplayPlacementTests.swift in Sources */,
 				100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */,
 				100000000000000000000014 /* FolderAccessTests.swift in Sources */,
 				100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */,

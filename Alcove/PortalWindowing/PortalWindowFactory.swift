@@ -3,12 +3,14 @@ import AppKit
 
 @MainActor
 protocol PortalWindowPresenting: AnyObject {
-    var onFrameChange: ((NSRect) -> Void)? { get set }
+    var onUserPlacementCommit: ((NSRect) -> Void)? { get set }
+    var onUserPlacementInteractionCancelled: (() -> Void)? { get set }
     var onSelectTab: ((FolderTabID) -> Void)? { get set }
     var onAddTab: (() -> Void)? { get set }
     var onCloseTab: ((FolderTabID) -> Void)? { get set }
     func present()
     func updatePortal(_ portal: Portal)
+    func applySystemPlacement(frame: NSRect) -> Bool
     func close()
 }
 

@@ -3,7 +3,8 @@ import AlcoveCore
 
 @MainActor
 final class PortalWindowController: NSWindowController, PortalWindowPresenting {
-    var onFrameChange: ((NSRect) -> Void)?
+    var onUserPlacementCommit: ((NSRect) -> Void)?
+    var onUserPlacementInteractionCancelled: (() -> Void)?
     var onSelectTab: ((FolderTabID) -> Void)? {
         didSet { portalViewController.onSelectTab = onSelectTab }
     }
@@ -38,6 +39,12 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         super.init(window: window)
         shouldCascadeWindows = false
         window.delegate = self
+        window.onUserPlacementCommit = { [weak self] frame in
+            self?.onUserPlacementCommit?(frame)
+        }
+        window.onUserPlacementInteractionCancelled = { [weak self] in
+            self?.onUserPlacementInteractionCancelled?()
+        }
         portalViewController.onQuickLookRequested = { [weak quickLookIntegration] urls in
             quickLookIntegration?.handleSpace(for: urls)
         }
@@ -68,23 +75,26 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
         window?.title = selectedTab?.folderURL.lastPathComponent ?? "Alcove"
     }
+
+    func applySystemPlacement(frame: NSRect) -> Bool {
+        guard let portalWindow = window as? PortalWindow else {
+            return false
+        }
+        return portalWindow.applySystemPlacement(frame: frame)
+    }
 }
 
 extension PortalWindowController: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
+        (window as? PortalWindow)?.cancelUserPlacementInteraction(notify: false)
         quickLookIntegration.detach()
     }
 
-    func windowDidMove(_ notification: Notification) {
-        publishFrame()
+    func windowWillStartLiveResize(_ notification: Notification) {
+        (window as? PortalWindow)?.beginUserResize()
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
-        publishFrame()
-    }
-
-    private func publishFrame() {
-        guard let frame = window?.frame else { return }
-        onFrameChange?(frame)
+        (window as? PortalWindow)?.endUserResize()
     }
 }

@@ -83,7 +83,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [ ] Slice 5 — Minimal Persistence: v1 DTO/store, atomic failure preservation, startup restore, and frame writeback complete; manual relaunch remains.
 - [ ] Slice 6 — Tabs: ordered UI, add/select/close persistence, last-tab confirmation, and runtime state restoration complete; manual interaction remains.
 - [ ] Slice 7 — Quick Look: production responder, ordered selection, ownership cleanup, 56 hosted tests, and universal build complete; real panel behavior remains manual.
-- [ ] Slice 8 — Display Placement Persistence: production pure geometry/state migration and 73 placement tests complete; AppKit coordination and persistence migration remain.
+- [ ] Slice 8 — Display Placement Persistence: production v2 migration, user-only commits, topology/wake recovery, 110 Core tests, 88 hosted tests, and universal build complete; physical hardware matrix remains.
 - [ ] Slice 9 — Directory Observation and Auto-Refresh.
 - [ ] Slice 10 — Hardening, Accessibility, and Release Preparation.
 
@@ -123,3 +123,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-09-11: Production Slice 6 added ordered multi-tab UI, validated addition, persisted selection/closure, final-tab Portal confirmation, and per-tab runtime state. Thirty-four Core tests and 46 hosted tests pass; manual TabBar interaction remains.
 - 2026-09-11: Production Slice 7 added ordered single/multi-selection Quick Look, explicit shared-panel ownership, second-Space dismissal, tab-switch invalidation, takeover-safe updates, synchronous window-close cleanup, and reversible responder-chain installation. Thirty-four Core tests and 56 hosted tests pass; real panel rendering/navigation/focus behavior remains manual.
 - 2026-09-11: Production Slice 8A migrated the verified placement geometry and eviction-safe reducer into AlcoveCore with 51 geometry and 22 state tests. AlcoveCore passes 107 tests, hosted tests pass 56/56, and Release remains universal; no persistent schema changed.
+- 2026-09-12: Production Slice 8 completed canonical display identity, v2 placement migration with write-once backup, explicit user drag/resize commits, screen/wake reconciliation, durable mutation serialization, pending-placement retry, and termination flush. AlcoveCore passes 110 tests and the hosted app passes 88; physical display behavior remains manual.

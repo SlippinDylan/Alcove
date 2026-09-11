@@ -12,12 +12,14 @@ private final class StatusMenuControllerSpy: StatusMenuControlling {
     func stop() {
         stopCount += 1
     }
+
 }
 
 private final class PortalCoordinatorSpy: PortalCoordinating {
     private(set) var createdFolders: [URL] = []
     private(set) var restoreCount = 0
     var error: Error?
+    private(set) var stopCount = 0
 
     func restorePortals() async throws {
         restoreCount += 1
@@ -32,6 +34,12 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
         }
         createdFolders.append(folderURL)
     }
+
+    func stop() {
+        stopCount += 1
+    }
+
+    func prepareForTermination() async {}
 
 }
 
@@ -63,6 +71,7 @@ final class AppDelegateTests: XCTestCase {
         XCTAssertEqual(spy.stopCount, 1)
         XCTAssertEqual(portalSpy.restoreCount, 1)
         XCTAssertEqual(portalSpy.createdFolders, [startupFolder])
+        XCTAssertEqual(portalSpy.stopCount, 1)
         XCTAssertNil(delegate.startupError)
         XCTAssertEqual(NSApplication.shared.activationPolicy(), .accessory)
     }

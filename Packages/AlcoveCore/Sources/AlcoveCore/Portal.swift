@@ -45,8 +45,96 @@ public enum PortalError: Error, Equatable, Sendable {
     case selectedTabNotFound(FolderTabID)
     case tabNotFound(FolderTabID)
     case cannotRemoveLastTab
-    case nonFiniteFrame
-    case nonPositiveFrameSize
+    case invalidPlacement(PlacementRecordError)
+}
+
+public enum PlacementRecordError: Error, Equatable, Sendable {
+    case missingHomePlacement(DisplayIdentity)
+    case invalidEntry(DisplayIdentity, PlacementError)
+    case nonPositiveFrameSize(DisplayIdentity)
+    case nonPositivePreferredSize(DisplayIdentity)
+}
+
+/// Durable user-confirmed placement history for one portal.
+public struct PlacementRecord: Equatable, Sendable {
+    public private(set) var framesByDisplay: [DisplayIdentity: DisplayPlacementEntry]
+    public private(set) var homeDisplay: DisplayIdentity
+    private var homePlacement: DisplayPlacementEntry
+
+    public var homeEntry: DisplayPlacementEntry { homePlacement }
+
+    public init(
+        framesByDisplay: [DisplayIdentity: DisplayPlacementEntry],
+        homeDisplay: DisplayIdentity
+    ) throws {
+        guard let homePlacement = framesByDisplay[homeDisplay] else {
+            throw PlacementRecordError.missingHomePlacement(homeDisplay)
+        }
+        for (display, entry) in framesByDisplay {
+            try Self.validate(entry, on: display)
+        }
+        self.framesByDisplay = framesByDisplay
+        self.homeDisplay = homeDisplay
+        self.homePlacement = homePlacement
+    }
+
+    public init(frame: CGRect, display: DisplayDescriptor) throws {
+        let entry = try Self.capture(frame: frame, display: display)
+        guard frame.width > 0, frame.height > 0 else {
+            throw PlacementRecordError.nonPositiveFrameSize(display.identity)
+        }
+        framesByDisplay = [display.identity: entry]
+        homeDisplay = display.identity
+        homePlacement = entry
+    }
+
+    /// Records a placement only after the caller has classified the frame change as user-driven.
+    public mutating func recordUserPlacement(
+        frame: CGRect,
+        display: DisplayDescriptor
+    ) throws {
+        let entry = try Self.capture(frame: frame, display: display)
+        guard frame.width > 0, frame.height > 0 else {
+            throw PlacementRecordError.nonPositiveFrameSize(display.identity)
+        }
+        framesByDisplay[display.identity] = entry
+        homeDisplay = display.identity
+        homePlacement = entry
+    }
+
+    private static func capture(
+        frame: CGRect,
+        display: DisplayDescriptor
+    ) throws -> DisplayPlacementEntry {
+        do {
+            return try PlacementGeometry.capture(
+                windowFrame: frame,
+                visibleFrame: display.visibleFrame
+            )
+        } catch let error as PlacementError {
+            throw PlacementRecordError.invalidEntry(display.identity, error)
+        }
+    }
+
+    private static func validate(
+        _ entry: DisplayPlacementEntry,
+        on display: DisplayIdentity
+    ) throws {
+        guard entry.absoluteFrame.width > 0, entry.absoluteFrame.height > 0 else {
+            throw PlacementRecordError.nonPositiveFrameSize(display)
+        }
+        guard entry.preferredSize.width > 0, entry.preferredSize.height > 0 else {
+            throw PlacementRecordError.nonPositivePreferredSize(display)
+        }
+        do {
+            _ = try PlacementGeometry.restore(
+                record: entry,
+                currentVisibleFrame: entry.referenceVisibleFrame
+            )
+        } catch let error as PlacementError {
+            throw PlacementRecordError.invalidEntry(display, error)
+        }
+    }
 }
 
 /// The UI-free durable state for one portal.
@@ -56,22 +144,31 @@ public struct Portal: Identifiable, Equatable, Sendable {
     public let id: PortalID
     public private(set) var tabs: [FolderTab]
     public private(set) var selectedTabID: FolderTabID
-    public private(set) var frame: CGRect
+    public private(set) var placement: PlacementRecord
     public private(set) var iconSize: IconSize
 
-    /// Creates the one-tab portal state used by the first persistence schema.
+    public var frame: CGRect { placement.homeEntry.absoluteFrame }
+
+    /// Creates a one-tab portal with a placement captured on a real display.
     public init(
         id: PortalID = PortalID(),
         folderURL: URL,
         frame: CGRect,
+        display: DisplayDescriptor,
         iconSize: IconSize = .medium
     ) throws {
         let tab = FolderTab(folderURL: folderURL)
+        let placement: PlacementRecord
+        do {
+            placement = try PlacementRecord(frame: frame, display: display)
+        } catch let error as PlacementRecordError {
+            throw PortalError.invalidPlacement(error)
+        }
         try self.init(
             id: id,
             tabs: [tab],
             selectedTabID: tab.id,
-            frame: frame,
+            placement: placement,
             iconSize: iconSize
         )
     }
@@ -81,7 +178,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         id: PortalID = PortalID(),
         tabs: [FolderTab],
         selectedTabID: FolderTabID,
-        frame: CGRect,
+        placement: PlacementRecord,
         iconSize: IconSize = .medium
     ) throws {
         guard !tabs.isEmpty else {
@@ -99,12 +196,10 @@ public struct Portal: Identifiable, Equatable, Sendable {
             throw PortalError.selectedTabNotFound(selectedTabID)
         }
 
-        try Self.validate(frame)
-
         self.id = id
         self.tabs = tabs
         self.selectedTabID = selectedTabID
-        self.frame = frame
+        self.placement = placement
         self.iconSize = iconSize
     }
 
@@ -149,27 +244,20 @@ public struct Portal: Identifiable, Equatable, Sendable {
         }
     }
 
-    /// Replaces the portal frame after validating it for persistence.
-    public mutating func updateFrame(_ frame: CGRect) throws {
-        try Self.validate(frame)
-        self.frame = frame
+    /// Records a user-confirmed frame and makes its display the remembered home.
+    public mutating func recordUserPlacement(
+        frame: CGRect,
+        display: DisplayDescriptor
+    ) throws {
+        do {
+            try placement.recordUserPlacement(frame: frame, display: display)
+        } catch let error as PlacementRecordError {
+            throw PortalError.invalidPlacement(error)
+        }
     }
 
     /// Replaces the app-owned icon-size preference.
     public mutating func updateIconSize(_ iconSize: IconSize) {
         self.iconSize = iconSize
-    }
-
-    private static func validate(_ frame: CGRect) throws {
-        guard frame.origin.x.isFinite,
-              frame.origin.y.isFinite,
-              frame.width.isFinite,
-              frame.height.isFinite
-        else {
-            throw PortalError.nonFiniteFrame
-        }
-        guard frame.width > 0, frame.height > 0 else {
-            throw PortalError.nonPositiveFrameSize
-        }
     }
 }

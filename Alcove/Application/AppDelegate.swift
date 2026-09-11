@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let startupFolderURL: URL?
     private(set) var startupError: Error?
     private var startupTask: Task<Void, Never>?
+    private var terminationTask: Task<Void, Never>?
 
     init(
         statusMenuController: any StatusMenuControlling,
@@ -52,7 +53,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         startupTask?.cancel()
+        portalCoordinator.stop()
         statusMenuController.stop()
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard terminationTask == nil else { return .terminateLater }
+        startupTask?.cancel()
+        terminationTask = Task { [weak self] in
+            if let self {
+                await portalCoordinator.prepareForTermination()
+            }
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     func waitForStartupForTesting() async {

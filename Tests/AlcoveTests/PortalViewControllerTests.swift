@@ -17,7 +17,8 @@ final class PortalViewControllerTests: XCTestCase {
         )
         let portal = try Portal(
             folderURL: root,
-            frame: CGRect(x: 0, y: 0, width: 320, height: 240)
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240),
+            display: testDisplay
         )
         let controller = PortalViewController(
             portal: portal,
@@ -38,7 +39,8 @@ final class PortalViewControllerTests: XCTestCase {
         )
         let portal = try Portal(
             folderURL: root,
-            frame: CGRect(x: 0, y: 0, width: 320, height: 240)
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240),
+            display: testDisplay
         )
         let controller = PortalViewController(
             portal: portal,
@@ -51,6 +53,11 @@ final class PortalViewControllerTests: XCTestCase {
         XCTAssertEqual(controller.presentationState, .message("This folder is empty"))
     }
 }
+
+private let testDisplay = DisplayDescriptor(
+    identity: DisplayIdentity(rawValue: "test-display"),
+    visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 900)
+)
 
 private struct FixedFolderEnumerator: FolderEnumerating {
     let root: URL

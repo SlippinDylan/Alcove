@@ -18,7 +18,7 @@ final class PortalWindowConfigurationTests: XCTestCase {
         XCTAssertEqual(window.level, strategy.level)
         XCTAssertEqual(window.collectionBehavior, strategy.collectionBehavior)
         XCTAssertTrue(window.canBecomeKey)
-        XCTAssertTrue(window.isMovableByWindowBackground)
+        XCTAssertFalse(window.isMovableByWindowBackground)
         XCTAssertTrue(window.styleMask.contains(.resizable))
         XCTAssertEqual(window.minSize, NSSize(width: 240, height: 240))
     }
@@ -42,5 +42,167 @@ final class PortalWindowConfigurationTests: XCTestCase {
         XCTAssertFalse(window.canBecomeKey)
         XCTAssertEqual(window.level, .normal)
         XCTAssertEqual(window.collectionBehavior, [])
+    }
+
+    @MainActor
+    func testOnlyTitlebarBackgroundIsADragRegion() {
+        let window = makeWindow()
+        let contentPoint = NSPoint(
+            x: window.contentLayoutRect.midX,
+            y: window.contentLayoutRect.midY
+        )
+        XCTAssertFalse(window.isPortalDragRegion(at: contentPoint))
+        XCTAssertTrue(
+            window.isPortalDragRegion(
+                at: NSPoint(x: window.frame.width - 20, y: window.frame.height - 10)
+            )
+        )
+
+        guard let closeButton = window.standardWindowButton(.closeButton) else {
+            return XCTFail("Expected a standard close button")
+        }
+        let closeButtonFrame = closeButton.convert(closeButton.bounds, to: nil)
+        let closeButtonPoint = NSPoint(x: closeButtonFrame.midX, y: closeButtonFrame.midY)
+        XCTAssertFalse(window.isPortalDragRegion(at: closeButtonPoint))
+    }
+
+    func testPlacementTrackerCommitsOnlyAfterADragEvent() {
+        var tracker = PortalWindowUserPlacementTracker()
+        let initialFrame = NSRect(x: 20, y: 30, width: 320, height: 240)
+
+        tracker.begin(at: NSPoint(x: 10, y: 10), frame: initialFrame)
+        XCTAssertTrue(tracker.isTracking)
+        XCTAssertNil(tracker.finish())
+        XCTAssertFalse(tracker.isTracking)
+
+        tracker.begin(at: NSPoint(x: 10, y: 10), frame: initialFrame)
+        XCTAssertEqual(
+            tracker.drag(to: NSPoint(x: 35, y: 50)),
+            NSRect(x: 45, y: 70, width: 320, height: 240)
+        )
+        XCTAssertEqual(
+            tracker.finish(),
+            NSRect(x: 45, y: 70, width: 320, height: 240)
+        )
+        XCTAssertFalse(tracker.isTracking)
+    }
+
+    @MainActor
+    func testUserDragCommitsOnceOnMouseUpWithoutTrackingRunLoop() throws {
+        let pointer = PointerLocation(NSPoint(x: 10, y: 10))
+        let window = makeWindow(pointerLocationProvider: { pointer.location })
+        var commits: [NSRect] = []
+        window.onUserPlacementCommit = { commits.append($0) }
+        let initialOrigin = window.frame.origin
+        window.beginUserDrag(at: NSPoint(x: 10, y: 10))
+
+        pointer.location = NSPoint(x: 50, y: 70)
+        window.handleUserDragEvent(try event(.leftMouseDragged, at: .zero, in: window))
+        XCTAssertEqual(
+            window.frame.origin,
+            NSPoint(x: initialOrigin.x + 40, y: initialOrigin.y + 60)
+        )
+        XCTAssertTrue(window.isUserPlacementInteractionActive)
+        XCTAssertTrue(window.applySystemPlacement(frame: NSRect(x: 100, y: 100, width: 560, height: 480)) == false)
+
+        window.handleUserDragEvent(try event(.leftMouseUp, at: .zero, in: window))
+        XCTAssertEqual(commits, [window.frame])
+        XCTAssertFalse(window.isUserPlacementInteractionActive)
+        XCTAssertTrue(window.applySystemPlacement(frame: NSRect(x: 100, y: 100, width: 560, height: 480)))
+        XCTAssertEqual(window.frame, NSRect(x: 100, y: 100, width: 560, height: 480))
+    }
+
+    @MainActor
+    func testUserResizeCommitsOnceAtLiveResizeEnd() {
+        let window = makeWindow()
+        var commits: [NSRect] = []
+        window.onUserPlacementCommit = { commits.append($0) }
+        window.beginUserResize()
+        window.setFrame(NSRect(x: 80, y: 90, width: 400, height: 300), display: false)
+
+        XCTAssertTrue(window.isUserPlacementInteractionActive)
+        XCTAssertFalse(window.applySystemPlacement(frame: NSRect(x: 10, y: 20, width: 300, height: 240)))
+        window.endUserResize()
+        window.endUserResize()
+
+        XCTAssertEqual(commits, [NSRect(x: 80, y: 90, width: 400, height: 300)])
+        XCTAssertFalse(window.isUserPlacementInteractionActive)
+    }
+
+    @MainActor
+    func testCancelledDragClearsInteractionWithoutCommitting() {
+        let window = makeWindow()
+        var commits: [NSRect] = []
+        var cancellationCount = 0
+        window.onUserPlacementCommit = { commits.append($0) }
+        window.onUserPlacementInteractionCancelled = { cancellationCount += 1 }
+        window.beginUserDrag(at: NSPoint(x: 10, y: 10))
+
+        window.handleUserDragEvent(nil)
+
+        XCTAssertFalse(window.isUserPlacementInteractionActive)
+        XCTAssertTrue(commits.isEmpty)
+        XCTAssertEqual(cancellationCount, 1)
+    }
+
+    @MainActor
+    func testCancellingResizeClearsInteractionWithoutCommitting() {
+        let window = makeWindow()
+        var commits: [NSRect] = []
+        var cancellationCount = 0
+        window.onUserPlacementCommit = { commits.append($0) }
+        window.onUserPlacementInteractionCancelled = { cancellationCount += 1 }
+        window.beginUserResize()
+
+        window.cancelUserPlacementInteraction()
+        window.endUserResize()
+
+        XCTAssertFalse(window.isUserPlacementInteractionActive)
+        XCTAssertTrue(commits.isEmpty)
+        XCTAssertEqual(cancellationCount, 1)
+    }
+
+    @MainActor
+    private func makeWindow(
+        pointerLocationProvider: @escaping () -> NSPoint = { NSEvent.mouseLocation }
+    ) -> PortalWindow {
+        let contentController = NSViewController()
+        contentController.view = NSView()
+        return PortalWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 480),
+            strategy: .developmentDefault,
+            contentViewController: contentController,
+            pointerLocationProvider: pointerLocationProvider
+        )
+    }
+
+    @MainActor
+    private func event(
+        _ type: NSEvent.EventType,
+        at location: NSPoint,
+        in window: NSWindow
+    ) throws -> NSEvent {
+        try XCTUnwrap(
+            NSEvent.mouseEvent(
+                with: type,
+                location: location,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: window.windowNumber,
+                context: nil,
+                eventNumber: 0,
+                clickCount: 1,
+                pressure: 1
+            )
+        )
+    }
+
+    @MainActor
+    private final class PointerLocation {
+        var location: NSPoint
+
+        init(_ location: NSPoint) {
+            self.location = location
+        }
     }
 }

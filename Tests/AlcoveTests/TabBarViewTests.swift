@@ -84,7 +84,13 @@ final class TabBarViewTests: XCTestCase {
         try Portal(
             tabs: tabs,
             selectedTabID: selected,
-            frame: NSRect(x: 0, y: 0, width: 300, height: 200)
+            placement: try PlacementRecord(
+                frame: NSRect(x: 0, y: 0, width: 300, height: 200),
+                display: DisplayDescriptor(
+                    identity: DisplayIdentity(rawValue: "test-display"),
+                    visibleFrame: NSRect(x: 0, y: 0, width: 1440, height: 900)
+                )
+            )
         )
     }
 }
