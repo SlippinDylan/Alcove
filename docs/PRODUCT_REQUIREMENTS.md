@@ -2,7 +2,7 @@
 
 ## 1. Product Overview
 
-Alcove is a native macOS menu-bar utility that creates movable, resizable desktop-layer folder portals. Each portal displays the contents of a mapped local directory as a scrollable native icon grid. Portals support multiple tabs, Finder-consistent selection and interaction, and Quick Look integration.
+Alcove is a native macOS menu-bar utility that creates movable, resizable desktop-layer folder portals. Each portal displays the contents of a mapped directory on the Mac's internal, fixed local storage as a scrollable native icon grid. Portals support multiple tabs, Finder-consistent selection and interaction, and Quick Look integration.
 
 Alcove is **not** a Finder replacement. It does not provide directory navigation, file management mutations, or a full desktop shell. It is a focused read-only view into folders the user chooses, displayed on the desktop layer below normal application windows.
 
@@ -30,6 +30,7 @@ Alcove is **not** a Finder replacement. It does not provide directory navigation
 | NG-6 | Finder extension or Finder integration beyond NSWorkspace | Out of scope |
 | NG-7 | Cloud drive sync status indicators | Deferred; adds complexity with provider-specific APIs |
 | NG-8 | Custom file preview/rendering inside the grid | Native icon grid only; Quick Look handles preview |
+| NG-9 | Folders on removable, ejectable, or network volumes | Alcove supports folders on the Mac's internal, fixed local storage only |
 
 ---
 
@@ -102,8 +103,9 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 2. A transparent overlay appears on the pointer's current display
 3. User drags a dashed rectangle constrained to `NSScreen.visibleFrame`
 4. On mouse-up, a folder chooser (standard `NSOpenPanel`) appears
-5. The selected folder becomes the first tab of the new portal
-6. Portal frame snaps to grid metrics (column count, icon spacing)
+5. Alcove validates that the selected folder is on the Mac's internal, fixed local storage; removable, ejectable, and network-volume locations are rejected with an explanation
+6. An eligible folder becomes the first tab of the new portal
+7. Portal frame snaps to grid metrics (column count, icon spacing)
 
 ### 5.5 Tab Management
 
@@ -153,6 +155,7 @@ Tabs remain in creation order in MVP. Drag-to-reorder is Post-MVP.
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
 | FR-17 | Drag-out from portals | Investigate |
 | FR-18 | Alcove-owned Small/Medium/Large icon sizing presets | MVP |
+| FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 
 ### Non-Functional Requirements
 
@@ -182,7 +185,7 @@ Tabs remain in creation order in MVP. Drag-to-reorder is Post-MVP.
 | Folder not found (moved/deleted) | Error banner: "Folder not found" with path | Offer "Locate Folder…" to re-map |
 | Permission denied (TCC-protected) | Error banner: "Permission denied" with folder name | Report the system result accurately; Alcove does not fabricate or force a permission flow, while macOS may present its own prompt |
 | Read error (I/O) | Error banner: "Unable to read folder contents" | Show retry button |
-| Volume ejected | Error banner: "Volume not available" | Show path; wait for reconnection |
+| Unsupported folder location | Selection error: "Choose a folder on this Mac's internal disk" | Keep the chooser flow available; do not create or remap the tab |
 
 ### 7.3 Loading States
 
@@ -241,7 +244,7 @@ The table below is the current release candidate, not a confirmed final-user dis
 
 ## 11. Acceptance Criteria (MVP and Release)
 
-AC-01 through AC-16 define MVP product acceptance. AC-17 is the separate first-public-release acceptance criterion and does not block MVP feature implementation.
+AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-public-release acceptance criterion and does not block MVP feature implementation.
 
 | ID | Criterion | Source |
 |----|-----------|--------|
@@ -261,7 +264,8 @@ AC-01 through AC-16 define MVP product acceptance. AC-17 is the separate first-p
 | AC-14 | No file mutations (rename, trash, new folder) are possible through the portal | NG-2 |
 | AC-15 | App is a menu-bar utility with no Dock icon | FR-11 |
 | AC-16 | Universal binary (arm64 + x86_64) builds and runs on both architectures | Distribution target |
-| AC-17 | Spike 0.6 validates the selected signed DMG installation and launch procedure on the supported test matrix, and the verified steps are documented | Spike 0.6 release gate |
+| AC-17 | Folder creation and re-mapping accept only resolved directories on internal fixed local storage and reject removable, ejectable, external, and network-volume locations without persisting partial state | FR-19 |
+| AC-18 | Spike 0.6 validates the selected signed DMG installation and launch procedure on the supported test matrix, and the verified steps are documented | Spike 0.6 release gate |
 
 ---
 
