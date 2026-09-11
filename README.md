@@ -20,7 +20,8 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 > menu-bar portal management, persisted icon-size presets, adaptive macOS 26
 > Glass/macOS 15 fallback chrome, accessibility display-option handling, and
 > explicit recovery from missing, replaced, permission, and read failures;
-> manual system behavior remains open.
+> CI now tests and publishes an unsigned universal verification artifact, while
+> manual system behavior and the separate signing release gate remain open.
 
 ## Platform
 

@@ -55,6 +55,28 @@ final class FolderAccessTests: XCTestCase {
         }
     }
 
+    func testEnumerationOf999ItemsMeetsMVPBudget() async throws {
+        try await withTemporaryDirectory { root in
+            for index in 0..<999 {
+                try Data().write(
+                    to: root.appendingPathComponent(String(format: "item-%04d", index))
+                )
+            }
+            let clock = ContinuousClock()
+            let start = clock.now
+
+            let result = try await FolderEnumerator().enumerate(root: root, generation: 1)
+            let duration = start.duration(to: clock.now)
+
+            XCTAssertEqual(result.items.count, 999)
+            XCTAssertLessThan(
+                duration,
+                .milliseconds(500),
+                "Enumeration took \(duration), exceeding the NFR-03 budget"
+            )
+        }
+    }
+
     func testEnumerationReturnsChildSymlinkWithoutTraversingItsTarget() async throws {
         try await withTemporaryDirectory { root in
             let observed = root.appendingPathComponent("observed", isDirectory: true)
