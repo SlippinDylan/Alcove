@@ -88,7 +88,7 @@ Each spike records its findings in `docs/SPIKE_<name>.md`. The candidate archite
 
 ### Spike 0.5 — Folder Observation and Permissions
 
-**Question:** What is the most reliable, low-overhead mechanism to observe folder content changes, and what happens when the mapped folder is TCC-protected, missing, or on a removable volume?
+**Question:** What is the most reliable, low-overhead mechanism to observe eligible internal-local folder changes, and what happens when the mapped folder is TCC-protected or missing?
 
 **Approach:**
 - Compare `DispatchSourceFileSystemObject` (kqueue) vs. `FSEvents` for observing a directory's immediate children.
@@ -97,14 +97,14 @@ Each spike records its findings in `docs/SPIKE_<name>.md`. The candidate archite
 - Measure CPU and memory overhead for each approach on a folder with 500, 1000, and 5000 items.
 - Test TCC: attempt to enumerate `~/Desktop`, `~/Documents`, `~/Downloads` without Full Disk Access. Document the error behavior.
 - Test missing folder: delete or move the mapped folder; document what error the enumeration returns.
-- Test removable volume: map a folder on an external drive, eject the drive; document behavior.
+- Test folder-source eligibility: accept internal fixed local storage and reject removable, ejectable, and network-volume metadata before tab creation or re-mapping.
 - Test symbolic links: map a folder containing symlinks; verify enumeration returns the links, not targets.
 
 **Exit Gate:**
-- [ ] Select primary observation mechanism (DispatchSource or FSEvents) with justification.
+- [x] Select FSEvents as the primary observation mechanism with a documented recovery contract.
 - [ ] Document TCC error handling: what `NSError` domain/code to catch, and how to present it to the user.
-- [ ] Document missing-folder and volume-ejection error handling.
-- [ ] Confirm blocking enumeration crosses an explicit background execution boundary. Record cancellation granularity accurately: incremental/batched enumeration may check cancellation at boundaries, while a one-shot `FileManager.contentsOfDirectory` call cannot be interrupted midway.
+- [x] Document missing-folder handling and unsupported folder-location rejection.
+- [x] Confirm blocking enumeration crosses an explicit background execution boundary. Record cancellation granularity accurately: incremental/batched enumeration may check cancellation at boundaries, while a one-shot `FileManager.contentsOfDirectory` call cannot be interrupted midway.
 
 ---
 
@@ -226,6 +226,7 @@ Each slice produces a runnable, observable increment and adds only the domain or
 - Transparent overlay on the pointer's current display, constrained to `visibleFrame`.
 - Dashed rectangle drag, Escape cancellation, and grid-snapped frame.
 - Directory-only `NSOpenPanel` after mouse-up.
+- Validate the resolved folder's hosting volume and reject removable, ejectable, and network-volume locations without creating a partial portal.
 - Create a runtime portal for the selected folder; repeating the flow can create multiple portals.
 - No durable storage yet.
 
@@ -237,6 +238,7 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Exit Gate:**
 - [ ] Creation works end to end.
 - [ ] Cancel leaves no partial portal.
+- [ ] Unsupported folder locations leave no partial portal and keep folder selection available.
 - [ ] Multiple runtime portals can coexist.
 
 ---
@@ -358,25 +360,25 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Entry Gate:** Slice 6 exit gate passed and Spike 0.5 has selected the observation strategy and documented permission/lifecycle behavior.
 
 **Deliverables:**
-- `FolderObserver` implemented with the Spike 0.5-selected DispatchSource, FSEvents, or evidence-backed combination.
+- `FolderObserver` implemented with the Spike 0.5-selected FSEvents configuration and recovery contract.
 - Observe only the active tab; stop observation on tab switch or portal close.
 - Debounced refresh through `FolderLoadingActor`, which coordinates generations, cancellation intent, and result ordering.
 - Blocking enumeration runs on the explicit background boundary from Slice 2.
 - Stale results are always rejected.
 - Cooperative cancellation is implemented only at real incremental/batch boundaries; a one-shot `FileManager.contentsOfDirectory` call is not described as mid-call cancellable.
-- Explicit missing-folder, permission-denied, and volume-ejected states.
+- Explicit missing-folder and permission-denied states; unsupported volume locations are rejected at folder-selection boundaries.
 
 **Tests:**
 - Unit: generation ordering and stale-result rejection.
 - Unit: observer start/stop lifecycle and mapped error states.
 - Cancellation: verify result suppression after cancellation; if incremental enumeration is used, verify its documented boundary checks separately.
-- Integration: add, remove, and rename files; replace/delete the observed directory; eject a removable volume where available.
+- Integration: add, remove, and rename files; replace/delete the observed directory; reject removable, ejectable, and network-volume folder selections.
 - Manual: modify files in Finder while switching tabs rapidly.
 
 **Exit Gate:**
 - [ ] The active grid refreshes for verified changes.
 - [ ] No stale result or background load updates an inactive tab.
-- [ ] Missing, denied, and ejected states are visible and recoverable where specified.
+- [ ] Missing and denied states are visible and recoverable; unsupported folder locations are rejected before tab creation or re-mapping.
 - [ ] Observation behavior matches Spike 0.5 rather than an assumed mechanism.
 
 ---
@@ -389,7 +391,7 @@ Each slice produces a runnable, observable increment and adds only the domain or
 
 **Deliverables:**
 - Menu-bar portal list and portal removal management.
-- Final loading, empty, missing-folder, permission, and volume states.
+- Final loading, empty, missing-folder, and permission states plus unsupported-folder-location selection feedback.
 - Alcove-owned Small/Medium/Large icon presets; resize snap and 2×2 minimum.
 - Evidence-backed Liquid Glass chrome on macOS 26 and `NSVisualEffectView` fallback on macOS 15–25.
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
@@ -456,7 +458,7 @@ Test each combination and record pass/fail/known-issue. If hardware for a specif
 | Large directory (1000+ items) | | | | |
 | Quick Look: image, PDF, text, movie | | | | |
 | Quick Look: multiple selection | | | | |
-| External volume eject | — | | — | |
+| External/network folder selection rejected | | | | |
 | Universal binary on Intel | | | | |
 
 ---
@@ -541,7 +543,7 @@ A feature is **done** when all of the following are true:
 1. **Behavior implemented:** The user-facing behavior described in the acceptance criterion is present and works correctly.
 2. **Tests pass:** All automated tests related to the feature pass on macOS 26 runner.
 3. **Manual verification:** The feature has been manually tested per the compatibility matrix above. If hardware for a specific combination is unavailable, it is reported as "unverified risk", not treated as verified.
-4. **Error states handled:** All known error paths (missing folder, permission denied, volume ejected) produce user-visible feedback, not silent failures.
+4. **Error states handled:** Missing folders and permission failures produce user-visible feedback, while removable, ejectable, and network-volume selections are rejected before persistence.
 5. **Persistence verified:** State survives app restart, display topology changes, and sleep/wake.
 6. **No regressions:** Previously passing features remain passing.
 7. **Code review:** PR reviewed and approved.

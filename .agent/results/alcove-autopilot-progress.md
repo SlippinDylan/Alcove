@@ -49,14 +49,16 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 
 ### Spike 0.5 — Folder Observation and Permissions
 
-- [x] DispatchSource adapter and automated fixture checks complete; candidate remains unselected.
-- [x] FSEvents adapter and automated fixture checks complete; candidate remains unselected.
-- [x] Observation coverage, teardown, latency, and resource comparison recorded; recovery remains open.
+- [x] DispatchSource adapter and automated fixture checks complete.
+- [x] FSEvents adapter and automated fixture checks complete.
+- [x] Observation coverage, teardown, latency, and resource comparison recorded.
 - [x] Explicit background enumeration, stale-result, and truthful cancellation tests complete.
 - [x] Multiple-observer, 1,001-file load, and 25-cycle lifecycle evidence recorded locally.
 - [x] Local protected-path access and owned-fixture missing/not-directory/permission error metadata recorded.
-- [ ] TCC and removable-volume behavior recorded; local missing-root, symlink, rename, and replacement evidence is complete.
-- [ ] Observation strategy decision recorded.
+- [x] Folder-source policy accepts only internal fixed local storage and rejects removable, ejectable, and network-volume locations.
+- [x] FSEvents selected as the sole observer with ordinary-refresh and fail-closed rebuild policy.
+- [x] Local missing-root, root/child-symlink, rename, replacement, and child-symlink enumeration evidence complete.
+- [ ] Controlled TCC behavior and production recovery orchestration recorded.
 
 ### Product-and-Architecture Gate
 

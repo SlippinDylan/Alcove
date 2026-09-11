@@ -15,6 +15,7 @@ If a spike fails, Alcove may revise either the candidate architecture or the aff
 | P-5 | **Stale results are rejected, not applied** | Every async pipeline carries a monotonic generation counter; UI discards out-of-order completions |
 | P-6 | **System-driven moves never overwrite user placement** | Display-placement state machine distinguishes user vs. system origin before writing |
 | P-7 | **Prototype gates are explicit** | Window strategy, display identity/placement, Quick Look, Liquid Glass/fallback, folder observation/permissions, and signing/distribution remain provisional until their corresponding spikes are resolved |
+| P-8 | **Folder-source eligibility is validated at selection boundaries** | Resolve the selected directory's hosting volume and reject removable, ejectable, or network volumes before a tab can reference it |
 
 ---
 
@@ -136,7 +137,8 @@ Visual chrome inside each portal window.
 Directory enumeration and live observation.
 
 - `FolderEnumerator` — returns `[FileItem]` for a given URL; default ordering: directories first, then localized standard name
-- `FolderObserver` — provisional abstraction that monitors only the active tab's mapped directory. Spike 0.5 selects between `DispatchSourceFileSystemObject`, FSEvents, or an evidence-backed combination using event coverage, lifecycle behavior, removable-volume recovery, resource cost, and latency.
+- `FolderLocationValidator` — resolves the selected directory's hosting volume and accepts only internal, non-removable, non-ejectable local storage; selection and re-mapping reject all other locations before persistence
+- `FolderObserver` — FSEvents adapter using `FileEvents`, `WatchRoot`, and `UseCFTypes`; monitors only the active tab's mapped directory and treats records as snapshot invalidation evidence.
 - `FolderLoadingActor` coordinates generation tokens, cancellation requests, and result ordering; it does not by itself put synchronous file I/O on a background thread.
 - Blocking enumeration crosses an explicit background execution boundary such as a dedicated `DispatchQueue`, `OperationQueue`, or a verified asynchronous wrapper.
 - Cooperative cancellation requires incremental or batched enumeration with checks at defined boundaries. A single `FileManager.contentsOfDirectory` call cannot be cancelled midway.
@@ -518,29 +520,31 @@ For fine-grained cooperative cancellation, the implementation must enumerate inc
 
 ### 8.2 Observation
 
-Active tab only. Idle tabs are re-enumerated on switch. The mechanism is provisional until Spike 0.5.
+Active tab only. Idle tabs are re-enumerated on switch. Phase 0.5C7 selects FSEvents as the sole production mechanism.
 
 ```
-FolderObserver.start(url, selectedStrategy)
+FolderObserver.start(url)
     │
     ▼
-DispatchSourceFileSystemObject or FSEvents adapter selected from Spike 0.5 evidence
+FSEvents adapter (FileEvents + WatchRoot + UseCFTypes)
     │
     ▼
 On event:
-    ├─ Debounce 200ms (coalesce rapid file operations)
-    ├─ Increment generation counter
-    ├─ Trigger re-enumeration via FolderEnumerator
-    └─ Map missing folder, permission loss, and volume ejection to explicit error states
+    ├─ Ordinary item flags → debounce 200ms → increment generation → full re-enumeration
+    ├─ Drop/wrap/RootChanged → invalidate generation → bounded stream teardown
+    │   └─ Revalidate path, supported volume, and root device/inode
+    │       ├─ Missing/different identity → folderNotFound + explicit Locate Folder…
+    │       └─ Same identity → start fresh stream before full re-enumeration
+    └─ Apply only the current generation; events during enumeration schedule another refresh
 ```
 
-Candidate A is `DispatchSourceFileSystemObject` on an open directory descriptor. Candidate B is an FSEvents stream scoped as narrowly as the API permits. Spike 0.5 compares immediate-child event coverage, rename/delete behavior, directory replacement, removable-volume teardown and recovery, TCC errors, resource cost, latency, and event coalescing. The architecture records the selected primary mechanism and any evidence-backed fallback only after that spike; neither candidate is currently rejected.
+Phase 0.5C7 selected FSEvents after both candidates passed local mutation, teardown, resource, multiple-observer, load, and lifecycle evidence. DispatchSource was substantially faster locally but provides directory-level invalidation only, remains attached to a moved inode after pathname replacement, and has no explicit dropped-event signal. Alcove does not need FSEvents item-level patching; its root-change and dropped/wrapped flags provide the stronger trigger for a fail-closed full rebuild. No dual-observer fallback is selected.
 
 ### 8.3 Cancellation
 
 - Switching tabs cancels the in-flight enumeration `Task` for the previous tab.
 - Closing a portal cancels all its tab `Task`s.
-- `FolderObserver` is stopped and its file descriptor closed when the tab becomes inactive.
+- `FolderObserver` completes bounded stream teardown when the tab becomes inactive.
 
 ---
 
@@ -707,7 +711,7 @@ enum AlcoveError: Error, Sendable {
     // Folder access
     case folderNotFound(url: URL)
     case permissionDenied(url: URL, underlyingDomain: String?, underlyingCode: Int?)
-    case volumeNotAvailable(url: URL)
+    case unsupportedFolderLocation(url: URL)
     case enumerationFailed(url: URL, underlyingDomain: String?, underlyingCode: Int?)
     case itemMetadataFailed(url: URL, underlyingDomain: String?, underlyingCode: Int?)
 
@@ -748,12 +752,14 @@ Alcove is **non-sandboxed**. No entitlement file is required to declare `app-san
 | Full Disk Access | No | User selects folders via `NSOpenPanel`; non-sandboxed app has normal POSIX access |
 | TCC (Desktop, Documents, Downloads) | Conditional | System may show permission dialog on first access; Alcove surfaces TCC errors explicitly, does not silently fail |
 | Network | No | Zero network calls in MVP |
+| Folder source | Internal fixed local storage only | Selection and re-mapping reject removable, ejectable, and network-volume locations |
 
 ### 14.3 Folder Access in Non-Sandboxed Context
 
 Since Alcove is non-sandboxed:
 
 - `NSOpenPanel` is selection UX; it does not grant a non-sandbox access token. Standard POSIX permissions apply — user must have read access to the target directory.
+- After resolving the selected directory, validate its hosting-volume metadata. The directory is eligible only when the volume is local, internal, non-removable, and non-ejectable; reject it before creating or updating a tab otherwise.
 - A standardized file URL/path is persisted directly. If the folder moves, show a missing state and offer "Locate Folder…" via `NSOpenPanel` to re-map.
 - TCC-protected folders may still affect non-sandboxed apps; do not claim TCC only applies to sandboxed apps.
 
@@ -861,13 +867,14 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 ### 16.5 Folder Observation and Access — Spike 0.5
 
-**Provisional claim:** One public observation strategy can reliably trigger refreshes for the active tab while reporting permission, missing-folder, and removable-volume states accurately.
+**Selected mechanism:** FSEvents with `FileEvents`, `WatchRoot`, and `UseCFTypes`, using the Phase 0.5C7 snapshot-refresh and fail-closed rebuild contract.
 
 **Gate criteria:**
 
-- Compare `DispatchSourceFileSystemObject` and FSEvents for immediate-child changes, rename/delete, directory replacement, teardown, reattachment, event coalescing, latency, and resource cost.
-- Record TCC-protected-folder, missing-directory, removable-volume, and symlink behavior.
-- Select the primary mechanism and any evidence-backed recovery policy.
+- Compare `DispatchSourceFileSystemObject` and FSEvents for immediate-child changes, rename/delete, local directory replacement, teardown, event coalescing, latency, and resource cost.
+- Record TCC-protected-folder, missing-directory, and symlink behavior.
+- Verify folder selection rejects removable, ejectable, and network-volume locations at the boundary.
+- [Resolved] Select the primary mechanism and evidence-backed recovery policy.
 - Verify blocking enumeration uses an explicit background boundary; verify stale-result suppression and document actual cancellation granularity.
 
 **If gate fails:** Revise observation scope, refresh behavior, or the affected product requirement using recorded evidence.
@@ -893,7 +900,7 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 | **WidgetKit** | Cannot host scrollable, interactive file grids; limited to Button/Toggle intents; system-managed lifecycle conflicts with persistent desktop presence |
 | **SwiftUI App lifecycle** | AppKit lifecycle and `NSStatusItem` selected for control over `NSWindow` level, collection behaviors, and responder chain needed for Quick Look |
 | **NSCollectionView → SwiftUI List/UICollectionView** | SwiftUI `List` lacks the icon grid layout and Finder-consistent selection semantics; `UICollectionView` is iOS-only |
-| **Preselecting either DispatchSource or FSEvents** | Spike 0.5 must compare event coverage, lifecycle behavior, removable-volume recovery, cost, and latency before the architecture selects an observation mechanism |
+| **DispatchSource as the production observer** | It passed local lifecycle/load evidence and was faster, but FSEvents provides explicit root-change and dropped/wrapped-event recovery signals without requiring a second observer |
 | **Security-scoped bookmarks** | MVP does not adopt them: Alcove is non-sandboxed, persists standardized paths, and relies on normal POSIX access subject to TCC and filesystem permissions |
 | **App Groups / XPC / Helper** | Single-process architecture is simpler and sufficient; no cross-process communication needed |
 | **Core Data / SQLite** | Portal state is a small, infrequently-written JSON document; no query language or relational model needed; atomic file replacement is simpler and safer |

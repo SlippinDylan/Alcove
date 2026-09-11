@@ -12,9 +12,9 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 
 > **Phase 0 — Technical Spikes**
 >
-> The documentation baseline is complete and the disposable AppKit desktop-window harness is
-> under active development. Phases 0.1A–0.1C are verified; full Spike 0.1 and the remaining product-and-
-> architecture spikes are still in progress. Production Alcove modules have not started.
+> The documentation baseline and automated portions of Spikes 0.1A–0.5C6 are complete. Manual
+> system-behavior matrices, the remaining Spike 0.5 decisions, and architecture lock are still in
+> progress. Production Alcove modules have not started.
 
 ## Platform
 
@@ -32,6 +32,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 - **Native AppKit**, not WidgetKit
 - **Liquid Glass on macOS 26** via `NSGlassEffectView` / `NSGlassEffectContainerView` for portal chrome, navigation, and control grouping; `NSVisualEffectView` fallback on macOS 15–25
 - **Finder-consistent interaction**: click selects, Command-click toggles, Shift-click ranges, arrow keys navigate, Command-A selects all, Space for Quick Look, Command-Down or Command-O opens selection
+- **Internal local folders only**: folder selection rejects removable, ejectable, and network-volume locations
 - **Eviction-safe placement design**: persists display UUID plus absolute and normalized placement, while preserving remembered home placement during system-driven moves; UUID stability and transition behavior are Phase 0 spike gates
 - **Read-only MVP**: no rename, trash, new folder, or file mutations
 - **Single UI-free Swift package**: `AlcoveCore` for domain/layout; internal feature groups within the Xcode app target
@@ -46,6 +47,8 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 | [Delivery Plan](docs/DELIVERY_PLAN.md) | Phase 0 spikes, incremental slices, test matrix, gates |
 | [Desktop Window Spike](docs/SPIKE_DESKTOP_WINDOW.md) | Disposable AppKit harness, automated evidence, and pending manual matrix |
 | [Display Placement Spike](docs/SPIKE_DISPLAY_PLACEMENT.md) | Pure placement geometry evidence and pending screen/topology validation |
+| [Folder Location Eligibility Spike](docs/SPIKE_FOLDER_LOCATION_ELIGIBILITY.md) | Internal fixed local-storage acceptance and unsupported-volume rejection |
+| [Folder Observation Decision](docs/SPIKE_FOLDER_OBSERVATION_DECISION.md) | FSEvents selection and fail-closed recovery contract |
 
 ## License
 

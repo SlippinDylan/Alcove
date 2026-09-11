@@ -1,14 +1,18 @@
 # Alcove Session Handoff
 
-**Updated:** 2026-08-02
+**Updated:** 2026-09-11
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phases 0.5A/0.5B provide reviewed observer candidates, 0.5C1 provides reviewed background enumeration/stale/cancellation evidence, 0.5C2 provides a local observation/resource/teardown comparison, 0.5C3 records local symlink/missing/moved/replacement path evidence, 0.5C4 records bounded multiple-observer/load/lifecycle evidence, and 0.5C5 records local protected-path access plus owned-fixture error classification; controlled TCC denial, removable/network media, and dropped-event recovery remain open. Human GUI behavior and a macOS 15 runtime remain unverified. No production Alcove module has started.
+**Current phase:** Phase 0 technical spikes are active. Phases 0.1A–0.1C produced an independently verified desktop-window comparison harness; its manual matrix remains unexecuted. Phases 0.2A–0.2C provide geometry, inventory/notification adapters, and an eviction-safe pure state machine; the display hardware matrix remains. Phase 0.3A provides a reviewed Quick Look responder bootstrap and non-visual system-panel integration evidence. Phase 0.4A provides reviewed Glass, visual-effect fallback, and opaque accessibility construction paths. Phases 0.5A/0.5B provide reviewed observer candidates, 0.5C1–0.5C6 cover enumeration, comparison, local recovery, load, access errors, and folder eligibility, and 0.5C7 selects FSEvents with a fail-closed recovery contract. Removable, ejectable, and network-volume folders are explicitly outside product scope; controlled TCC denial, production recovery orchestration, and an actual macOS 15 runtime remain open. Human GUI behavior remains unverified. No production Alcove module has started.
+
+Historical spike summaries below retain the scope that applied when they were run. Their references to removable or network-volume investigation are superseded by the 2026-09-11 product decision.
+
+The user confirmed on 2026-09-11 that the documented full feature set remains the MVP target; do not reduce it to a smaller product scope. Intermediate vertical slices may be incomplete engineering milestones, but MVP completion still requires the full PRD acceptance set. Formal signing work remains deferred behind the separate Spike 0.6 release gate and must not block current product work.
 
 ## 1. What We Are Building
 
-Alcove is a native macOS menu-bar app that creates movable, resizable desktop folder portals. Each portal displays the direct children of a user-selected local folder in a native icon grid, supports multiple folder tabs, and can coexist with other portals across multiple displays.
+Alcove is a native macOS menu-bar app that creates movable, resizable desktop folder portals. Each portal displays the direct children of a user-selected folder on the Mac's internal, fixed local storage in a native icon grid, supports multiple folder tabs, and can coexist with other portals across multiple displays.
 
 Alcove is not WidgetKit, a Finder extension, a Finder replacement, or a full file manager. Its MVP is read-only.
 
@@ -40,7 +44,7 @@ Tab drag-to-reorder is Post-MVP. Do not reintroduce it into MVP slices, requirem
 
 MVP includes portal creation, multiple portals, multiple tabs, icon grids, selection, opening, Quick Look, active-directory observation, local persistence, multi-display placement recovery, menu-bar management, accessibility, and macOS 15/26 visual compatibility.
 
-MVP excludes rename, delete/trash, new folders, copy, move, drag-in, drag-out, in-portal directory navigation, cloud-provider status, telemetry, and network access.
+MVP excludes rename, delete/trash, new folders, copy, move, drag-in, drag-out, in-portal directory navigation, cloud-provider status, telemetry, network access, and folders hosted on removable, ejectable, or network volumes.
 
 ## 2. Platform and Confirmed Design Direction
 
@@ -62,6 +66,44 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Phase 0.5C7 selected FSEvents as Alcove's sole production observer and defined
+its recovery contract:
+
+- Ordinary item records debounce into a full snapshot refresh.
+- Root-change and dropped/wrapped-event flags invalidate the generation and
+  rebuild the observation boundary.
+- Recovery revalidates path, supported volume, and device/inode; missing or
+  replaced roots require explicit `Locate Folder…` and are never adopted silently.
+- A fresh stream starts before recovery enumeration, and every result remains
+  subject to stale-generation rejection.
+- The pure policy passed 17 assertions in three consecutive Swift 6
+  warning-as-error runs and compiled the reviewed FSEvents flag decoder directly.
+
+This completes observer selection, not full Spike 0.5. Controlled TCC evidence,
+production recovery orchestration, and macOS 15 runtime verification remain.
+
+### Earlier Phase 0.5C6 folder-location eligibility
+
+Phase 0.5C6 replaced the discarded virtual-volume investigation with a focused
+folder-location eligibility harness:
+
+- Accepts only resolved directories whose public Foundation volume metadata is
+  local/internal true and removable/ejectable false.
+- Fails closed when any required volume metadata is unavailable.
+- Resolves symlinks before validating the target directory and hosting volume.
+- Passes 20 Swift 6 warning-as-error assertions in three consecutive runs,
+  including every policy branch and real local filesystem boundaries.
+- Records the current repository volume as local/internal, non-removable, and
+  non-ejectable on this macOS 26 runtime.
+- Builds an arm64, minimum-macOS-15.0, SDK-26.5, system/Foundation-only,
+  linker-ad-hoc-signed probe.
+
+This resolves unsupported-volume behavior through selection-time rejection; it
+does not implement production folder-picker UI or close the remaining observer,
+controlled-TCC, dropped-event, or macOS 15 gates.
+
+### Earlier Phase 0.5C5 folder access and error classification
 
 Phase 0.5C5 added the disposable folder-access and error-classification harness:
 
@@ -129,12 +171,12 @@ Phase 0.5C1 added the disposable background enumeration harness:
 - Runs immediate-child FileManager enumeration through a bounded concurrent worker and a typed request runner, never on MainActor.
 - Checks cancellation before scheduling, before filesystem work, and after the synchronous call without claiming mid-call interruption.
 - Uses checked generations and rejects actual out-of-order stale results; maps validation/enumeration/timeout/cancellation/generation errors.
-- Passes 67 Swift 6 warning-as-error assertions in three consecutive runs, including real stale ordering, deterministic cancellation handshakes, timeout-with-continuing-work, deterministic sorting, real error mapping, recovery, and injected cleanup failure.
+- Passes 71 Swift 6 warning-as-error assertions in three consecutive current runs, including real child-symlink non-traversal, stale ordering, deterministic cancellation handshakes, timeout-with-continuing-work, deterministic sorting, real error mapping, recovery, and injected cleanup failure.
 - Builds an arm64, minimum-macOS-15.0, SDK-26.5, system-runtime-only, linker-ad-hoc-signed probe; an isolated three-child probe exited 0.
 
 MiMo created the initial structure, but its serial worker made the required stale ordering impossible; the test waited for a 10-second timeout, discarded the real result, rebuilt a synthetic snapshot on MainActor, and still reported success. It also used unbounded waits and self-proving cancellation/cleanup tests. Codex replaced the orchestration and evidence. An independent Reviewer confirmed the original result was invalid; all listed defects were addressed before final verification.
 
-Phase 0.5C1 does not select an observer. Recovery, TCC, removable media, symlinks, networks, actual macOS 15, and sustained-load evidence remain open. Full Spike 0.5 remains incomplete.
+Phase 0.5C1 did not select an observer; Phase 0.5C7 later selected FSEvents. Controlled TCC, production recovery orchestration, and actual macOS 15 evidence remain open. Full Spike 0.5 remains incomplete.
 
 ### Earlier Phase 0.5B FSEvents candidate
 
@@ -323,7 +365,9 @@ The final strategy comes from measured Show Desktop, Spaces, full-screen, Stage 
 - Fine-grained cancellation requires incremental or batched enumeration with cancellation checks.
 - A one-shot `FileManager.contentsOfDirectory` call cannot be interrupted midway.
 - The active tab only is observed; inactive tabs reload when activated.
-- DispatchSource and FSEvents remain candidates until Spike 0.5 measures event coverage, teardown, directory replacement, removable volumes, TCC behavior, overhead, and latency.
+- FSEvents with `FileEvents`, `WatchRoot`, and `UseCFTypes` is the sole selected observer; DispatchSource is not a fallback.
+- Ordinary FSEvents records trigger full snapshot refresh, while root-change and dropped/wrapped flags rebuild observation after path, volume, and root-identity validation.
+- Folder selection and re-mapping must reject removable, ejectable, and network-volume locations before persistence.
 
 ### Persistence
 
@@ -395,7 +439,7 @@ The following must be resolved before architecture lock and dependent production
    - Validate macOS 26 glass and macOS 15 `NSVisualEffectView` at the selected window level.
 5. **Spike 0.5 — Folder observation and permissions**
    - Compare DispatchSource and FSEvents.
-   - Validate TCC, missing directories, removable volumes, symlinks, enumeration execution, and cancellation granularity.
+   - Validate TCC, missing directories, symlinks, enumeration execution, cancellation granularity, and unsupported-volume rejection.
 
 A spike does not need to pass. It must be resolved with recorded evidence and an explicit architecture or product-scope decision. Never relabel a failed gate as successful by naming an untested fallback.
 
@@ -429,8 +473,8 @@ The literal handoff filename is `HANDOFF.md`; the earlier `HANDOFFmd` text was a
 
 The current baseline verification includes:
 
-- FR-01 through FR-18 are unique and continuous.
-- AC-01 through AC-17 are unique and continuous.
+- FR-01 through FR-19 are unique and continuous.
+- AC-01 through AC-18 are unique and continuous.
 - SP-01 through SP-08 are unique and continuous.
 - Slice 1 through Slice 10 headings and cross-references are consistent.
 - Old fixed-window, fixed-DispatchSource, tab-reorder-in-MVP, actor-as-background-thread, mid-call-cancellation, full-screen-normalization, and single-six-spike-gate wording was searched and removed.
@@ -446,7 +490,7 @@ The current baseline verification includes:
 - Phase 0.4A passes 72 explicit Swift 6 warning-as-error assertions in three consecutive runs; the app contains real Glass/fallback/opaque construction paths, has minimum macOS 15.0, and launches/quits normally.
 - Phase 0.5A passes 45 real-filesystem Swift 6 warning-as-error assertions in three consecutive runs; its DispatchSource probe has minimum macOS 15.0 and independently confirmed descriptor teardown.
 - Phase 0.5B passes 69 real-filesystem Swift 6 warning-as-error assertions in three consecutive runs; its FSEvents probe has minimum macOS 15.0 and independently confirmed bounded teardown.
-- Phase 0.5C1 passes 67 Swift 6 warning-as-error assertions in three consecutive runs; its background enumeration probe has minimum macOS 15.0 and its stale/cancellation tests use real request results.
+- Phase 0.5C1 passes 71 Swift 6 warning-as-error assertions in three consecutive current runs; its background enumeration probe has minimum macOS 15.0 and its stale/cancellation tests use real request results.
 - Phase 0.5C2 passes 97 Swift 6 warning-as-error assertions in three consecutive runs; its validated 18-process local matrix records causal event latency, count semantics, bounded teardown, process resources, and descriptor settling without selecting an observer.
 - Phase 0.5C3 passes 238 Swift 6 warning-as-error assertions in three consecutive runs; its tokenized local matrix separates root transitions, moved-inode markers, and replacement-path markers without selecting an observer or policy.
 - `git diff --check` passes before each commit.
