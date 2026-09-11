@@ -73,7 +73,35 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertEqual(tabBar.tabOrder, [first.id, second.id])
         XCTAssertEqual(tabBar.tabButtons.count, 2)
         XCTAssertEqual(tabBar.closeButtons.count, 2)
-        XCTAssertEqual(tabBar.subviews.first?.subviews.count, 3)
+        XCTAssertEqual(tabBar.scrollView.documentView?.subviews.count, 3)
+    }
+
+    @MainActor
+    func testManyTabsRemainReachableThroughHorizontalScrolling() throws {
+        let tabs = (0..<12).map { makeTab(name: "Folder-\($0)") }
+        let portal = try makePortal(tabs: tabs, selected: tabs[0].id)
+        let tabBar = TabBarView(
+            frame: NSRect(
+                x: 0,
+                y: 0,
+                width: 240,
+                height: PortalViewController.tabBarHeight
+            )
+        )
+        tabBar.scrollView.scrollerStyle = .legacy
+
+        tabBar.configure(with: portal)
+        tabBar.layoutSubtreeIfNeeded()
+
+        let documentView = try XCTUnwrap(tabBar.scrollView.documentView)
+        XCTAssertTrue(tabBar.scrollView.hasHorizontalScroller)
+        XCTAssertGreaterThan(documentView.frame.width, tabBar.scrollView.contentSize.width)
+        let maximumOriginX = documentView.frame.width - tabBar.scrollView.contentSize.width
+        tabBar.scrollView.contentView.scroll(to: NSPoint(x: maximumOriginX, y: 0))
+        tabBar.scrollView.reflectScrolledClipView(tabBar.scrollView.contentView)
+        let addButton = try XCTUnwrap(tabBar.addButton)
+        let addFrame = addButton.convert(addButton.bounds, to: tabBar.scrollView.contentView)
+        XCTAssertTrue(tabBar.scrollView.contentView.bounds.contains(addFrame))
     }
 
     private func makeTab(name: String) -> FolderTab {

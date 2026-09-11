@@ -14,14 +14,15 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 >
 > The documentation baseline and automated portions of Spikes 0.1A–0.5C7 are complete. Manual
 > system-behavior matrices and remaining integration evidence are still in progress. Production
-> Slices 1–9 and Slices 10A–10C now provide the tested universal AppKit shell, multi-tab portals,
+> Slices 1–10 now provide the tested universal AppKit shell, multi-tab portals,
 > Finder-style interaction, transactional creation, Quick Look, v2 placement
 > persistence, multi-display recovery, automatic FSEvents folder refresh,
 > menu-bar portal management, persisted icon-size presets, adaptive macOS 26
 > Glass/macOS 15 fallback chrome, accessibility display-option handling, and
-> explicit recovery from missing, replaced, permission, and read failures;
-> CI now tests and publishes an unsigned universal verification artifact, while
-> manual system behavior and the separate signing release gate remain open.
+> explicit recovery from missing, replaced, permission, read, and persistence
+> failures. Three production-wide code review passes are complete, and CI tests
+> and publishes an unsigned universal verification artifact. Manual system
+> behavior and the separate signing release gate remain open.
 
 ## Platform
 

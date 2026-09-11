@@ -87,6 +87,10 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         window?.title = selectedTab?.folderURL.lastPathComponent ?? "Alcove"
     }
 
+    func reloadSelectedFolder() {
+        portalViewController.reloadSelectedFolder()
+    }
+
     func applySystemPlacement(frame: NSRect) -> Bool {
         guard let portalWindow = window as? PortalWindow else {
             return false

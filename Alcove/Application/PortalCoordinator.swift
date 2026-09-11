@@ -16,6 +16,7 @@ final class PortalCoordinator: PortalCoordinating {
     private let windowFactory: any PortalWindowBuilding
     private let tabFolderPicker: any FolderPicking
     private let errorPresenter: any PortalCreationErrorPresenting
+    private let persistenceErrorPresenter: any PortalPersistenceErrorPresenting
     private let lastTabRemovalConfirmer: any LastTabRemovalConfirming
     private let displaySnapshotProvider: DisplayPlacementObserver.SnapshotProvider
     private let displayNotificationCenter: NotificationCenter
@@ -50,6 +51,7 @@ final class PortalCoordinator: PortalCoordinating {
         windowFactory: any PortalWindowBuilding = PortalWindowFactory(),
         tabFolderPicker: any FolderPicking = OpenPanelFolderPicker(),
         errorPresenter: any PortalCreationErrorPresenting = PortalCreationErrorPresenter(),
+        persistenceErrorPresenter: any PortalPersistenceErrorPresenting = PortalPersistenceErrorPresenter(),
         lastTabRemovalConfirmer: any LastTabRemovalConfirming = LastTabRemovalConfirmer(),
         displayNotificationCenter: NotificationCenter = .default,
         displaySnapshotProvider: @escaping DisplayPlacementObserver.SnapshotProvider = {
@@ -63,6 +65,7 @@ final class PortalCoordinator: PortalCoordinating {
         self.windowFactory = windowFactory
         self.tabFolderPicker = tabFolderPicker
         self.errorPresenter = errorPresenter
+        self.persistenceErrorPresenter = persistenceErrorPresenter
         self.lastTabRemovalConfirmer = lastTabRemovalConfirmer
         self.displayNotificationCenter = displayNotificationCenter
         self.displaySnapshotProvider = displaySnapshotProvider
@@ -160,7 +163,7 @@ final class PortalCoordinator: PortalCoordinating {
             }
             persistenceError = nil
         } catch {
-            persistenceError = error
+            presentPersistenceError(error)
         }
     }
 
@@ -196,7 +199,7 @@ final class PortalCoordinator: PortalCoordinating {
             }
             persistenceError = nil
         } catch {
-            persistenceError = error
+            presentPersistenceError(error)
         }
     }
 
@@ -327,7 +330,7 @@ final class PortalCoordinator: PortalCoordinating {
                 try await operation()
                 persistenceError = nil
             } catch {
-                persistenceError = error
+                presentPersistenceError(error)
             }
         }
     }
@@ -364,8 +367,10 @@ final class PortalCoordinator: PortalCoordinating {
             guard let self else { return }
             do {
                 try await operation()
+            } catch is CancellationError {
+                // The owning workflow is terminating.
             } catch {
-                persistenceError = error
+                presentPersistenceError(error)
             }
             folderSelectionTask = nil
         }
@@ -379,8 +384,10 @@ final class PortalCoordinator: PortalCoordinating {
             guard let self else { return }
             do {
                 try await operation()
+            } catch is CancellationError {
+                // The owning workflow is terminating.
             } catch {
-                persistenceError = error
+                presentPersistenceError(error)
             }
             tabMutationTasks.removeValue(forKey: taskID)
         }
@@ -429,8 +436,11 @@ final class PortalCoordinator: PortalCoordinating {
                 return
             } catch is CancellationError {
                 return
-            } catch {
+            } catch let error as FolderAccessError {
                 errorPresenter.present(error)
+            } catch {
+                presentPersistenceError(error)
+                return
             }
         }
     }
@@ -445,18 +455,29 @@ final class PortalCoordinator: PortalCoordinating {
                           let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
                         return
                     }
+                    let currentPortal = portalStates[index]
+                    let selectedFolderURL = currentPortal.tabs.first {
+                        $0.id == currentPortal.selectedTabID
+                    }?.folderURL
                     let portal = try replacingFolder(
                         for: tabID,
                         with: folderURL,
-                        in: portalStates[index]
+                        in: currentPortal
                     )
                     try await commit(portal, at: index)
+                    if tabID == portal.selectedTabID,
+                       selectedFolderURL == folderURL.standardizedFileURL {
+                        windows[portalID]?.reloadSelectedFolder()
+                    }
                 }
                 return
             } catch is CancellationError {
                 return
-            } catch {
+            } catch let error as FolderAccessError {
                 errorPresenter.present(error)
+            } catch {
+                presentPersistenceError(error)
+                return
             }
         }
     }
@@ -501,7 +522,7 @@ final class PortalCoordinator: PortalCoordinating {
             }
             persistenceError = nil
         } catch {
-            persistenceError = error
+            presentPersistenceError(error)
         }
     }
 
@@ -651,6 +672,12 @@ final class PortalCoordinator: PortalCoordinating {
 
     private func currentDisplaySnapshot() throws -> DisplaySnapshot {
         try displaySnapshotProvider().get()
+    }
+
+    private func presentPersistenceError(_ error: Error) {
+        guard !(error is CancellationError) else { return }
+        persistenceError = error
+        persistenceErrorPresenter.present(error)
     }
 
     private func replacingFolder(

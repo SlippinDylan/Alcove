@@ -65,6 +65,7 @@ final class PortalViewController: NSViewController {
     private var loadTask: Task<Void, Never>?
     private var observationTask: Task<Void, Never>?
     private var runtimeStates: [FolderTabID: FileGridRuntimeState] = [:]
+    private var presentedTabID: FolderTabID?
     private(set) var presentationState: PortalPresentationState = .loading
     var onSelectTab: ((FolderTabID) -> Void)?
     var onAddTab: (() -> Void)?
@@ -79,13 +80,18 @@ final class PortalViewController: NSViewController {
         onFailure: { [weak self] error in self?.showObservationFailure(error) }
     )
 
-    init(portal: Portal, loadingCoordinator: FolderLoadingCoordinator) {
+    init(
+        portal: Portal,
+        loadingCoordinator: FolderLoadingCoordinator,
+        gridViewController: FileGridViewController? = nil
+    ) {
         self.portal = portal
         self.loadingCoordinator = loadingCoordinator
         let tabBarView = TabBarView()
         self.tabBarView = tabBarView
         chromeMaterialView = PortalChromeMaterialView(contentView: tabBarView)
-        gridViewController = FileGridViewController(iconSize: portal.iconSize)
+        self.gridViewController = gridViewController
+            ?? FileGridViewController(iconSize: portal.iconSize)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -100,9 +106,7 @@ final class PortalViewController: NSViewController {
     }
 
     override func loadView() {
-        let rootView = NSView()
-        rootView.wantsLayer = true
-        rootView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        let rootView = PortalCanvasView()
 
         chromeMaterialView.translatesAutoresizingMaskIntoConstraints = false
         tabBarView.onSelect = { [weak self] id in self?.onSelectTab?(id) }
@@ -169,9 +173,10 @@ final class PortalViewController: NSViewController {
 
     func load() {
         loadTask?.cancel()
+        let showLoadingIndicator = presentationState == .loading
         loadTask = Task { [weak self] in
             guard let self else { return }
-            await reload()
+            await reload(showLoadingIndicator: showLoadingIndicator)
         }
     }
 
@@ -179,7 +184,9 @@ final class PortalViewController: NSViewController {
         let previousTabID = self.portal.selectedTabID
         let previousIconSize = self.portal.iconSize
         let previousFolderURL = folderURL
-        if isViewLoaded {
+        if isViewLoaded,
+           portal.selectedTabID != previousTabID,
+           presentedTabID == previousTabID {
             runtimeStates[previousTabID] = gridViewController.captureRuntimeState()
         }
         self.portal = portal
@@ -210,8 +217,10 @@ final class PortalViewController: NSViewController {
         Task { await loadingCoordinator.cancelCurrentLoad() }
     }
 
-    func reload() async {
-        showLoading()
+    func reload(showLoadingIndicator: Bool = true) async {
+        if showLoadingIndicator {
+            showLoading()
+        }
         do {
             let completion = try await loadingCoordinator.load(
                 root: folderURL,
@@ -277,11 +286,12 @@ final class PortalViewController: NSViewController {
             switch outcome {
             case .contents(let result):
                 let items = result.items
+                let runtimeState = runtimeStates.removeValue(forKey: portal.selectedTabID)
                 if items.isEmpty {
                     showState("This folder is empty")
                 } else {
                     showItems(items)
-                    if let runtimeState = runtimeStates[portal.selectedTabID] {
+                    if let runtimeState {
                         gridViewController.restoreRuntimeState(runtimeState)
                     }
                 }
@@ -293,8 +303,10 @@ final class PortalViewController: NSViewController {
 
     private func showLoading() {
         presentationState = .loading
+        presentedTabID = nil
         recoveryAction = nil
         recoveryButton.isHidden = true
+        gridViewController.setItems([])
         gridViewController.view.isHidden = true
         stateLabel.stringValue = "Loading…"
         stateLabel.isHidden = false
@@ -304,6 +316,7 @@ final class PortalViewController: NSViewController {
 
     private func showItems(_ items: [FileItem]) {
         presentationState = .items(items.count)
+        presentedTabID = portal.selectedTabID
         recoveryAction = nil
         recoveryButton.isHidden = true
         progressIndicator.stopAnimation(nil)
@@ -315,6 +328,7 @@ final class PortalViewController: NSViewController {
 
     private func showState(_ message: String) {
         presentationState = .message(message)
+        presentedTabID = nil
         recoveryAction = nil
         recoveryButton.isHidden = true
         progressIndicator.stopAnimation(nil)
@@ -331,6 +345,7 @@ final class PortalViewController: NSViewController {
 
     private func showErrorPresentation(_ presentation: PortalErrorPresentation) {
         presentationState = .error(presentation)
+        presentedTabID = nil
         recoveryAction = presentation.action
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
@@ -390,10 +405,39 @@ final class PortalViewController: NSViewController {
         }
     }
 
+    func reloadSelectedFolder() {
+        onSelectionInvalidated?()
+        guard isViewLoaded else { return }
+        showLoading()
+        startObservation()
+    }
+
     private var folderURL: URL {
         guard let tab = portal.tabs.first(where: { $0.id == portal.selectedTabID }) else {
             preconditionFailure("Portal selected-tab invariant violated")
         }
         return tab.folderURL
+    }
+}
+
+@MainActor
+final class PortalCanvasView: NSView {
+    override var isOpaque: Bool { true }
+    override var wantsUpdateLayer: Bool { true }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func updateLayer() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        }
     }
 }

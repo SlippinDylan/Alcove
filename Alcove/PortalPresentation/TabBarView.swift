@@ -7,6 +7,7 @@ final class TabBarView: NSView {
     var onClose: ((FolderTabID) -> Void)?
     var onAdd: (() -> Void)?
 
+    private(set) var scrollView = NSScrollView()
     private let stackView = NSStackView()
     private var actionTargets: [TabActionTarget] = []
 
@@ -19,6 +20,19 @@ final class TabBarView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         configureView()
+    }
+
+    override func layout() {
+        super.layout()
+        let viewportSize = scrollView.contentSize
+        let fittingSize = stackView.fittingSize
+        stackView.frame = NSRect(
+            origin: .zero,
+            size: NSSize(
+                width: max(viewportSize.width, fittingSize.width),
+                height: max(viewportSize.height, fittingSize.height)
+            )
+        )
     }
 
     @available(*, unavailable)
@@ -51,6 +65,7 @@ final class TabBarView: NSView {
         let addButton = makeAddButton()
         self.addButton = addButton
         stackView.addArrangedSubview(addButton)
+        needsLayout = true
     }
 
     private func configureView() {
@@ -58,14 +73,23 @@ final class TabBarView: NSView {
         stackView.alignment = .centerY
         stackView.distribution = .fill
         stackView.spacing = 6
+        stackView.edgeInsets = NSEdgeInsets(top: 2, left: 8, bottom: 2, right: 8)
         stackView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stackView)
+
+        scrollView.drawsBackground = false
+        scrollView.hasHorizontalScroller = true
+        scrollView.horizontalScroller?.controlSize = .mini
+        scrollView.hasVerticalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.documentView = stackView
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(scrollView)
 
         NSLayoutConstraint.activate([
-            stackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            stackView.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
-            stackView.topAnchor.constraint(equalTo: topAnchor, constant: 6),
-            stackView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
+            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            scrollView.topAnchor.constraint(equalTo: topAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
     }
 

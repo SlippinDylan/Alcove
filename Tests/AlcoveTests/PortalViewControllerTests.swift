@@ -4,6 +4,21 @@ import XCTest
 
 final class PortalViewControllerTests: XCTestCase {
     @MainActor
+    func testCanvasResolvesBackgroundForEffectiveAppearance() throws {
+        let canvas = PortalCanvasView()
+        canvas.appearance = try XCTUnwrap(NSAppearance(named: .aqua))
+        canvas.updateLayer()
+        let lightColor = canvas.layer?.backgroundColor
+
+        canvas.appearance = try XCTUnwrap(NSAppearance(named: .darkAqua))
+        canvas.updateLayer()
+        let darkColor = canvas.layer?.backgroundColor
+
+        XCTAssertNotEqual(lightColor, darkColor)
+        XCTAssertTrue(canvas.isOpaque)
+    }
+
+    @MainActor
     func testMinimumContentSizeTracksTwoByTwoGridAndTabBar() {
         let metrics = GridMetrics(iconSize: .large)
         let actual = PortalViewController.minimumContentSize(for: .large)
@@ -189,6 +204,222 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testTabRuntimeStateIsConsumedOnceAndDoesNotRollbackLaterRefresh() async throws {
+        let root = URL(fileURLWithPath: "/tmp/first")
+        let items = [
+            FileItem(url: root.appendingPathComponent("one"), name: "one", isDirectory: false, isHidden: false),
+            FileItem(url: root.appendingPathComponent("two"), name: "two", isDirectory: false, isHidden: false),
+        ]
+        var portal = try Portal(
+            folderURL: root,
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let firstTabID = portal.selectedTabID
+        let secondTabID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
+        let grid = FileGridViewController()
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(
+                enumerator: FixedFolderEnumerator(root: root, items: items)
+            ),
+            gridViewController: grid
+        )
+        controller.loadView()
+        await controller.reload()
+        grid.handleClick(index: 1, modifiers: [])
+
+        try portal.selectTab(secondTabID)
+        controller.updatePortal(portal)
+        controller.stopObservation()
+        await controller.reload()
+        try portal.selectTab(firstTabID)
+        controller.updatePortal(portal)
+        controller.stopObservation()
+        await controller.reload()
+        XCTAssertEqual(grid.selectionState.selectedIDs, [items[1].id])
+
+        grid.handleClick(index: 0, modifiers: [])
+        portal.updateIconSize(.large)
+        controller.updatePortal(portal)
+        await controller.reload(showLoadingIndicator: false)
+
+        XCTAssertEqual(grid.selectionState.selectedIDs, [items[0].id])
+    }
+
+    @MainActor
+    func testRapidTabSwitchDoesNotSaveHiddenGridStateForPendingTab() async throws {
+        let firstRoot = URL(fileURLWithPath: "/tmp/first")
+        let secondRoot = URL(fileURLWithPath: "/tmp/second")
+        let firstItem = FileItem(
+            url: firstRoot.appendingPathComponent("first"),
+            name: "first",
+            isDirectory: false,
+            isHidden: false
+        )
+        let secondItem = FileItem(
+            url: secondRoot.appendingPathComponent("second"),
+            name: "second",
+            isDirectory: false,
+            isHidden: false
+        )
+        var portal = try Portal(
+            folderURL: firstRoot,
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let firstTabID = portal.selectedTabID
+        let secondTabID = try portal.appendTab(folderURL: secondRoot)
+        let grid = FileGridViewController()
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(
+                enumerator: FolderMapEnumerator(
+                    itemsByRoot: [firstRoot: [firstItem], secondRoot: [secondItem]]
+                )
+            ),
+            gridViewController: grid
+        )
+        controller.loadView()
+        await controller.reload()
+
+        try portal.selectTab(secondTabID)
+        controller.updatePortal(portal)
+        controller.stopObservation()
+        await controller.reload()
+        grid.handleClick(index: 0, modifiers: [])
+
+        try portal.selectTab(firstTabID)
+        controller.updatePortal(portal)
+        controller.stopObservation()
+        await controller.reload()
+        try portal.selectTab(secondTabID)
+        controller.updatePortal(portal)
+        try portal.selectTab(firstTabID)
+        controller.updatePortal(portal)
+        controller.stopObservation()
+        await controller.reload()
+
+        try portal.selectTab(secondTabID)
+        controller.updatePortal(portal)
+        controller.stopObservation()
+        await controller.reload()
+
+        XCTAssertEqual(grid.selectionState.selectedIDs, [secondItem.id])
+    }
+
+    @MainActor
+    func testEmptyFolderConsumesOldTabSelectionBeforeSameNameReappears() async throws {
+        let firstRoot = URL(fileURLWithPath: "/tmp/first")
+        let secondRoot = URL(fileURLWithPath: "/tmp/second")
+        let firstItem = FileItem(
+            url: firstRoot.appendingPathComponent("same-name"),
+            name: "same-name",
+            isDirectory: false,
+            isHidden: false
+        )
+        let enumerator = MutableFolderEnumerator(
+            itemsByRoot: [firstRoot: [firstItem], secondRoot: []]
+        )
+        var portal = try Portal(
+            folderURL: firstRoot,
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let firstTabID = portal.selectedTabID
+        let secondTabID = try portal.appendTab(folderURL: secondRoot)
+        let grid = FileGridViewController()
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(enumerator: enumerator),
+            gridViewController: grid
+        )
+        controller.loadView()
+        await controller.reload()
+        grid.handleClick(index: 0, modifiers: [])
+
+        try portal.selectTab(secondTabID)
+        controller.updatePortal(portal)
+        controller.stopObservation()
+        await enumerator.setItems([], for: firstRoot)
+        try portal.selectTab(firstTabID)
+        controller.updatePortal(portal)
+        controller.stopObservation()
+        await controller.reload()
+        XCTAssertEqual(controller.presentationState, .message("This folder is empty"))
+
+        await enumerator.setItems([firstItem], for: firstRoot)
+        await controller.reload(showLoadingIndicator: false)
+
+        XCTAssertTrue(grid.selectionState.selectedIDs.isEmpty)
+    }
+
+    @MainActor
+    func testNewTabForSameFolderDoesNotInheritPreviousTabSelection() async throws {
+        let root = URL(fileURLWithPath: "/tmp/shared")
+        let item = FileItem(
+            url: root.appendingPathComponent("shared"),
+            name: "shared",
+            isDirectory: false,
+            isHidden: false
+        )
+        var portal = try Portal(
+            folderURL: root,
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let grid = FileGridViewController()
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(
+                enumerator: FixedFolderEnumerator(root: root, items: [item])
+            ),
+            gridViewController: grid
+        )
+        controller.loadView()
+        await controller.reload()
+        grid.handleClick(index: 0, modifiers: [])
+
+        let secondTabID = try portal.appendTab(folderURL: root)
+        try portal.selectTab(secondTabID)
+        controller.updatePortal(portal)
+        controller.stopObservation()
+        await controller.reload()
+
+        XCTAssertTrue(grid.selectionState.selectedIDs.isEmpty)
+    }
+
+    @MainActor
+    func testBackgroundRefreshKeepsExistingGridVisible() async throws {
+        let root = URL(fileURLWithPath: "/tmp/portal")
+        let item = FileItem(
+            url: root.appendingPathComponent("one"),
+            name: "one",
+            isDirectory: false,
+            isHidden: false
+        )
+        let controller = PortalViewController(
+            portal: try Portal(
+                folderURL: root,
+                frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+                display: testDisplay
+            ),
+            loadingCoordinator: FolderLoadingCoordinator(
+                enumerator: DelayedFixedFolderEnumerator(root: root, items: [item])
+            )
+        )
+        controller.loadView()
+        await controller.reload()
+        XCTAssertEqual(controller.presentationState, .items(1))
+
+        let refresh = Task { await controller.reload(showLoadingIndicator: false) }
+        await Task.yield()
+
+        XCTAssertEqual(controller.presentationState, .items(1))
+        await refresh.value
+    }
+
+    @MainActor
     func testRealFolderChangeRefreshesVisiblePortalGrid() async throws {
         try await withObservedPortalDirectory { root in
             let portal = try Portal(
@@ -286,5 +517,66 @@ private struct FailingFolderEnumerator: FolderEnumerating {
         generation: UInt64
     ) async throws -> FolderEnumerationResult {
         throw error
+    }
+}
+
+private struct DelayedFixedFolderEnumerator: FolderEnumerating {
+    let root: URL
+    let items: [FileItem]
+
+    func enumerate(
+        root: URL,
+        showHidden: Bool,
+        generation: UInt64
+    ) async throws -> FolderEnumerationResult {
+        try await Task.sleep(for: .milliseconds(50))
+        return FolderEnumerationResult(
+            root: self.root,
+            generation: generation,
+            items: items,
+            itemDiagnostics: []
+        )
+    }
+}
+
+private struct FolderMapEnumerator: FolderEnumerating {
+    let itemsByRoot: [URL: [FileItem]]
+
+    func enumerate(
+        root: URL,
+        showHidden: Bool,
+        generation: UInt64
+    ) async throws -> FolderEnumerationResult {
+        FolderEnumerationResult(
+            root: root,
+            generation: generation,
+            items: itemsByRoot[root] ?? [],
+            itemDiagnostics: []
+        )
+    }
+}
+
+private actor MutableFolderEnumerator: FolderEnumerating {
+    private var itemsByRoot: [URL: [FileItem]]
+
+    init(itemsByRoot: [URL: [FileItem]]) {
+        self.itemsByRoot = itemsByRoot
+    }
+
+    func setItems(_ items: [FileItem], for root: URL) {
+        itemsByRoot[root] = items
+    }
+
+    func enumerate(
+        root: URL,
+        showHidden: Bool,
+        generation: UInt64
+    ) async throws -> FolderEnumerationResult {
+        FolderEnumerationResult(
+            root: root,
+            generation: generation,
+            items: itemsByRoot[root] ?? [],
+            itemDiagnostics: []
+        )
     }
 }

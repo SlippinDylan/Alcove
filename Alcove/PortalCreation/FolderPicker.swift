@@ -44,6 +44,11 @@ protocol PortalCreationErrorPresenting: AnyObject {
 }
 
 @MainActor
+protocol PortalPersistenceErrorPresenting: AnyObject {
+    func present(_ error: Error)
+}
+
+@MainActor
 final class PortalCreationErrorPresenter: PortalCreationErrorPresenting {
     func present(_ error: Error) {
         let alert = NSAlert()
@@ -55,6 +60,22 @@ final class PortalCreationErrorPresenter: PortalCreationErrorPresenting {
             alert.informativeText = "Choose another folder and try again."
         }
         alert.addButton(withTitle: "Choose Another Folder")
+        alert.runModal()
+    }
+}
+
+@MainActor
+final class PortalPersistenceErrorPresenter: PortalPersistenceErrorPresenting {
+    func present(_ error: Error) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Unable to save Alcove changes"
+        alert.informativeText = """
+        Your previous saved state was kept. Check available disk space and folder permissions, then try again.
+
+        \(error.localizedDescription)
+        """
+        alert.addButton(withTitle: "OK")
         alert.runModal()
     }
 }

@@ -11,6 +11,7 @@ protocol PortalWindowPresenting: AnyObject {
     var onLocateFolder: ((FolderTabID) -> Void)? { get set }
     func present()
     func updatePortal(_ portal: Portal)
+    func reloadSelectedFolder()
     func applySystemPlacement(frame: NSRect) -> Bool
     func close()
 }

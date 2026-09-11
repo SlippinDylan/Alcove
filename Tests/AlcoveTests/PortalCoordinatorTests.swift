@@ -321,6 +321,7 @@ final class PortalCoordinatorTests: XCTestCase {
         let portal = try makePortal(path: "/tmp/first", x: 10)
         let store = PortalStoreSpy(portals: [portal], saveError: .rejected)
         let factory = PortalWindowFactorySpy()
+        let persistenceErrors = PersistenceErrorPresenterSpy()
         let snapshot = try DisplaySnapshot(
             displays: [coordinatorTestDisplay],
             primaryDisplay: coordinatorTestDisplay.identity
@@ -328,6 +329,7 @@ final class PortalCoordinatorTests: XCTestCase {
         let coordinator = PortalCoordinator(
             store: store,
             windowFactory: factory,
+            persistenceErrorPresenter: persistenceErrors,
             displaySnapshotProvider: { .success(snapshot) }
         )
         try await coordinator.restorePortals()
@@ -343,6 +345,7 @@ final class PortalCoordinatorTests: XCTestCase {
             try snappedPlacementFrame(portal.frame)
         )
         XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
+        XCTAssertEqual(persistenceErrors.errors.count, 1)
     }
 
     @MainActor
@@ -555,6 +558,27 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testCancelledCloseTabDoesNotPresentPersistenceFailure() async throws {
+        var portal = try makePortal(path: "/tmp/first", x: 10)
+        let secondID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
+        let factory = PortalWindowFactorySpy()
+        let persistenceErrors = PersistenceErrorPresenterSpy()
+        let coordinator = PortalCoordinator(
+            store: PortalStoreSpy(portals: [portal], saveError: .cancelled),
+            windowFactory: factory,
+            persistenceErrorPresenter: persistenceErrors
+        )
+        try await coordinator.restorePortals()
+
+        factory.windows[0].onCloseTab?(secondID)
+        await coordinator.waitForTabMutationForTesting()
+
+        XCTAssertEqual(coordinator.portalStates, [portal])
+        XCTAssertNil(coordinator.persistenceError)
+        XCTAssertTrue(persistenceErrors.errors.isEmpty)
+    }
+
+    @MainActor
     func testAddingTabValidatesPersistsAndSelectsIt() async throws {
         try await withPortalDirectory { newFolder in
             let portal = try makePortal(path: "/tmp/first", x: 10)
@@ -649,18 +673,25 @@ final class PortalCoordinatorTests: XCTestCase {
         let portal = try makePortal(path: "/tmp/first", x: 10)
         let store = PortalStoreSpy(portals: [portal], saveError: .rejected)
         let factory = PortalWindowFactorySpy()
-        let coordinator = PortalCoordinator(store: store, windowFactory: factory)
+        let persistenceErrors = PersistenceErrorPresenterSpy()
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            persistenceErrorPresenter: persistenceErrors
+        )
         try await coordinator.restorePortals()
 
         await coordinator.setIconSize(.large, for: portal.id)
         XCTAssertEqual(coordinator.portalStates, [portal])
         XCTAssertEqual(factory.windows[0].updateCount, 0)
         XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
+        XCTAssertEqual(persistenceErrors.errors.count, 1)
 
         await coordinator.removePortal(portal.id)
         XCTAssertEqual(coordinator.portalStates, [portal])
         XCTAssertEqual(factory.windows[0].closeCount, 0)
         XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
+        XCTAssertEqual(persistenceErrors.errors.count, 2)
     }
 
     @MainActor
@@ -768,17 +799,39 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testLocatingSamePathExplicitlyRestartsSelectedFolder() async throws {
+        try await withPortalDirectory { folder in
+            let portal = try makePortal(path: folder.path, x: 10)
+            let factory = PortalWindowFactorySpy()
+            let coordinator = PortalCoordinator(
+                store: PortalStoreSpy(portals: [portal]),
+                windowFactory: factory,
+                tabFolderPicker: TabFolderPickerStub(folders: [folder])
+            )
+            try await coordinator.restorePortals()
+
+            factory.windows[0].onLocateFolder?(portal.selectedTabID)
+            await coordinator.waitForTabMutationForTesting()
+
+            XCTAssertEqual(coordinator.portalStates[0].tabs[0].folderURL, folder)
+            XCTAssertEqual(factory.windows[0].selectedFolderReloadCount, 1)
+        }
+    }
+
+    @MainActor
     func testLocateSaveFailureDoesNotRemapLivePortal() async throws {
         try await withPortalDirectory { replacement in
             let portal = try makePortal(path: "/tmp/missing", x: 10)
             let store = PortalStoreSpy(portals: [portal], saveError: .rejected)
             let factory = PortalWindowFactorySpy()
             let errors = CoordinatorErrorPresenterSpy()
+            let persistenceErrors = PersistenceErrorPresenterSpy()
             let coordinator = PortalCoordinator(
                 store: store,
                 windowFactory: factory,
                 tabFolderPicker: TabFolderPickerStub(folders: [replacement]),
-                errorPresenter: errors
+                errorPresenter: errors,
+                persistenceErrorPresenter: persistenceErrors
             )
             try await coordinator.restorePortals()
 
@@ -787,7 +840,8 @@ final class PortalCoordinatorTests: XCTestCase {
 
             XCTAssertEqual(coordinator.portalStates, [portal])
             XCTAssertEqual(factory.windows[0].updateCount, 0)
-            XCTAssertEqual(errors.errors.count, 1)
+            XCTAssertTrue(errors.errors.isEmpty)
+            XCTAssertEqual(persistenceErrors.errors.count, 1)
         }
     }
 
@@ -861,8 +915,13 @@ private actor PortalStoreSpy: PortalStoring {
     }
 
     func save(_ portals: [Portal]) async throws {
-        if let saveError {
-            throw saveError
+        switch saveError {
+        case .rejected:
+            throw PortalStoreFixtureError.rejected
+        case .cancelled:
+            throw CancellationError()
+        case nil:
+            break
         }
         self.portals = portals
         saves.append(portals)
@@ -930,6 +989,7 @@ private actor SuspendingPortalStore: PortalStoring {
 
 private enum PortalStoreFixtureError: Error, Equatable {
     case rejected
+    case cancelled
 }
 
 @MainActor
@@ -958,6 +1018,7 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     private(set) var closeCount = 0
     private(set) var updatedPortals: [Portal] = []
     private(set) var systemFrames: [NSRect] = []
+    private(set) var selectedFolderReloadCount = 0
     var acceptsSystemPlacement = true
 
     func present() {
@@ -967,6 +1028,10 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     func updatePortal(_ portal: Portal) {
         updateCount += 1
         updatedPortals.append(portal)
+    }
+
+    func reloadSelectedFolder() {
+        selectedFolderReloadCount += 1
     }
 
     func applySystemPlacement(frame: NSRect) -> Bool {
@@ -1053,6 +1118,15 @@ private final class LastTabConfirmerStub: LastTabRemovalConfirming {
 
 @MainActor
 private final class CoordinatorErrorPresenterSpy: PortalCreationErrorPresenting {
+    private(set) var errors: [Error] = []
+
+    func present(_ error: Error) {
+        errors.append(error)
+    }
+}
+
+@MainActor
+private final class PersistenceErrorPresenterSpy: PortalPersistenceErrorPresenting {
     private(set) var errors: [Error] = []
 
     func present(_ error: Error) {

@@ -1,6 +1,6 @@
 # Alcove Autopilot Progress
 
-Updated: 2026-08-02
+Updated: 2026-09-12
 
 This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its required automated verification and documentation are complete. Manual-only evidence remains unchecked until it is actually observed.
 
@@ -132,3 +132,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-09-12: Final MVP review found and fixed three Medium implementation gaps: resize dimensions now snap at live-resize end, creation/icon changes enforce the chrome-aware 2×2 minimum without adopting a temporary display as home, and tab switches cancel old loads and hide stale content synchronously. AlcoveCore passes 110 tests, the hosted app passes 117, and independent final re-review found no remaining Critical/High/Medium issue in the changed paths.
 - 2026-09-12: Production-wide review pass 1 read all shipping modules and associated tests, corrected creation containment, incremental enumeration cancellation, Quick Look ownership/empty/reopen lifecycles, open-failure feedback, keyboard-accessible creation, and visible startup recovery. AlcoveCore passes 110 tests and the hosted app passes 122 after the fixes; two additional whole-project review passes remain by user request.
 - 2026-09-12: Production-wide review pass 2 reread all shipping code through concurrency, lifecycle, failure, and multi-window state paths. It fixed cross-Portal tab actions blocked by a folder picker, icon-reload selection replay, vertical keyboard scrolling, and added startup retry evidence. AlcoveCore passes 110 tests and the hosted app passes 124; one final whole-project user-flow/API pass remains.
+- 2026-09-12: Production-wide review pass 3 reread all 38 shipping Swift files through end-to-end user flows and Apple framework contracts. It fixed non-blocking refresh and tab-runtime ownership, same-path recovery restart, narrow multi-tab scrolling, visible persistence failures, cancellation handling, and dynamic canvas appearance. AlcoveCore passes 110 tests, the hosted app passes 133, the unsigned Release is universal, and independent final diff review found no remaining confirmed Critical/High/Medium issue. Manual hardware, OS, accessibility, TCC, and visual matrices remain open.
