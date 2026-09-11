@@ -61,7 +61,7 @@ signature.
 
 ## Remaining Gate Work
 
-- Verify the recovery orchestration in production `FolderAccess` integration.
+- [x] Verify the recovery orchestration in production `FolderAccess` integration.
 - Record controlled TCC denial and recovery with an actual Alcove app identity.
 - Run the relevant compatibility matrix on an actual macOS 15 environment.
 

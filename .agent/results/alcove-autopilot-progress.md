@@ -84,7 +84,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [ ] Slice 6 — Tabs: ordered UI, add/select/close persistence, last-tab confirmation, and runtime state restoration complete; manual interaction remains.
 - [ ] Slice 7 — Quick Look: production responder, ordered selection, ownership cleanup, 56 hosted tests, and universal build complete; real panel behavior remains manual.
 - [ ] Slice 8 — Display Placement Persistence: production v2 migration, user-only commits, topology/wake recovery, 110 Core tests, 88 hosted tests, and universal build complete; physical hardware matrix remains.
-- [ ] Slice 9 — Directory Observation and Auto-Refresh.
+- [ ] Slice 9 — Directory Observation and Auto-Refresh: active-tab FSEvents, debounce, identity-safe recovery, 97 hosted tests, and real grid refresh complete; Locate Folder/TCC remain.
 - [ ] Slice 10 — Hardening, Accessibility, and Release Preparation.
 
 ## MVP Acceptance
@@ -124,3 +124,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-09-11: Production Slice 7 added ordered single/multi-selection Quick Look, explicit shared-panel ownership, second-Space dismissal, tab-switch invalidation, takeover-safe updates, synchronous window-close cleanup, and reversible responder-chain installation. Thirty-four Core tests and 56 hosted tests pass; real panel rendering/navigation/focus behavior remains manual.
 - 2026-09-11: Production Slice 8A migrated the verified placement geometry and eviction-safe reducer into AlcoveCore with 51 geometry and 22 state tests. AlcoveCore passes 107 tests, hosted tests pass 56/56, and Release remains universal; no persistent schema changed.
 - 2026-09-12: Production Slice 8 completed canonical display identity, v2 placement migration with write-once backup, explicit user drag/resize commits, screen/wake reconciliation, durable mutation serialization, pending-placement retry, and termination flush. AlcoveCore passes 110 tests and the hosted app passes 88; physical display behavior remains manual.
+- 2026-09-12: Production Slice 9 added active-tab FSEvents observation, ordinary-event debounce, recovery-flag rebuild, path/volume/device/inode revalidation, stale generation rejection, and real filesystem-to-grid refresh. Hosted tests pass 97/97; Locate Folder and controlled TCC remain.

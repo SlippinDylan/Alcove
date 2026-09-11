@@ -143,6 +143,7 @@ Directory enumeration and live observation.
 - `FolderEnumerator` — returns `[FileItem]` for a given URL; default ordering: directories first, then localized standard name
 - `FolderLocationValidator` — resolves the selected directory's hosting volume and accepts only internal, non-removable, non-ejectable local storage; selection and re-mapping reject all other locations before persistence
 - `FolderObserver` — FSEvents adapter using `FileEvents`, `WatchRoot`, and `UseCFTypes`; monitors only the active tab's mapped directory and treats records as snapshot invalidation evidence.
+- `FolderObservationCoordinator` — debounces ordinary records into full reloads; recovery flags stop and revalidate path, volume, and device/inode before a fresh stream starts
 - `FolderLoadingActor` coordinates generation tokens, cancellation requests, and result ordering; it does not by itself put synchronous file I/O on a background thread.
 - Blocking enumeration crosses an explicit background execution boundary such as a dedicated `DispatchQueue`, `OperationQueue`, or a verified asynchronous wrapper.
 - Cooperative cancellation requires incremental or batched enumeration with checks at defined boundaries. A single `FileManager.contentsOfDirectory` call cannot be cancelled midway.
@@ -535,6 +536,7 @@ Phase 0.5C7 selected FSEvents after both candidates passed local mutation, teard
 - Switching tabs cancels the in-flight enumeration `Task` for the previous tab.
 - Closing a portal cancels all its tab `Task`s.
 - `FolderObserver` completes bounded stream teardown when the tab becomes inactive.
+- Portal close stops the active stream synchronously on the main dispatch queue; late callbacks are rejected by the observation generation.
 
 ---
 

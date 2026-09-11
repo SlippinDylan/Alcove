@@ -16,6 +16,7 @@ final class PortalViewController: NSViewController {
     private let stateLabel = NSTextField(labelWithString: "")
     private let progressIndicator = NSProgressIndicator()
     private var loadTask: Task<Void, Never>?
+    private var observationTask: Task<Void, Never>?
     private var runtimeStates: [FolderTabID: FileGridRuntimeState] = [:]
     private(set) var presentationState: PortalPresentationState = .loading
     var onSelectTab: ((FolderTabID) -> Void)?
@@ -24,6 +25,10 @@ final class PortalViewController: NSViewController {
     var onQuickLookRequested: (([URL]) -> Void)?
     var onQuickLookSelectionChanged: (([URL]) -> Void)?
     var onSelectionInvalidated: (() -> Void)?
+    private lazy var observationCoordinator = FolderObservationCoordinator(
+        onRefresh: { [weak self] in self?.load() },
+        onFailure: { [weak self] error in self?.showObservationFailure(error) }
+    )
 
     init(portal: Portal, loadingCoordinator: FolderLoadingCoordinator) {
         self.portal = portal
@@ -38,6 +43,7 @@ final class PortalViewController: NSViewController {
 
     deinit {
         loadTask?.cancel()
+        observationTask?.cancel()
     }
 
     override func loadView() {
@@ -96,7 +102,7 @@ final class PortalViewController: NSViewController {
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        load()
+        startObservation()
     }
 
     func load() {
@@ -121,8 +127,17 @@ final class PortalViewController: NSViewController {
         }
         if portal.selectedTabID != previousTabID {
             onSelectionInvalidated?()
-            load()
+            startObservation()
         }
+    }
+
+    func stopObservation() {
+        observationTask?.cancel()
+        observationTask = nil
+        observationCoordinator.stop()
+        loadTask?.cancel()
+        loadTask = nil
+        Task { await loadingCoordinator.cancelCurrentLoad() }
     }
 
     func reload() async {
@@ -137,6 +152,36 @@ final class PortalViewController: NSViewController {
         } catch {
             guard !Task.isCancelled else { return }
             showState("Unable to load folder")
+        }
+    }
+
+    private func startObservation() {
+        observationTask?.cancel()
+        observationCoordinator.stop()
+        let root = folderURL
+        observationTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await observationCoordinator.start(root: root)
+                guard !Task.isCancelled else { return }
+                load()
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled else { return }
+                showObservationFailure(error)
+            }
+        }
+    }
+
+    private func showObservationFailure(_ error: Error) {
+        loadTask?.cancel()
+        loadTask = nil
+        Task { await loadingCoordinator.cancelCurrentLoad() }
+        if let error = error as? FolderAccessError {
+            showState(error.userMessage)
+        } else {
+            showState("Unable to watch folder")
         }
     }
 

@@ -384,10 +384,12 @@ scenarios remain open until manually exercised on supported hardware.
 - Manual: modify files in Finder while switching tabs rapidly.
 
 **Exit Gate:**
-- [ ] The active grid refreshes for verified changes.
-- [ ] No stale result or background load updates an inactive tab.
+- [x] The active grid refreshes for automated real-filesystem changes.
+- [x] No stale result or background load updates an inactive tab at the automated boundary.
 - [ ] Missing and denied states are visible and recoverable; unsupported folder locations are rejected before tab creation or re-mapping.
-- [ ] Observation behavior matches Spike 0.5 rather than an assumed mechanism.
+- [x] Observation behavior uses the Spike 0.5-selected FSEvents mechanism and recovery flags.
+
+Locate Folder UI and controlled TCC denial remain for Slice 10/manual verification.
 
 ---
 

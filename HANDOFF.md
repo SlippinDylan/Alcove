@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 manual/system evidence remains open while replaceable development defaults unblock production work. Production Slices 1–8 now provide the universal AppKit shell, folder access, multi-tab portals, Finder-style interaction, transactional creation, Quick Look, atomic v2 placement persistence, user-only position commits, and display/wake recovery. Removable, ejectable, and network-volume folders remain outside product scope; production FSEvents orchestration, hardening, an actual macOS 15 runtime, and human GUI behavior remain open.
+**Current phase:** Phase 0 manual/system evidence remains open while replaceable development defaults unblock production work. Production Slices 1–9 now provide the universal AppKit shell, folder access, multi-tab portals, Finder-style interaction, transactional creation, Quick Look, atomic v2 placement persistence, display/wake recovery, and active-tab FSEvents refresh/recovery. Removable, ejectable, and network-volume folders remain outside product scope; hardening, an actual macOS 15 runtime, controlled TCC denial, and human GUI behavior remain open.
 
 Historical spike summaries below retain the scope that applied when they were run. Their references to removable or network-volume investigation are superseded by the 2026-09-11 product decision.
 
@@ -68,6 +68,16 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Production Slice 9 added the sole production FSEvents observer with `FileEvents`,
+`WatchRoot`, and `UseCFTypes`. Only the active tab is observed. Ordinary records debounce
+into full snapshot reloads; recovery flags stop the old stream, revalidate the supported
+location and device/inode, restart before enumeration when unchanged, and reject replaced
+roots. Portal close and tab switches stop the old generation. AlcoveCore passes 110 tests
+and the hosted app passes 97 tests, including real FSEvents-to-grid refresh. Locate Folder
+UI and controlled TCC denial remain open.
+
+### Earlier Slice 8 placement
 
 Production Slice 8 is complete at the automated boundary. It adds canonical display UUID
 snapshots, screen/wake observation, v2 per-display placement persistence, write-once v1

@@ -44,6 +44,7 @@ struct FolderErrorMetadata: Equatable, Sendable {
 
 enum FolderAccessError: Error, Equatable, Sendable {
     case folderNotFound(url: URL, metadata: FolderErrorMetadata)
+    case folderReplaced(url: URL)
     case notDirectory(url: URL, metadata: FolderErrorMetadata)
     case permissionDenied(url: URL, metadata: FolderErrorMetadata)
     case readFailed(url: URL, metadata: FolderErrorMetadata)
@@ -68,7 +69,7 @@ enum FolderAccessError: Error, Equatable, Sendable {
 
     var userMessage: String {
         switch self {
-        case .folderNotFound:
+        case .folderNotFound, .folderReplaced:
             return "Folder not found"
         case .notDirectory:
             return "The selected item is not a folder"

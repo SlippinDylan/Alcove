@@ -52,6 +52,71 @@ final class PortalViewControllerTests: XCTestCase {
 
         XCTAssertEqual(controller.presentationState, .message("This folder is empty"))
     }
+
+    @MainActor
+    func testRealFolderChangeRefreshesVisiblePortalGrid() async throws {
+        try await withObservedPortalDirectory { root in
+            let portal = try Portal(
+                folderURL: root,
+                frame: CGRect(x: 0, y: 0, width: 320, height: 240),
+                display: testDisplay
+            )
+            let controller = PortalViewController(
+                portal: portal,
+                loadingCoordinator: FolderLoadingCoordinator()
+            )
+            controller.loadView()
+            controller.viewDidAppear()
+            defer { controller.stopObservation() }
+            try await waitUntilPresentation(
+                controller,
+                equals: .message("This folder is empty")
+            )
+
+            try Data("visible".utf8).write(to: root.appendingPathComponent("visible.txt"))
+            try await waitUntilPresentation(controller, equals: .items(1))
+        }
+    }
+
+    @MainActor
+    private func waitUntilPresentation(
+        _ controller: PortalViewController,
+        equals expected: PortalPresentationState
+    ) async throws {
+        for _ in 0..<150 {
+            if controller.presentationState == expected { return }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTFail("Timed out waiting for \(expected); got \(controller.presentationState)")
+    }
+}
+
+@MainActor
+private func withObservedPortalDirectory(
+    _ body: (URL) async throws -> Void
+) async throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("alcove-portal-observation-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+    do {
+        try await body(directory)
+    } catch {
+        let bodyError = error
+        do {
+            try FileManager.default.removeItem(at: directory)
+        } catch {
+            throw PortalViewObservationTestError.bodyAndCleanup(
+                body: String(describing: bodyError),
+                cleanup: String(describing: error)
+            )
+        }
+        throw bodyError
+    }
+    try FileManager.default.removeItem(at: directory)
+}
+
+private enum PortalViewObservationTestError: Error {
+    case bodyAndCleanup(body: String, cleanup: String)
 }
 
 private let testDisplay = DisplayDescriptor(
