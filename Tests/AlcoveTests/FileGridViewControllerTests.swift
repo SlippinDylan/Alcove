@@ -130,6 +130,35 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(FileCollectionView.command(keyCode: 49, modifiers: []), .toggleQuickLook)
     }
 
+    @MainActor
+    func testIconSizeUpdatesLayoutAndCellAccessibility() throws {
+        let controller = FileGridViewController(iconSize: .small)
+        controller.loadView()
+        let item = FileItem(
+            url: URL(fileURLWithPath: "/tmp/Folder"),
+            name: "Folder",
+            isDirectory: true,
+            isHidden: false
+        )
+        controller.setItems([item])
+        let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
+        let collectionView = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
+        let layout = try XCTUnwrap(collectionView.collectionViewLayout as? NSCollectionViewFlowLayout)
+
+        XCTAssertEqual(layout.itemSize, GridMetrics(iconSize: .small).itemSize)
+        controller.updateIconSize(.large)
+        XCTAssertEqual(layout.itemSize, GridMetrics(iconSize: .large).itemSize)
+
+        let cell = try XCTUnwrap(
+            controller.collectionView(collectionView, itemForRepresentedObjectAt: IndexPath(item: 0, section: 0))
+                as? FileItemCell
+        )
+        XCTAssertEqual(cell.view.accessibilityRole(), .button)
+        XCTAssertEqual(cell.view.accessibilityLabel(), "Folder")
+        XCTAssertEqual(cell.view.accessibilityValue() as? String, "Not selected")
+        XCTAssertEqual(cell.view.accessibilityHelp(), "Folder. Double-click to open in Finder.")
+    }
+
     private func makeItems(count: Int) -> [FileItem] {
         (0..<count).map { index in
             FileItem(

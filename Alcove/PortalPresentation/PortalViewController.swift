@@ -9,10 +9,17 @@ enum PortalPresentationState: Equatable {
 
 @MainActor
 final class PortalViewController: NSViewController {
+    static let tabBarHeight: CGFloat = 40
+
+    static func minimumContentSize(for iconSize: IconSize) -> NSSize {
+        let gridSize = GridMetrics(iconSize: iconSize).minimumPortalSize
+        return NSSize(width: gridSize.width, height: gridSize.height + tabBarHeight)
+    }
+
     private var portal: Portal
     private let loadingCoordinator: FolderLoadingCoordinator
     private let tabBarView = TabBarView()
-    private let gridViewController = FileGridViewController()
+    private let gridViewController: FileGridViewController
     private let stateLabel = NSTextField(labelWithString: "")
     private let progressIndicator = NSProgressIndicator()
     private var loadTask: Task<Void, Never>?
@@ -33,6 +40,7 @@ final class PortalViewController: NSViewController {
     init(portal: Portal, loadingCoordinator: FolderLoadingCoordinator) {
         self.portal = portal
         self.loadingCoordinator = loadingCoordinator
+        gridViewController = FileGridViewController(iconSize: portal.iconSize)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -87,7 +95,7 @@ final class PortalViewController: NSViewController {
             tabBarView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             tabBarView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             tabBarView.topAnchor.constraint(equalTo: rootView.topAnchor),
-            tabBarView.heightAnchor.constraint(equalToConstant: 40),
+            tabBarView.heightAnchor.constraint(equalToConstant: Self.tabBarHeight),
             gridView.topAnchor.constraint(equalTo: tabBarView.bottomAnchor),
             gridView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
             stateLabel.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
@@ -115,10 +123,14 @@ final class PortalViewController: NSViewController {
 
     func updatePortal(_ portal: Portal) {
         let previousTabID = self.portal.selectedTabID
+        let previousIconSize = self.portal.iconSize
         if isViewLoaded {
             runtimeStates[previousTabID] = gridViewController.captureRuntimeState()
         }
         self.portal = portal
+        if portal.iconSize != previousIconSize {
+            gridViewController.updateIconSize(portal.iconSize)
+        }
         runtimeStates = runtimeStates.filter { id, _ in
             portal.tabs.contains(where: { $0.id == id })
         }

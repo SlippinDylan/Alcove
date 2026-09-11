@@ -34,6 +34,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
             strategy: strategy,
             contentViewController: portalViewController
         )
+        window.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconSize)
         let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
         window.title = selectedTab?.folderURL.lastPathComponent ?? "Alcove"
         super.init(window: window)
@@ -72,6 +73,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
 
     func updatePortal(_ portal: Portal) {
         portalViewController.updatePortal(portal)
+        window?.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconSize)
         let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
         window?.title = selectedTab?.folderURL.lastPathComponent ?? "Alcove"
     }

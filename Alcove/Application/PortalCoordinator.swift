@@ -32,6 +32,9 @@ final class PortalCoordinator: PortalCoordinating {
     private(set) var portalStates: [Portal] = []
     private(set) var persistenceError: Error?
     private(set) var displayError: Error?
+    var onPortalsChanged: (([PortalMenuEntry]) -> Void)? {
+        didSet { publishPortalMenu() }
+    }
     private lazy var displayObserver = DisplayPlacementObserver(
         center: displayNotificationCenter,
         snapshotProvider: displaySnapshotProvider,
@@ -70,6 +73,7 @@ final class PortalCoordinator: PortalCoordinating {
             let portals = try await store.load()
             portalStates = portals
             hasLoadedPersistentState = true
+            publishPortalMenu()
             displayObserver.start()
             applyDisplayTopology(displaySnapshotProvider())
         }
@@ -97,6 +101,7 @@ final class PortalCoordinator: PortalCoordinating {
             let updatedPortals = portalStates + [portal]
             try await store.save(updatedPortals)
             portalStates = updatedPortals
+            publishPortalMenu()
             applyDisplayTopology(displaySnapshotProvider())
         }
     }
@@ -122,6 +127,48 @@ final class PortalCoordinator: PortalCoordinating {
         if !pendingUserPlacements.isEmpty {
             applyDisplayTopology(displaySnapshotProvider())
             await waitForMutationQuiescence()
+        }
+    }
+
+    func showPortal(_ portalID: PortalID) {
+        windows[portalID]?.present()
+    }
+
+    func removePortal(_ portalID: PortalID) async {
+        do {
+            try await performMutation { [weak self] in
+                guard let self,
+                      let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
+                    return
+                }
+                var updatedPortals = portalStates
+                updatedPortals.remove(at: index)
+                try await store.save(updatedPortals)
+                portalStates = updatedPortals
+                windows.removeValue(forKey: portalID)?.close()
+                removeRuntimeState(for: portalID)
+                publishPortalMenu()
+            }
+            persistenceError = nil
+        } catch {
+            persistenceError = error
+        }
+    }
+
+    func setIconSize(_ iconSize: IconSize, for portalID: PortalID) async {
+        do {
+            try await performMutation { [weak self] in
+                guard let self,
+                      let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
+                    return
+                }
+                var portal = portalStates[index]
+                portal.updateIconSize(iconSize)
+                try await commit(portal, at: index)
+            }
+            persistenceError = nil
+        } catch {
+            persistenceError = error
         }
     }
 
@@ -354,10 +401,8 @@ final class PortalCoordinator: PortalCoordinating {
                     try await store.save(updatedPortals)
                     portalStates = updatedPortals
                     windows.removeValue(forKey: portalID)?.close()
-                    placementSessions.removeValue(forKey: portalID)
-                    deferredTopologyPortals.remove(portalID)
-                    pendingUserPlacements.removeValue(forKey: portalID)
-                    pendingPlacementAttempts.removeValue(forKey: portalID)
+                    removeRuntimeState(for: portalID)
+                    publishPortalMenu()
                     return
                 }
 
@@ -377,6 +422,7 @@ final class PortalCoordinator: PortalCoordinating {
         try await store.save(updatedPortals)
         portalStates = updatedPortals
         windows[portal.id]?.updatePortal(portal)
+        publishPortalMenu()
         persistenceError = nil
     }
 
@@ -516,6 +562,22 @@ final class PortalCoordinator: PortalCoordinating {
 
     private func currentDisplaySnapshot() throws -> DisplaySnapshot {
         try displaySnapshotProvider().get()
+    }
+
+    private func removeRuntimeState(for portalID: PortalID) {
+        placementSessions.removeValue(forKey: portalID)
+        deferredTopologyPortals.remove(portalID)
+        pendingUserPlacements.removeValue(forKey: portalID)
+        pendingPlacementAttempts.removeValue(forKey: portalID)
+    }
+
+    private func publishPortalMenu() {
+        let entries = portalStates.map { portal in
+            let title = portal.tabs.first(where: { $0.id == portal.selectedTabID })?
+                .folderURL.lastPathComponent ?? "Portal"
+            return PortalMenuEntry(id: portal.id, title: title, iconSize: portal.iconSize)
+        }
+        onPortalsChanged?(entries)
     }
 
     private static func defaultFrame(on display: DisplayDescriptor) -> NSRect {

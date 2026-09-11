@@ -1,4 +1,5 @@
 import AppKit
+import AlcoveCore
 import XCTest
 @testable import Alcove
 
@@ -37,5 +38,57 @@ final class StatusMenuControllerTests: XCTestCase {
         XCTAssertNil(controller.statusItem)
         controller.stop()
         XCTAssertNil(controller.statusItem)
+    }
+
+    @MainActor
+    func testPortalSubmenusPreserveOrderAndDispatchTypedActions() throws {
+        let firstID = PortalID()
+        let secondID = PortalID()
+        var shownIDs: [PortalID] = []
+        var removedIDs: [PortalID] = []
+        var sizeRequests: [(PortalID, IconSize)] = []
+        let controller = StatusMenuController(
+            onNewPortal: {},
+            onShowPortal: { shownIDs.append($0) },
+            onRemovePortal: { removedIDs.append($0) },
+            onSetIconSize: { sizeRequests.append(($0, $1)) }
+        )
+        controller.updatePortals([
+            PortalMenuEntry(id: firstID, title: "First", iconSize: .small),
+            PortalMenuEntry(id: secondID, title: "Second", iconSize: .large),
+        ])
+
+        let menu = controller.makeMenu()
+
+        XCTAssertEqual(menu.items.map(\.title), ["New Portal", "", "First", "Second", "", "Quit Alcove"])
+        let firstMenu = try XCTUnwrap(menu.items[2].submenu)
+        XCTAssertEqual(firstMenu.items.map(\.title), ["Show", "Icon Size", "", "Remove Portal"])
+        firstMenu.performActionForItem(at: 0)
+        firstMenu.performActionForItem(at: 3)
+        let iconMenu = try XCTUnwrap(firstMenu.items[1].submenu)
+        XCTAssertEqual(iconMenu.items.map(\.title), ["Small", "Medium", "Large"])
+        XCTAssertEqual(iconMenu.items.map(\.state), [.on, .off, .off])
+        iconMenu.performActionForItem(at: 2)
+
+        XCTAssertEqual(shownIDs, [firstID])
+        XCTAssertEqual(removedIDs, [firstID])
+        XCTAssertEqual(sizeRequests.count, 1)
+        XCTAssertEqual(sizeRequests[0].0, firstID)
+        XCTAssertEqual(sizeRequests[0].1, .large)
+    }
+
+    @MainActor
+    func testUpdatingPortalsRebuildsInstalledMenu() {
+        let controller = StatusMenuController(onNewPortal: {})
+        controller.start()
+
+        controller.updatePortals([
+            PortalMenuEntry(id: PortalID(), title: "Documents", iconSize: .medium),
+        ])
+
+        XCTAssertEqual(controller.statusItem?.menu?.items.map(\.title), [
+            "New Portal", "", "Documents", "", "Quit Alcove",
+        ])
+        controller.stop()
     }
 }

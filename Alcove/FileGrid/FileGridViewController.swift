@@ -10,15 +10,19 @@ struct FileGridRuntimeState: Equatable {
 final class FileGridViewController: NSViewController {
     private let collectionView = FileCollectionView()
     private let workspaceOpener: any WorkspaceOpening
-    private let metrics = GridMetrics(iconSize: .medium)
+    private var metrics: GridMetrics
     private var items: [FileItem] = []
     private(set) var selectionState = SelectionState()
     private(set) var failedOpenURLs: [URL] = []
     var onQuickLookRequested: (([URL]) -> Void)?
     var onSelectionChanged: (([URL]) -> Void)?
 
-    init(workspaceOpener: any WorkspaceOpening = SystemWorkspaceOpener()) {
+    init(
+        workspaceOpener: any WorkspaceOpening = SystemWorkspaceOpener(),
+        iconSize: IconSize = .medium
+    ) {
         self.workspaceOpener = workspaceOpener
+        metrics = GridMetrics(iconSize: iconSize)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -82,6 +86,24 @@ final class FileGridViewController: NSViewController {
 
     func item(at index: Int) -> FileItem {
         items[index]
+    }
+
+    func updateIconSize(_ iconSize: IconSize) {
+        guard metrics.iconSize != iconSize else { return }
+        metrics = GridMetrics(iconSize: iconSize)
+        guard isViewLoaded,
+              let flowLayout = collectionView.collectionViewLayout as? NSCollectionViewFlowLayout else {
+            return
+        }
+        flowLayout.itemSize = metrics.itemSize
+        flowLayout.sectionInset = NSEdgeInsets(
+            top: metrics.contentInsets.top,
+            left: metrics.contentInsets.leading,
+            bottom: metrics.contentInsets.bottom,
+            right: metrics.contentInsets.trailing
+        )
+        flowLayout.invalidateLayout()
+        collectionView.reloadData()
     }
 
     func captureRuntimeState() -> FileGridRuntimeState {
@@ -231,7 +253,7 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
         guard let fileCell = cell as? FileItemCell else {
             preconditionFailure("FileItemCell registration contract violated")
         }
-        fileCell.configure(with: items[indexPath.item])
+        fileCell.configure(with: items[indexPath.item], iconSize: metrics.iconSize)
         return fileCell
     }
 }

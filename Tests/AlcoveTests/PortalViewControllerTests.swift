@@ -4,6 +4,18 @@ import XCTest
 
 final class PortalViewControllerTests: XCTestCase {
     @MainActor
+    func testMinimumContentSizeTracksTwoByTwoGridAndTabBar() {
+        let metrics = GridMetrics(iconSize: .large)
+        let actual = PortalViewController.minimumContentSize(for: .large)
+        let expected = NSSize(
+            width: metrics.minimumPortalSize.width,
+            height: metrics.minimumPortalSize.height + PortalViewController.tabBarHeight
+        )
+
+        XCTAssertEqual(actual, expected)
+    }
+
+    @MainActor
     func testReloadAppliesAcceptedFolderContents() async throws {
         let root = URL(fileURLWithPath: "/tmp/portal")
         let item = FileItem(

@@ -571,6 +571,57 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testPortalManagementPublishesShowsAndPersistsBeforeUpdating() async throws {
+        var portal = try makePortal(path: "/tmp/first", x: 10)
+        let selectedID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/selected"))
+        try portal.selectTab(selectedID)
+        let store = PortalStoreSpy(portals: [portal])
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(store: store, windowFactory: factory)
+        var menus: [[PortalMenuEntry]] = []
+        coordinator.onPortalsChanged = { menus.append($0) }
+        try await coordinator.restorePortals()
+
+        XCTAssertEqual(menus.last, [
+            PortalMenuEntry(id: portal.id, title: "selected", iconSize: .medium),
+        ])
+        coordinator.showPortal(portal.id)
+        XCTAssertEqual(factory.windows[0].presentCount, 2)
+
+        await coordinator.setIconSize(.large, for: portal.id)
+
+        XCTAssertEqual(coordinator.portalStates[0].iconSize, .large)
+        XCTAssertEqual(factory.windows[0].updatedPortals.last?.iconSize, .large)
+        let saves = await store.savedSnapshots()
+        XCTAssertEqual(saves.last?.first?.iconSize, .large)
+        XCTAssertEqual(menus.last?.first?.iconSize, .large)
+
+        await coordinator.removePortal(portal.id)
+        XCTAssertTrue(coordinator.portalStates.isEmpty)
+        XCTAssertEqual(factory.windows[0].closeCount, 1)
+        XCTAssertEqual(menus.last, [])
+    }
+
+    @MainActor
+    func testPortalManagementSaveFailureLeavesRuntimeStateUntouched() async throws {
+        let portal = try makePortal(path: "/tmp/first", x: 10)
+        let store = PortalStoreSpy(portals: [portal], saveError: .rejected)
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(store: store, windowFactory: factory)
+        try await coordinator.restorePortals()
+
+        await coordinator.setIconSize(.large, for: portal.id)
+        XCTAssertEqual(coordinator.portalStates, [portal])
+        XCTAssertEqual(factory.windows[0].updateCount, 0)
+        XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
+
+        await coordinator.removePortal(portal.id)
+        XCTAssertEqual(coordinator.portalStates, [portal])
+        XCTAssertEqual(factory.windows[0].closeCount, 0)
+        XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
+    }
+
+    @MainActor
     func testClosingLastTabRequiresConfirmationBeforeRemovingPortal() async throws {
         let portal = try makePortal(path: "/tmp/only", x: 10)
         let cancelConfirmer = LastTabConfirmerStub(responses: [false])
