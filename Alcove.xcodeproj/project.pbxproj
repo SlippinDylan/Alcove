@@ -31,6 +31,8 @@
 		100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000018 /* FileGridViewControllerTests.swift */; };
 		100000000000000000000017 /* PortalWindowConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000019 /* PortalWindowConfigurationTests.swift */; };
 		100000000000000000000018 /* PortalViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001A /* PortalViewControllerTests.swift */; };
+		100000000000000000000019 /* FileCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001B /* FileCollectionView.swift */; };
+		10000000000000000000001A /* WorkspaceOpening.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001C /* WorkspaceOpening.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +72,8 @@
 		200000000000000000000018 /* FileGridViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridViewControllerTests.swift; sourceTree = "<group>"; };
 		200000000000000000000019 /* PortalWindowConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowConfigurationTests.swift; sourceTree = "<group>"; };
 		20000000000000000000001A /* PortalViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalViewControllerTests.swift; sourceTree = "<group>"; };
+		20000000000000000000001B /* FileCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCollectionView.swift; sourceTree = "<group>"; };
+		20000000000000000000001C /* WorkspaceOpening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOpening.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -189,8 +193,10 @@
 		70000000000000000000000A /* FileGrid */ = {
 			isa = PBXGroup;
 			children = (
+				20000000000000000000001B /* FileCollectionView.swift */,
 				200000000000000000000010 /* FileItemCell.swift */,
 				200000000000000000000011 /* FileGridViewController.swift */,
+				20000000000000000000001C /* WorkspaceOpening.swift */,
 			);
 			path = FileGrid;
 			sourceTree = "<group>";
@@ -325,8 +331,10 @@
 				10000000000000000000000B /* FolderEnumerator.swift in Sources */,
 				10000000000000000000000C /* FolderLoadingCoordinator.swift in Sources */,
 				10000000000000000000000D /* FolderLocationValidator.swift in Sources */,
+				100000000000000000000019 /* FileCollectionView.swift in Sources */,
 				10000000000000000000000E /* FileItemCell.swift in Sources */,
 				10000000000000000000000F /* FileGridViewController.swift in Sources */,
+				10000000000000000000001A /* WorkspaceOpening.swift in Sources */,
 				100000000000000000000010 /* PortalViewController.swift in Sources */,
 				100000000000000000000011 /* PortalWindowStrategy.swift in Sources */,
 				100000000000000000000012 /* PortalWindow.swift in Sources */,

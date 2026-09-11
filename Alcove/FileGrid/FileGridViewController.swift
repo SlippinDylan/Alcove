@@ -3,15 +3,28 @@ import AppKit
 
 @MainActor
 final class FileGridViewController: NSViewController {
-    private let collectionView = NSCollectionView()
+    private let collectionView = FileCollectionView()
+    private let workspaceOpener: any WorkspaceOpening
+    private let metrics = GridMetrics(iconSize: .medium)
     private var items: [FileItem] = []
+    private(set) var selectionState = SelectionState()
+    private(set) var failedOpenURLs: [URL] = []
+
+    init(workspaceOpener: any WorkspaceOpening = SystemWorkspaceOpener()) {
+        self.workspaceOpener = workspaceOpener
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
 
     var itemCount: Int {
         items.count
     }
 
     override func loadView() {
-        let metrics = GridMetrics(iconSize: .medium)
         let flowLayout = NSCollectionViewFlowLayout()
         flowLayout.itemSize = metrics.itemSize
         flowLayout.sectionInset = NSEdgeInsets(
@@ -38,6 +51,12 @@ final class FileGridViewController: NSViewController {
             FileItemCell.self,
             forItemWithIdentifier: FileItemCell.reuseIdentifier
         )
+        collectionView.onItemClick = { [weak self] index, modifiers, clickCount in
+            self?.handleClick(index: index, modifiers: modifiers, clickCount: clickCount)
+        }
+        collectionView.onKeyCommand = { [weak self] command in
+            self?.handleKeyCommand(command)
+        }
 
         let scrollView = NSScrollView()
         scrollView.drawsBackground = false
@@ -49,11 +68,114 @@ final class FileGridViewController: NSViewController {
 
     func setItems(_ items: [FileItem]) {
         self.items = items
+        selectionState.reconcile(with: orderedIDs)
         collectionView.reloadData()
+        applySelection()
     }
 
     func item(at index: Int) -> FileItem {
         items[index]
+    }
+
+    func handleClick(
+        index: Int?,
+        modifiers: NSEvent.ModifierFlags,
+        clickCount: Int = 1
+    ) {
+        guard let index, items.indices.contains(index) else {
+            selectionState.clear()
+            applySelection()
+            return
+        }
+
+        let id = items[index].id
+        if modifiers.contains(.shift) {
+            selectionState.extendRange(to: id, in: orderedIDs)
+        } else if modifiers.contains(.command) {
+            selectionState.toggle(id, in: orderedIDs)
+        } else {
+            selectionState.select(id)
+        }
+        applySelection()
+
+        if clickCount >= 2 {
+            open(items[index])
+        }
+    }
+
+    func handleKeyCommand(_ command: FileGridKeyCommand) {
+        switch command {
+        case .moveLeft(let extending):
+            moveFocus(offset: -1, extending: extending)
+        case .moveRight(let extending):
+            moveFocus(offset: 1, extending: extending)
+        case .moveUp(let extending):
+            moveFocus(offset: -columnCount, extending: extending)
+        case .moveDown(let extending):
+            moveFocus(offset: columnCount, extending: extending)
+        case .selectAll:
+            selectionState.selectAll(orderedIDs)
+            applySelection()
+        case .openSelection:
+            openSelection()
+        case .noOperation:
+            break
+        }
+    }
+
+    private var orderedIDs: [FileIdentity] {
+        items.map(\.id)
+    }
+
+    private var columnCount: Int {
+        GridLayout(metrics: metrics)
+            .layout(itemCount: items.count, availableWidth: collectionView.bounds.width)
+            .columnCount
+    }
+
+    private func moveFocus(offset: Int, extending: Bool) {
+        guard !items.isEmpty else { return }
+        let currentIndex = selectionState.focusID
+            .flatMap { focusedID in items.firstIndex { $0.id == focusedID } }
+        let targetIndex: Int
+        if let currentIndex {
+            let candidate = currentIndex + offset
+            guard items.indices.contains(candidate) else { return }
+            targetIndex = candidate
+        } else {
+            targetIndex = 0
+        }
+
+        let targetID = items[targetIndex].id
+        if extending {
+            selectionState.extendFocus(to: targetID, in: orderedIDs)
+        } else {
+            selectionState.moveFocus(to: targetID)
+        }
+        applySelection()
+        collectionView.scrollToItems(at: [IndexPath(item: targetIndex, section: 0)], scrollPosition: .nearestHorizontalEdge)
+    }
+
+    private func openSelection() {
+        failedOpenURLs = []
+        for item in items where selectionState.selectedIDs.contains(item.id) {
+            open(item)
+        }
+    }
+
+    private func open(_ item: FileItem) {
+        if !workspaceOpener.open(item.url) {
+            failedOpenURLs.append(item.url)
+        }
+    }
+
+    private func applySelection() {
+        let selectedPaths = Set(items.indices.compactMap { index -> IndexPath? in
+            selectionState.selectedIDs.contains(items[index].id)
+                ? IndexPath(item: index, section: 0)
+                : nil
+        })
+        collectionView.selectionIndexPaths = selectedPaths
     }
 }
 

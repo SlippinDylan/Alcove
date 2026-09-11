@@ -211,7 +211,7 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Exit Gate:**
 - [ ] Finder-style pointer and keyboard selection work.
 - [ ] Opening paths work without file mutation.
-- [ ] No rename, delete, copy, move, drag-in, or drag-out action is available.
+- [x] No rename, delete, copy, move, drag-in, or drag-out action is available.
 
 ---
 

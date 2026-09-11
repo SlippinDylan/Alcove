@@ -78,7 +78,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 
 - [ ] Slice 1 — App Shell and Menu Bar: production project, universal build, and host tests complete; manual menu-bar/Dock/Quit checks remain.
 - [ ] Slice 2 — Minimal Single Portal: Core, FolderAccess, portal/grid, 28 automated tests, and universal build complete; manual desktop/window/scroll checks remain.
-- [ ] Slice 3 — Selection and Opening.
+- [ ] Slice 3 — Selection and Opening: 8 Core selection tests and hosted input/opening tests complete; manual pointer/keyboard/NSWorkspace checks remain.
 - [ ] Slice 4 — Portal Creation Flow.
 - [ ] Slice 5 — Minimal Persistence.
 - [ ] Slice 6 — Tabs.
@@ -117,3 +117,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-08-02: Phase 0.5C5 passed 124 strict assertions in three consecutive final runs after Codex replaced MiMo's fabricated NSError metadata, non-fatal cleanup/restoration, main-thread fixture I/O, disconnected generation, false SIGKILL, unbounded waits, and self-proving tests. Local Desktop/Documents/Downloads access succeeded, owned fixtures preserved raw Cocoa/underlying metadata plus independent POSIX evidence, and final independent review found no Critical/High/Medium issue; controlled TCC denial remains open.
 - 2026-09-11: Production Slice 1 added the Swift 6 AppKit LSUIElement shell. Three host tests passed and the unsigned Release app built as universal arm64/x86_64 with minimum macOS 15.0; manual menu-bar, Dock, and Quit checks remain.
 - 2026-09-11: Production Slice 2 added AlcoveCore, async FolderAccess, fixed-internal folder validation, the provisional desktop NSWindow, native icon grid, and loading/empty/error states. Nine package tests and 19 hosted tests pass; manual desktop-layer and interaction checks remain.
+- 2026-09-11: Production Slice 3 added Finder-style selection, keyboard navigation, and injected workspace opening. Seventeen Core tests and 22 hosted tests pass; real desktop focus and NSWorkspace behavior remain manual.
