@@ -180,12 +180,10 @@ struct Portal: Identifiable, Sendable {
     var tabs: [FolderTab]
     var selectedTabID: UUID
     var iconSize: IconSize
-    var columnCount: ColumnCount
     var placement: PlacementRecord  // per-display placement, see §6
 
     init(id: UUID = UUID(), tabs: [FolderTab], selectedTabID: UUID,
-         iconSize: IconSize = .medium, columnCount: ColumnCount = .four,
-         placement: PlacementRecord) { ... }
+         iconSize: IconSize = .medium, placement: PlacementRecord) { ... }
 }
 ```
 
@@ -218,16 +216,13 @@ struct FileItem: Identifiable, Sendable, Hashable {
     let isDirectory: Bool
     let isHidden: Bool
 
-    /// Throws if url.resourceValues cannot be read — no silent try? that drops unreadable entries.
-    init(url: URL) throws {
-        let rv = try url.resourceValues(
-            forKeys: [.nameKey, .isDirectoryKey, .isHiddenKey]
-        )
+    /// FolderAccess supplies already-validated metadata; AlcoveCore performs no file I/O.
+    init(url: URL, name: String, isDirectory: Bool, isHidden: Bool) {
         self.id = FileIdentity(standardizedURL: url.standardizedFileURL)
-        self.url = url
-        self.name = rv.name ?? url.lastPathComponent
-        self.isDirectory = rv.isDirectory ?? false
-        self.isHidden = rv.isHidden ?? false
+        self.url = url.standardizedFileURL
+        self.name = name
+        self.isDirectory = isDirectory
+        self.isHidden = isHidden
     }
 }
 
@@ -277,24 +272,8 @@ struct IconSize: Sendable, Comparable {
     static func < (lhs: IconSize, rhs: IconSize) -> Bool { lhs.rawValue < rhs.rawValue }
 }
 
-struct ColumnCount: Sendable, Comparable {
-    let rawValue: Int
-
-    private init(validated value: Int) { self.rawValue = value }
-
-    /// Returns nil if value is outside [2, 8].
-    init?(rawValue: Int) {
-        guard rawValue >= 2 && rawValue <= 8 else { return nil }
-        self.rawValue = rawValue
-    }
-
-    static let two   = ColumnCount(validated: 2)
-    static let three = ColumnCount(validated: 3)
-    static let four  = ColumnCount(validated: 4)
-    static let five  = ColumnCount(validated: 5)
-
-    static func < (lhs: ColumnCount, rhs: ColumnCount) -> Bool { lhs.rawValue < rhs.rawValue }
-}
+Grid column count is derived from the current available width and validated
+metrics during each layout pass. It is not user preference or persistence state.
 ```
 
 ### 4.6 PlacementRecord

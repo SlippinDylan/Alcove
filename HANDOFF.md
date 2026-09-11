@@ -4,7 +4,7 @@
 
 **Repository:** `/Users/dylanwang/Repo/Products/Apps/Alcove`
 
-**Current phase:** Phase 0 manual/system evidence remains open while replaceable development defaults unblock production work. Phase 0.5C7 selects FSEvents with a fail-closed recovery contract. Production Slice 1 now provides the tested universal AppKit LSUIElement shell and status-menu lifecycle. Removable, ejectable, and network-volume folders are outside product scope; controlled TCC denial, production recovery orchestration, an actual macOS 15 runtime, and human GUI behavior remain open.
+**Current phase:** Phase 0 manual/system evidence remains open while replaceable development defaults unblock production work. Phase 0.5C7 selects FSEvents with a fail-closed recovery contract. Production Slices 1–2 now provide the universal AppKit LSUIElement shell, async FolderAccess, UI-free AlcoveCore values, provisional desktop window, and native single-folder icon grid. Removable, ejectable, and network-volume folders are outside product scope; controlled TCC denial, production recovery orchestration, an actual macOS 15 runtime, and human GUI behavior remain open.
 
 Historical spike summaries below retain the scope that applied when they were run. Their references to removable or network-volume investigation are superseded by the 2026-09-11 product decision.
 
@@ -68,6 +68,15 @@ Local Xcode 26.6 / macOS 26.5 SDK headers confirmed:
 The visual behavior of both the macOS 26 and macOS 15 paths at Alcove's selected desktop window level is still provisional until Spike 0.4.
 
 ## 3. What Task Was Just Completed
+
+Production Slice 2 added the UI-free AlcoveCore package, nonblocking FolderAccess
+pipeline, fixed-internal-local validation, provisional desktop NSWindow, native
+scrollable icon grid, and loading/empty/error presentation. Nine package tests
+and 19 hosted tests pass; the unsigned Release app remains universal arm64/x86_64
+with macOS 15.0 minimum. Manual desktop layering and visible interaction remain
+unverified.
+
+### Earlier Slice 1 app shell
 
 Production Slice 1 created `Alcove.xcodeproj`, the Swift 6 AppKit application
 target, hosted XCTest target, shared scheme, LSUIElement Info.plist, and owned

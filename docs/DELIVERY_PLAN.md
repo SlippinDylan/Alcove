@@ -184,8 +184,8 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Exit Gate:**
 - [ ] A visible portal displays one directory as a native icon grid.
 - [ ] Window movement, resize, and scrolling are observable and usable.
-- [ ] Enumeration does not block the main actor.
-- [ ] No persistence, tabs, or speculative migration framework is required yet.
+- [x] Enumeration does not block the main actor.
+- [x] No persistence, tabs, or speculative migration framework is required yet.
 
 ---
 

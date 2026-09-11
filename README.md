@@ -14,7 +14,8 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 >
 > The documentation baseline and automated portions of Spikes 0.1A–0.5C7 are complete. Manual
 > system-behavior matrices and remaining integration evidence are still in progress. Production
-> Slice 1 now provides the tested universal AppKit menu-bar shell.
+> Slices 1–2 now provide the tested universal AppKit menu-bar shell and the first
+> production single-folder portal implementation; manual desktop behavior remains open.
 
 ## Platform
 

@@ -9,18 +9,43 @@ protocol StatusMenuControlling: AnyObject {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusMenuController: any StatusMenuControlling
+    private let portalCoordinator: any PortalCoordinating
+    private let startupFolderURL: URL?
+    private(set) var startupError: Error?
+    private var startupTask: Task<Void, Never>?
 
-    init(statusMenuController: any StatusMenuControlling = StatusMenuController()) {
+    init(
+        statusMenuController: any StatusMenuControlling = StatusMenuController(),
+        portalCoordinator: any PortalCoordinating = PortalCoordinator(),
+        startupFolderURL: URL? = StartupFolderResolver.resolve(arguments: CommandLine.arguments)
+    ) {
         self.statusMenuController = statusMenuController
+        self.portalCoordinator = portalCoordinator
+        self.startupFolderURL = startupFolderURL
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
         statusMenuController.start()
+        if let startupFolderURL {
+            startupTask = Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await portalCoordinator.createPortal(for: startupFolderURL)
+                } catch {
+                    startupError = error
+                }
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        startupTask?.cancel()
         statusMenuController.stop()
+    }
+
+    func waitForStartupForTesting() async {
+        await startupTask?.value
     }
 }
