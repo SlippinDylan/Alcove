@@ -5,6 +5,18 @@ enum PortalPresentationState: Equatable {
     case loading
     case items(Int)
     case message(String)
+    case error(PortalErrorPresentation)
+}
+
+enum PortalRecoveryAction: Equatable {
+    case locateFolder
+    case retry
+}
+
+struct PortalErrorPresentation: Equatable {
+    let message: String
+    let detail: String
+    let action: PortalRecoveryAction
 }
 
 @MainActor
@@ -22,6 +34,7 @@ final class PortalViewController: NSViewController {
     private let chromeMaterialView: PortalChromeMaterialView
     private let gridViewController: FileGridViewController
     private let stateLabel = NSTextField(labelWithString: "")
+    private let recoveryButton = NSButton()
     private let progressIndicator = NSProgressIndicator()
     private var loadTask: Task<Void, Never>?
     private var observationTask: Task<Void, Never>?
@@ -33,6 +46,8 @@ final class PortalViewController: NSViewController {
     var onQuickLookRequested: (([URL]) -> Void)?
     var onQuickLookSelectionChanged: (([URL]) -> Void)?
     var onSelectionInvalidated: (() -> Void)?
+    var onLocateFolderRequested: ((FolderTabID) -> Void)?
+    private(set) var recoveryAction: PortalRecoveryAction?
     private lazy var observationCoordinator = FolderObservationCoordinator(
         onRefresh: { [weak self] in self?.load() },
         onFailure: { [weak self] error in self?.showObservationFailure(error) }
@@ -87,6 +102,13 @@ final class PortalViewController: NSViewController {
         stateLabel.isHidden = true
         rootView.addSubview(stateLabel)
 
+        recoveryButton.target = self
+        recoveryButton.action = #selector(performRecoveryAction)
+        recoveryButton.bezelStyle = .rounded
+        recoveryButton.translatesAutoresizingMaskIntoConstraints = false
+        recoveryButton.isHidden = true
+        rootView.addSubview(recoveryButton)
+
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
         progressIndicator.translatesAutoresizingMaskIntoConstraints = false
@@ -106,6 +128,8 @@ final class PortalViewController: NSViewController {
             stateLabel.centerYAnchor.constraint(equalTo: rootView.centerYAnchor),
             stateLabel.leadingAnchor.constraint(greaterThanOrEqualTo: rootView.leadingAnchor, constant: 24),
             stateLabel.trailingAnchor.constraint(lessThanOrEqualTo: rootView.trailingAnchor, constant: -24),
+            recoveryButton.topAnchor.constraint(equalTo: stateLabel.bottomAnchor, constant: 12),
+            recoveryButton.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             progressIndicator.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             progressIndicator.bottomAnchor.constraint(equalTo: stateLabel.topAnchor, constant: -12),
         ])
@@ -128,6 +152,7 @@ final class PortalViewController: NSViewController {
     func updatePortal(_ portal: Portal) {
         let previousTabID = self.portal.selectedTabID
         let previousIconSize = self.portal.iconSize
+        let previousFolderURL = folderURL
         if isViewLoaded {
             runtimeStates[previousTabID] = gridViewController.captureRuntimeState()
         }
@@ -141,7 +166,7 @@ final class PortalViewController: NSViewController {
         if isViewLoaded {
             tabBarView.configure(with: portal)
         }
-        if portal.selectedTabID != previousTabID {
+        if portal.selectedTabID != previousTabID || folderURL != previousFolderURL {
             onSelectionInvalidated?()
             startObservation()
         }
@@ -167,7 +192,13 @@ final class PortalViewController: NSViewController {
             apply(completion)
         } catch {
             guard !Task.isCancelled else { return }
-            showState("Unable to load folder")
+            showErrorPresentation(
+                PortalErrorPresentation(
+                    message: "Unable to load folder",
+                    detail: "Try again. If the problem continues, choose another folder.",
+                    action: .retry
+                )
+            )
         }
     }
 
@@ -195,9 +226,15 @@ final class PortalViewController: NSViewController {
         loadTask = nil
         Task { await loadingCoordinator.cancelCurrentLoad() }
         if let error = error as? FolderAccessError {
-            showState(error.userMessage)
+            showError(error)
         } else {
-            showState("Unable to watch folder")
+            showErrorPresentation(
+                PortalErrorPresentation(
+                    message: "Unable to watch folder",
+                    detail: "The folder could not be monitored for changes.",
+                    action: .retry
+                )
+            )
         }
     }
 
@@ -218,13 +255,15 @@ final class PortalViewController: NSViewController {
                     }
                 }
             case .failure(let error):
-                showState(error.userMessage)
+                showError(error)
             }
         }
     }
 
     private func showLoading() {
         presentationState = .loading
+        recoveryAction = nil
+        recoveryButton.isHidden = true
         gridViewController.view.isHidden = true
         stateLabel.stringValue = "Loading…"
         stateLabel.isHidden = false
@@ -234,6 +273,8 @@ final class PortalViewController: NSViewController {
 
     private func showItems(_ items: [FileItem]) {
         presentationState = .items(items.count)
+        recoveryAction = nil
+        recoveryButton.isHidden = true
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
         stateLabel.isHidden = true
@@ -243,12 +284,79 @@ final class PortalViewController: NSViewController {
 
     private func showState(_ message: String) {
         presentationState = .message(message)
+        recoveryAction = nil
+        recoveryButton.isHidden = true
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
         gridViewController.setItems([])
         gridViewController.view.isHidden = true
         stateLabel.stringValue = message
         stateLabel.isHidden = false
+    }
+
+    private func showError(_ error: FolderAccessError) {
+        showErrorPresentation(Self.errorPresentation(for: error))
+    }
+
+    private func showErrorPresentation(_ presentation: PortalErrorPresentation) {
+        presentationState = .error(presentation)
+        recoveryAction = presentation.action
+        progressIndicator.stopAnimation(nil)
+        progressIndicator.isHidden = true
+        gridViewController.setItems([])
+        gridViewController.view.isHidden = true
+        stateLabel.stringValue = "\(presentation.message)\n\(presentation.detail)"
+        stateLabel.maximumNumberOfLines = 0
+        stateLabel.isHidden = false
+        recoveryButton.title = presentation.action == .locateFolder ? "Locate Folder…" : "Retry"
+        recoveryButton.setAccessibilityLabel(recoveryButton.title)
+        recoveryButton.isHidden = false
+    }
+
+    static func errorPresentation(for error: FolderAccessError) -> PortalErrorPresentation {
+        switch error {
+        case .folderNotFound(let url, _), .folderReplaced(let url):
+            return PortalErrorPresentation(
+                message: "Folder not found",
+                detail: url.path,
+                action: .locateFolder
+            )
+        case .notDirectory(let url, _):
+            return PortalErrorPresentation(
+                message: "The selected item is not a folder",
+                detail: url.path,
+                action: .locateFolder
+            )
+        case .permissionDenied(let url, _):
+            return PortalErrorPresentation(
+                message: "Permission denied",
+                detail: "\(url.lastPathComponent). macOS may require permission in System Settings → Privacy & Security → Files and Folders.",
+                action: .retry
+            )
+        case .readFailed(let url, _):
+            return PortalErrorPresentation(
+                message: "Unable to read folder contents",
+                detail: url.path,
+                action: .retry
+            )
+        case .unsupportedLocation(let url, _):
+            return PortalErrorPresentation(
+                message: "Choose a folder on this Mac's internal disk",
+                detail: url.path,
+                action: .locateFolder
+            )
+        }
+    }
+
+    @objc func performRecoveryAction() {
+        switch recoveryAction {
+        case .locateFolder:
+            onLocateFolderRequested?(portal.selectedTabID)
+        case .retry:
+            startObservation()
+        case nil:
+            break
+        }
     }
 
     private var folderURL: URL {

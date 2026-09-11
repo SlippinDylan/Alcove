@@ -85,7 +85,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [ ] Slice 7 — Quick Look: production responder, ordered selection, ownership cleanup, 56 hosted tests, and universal build complete; real panel behavior remains manual.
 - [ ] Slice 8 — Display Placement Persistence: production v2 migration, user-only commits, topology/wake recovery, 110 Core tests, 88 hosted tests, and universal build complete; physical hardware matrix remains.
 - [ ] Slice 9 — Directory Observation and Auto-Refresh: active-tab FSEvents, debounce, identity-safe recovery, 97 hosted tests, and real grid refresh complete; Locate Folder/TCC remain.
-- [ ] Slice 10 — Hardening, Accessibility, and Release Preparation (portal management, icon presets, adaptive materials, and automated accessibility contracts complete; recovery UI, CI, manual review, and final validation remain).
+- [ ] Slice 10 — Hardening, Accessibility, and Release Preparation (portal management, icon presets, adaptive materials, automated accessibility contracts, and folder recovery complete; CI, manual review, and final validation remain).
 
 ## MVP Acceptance
 
@@ -127,3 +127,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-09-12: Production Slice 9 added active-tab FSEvents observation, ordinary-event debounce, recovery-flag rebuild, path/volume/device/inode revalidation, stale generation rejection, and real filesystem-to-grid refresh. Hosted tests pass 97/97; Locate Folder and controlled TCC remain.
 - 2026-09-12: Production Slice 10A added menu-bar portal management, persistence-first removal and icon sizing, live Small/Medium/Large grid updates, and metric-derived 2×2 minimum content sizing. AlcoveCore passes 110 tests and the hosted app passes 103; the unsigned Release app remains universal. Manual menu and accessibility review remains.
 - 2026-09-12: Production Slice 10B moved portal chrome onto public macOS 26 Glass with the semantic macOS 15–25 visual-effect fallback, added Reduce Transparency/Increase Contrast/Reduce Motion handling, and completed testable grid and tab accessibility metadata/actions. AlcoveCore passes 110 tests and the hosted app passes 107; visual compatibility and real VoiceOver checks remain manual.
+- 2026-09-12: Production Slice 10C added explicit Locate Folder and Retry states, fixed-internal-volume revalidation, identity-preserving tab remapping, persistence-before-window updates, and observation restart after recovery. AlcoveCore passes 110 tests and the hosted app passes 111; real TCC and picker UI remain manual.

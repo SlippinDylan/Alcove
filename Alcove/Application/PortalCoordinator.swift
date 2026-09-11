@@ -196,6 +196,11 @@ final class PortalCoordinator: PortalCoordinating {
                 await self?.closeTab(tabID, in: portal.id)
             }
         }
+        window.onLocateFolder = { [weak self] tabID in
+            self?.startTabTask {
+                await self?.relocateTab(tabID, in: portal.id)
+            }
+        }
         windows[portal.id] = window
         if let directive = transition.directive,
            !window.applySystemPlacement(frame: directive.frame) {
@@ -361,6 +366,32 @@ final class PortalCoordinator: PortalCoordinating {
                     var portal = portalStates[index]
                     let tabID = try portal.appendTab(folderURL: folderURL)
                     try portal.selectTab(tabID)
+                    try await commit(portal, at: index)
+                }
+                return
+            } catch is CancellationError {
+                return
+            } catch {
+                errorPresenter.present(error)
+            }
+        }
+    }
+
+    func relocateTab(_ tabID: FolderTabID, in portalID: PortalID) async {
+        while !Task.isCancelled {
+            guard let folderURL = await tabFolderPicker.chooseFolder() else { return }
+            do {
+                let folderURL = try await locationValidator.validate(folderURL)
+                try await performMutation { [weak self] in
+                    guard let self,
+                          let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
+                        return
+                    }
+                    let portal = try replacingFolder(
+                        for: tabID,
+                        with: folderURL,
+                        in: portalStates[index]
+                    )
                     try await commit(portal, at: index)
                 }
                 return
@@ -562,6 +593,25 @@ final class PortalCoordinator: PortalCoordinating {
 
     private func currentDisplaySnapshot() throws -> DisplaySnapshot {
         try displaySnapshotProvider().get()
+    }
+
+    private func replacingFolder(
+        for tabID: FolderTabID,
+        with folderURL: URL,
+        in portal: Portal
+    ) throws -> Portal {
+        guard let index = portal.tabs.firstIndex(where: { $0.id == tabID }) else {
+            throw PortalError.tabNotFound(tabID)
+        }
+        var tabs = portal.tabs
+        tabs[index] = FolderTab(id: tabID, folderURL: folderURL)
+        return try Portal(
+            id: portal.id,
+            tabs: tabs,
+            selectedTabID: portal.selectedTabID,
+            placement: portal.placement,
+            iconSize: portal.iconSize
+        )
     }
 
     private func removeRuntimeState(for portalID: PortalID) {

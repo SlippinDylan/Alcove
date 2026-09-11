@@ -48,7 +48,7 @@ final class PortalCreationErrorPresenter: PortalCreationErrorPresenting {
     func present(_ error: Error) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Unable to create portal"
+        alert.messageText = "Unable to use this folder"
         if let folderError = error as? FolderAccessError {
             alert.informativeText = folderError.userMessage
         } else {

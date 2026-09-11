@@ -622,6 +622,55 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testLocatingFolderPreservesTabIdentityAndPersistsBeforeWindowUpdate() async throws {
+        try await withPortalDirectory { replacement in
+            let portal = try makePortal(path: "/tmp/missing", x: 10)
+            let store = PortalStoreSpy(portals: [portal])
+            let factory = PortalWindowFactorySpy()
+            let coordinator = PortalCoordinator(
+                store: store,
+                windowFactory: factory,
+                tabFolderPicker: TabFolderPickerStub(folders: [replacement])
+            )
+            try await coordinator.restorePortals()
+
+            factory.windows[0].onLocateFolder?(portal.selectedTabID)
+            await coordinator.waitForTabMutationForTesting()
+
+            let updated = coordinator.portalStates[0]
+            XCTAssertEqual(updated.tabs[0].id, portal.selectedTabID)
+            XCTAssertEqual(updated.tabs[0].folderURL, replacement.standardizedFileURL)
+            XCTAssertEqual(factory.windows[0].updatedPortals.last, updated)
+            let saves = await store.savedSnapshots()
+            XCTAssertEqual(saves.last, [updated])
+        }
+    }
+
+    @MainActor
+    func testLocateSaveFailureDoesNotRemapLivePortal() async throws {
+        try await withPortalDirectory { replacement in
+            let portal = try makePortal(path: "/tmp/missing", x: 10)
+            let store = PortalStoreSpy(portals: [portal], saveError: .rejected)
+            let factory = PortalWindowFactorySpy()
+            let errors = CoordinatorErrorPresenterSpy()
+            let coordinator = PortalCoordinator(
+                store: store,
+                windowFactory: factory,
+                tabFolderPicker: TabFolderPickerStub(folders: [replacement]),
+                errorPresenter: errors
+            )
+            try await coordinator.restorePortals()
+
+            factory.windows[0].onLocateFolder?(portal.selectedTabID)
+            await coordinator.waitForTabMutationForTesting()
+
+            XCTAssertEqual(coordinator.portalStates, [portal])
+            XCTAssertEqual(factory.windows[0].updateCount, 0)
+            XCTAssertEqual(errors.errors.count, 1)
+        }
+    }
+
+    @MainActor
     func testClosingLastTabRequiresConfirmationBeforeRemovingPortal() async throws {
         let portal = try makePortal(path: "/tmp/only", x: 10)
         let cancelConfirmer = LastTabConfirmerStub(responses: [false])
@@ -782,6 +831,7 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var onSelectTab: ((FolderTabID) -> Void)?
     var onAddTab: (() -> Void)?
     var onCloseTab: ((FolderTabID) -> Void)?
+    var onLocateFolder: ((FolderTabID) -> Void)?
     private(set) var presentCount = 0
     private(set) var updateCount = 0
     private(set) var closeCount = 0
@@ -854,6 +904,15 @@ private final class LastTabConfirmerStub: LastTabRemovalConfirming {
     func confirmRemoval(folderName: String) async -> Bool {
         guard !responses.isEmpty else { return false }
         return responses.removeFirst()
+    }
+}
+
+@MainActor
+private final class CoordinatorErrorPresenterSpy: PortalCreationErrorPresenting {
+    private(set) var errors: [Error] = []
+
+    func present(_ error: Error) {
+        errors.append(error)
     }
 }
 

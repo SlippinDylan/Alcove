@@ -66,6 +66,67 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testMissingFolderOffersLocateAndDispatchesSelectedTabIdentity() async throws {
+        let root = URL(fileURLWithPath: "/tmp/missing-portal")
+        let metadata = FolderErrorMetadata(
+            error: NSError(domain: NSPOSIXErrorDomain, code: Int(ENOENT))
+        )
+        let coordinator = FolderLoadingCoordinator(
+            enumerator: FailingFolderEnumerator(
+                error: .folderNotFound(url: root, metadata: metadata)
+            )
+        )
+        let portal = try Portal(
+            folderURL: root,
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240),
+            display: testDisplay
+        )
+        let controller = PortalViewController(portal: portal, loadingCoordinator: coordinator)
+        controller.loadView()
+        var locatedTabID: FolderTabID?
+        controller.onLocateFolderRequested = { locatedTabID = $0 }
+
+        await controller.reload()
+
+        XCTAssertEqual(
+            controller.presentationState,
+            .error(
+                PortalErrorPresentation(
+                    message: "Folder not found",
+                    detail: root.path,
+                    action: .locateFolder
+                )
+            )
+        )
+        XCTAssertEqual(controller.recoveryAction, .locateFolder)
+        controller.performRecoveryAction()
+        XCTAssertEqual(locatedTabID, portal.selectedTabID)
+    }
+
+    @MainActor
+    func testErrorPresentationMapsRecoveryActionsAndPermissionGuidance() {
+        let url = URL(fileURLWithPath: "/tmp/Documents")
+        let permission = FolderErrorMetadata(
+            error: NSError(domain: NSPOSIXErrorDomain, code: Int(EACCES))
+        )
+        let read = FolderErrorMetadata(
+            error: NSError(domain: NSCocoaErrorDomain, code: NSFileReadUnknownError)
+        )
+
+        let permissionPresentation = PortalViewController.errorPresentation(
+            for: .permissionDenied(url: url, metadata: permission)
+        )
+        let readPresentation = PortalViewController.errorPresentation(
+            for: .readFailed(url: url, metadata: read)
+        )
+
+        XCTAssertEqual(permissionPresentation.action, .retry)
+        XCTAssertTrue(permissionPresentation.detail.contains("Privacy & Security"))
+        XCTAssertEqual(readPresentation.action, .retry)
+        XCTAssertEqual(readPresentation.detail, url.path)
+    }
+
+    @MainActor
     func testRealFolderChangeRefreshesVisiblePortalGrid() async throws {
         try await withObservedPortalDirectory { root in
             let portal = try Portal(
@@ -151,5 +212,17 @@ private struct FixedFolderEnumerator: FolderEnumerating {
             items: items,
             itemDiagnostics: []
         )
+    }
+}
+
+private struct FailingFolderEnumerator: FolderEnumerating {
+    let error: FolderAccessError
+
+    func enumerate(
+        root: URL,
+        showHidden: Bool,
+        generation: UInt64
+    ) async throws -> FolderEnumerationResult {
+        throw error
     }
 }

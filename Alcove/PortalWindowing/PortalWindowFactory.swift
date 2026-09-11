@@ -8,6 +8,7 @@ protocol PortalWindowPresenting: AnyObject {
     var onSelectTab: ((FolderTabID) -> Void)? { get set }
     var onAddTab: (() -> Void)? { get set }
     var onCloseTab: ((FolderTabID) -> Void)? { get set }
+    var onLocateFolder: ((FolderTabID) -> Void)? { get set }
     func present()
     func updatePortal(_ portal: Portal)
     func applySystemPlacement(frame: NSRect) -> Bool

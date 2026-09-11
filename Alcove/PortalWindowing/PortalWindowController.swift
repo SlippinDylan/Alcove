@@ -14,6 +14,9 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     var onCloseTab: ((FolderTabID) -> Void)? {
         didSet { portalViewController.onCloseTab = onCloseTab }
     }
+    var onLocateFolder: ((FolderTabID) -> Void)? {
+        didSet { portalViewController.onLocateFolderRequested = onLocateFolder }
+    }
     private let portalViewController: PortalViewController
     private let quickLookIntegration: QuickLookIntegration
 
