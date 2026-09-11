@@ -5,6 +5,7 @@ final class PortalWindowController: NSWindowController {
     init(
         folderURL: URL,
         loadingCoordinator: FolderLoadingCoordinator,
+        initialFrame: NSRect? = nil,
         strategy: PortalWindowStrategy = .developmentDefault
     ) {
         let portalViewController = PortalViewController(
@@ -12,14 +13,16 @@ final class PortalWindowController: NSWindowController {
             loadingCoordinator: loadingCoordinator
         )
         let window = PortalWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 480),
+            contentRect: initialFrame ?? NSRect(x: 0, y: 0, width: 560, height: 480),
             strategy: strategy,
             contentViewController: portalViewController
         )
         window.title = folderURL.lastPathComponent
         super.init(window: window)
         shouldCascadeWindows = false
-        window.center()
+        if initialFrame == nil {
+            window.center()
+        }
     }
 
     @available(*, unavailable)

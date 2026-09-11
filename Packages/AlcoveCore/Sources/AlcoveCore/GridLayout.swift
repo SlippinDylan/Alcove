@@ -51,6 +51,16 @@ public struct GridMetrics: Sendable, Hashable {
             height: contentInsets.top + itemSize.height + contentInsets.bottom
         )
     }
+
+    /// The smallest content area that can display two columns and two rows.
+    public var minimumPortalSize: CGSize {
+        CGSize(
+            width: minimumContainerSize.width,
+            height: contentInsets.top + contentInsets.bottom
+                + (itemSize.height * CGFloat(Self.minimumColumnCount))
+                + verticalSpacing
+        )
+    }
 }
 
 /// A pure layout calculator for the scrollable icon grid.

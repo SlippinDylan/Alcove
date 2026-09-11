@@ -2,7 +2,7 @@ import AppKit
 
 @MainActor
 protocol PortalCoordinating: AnyObject {
-    func createPortal(for folderURL: URL) async throws
+    func createPortal(for folderURL: URL, frame: NSRect?) async throws
 }
 
 @MainActor
@@ -14,12 +14,14 @@ final class PortalCoordinator: PortalCoordinating {
         self.locationValidator = locationValidator
     }
 
-    func createPortal(for folderURL: URL) async throws {
+    func createPortal(for folderURL: URL, frame: NSRect? = nil) async throws {
         let folderURL = try await locationValidator.validate(folderURL)
+        try Task.checkCancellation()
         let loadingCoordinator = FolderLoadingCoordinator()
         let controller = PortalWindowController(
             folderURL: folderURL,
-            loadingCoordinator: loadingCoordinator
+            loadingCoordinator: loadingCoordinator,
+            initialFrame: frame
         )
         windowControllers.append(controller)
         controller.present()

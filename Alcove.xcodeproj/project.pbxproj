@@ -33,6 +33,10 @@
 		100000000000000000000018 /* PortalViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001A /* PortalViewControllerTests.swift */; };
 		100000000000000000000019 /* FileCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001B /* FileCollectionView.swift */; };
 		10000000000000000000001A /* WorkspaceOpening.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001C /* WorkspaceOpening.swift */; };
+		10000000000000000000001B /* FolderPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001D /* FolderPicker.swift */; };
+		10000000000000000000001C /* PortalCreationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001E /* PortalCreationCoordinator.swift */; };
+		10000000000000000000001D /* PortalFrameSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001F /* PortalFrameSelector.swift */; };
+		10000000000000000000001E /* PortalCreationCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000020 /* PortalCreationCoordinatorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,6 +78,10 @@
 		20000000000000000000001A /* PortalViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalViewControllerTests.swift; sourceTree = "<group>"; };
 		20000000000000000000001B /* FileCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCollectionView.swift; sourceTree = "<group>"; };
 		20000000000000000000001C /* WorkspaceOpening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOpening.swift; sourceTree = "<group>"; };
+		20000000000000000000001D /* FolderPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderPicker.swift; sourceTree = "<group>"; };
+		20000000000000000000001E /* PortalCreationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCreationCoordinator.swift; sourceTree = "<group>"; };
+		20000000000000000000001F /* PortalFrameSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalFrameSelector.swift; sourceTree = "<group>"; };
+		200000000000000000000020 /* PortalCreationCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCreationCoordinatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +121,7 @@
 				700000000000000000000003 /* Application */,
 				700000000000000000000009 /* FolderAccess */,
 				70000000000000000000000A /* FileGrid */,
+				70000000000000000000000D /* PortalCreation */,
 				70000000000000000000000B /* PortalPresentation */,
 				70000000000000000000000C /* PortalWindowing */,
 				700000000000000000000004 /* Resources */,
@@ -154,6 +163,7 @@
 				200000000000000000000018 /* FileGridViewControllerTests.swift */,
 				200000000000000000000016 /* FolderAccessTests.swift */,
 				200000000000000000000017 /* PortalCoordinatorTests.swift */,
+				200000000000000000000020 /* PortalCreationCoordinatorTests.swift */,
 				20000000000000000000001A /* PortalViewControllerTests.swift */,
 				200000000000000000000019 /* PortalWindowConfigurationTests.swift */,
 				200000000000000000000006 /* StatusMenuControllerTests.swift */,
@@ -217,6 +227,16 @@
 				200000000000000000000015 /* PortalWindowController.swift */,
 			);
 			path = PortalWindowing;
+			sourceTree = "<group>";
+		};
+		70000000000000000000000D /* PortalCreation */ = {
+			isa = PBXGroup;
+			children = (
+				20000000000000000000001D /* FolderPicker.swift */,
+				20000000000000000000001E /* PortalCreationCoordinator.swift */,
+				20000000000000000000001F /* PortalFrameSelector.swift */,
+			);
+			path = PortalCreation;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -335,6 +355,9 @@
 				10000000000000000000000E /* FileItemCell.swift in Sources */,
 				10000000000000000000000F /* FileGridViewController.swift in Sources */,
 				10000000000000000000001A /* WorkspaceOpening.swift in Sources */,
+				10000000000000000000001B /* FolderPicker.swift in Sources */,
+				10000000000000000000001C /* PortalCreationCoordinator.swift in Sources */,
+				10000000000000000000001D /* PortalFrameSelector.swift in Sources */,
 				100000000000000000000010 /* PortalViewController.swift in Sources */,
 				100000000000000000000011 /* PortalWindowStrategy.swift in Sources */,
 				100000000000000000000012 /* PortalWindow.swift in Sources */,
@@ -350,6 +373,7 @@
 				100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */,
 				100000000000000000000014 /* FolderAccessTests.swift in Sources */,
 				100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */,
+				10000000000000000000001E /* PortalCreationCoordinatorTests.swift in Sources */,
 				100000000000000000000018 /* PortalViewControllerTests.swift in Sources */,
 				100000000000000000000017 /* PortalWindowConfigurationTests.swift in Sources */,
 				100000000000000000000006 /* StatusMenuControllerTests.swift in Sources */,

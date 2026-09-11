@@ -237,8 +237,8 @@ Each slice produces a runnable, observable increment and adds only the domain or
 
 **Exit Gate:**
 - [ ] Creation works end to end.
-- [ ] Cancel leaves no partial portal.
-- [ ] Unsupported folder locations leave no partial portal and keep folder selection available.
+- [x] Cancel leaves no partial portal.
+- [x] Unsupported folder locations leave no partial portal and keep folder selection available.
 - [ ] Multiple runtime portals can coexist.
 
 ---

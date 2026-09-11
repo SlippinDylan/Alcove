@@ -4,12 +4,18 @@ import XCTest
 
 final class StatusMenuControllerTests: XCTestCase {
     @MainActor
-    func testMenuContainsDisabledNewPortalSeparatorAndQuit() {
-        let menu = StatusMenuController.makeMenu()
+    func testMenuContainsEnabledNewPortalSeparatorAndQuit() {
+        var requestCount = 0
+        let controller = StatusMenuController {
+            requestCount += 1
+        }
+        let menu = controller.makeMenu()
 
         XCTAssertEqual(menu.items.count, 3)
         XCTAssertEqual(menu.items[0].title, "New Portal")
-        XCTAssertFalse(menu.items[0].isEnabled)
+        XCTAssertTrue(menu.items[0].isEnabled)
+        menu.performActionForItem(at: 0)
+        XCTAssertEqual(requestCount, 1)
         XCTAssertTrue(menu.items[1].isSeparatorItem)
         XCTAssertEqual(menu.items[2].title, "Quit Alcove")
         XCTAssertEqual(menu.items[2].action, #selector(NSApplication.terminate(_:)))
@@ -18,7 +24,7 @@ final class StatusMenuControllerTests: XCTestCase {
 
     @MainActor
     func testStartAndStopOwnExactlyOneStatusItem() {
-        let controller = StatusMenuController()
+        let controller = StatusMenuController(onNewPortal: {})
 
         controller.start()
         let firstItem = controller.statusItem

@@ -18,7 +18,7 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
     private(set) var createdFolders: [URL] = []
     var error: Error?
 
-    func createPortal(for folderURL: URL) async throws {
+    func createPortal(for folderURL: URL, frame: NSRect?) async throws {
         if let error {
             throw error
         }

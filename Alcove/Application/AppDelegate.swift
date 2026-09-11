@@ -15,8 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var startupTask: Task<Void, Never>?
 
     init(
-        statusMenuController: any StatusMenuControlling = StatusMenuController(),
-        portalCoordinator: any PortalCoordinating = PortalCoordinator(),
+        statusMenuController: any StatusMenuControlling,
+        portalCoordinator: any PortalCoordinating,
         startupFolderURL: URL? = StartupFolderResolver.resolve(arguments: CommandLine.arguments)
     ) {
         self.statusMenuController = statusMenuController
@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             startupTask = Task { [weak self] in
                 guard let self else { return }
                 do {
-                    try await portalCoordinator.createPortal(for: startupFolderURL)
+                    try await portalCoordinator.createPortal(for: startupFolderURL, frame: nil)
                 } catch {
                     startupError = error
                 }

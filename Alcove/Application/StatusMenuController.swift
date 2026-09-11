@@ -3,10 +3,12 @@ import AppKit
 @MainActor
 final class StatusMenuController: StatusMenuControlling {
     private let statusBar: NSStatusBar
+    private let onNewPortal: () -> Void
     private(set) var statusItem: NSStatusItem?
 
-    init(statusBar: NSStatusBar = .system) {
+    init(statusBar: NSStatusBar = .system, onNewPortal: @escaping () -> Void) {
         self.statusBar = statusBar
+        self.onNewPortal = onNewPortal
     }
 
     func start() {
@@ -25,7 +27,7 @@ final class StatusMenuController: StatusMenuControlling {
             }
             button.toolTip = "Alcove"
         }
-        item.menu = Self.makeMenu()
+        item.menu = makeMenu()
         statusItem = item
     }
 
@@ -35,15 +37,15 @@ final class StatusMenuController: StatusMenuControlling {
         self.statusItem = nil
     }
 
-    static func makeMenu() -> NSMenu {
+    func makeMenu() -> NSMenu {
         let menu = NSMenu()
 
         let newPortalItem = NSMenuItem(
             title: "New Portal",
-            action: nil,
+            action: #selector(requestNewPortal(_:)),
             keyEquivalent: ""
         )
-        newPortalItem.isEnabled = false
+        newPortalItem.target = self
         menu.addItem(newPortalItem)
         menu.addItem(.separator())
 
@@ -56,5 +58,10 @@ final class StatusMenuController: StatusMenuControlling {
         menu.addItem(quitItem)
 
         return menu
+    }
+
+    @objc
+    private func requestNewPortal(_ sender: NSMenuItem) {
+        onNewPortal()
     }
 }
