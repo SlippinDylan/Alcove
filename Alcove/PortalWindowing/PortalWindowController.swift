@@ -1,17 +1,28 @@
 import AppKit
+import AlcoveCore
 
 @MainActor
 final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     var onFrameChange: ((NSRect) -> Void)?
+    var onSelectTab: ((FolderTabID) -> Void)? {
+        didSet { portalViewController.onSelectTab = onSelectTab }
+    }
+    var onAddTab: (() -> Void)? {
+        didSet { portalViewController.onAddTab = onAddTab }
+    }
+    var onCloseTab: ((FolderTabID) -> Void)? {
+        didSet { portalViewController.onCloseTab = onCloseTab }
+    }
+    private let portalViewController: PortalViewController
 
     init(
-        folderURL: URL,
+        portal: Portal,
         loadingCoordinator: FolderLoadingCoordinator,
         initialFrame: NSRect? = nil,
         strategy: PortalWindowStrategy = .developmentDefault
     ) {
-        let portalViewController = PortalViewController(
-            folderURL: folderURL,
+        portalViewController = PortalViewController(
+            portal: portal,
             loadingCoordinator: loadingCoordinator
         )
         let window = PortalWindow(
@@ -19,7 +30,8 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
             strategy: strategy,
             contentViewController: portalViewController
         )
-        window.title = folderURL.lastPathComponent
+        let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
+        window.title = selectedTab?.folderURL.lastPathComponent ?? "Alcove"
         super.init(window: window)
         shouldCascadeWindows = false
         window.delegate = self
@@ -36,6 +48,12 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     func present() {
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    func updatePortal(_ portal: Portal) {
+        portalViewController.updatePortal(portal)
+        let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
+        window?.title = selectedTab?.folderURL.lastPathComponent ?? "Alcove"
     }
 }
 

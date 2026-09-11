@@ -238,12 +238,14 @@ Metadata beyond name and directory status (file size, modification date) is defe
 struct SelectionState: Sendable {
     private(set) var selectedIDs: Set<FileIdentity>
     private(set) var anchorID: FileIdentity?   // for Shift-click range
+    private(set) var focusID: FileIdentity?
 
     mutating func select(_ id: FileIdentity) { ... }
-    mutating func toggle(_ id: FileIdentity) { ... }
+    mutating func toggle(_ id: FileIdentity, in orderedIDs: [FileIdentity]) { ... }
     mutating func extendRange(to id: FileIdentity, in orderedIDs: [FileIdentity]) { ... }
     mutating func selectAll(_ ids: [FileIdentity]) { ... }
-    mutating func deselectAll() { ... }
+    mutating func clear() { ... }
+    mutating func reconcile(with orderedIDs: [FileIdentity]) { ... }
 }
 ```
 

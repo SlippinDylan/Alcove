@@ -1,6 +1,11 @@
 import AlcoveCore
 import AppKit
 
+struct FileGridRuntimeState: Equatable {
+    let selection: SelectionState
+    let scrollOrigin: NSPoint
+}
+
 @MainActor
 final class FileGridViewController: NSViewController {
     private let collectionView = FileCollectionView()
@@ -75,6 +80,21 @@ final class FileGridViewController: NSViewController {
 
     func item(at index: Int) -> FileItem {
         items[index]
+    }
+
+    func captureRuntimeState() -> FileGridRuntimeState {
+        let scrollOrigin = (view as? NSScrollView)?.contentView.bounds.origin ?? .zero
+        return FileGridRuntimeState(selection: selectionState, scrollOrigin: scrollOrigin)
+    }
+
+    func restoreRuntimeState(_ state: FileGridRuntimeState) {
+        selectionState = state.selection
+        selectionState.reconcile(with: orderedIDs)
+        applySelection()
+        if let scrollView = view as? NSScrollView {
+            scrollView.contentView.scroll(to: state.scrollOrigin)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        }
     }
 
     func handleClick(

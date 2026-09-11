@@ -293,10 +293,10 @@ Each slice produces a runnable, observable increment and adds only the domain or
 - Manual: add three tabs, switch among them, close one, relaunch, and verify state.
 
 **Exit Gate:**
-- [ ] Add, switch, and close work for multiple tabs.
-- [ ] Per-tab runtime selection is restored on switch.
-- [ ] Creation order and selected tab persist.
-- [ ] No tab drag-to-reorder behavior is present.
+- [x] Add, switch, and close work for multiple tabs at the automated domain/integration boundary.
+- [x] Per-tab runtime selection is restored on switch.
+- [x] Creation order and selected tab persist.
+- [x] No tab drag-to-reorder behavior is present.
 
 ---
 

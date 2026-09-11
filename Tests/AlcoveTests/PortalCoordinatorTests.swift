@@ -90,6 +90,86 @@ final class PortalCoordinatorTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testSelectingAndClosingTabsPersistAndUpdateWindow() async throws {
+        var portal = try makePortal(path: "/tmp/first", x: 10)
+        let secondID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
+        let firstID = portal.selectedTabID
+        let store = PortalStoreSpy(portals: [portal])
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(store: store, windowFactory: factory)
+        try await coordinator.restorePortals()
+
+        try await coordinator.selectTab(secondID, in: portal.id)
+        XCTAssertEqual(coordinator.portalStates[0].selectedTabID, secondID)
+        XCTAssertEqual(factory.windows[0].updatedPortals.last?.selectedTabID, secondID)
+
+        await coordinator.closeTab(secondID, in: portal.id)
+        XCTAssertEqual(coordinator.portalStates[0].tabs.map(\.id), [firstID])
+        XCTAssertEqual(coordinator.portalStates[0].selectedTabID, firstID)
+        XCTAssertEqual(factory.windows[0].updateCount, 2)
+    }
+
+    @MainActor
+    func testAddingTabValidatesPersistsAndSelectsIt() async throws {
+        try await withPortalDirectory { newFolder in
+            let portal = try makePortal(path: "/tmp/first", x: 10)
+            let picker = TabFolderPickerStub(folders: [newFolder])
+            let store = PortalStoreSpy(portals: [portal])
+            let factory = PortalWindowFactorySpy()
+            let coordinator = PortalCoordinator(
+                store: store,
+                windowFactory: factory,
+                tabFolderPicker: picker
+            )
+            try await coordinator.restorePortals()
+
+            await coordinator.addTab(to: portal.id)
+
+            XCTAssertEqual(coordinator.portalStates[0].tabs.count, 2)
+            XCTAssertEqual(coordinator.portalStates[0].tabs.last?.folderURL, newFolder.standardizedFileURL)
+            XCTAssertEqual(
+                coordinator.portalStates[0].selectedTabID,
+                coordinator.portalStates[0].tabs.last?.id
+            )
+            XCTAssertEqual(factory.windows[0].updateCount, 1)
+        }
+    }
+
+    @MainActor
+    func testClosingLastTabRequiresConfirmationBeforeRemovingPortal() async throws {
+        let portal = try makePortal(path: "/tmp/only", x: 10)
+        let cancelConfirmer = LastTabConfirmerStub(responses: [false])
+        let cancelStore = PortalStoreSpy(portals: [portal])
+        let cancelFactory = PortalWindowFactorySpy()
+        let cancelCoordinator = PortalCoordinator(
+            store: cancelStore,
+            windowFactory: cancelFactory,
+            lastTabRemovalConfirmer: cancelConfirmer
+        )
+        try await cancelCoordinator.restorePortals()
+
+        await cancelCoordinator.closeTab(portal.selectedTabID, in: portal.id)
+        XCTAssertEqual(cancelCoordinator.portalStates, [portal])
+        XCTAssertEqual(cancelFactory.windows[0].closeCount, 0)
+
+        let confirmConfirmer = LastTabConfirmerStub(responses: [true])
+        let confirmStore = PortalStoreSpy(portals: [portal])
+        let confirmFactory = PortalWindowFactorySpy()
+        let confirmCoordinator = PortalCoordinator(
+            store: confirmStore,
+            windowFactory: confirmFactory,
+            lastTabRemovalConfirmer: confirmConfirmer
+        )
+        try await confirmCoordinator.restorePortals()
+
+        await confirmCoordinator.closeTab(portal.selectedTabID, in: portal.id)
+        XCTAssertTrue(confirmCoordinator.portalStates.isEmpty)
+        XCTAssertEqual(confirmFactory.windows[0].closeCount, 1)
+        let saves = await confirmStore.savedSnapshots()
+        XCTAssertEqual(saves.last, [])
+    }
+
     private func makePortal(path: String, x: CGFloat) throws -> Portal {
         try Portal(
             folderURL: URL(fileURLWithPath: path),
@@ -145,14 +225,59 @@ private final class PortalWindowFactorySpy: PortalWindowBuilding {
 @MainActor
 private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var onFrameChange: ((NSRect) -> Void)?
+    var onSelectTab: ((FolderTabID) -> Void)?
+    var onAddTab: (() -> Void)?
+    var onCloseTab: ((FolderTabID) -> Void)?
     private(set) var presentCount = 0
+    private(set) var updateCount = 0
+    private(set) var closeCount = 0
+    private(set) var updatedPortals: [Portal] = []
 
     func present() {
         presentCount += 1
     }
 
+    func updatePortal(_ portal: Portal) {
+        updateCount += 1
+        updatedPortals.append(portal)
+    }
+
+    func close() {
+        closeCount += 1
+    }
+
     func simulateFrameChange(_ frame: NSRect) {
         onFrameChange?(frame)
+    }
+}
+
+@MainActor
+private final class TabFolderPickerStub: FolderPicking {
+    private var folders: [URL]
+
+    init(folders: [URL]) {
+        self.folders = folders
+    }
+
+    func chooseFolder() async -> URL? {
+        guard !folders.isEmpty else { return nil }
+        return folders.removeFirst()
+    }
+
+    func cancel() {}
+}
+
+@MainActor
+private final class LastTabConfirmerStub: LastTabRemovalConfirming {
+    private var responses: [Bool]
+
+    init(responses: [Bool]) {
+        self.responses = responses
+    }
+
+    func confirmRemoval(folderName: String) async -> Bool {
+        guard !responses.isEmpty else { return false }
+        return responses.removeFirst()
     }
 }
 

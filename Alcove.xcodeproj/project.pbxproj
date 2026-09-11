@@ -27,6 +27,9 @@
 		100000000000000000000012 /* PortalWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000014 /* PortalWindow.swift */; };
 		100000000000000000000013 /* PortalWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000015 /* PortalWindowController.swift */; };
 		100000000000000000000023 /* PortalWindowFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000025 /* PortalWindowFactory.swift */; };
+		100000000000000000000024 /* TabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000026 /* TabBarView.swift */; };
+		100000000000000000000025 /* LastTabRemovalConfirmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000027 /* LastTabRemovalConfirmer.swift */; };
+		100000000000000000000026 /* TabBarViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000028 /* TabBarViewTests.swift */; };
 		100000000000000000000014 /* FolderAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* FolderAccessTests.swift */; };
 		100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000017 /* PortalCoordinatorTests.swift */; };
 		100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000018 /* FileGridViewControllerTests.swift */; };
@@ -77,6 +80,9 @@
 		200000000000000000000014 /* PortalWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindow.swift; sourceTree = "<group>"; };
 		200000000000000000000015 /* PortalWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowController.swift; sourceTree = "<group>"; };
 		200000000000000000000025 /* PortalWindowFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowFactory.swift; sourceTree = "<group>"; };
+		200000000000000000000026 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
+		200000000000000000000027 /* LastTabRemovalConfirmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastTabRemovalConfirmer.swift; sourceTree = "<group>"; };
+		200000000000000000000028 /* TabBarViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarViewTests.swift; sourceTree = "<group>"; };
 		200000000000000000000016 /* FolderAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAccessTests.swift; sourceTree = "<group>"; };
 		200000000000000000000017 /* PortalCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCoordinatorTests.swift; sourceTree = "<group>"; };
 		200000000000000000000018 /* FileGridViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridViewControllerTests.swift; sourceTree = "<group>"; };
@@ -176,6 +182,7 @@
 				200000000000000000000017 /* PortalCoordinatorTests.swift */,
 				200000000000000000000020 /* PortalCreationCoordinatorTests.swift */,
 				200000000000000000000024 /* PortalStoreTests.swift */,
+				200000000000000000000028 /* TabBarViewTests.swift */,
 				20000000000000000000001A /* PortalViewControllerTests.swift */,
 				200000000000000000000019 /* PortalWindowConfigurationTests.swift */,
 				200000000000000000000006 /* StatusMenuControllerTests.swift */,
@@ -226,7 +233,9 @@
 		70000000000000000000000B /* PortalPresentation */ = {
 			isa = PBXGroup;
 			children = (
+				200000000000000000000027 /* LastTabRemovalConfirmer.swift */,
 				200000000000000000000012 /* PortalViewController.swift */,
+				200000000000000000000026 /* TabBarView.swift */,
 			);
 			path = PortalPresentation;
 			sourceTree = "<group>";
@@ -385,6 +394,8 @@
 				100000000000000000000020 /* PortalStoreFileSystem.swift in Sources */,
 				10000000000000000000001F /* PortalStoreModels.swift in Sources */,
 				100000000000000000000010 /* PortalViewController.swift in Sources */,
+				100000000000000000000024 /* TabBarView.swift in Sources */,
+				100000000000000000000025 /* LastTabRemovalConfirmer.swift in Sources */,
 				100000000000000000000011 /* PortalWindowStrategy.swift in Sources */,
 				100000000000000000000012 /* PortalWindow.swift in Sources */,
 				100000000000000000000013 /* PortalWindowController.swift in Sources */,
@@ -402,6 +413,7 @@
 				100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */,
 				10000000000000000000001E /* PortalCreationCoordinatorTests.swift in Sources */,
 				100000000000000000000022 /* PortalStoreTests.swift in Sources */,
+				100000000000000000000026 /* TabBarViewTests.swift in Sources */,
 				100000000000000000000018 /* PortalViewControllerTests.swift in Sources */,
 				100000000000000000000017 /* PortalWindowConfigurationTests.swift in Sources */,
 				100000000000000000000006 /* StatusMenuControllerTests.swift in Sources */,

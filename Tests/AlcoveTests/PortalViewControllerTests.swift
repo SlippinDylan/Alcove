@@ -4,7 +4,7 @@ import XCTest
 
 final class PortalViewControllerTests: XCTestCase {
     @MainActor
-    func testReloadAppliesAcceptedFolderContents() async {
+    func testReloadAppliesAcceptedFolderContents() async throws {
         let root = URL(fileURLWithPath: "/tmp/portal")
         let item = FileItem(
             url: root.appendingPathComponent("file.txt"),
@@ -15,8 +15,12 @@ final class PortalViewControllerTests: XCTestCase {
         let coordinator = FolderLoadingCoordinator(
             enumerator: FixedFolderEnumerator(root: root, items: [item])
         )
-        let controller = PortalViewController(
+        let portal = try Portal(
             folderURL: root,
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240)
+        )
+        let controller = PortalViewController(
+            portal: portal,
             loadingCoordinator: coordinator
         )
         controller.loadView()
@@ -27,13 +31,17 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testReloadShowsEmptyState() async {
+    func testReloadShowsEmptyState() async throws {
         let root = URL(fileURLWithPath: "/tmp/empty-portal")
         let coordinator = FolderLoadingCoordinator(
             enumerator: FixedFolderEnumerator(root: root, items: [])
         )
-        let controller = PortalViewController(
+        let portal = try Portal(
             folderURL: root,
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240)
+        )
+        let controller = PortalViewController(
+            portal: portal,
             loadingCoordinator: coordinator
         )
         controller.loadView()

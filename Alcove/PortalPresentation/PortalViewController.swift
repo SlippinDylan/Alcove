@@ -9,16 +9,21 @@ enum PortalPresentationState: Equatable {
 
 @MainActor
 final class PortalViewController: NSViewController {
-    private let folderURL: URL
+    private var portal: Portal
     private let loadingCoordinator: FolderLoadingCoordinator
+    private let tabBarView = TabBarView()
     private let gridViewController = FileGridViewController()
     private let stateLabel = NSTextField(labelWithString: "")
     private let progressIndicator = NSProgressIndicator()
     private var loadTask: Task<Void, Never>?
+    private var runtimeStates: [FolderTabID: FileGridRuntimeState] = [:]
     private(set) var presentationState: PortalPresentationState = .loading
+    var onSelectTab: ((FolderTabID) -> Void)?
+    var onAddTab: (() -> Void)?
+    var onCloseTab: ((FolderTabID) -> Void)?
 
-    init(folderURL: URL, loadingCoordinator: FolderLoadingCoordinator) {
-        self.folderURL = folderURL
+    init(portal: Portal, loadingCoordinator: FolderLoadingCoordinator) {
+        self.portal = portal
         self.loadingCoordinator = loadingCoordinator
         super.init(nibName: nil, bundle: nil)
     }
@@ -36,6 +41,13 @@ final class PortalViewController: NSViewController {
         let rootView = NSView()
         rootView.wantsLayer = true
         rootView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+
+        tabBarView.translatesAutoresizingMaskIntoConstraints = false
+        tabBarView.onSelect = { [weak self] id in self?.onSelectTab?(id) }
+        tabBarView.onAdd = { [weak self] in self?.onAddTab?() }
+        tabBarView.onClose = { [weak self] id in self?.onCloseTab?(id) }
+        tabBarView.configure(with: portal)
+        rootView.addSubview(tabBarView)
 
         addChild(gridViewController)
         let gridView = gridViewController.view
@@ -57,7 +69,11 @@ final class PortalViewController: NSViewController {
         NSLayoutConstraint.activate([
             gridView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            gridView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            tabBarView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            tabBarView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            tabBarView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            tabBarView.heightAnchor.constraint(equalToConstant: 40),
+            gridView.topAnchor.constraint(equalTo: tabBarView.bottomAnchor),
             gridView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
             stateLabel.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             stateLabel.centerYAnchor.constraint(equalTo: rootView.centerYAnchor),
@@ -79,6 +95,23 @@ final class PortalViewController: NSViewController {
         loadTask = Task { [weak self] in
             guard let self else { return }
             await reload()
+        }
+    }
+
+    func updatePortal(_ portal: Portal) {
+        let previousTabID = self.portal.selectedTabID
+        if isViewLoaded {
+            runtimeStates[previousTabID] = gridViewController.captureRuntimeState()
+        }
+        self.portal = portal
+        runtimeStates = runtimeStates.filter { id, _ in
+            portal.tabs.contains(where: { $0.id == id })
+        }
+        if isViewLoaded {
+            tabBarView.configure(with: portal)
+        }
+        if portal.selectedTabID != previousTabID {
+            load()
         }
     }
 
@@ -109,6 +142,9 @@ final class PortalViewController: NSViewController {
                     showState("This folder is empty")
                 } else {
                     showItems(items)
+                    if let runtimeState = runtimeStates[portal.selectedTabID] {
+                        gridViewController.restoreRuntimeState(runtimeState)
+                    }
                 }
             case .failure(let error):
                 showState(error.userMessage)
@@ -142,5 +178,12 @@ final class PortalViewController: NSViewController {
         gridViewController.view.isHidden = true
         stateLabel.stringValue = message
         stateLabel.isHidden = false
+    }
+
+    private var folderURL: URL {
+        guard let tab = portal.tabs.first(where: { $0.id == portal.selectedTabID }) else {
+            preconditionFailure("Portal selected-tab invariant violated")
+        }
+        return tab.folderURL
     }
 }

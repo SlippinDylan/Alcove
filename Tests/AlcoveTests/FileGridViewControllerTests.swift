@@ -84,6 +84,24 @@ final class FileGridViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testRuntimeSelectionCanBeCapturedAndRestoredForATab() {
+        let items = makeItems(count: 4)
+        let firstController = FileGridViewController()
+        firstController.loadView()
+        firstController.setItems(items)
+        firstController.handleClick(index: 1, modifiers: [])
+        firstController.handleClick(index: 3, modifiers: .command)
+        let state = firstController.captureRuntimeState()
+
+        let restoredController = FileGridViewController()
+        restoredController.loadView()
+        restoredController.setItems(items)
+        restoredController.restoreRuntimeState(state)
+
+        XCTAssertEqual(restoredController.selectionState, state.selection)
+    }
+
+    @MainActor
     func testKeyCodesMapToFinderCommands() {
         XCTAssertEqual(FileCollectionView.command(keyCode: 0, modifiers: .command), .selectAll)
         XCTAssertEqual(FileCollectionView.command(keyCode: 31, modifiers: .command), .openSelection)
