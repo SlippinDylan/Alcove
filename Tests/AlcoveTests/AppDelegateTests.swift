@@ -81,10 +81,14 @@ final class AppDelegateTests: XCTestCase {
         let statusSpy = StatusMenuControllerSpy()
         let portalSpy = PortalCoordinatorSpy()
         portalSpy.error = StartupFixtureError.rejected
+        let errorPresenter = StartupErrorPresenterSpy(resolutions: [.stop])
+        var stopCount = 0
         let delegate = AppDelegate(
             statusMenuController: statusSpy,
             portalCoordinator: portalSpy,
-            startupFolderURL: URL(fileURLWithPath: "/tmp/rejected")
+            startupFolderURL: URL(fileURLWithPath: "/tmp/rejected"),
+            startupErrorPresenter: errorPresenter,
+            stopAfterStartupFailure: { stopCount += 1 }
         )
 
         delegate.applicationDidFinishLaunching(
@@ -94,5 +98,23 @@ final class AppDelegateTests: XCTestCase {
 
         XCTAssertEqual(delegate.startupError as? StartupFixtureError, .rejected)
         XCTAssertTrue(portalSpy.createdFolders.isEmpty)
+        XCTAssertEqual(errorPresenter.presentedErrors.count, 1)
+        XCTAssertEqual(stopCount, 1)
+    }
+}
+
+@MainActor
+private final class StartupErrorPresenterSpy: StartupErrorPresenting {
+    private var resolutions: [StartupFailureResolution]
+    private(set) var presentedErrors: [Error] = []
+
+    init(resolutions: [StartupFailureResolution]) {
+        self.resolutions = resolutions
+    }
+
+    func present(_ error: Error) -> StartupFailureResolution {
+        presentedErrors.append(error)
+        guard !resolutions.isEmpty else { return .stop }
+        return resolutions.removeFirst()
     }
 }

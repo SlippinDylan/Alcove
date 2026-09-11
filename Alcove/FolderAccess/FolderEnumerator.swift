@@ -1,6 +1,7 @@
 import AlcoveCore
 import Dispatch
 import Foundation
+import Synchronization
 
 protocol FolderEnumerating: Sendable {
     func enumerate(
@@ -13,6 +14,7 @@ protocol FolderEnumerating: Sendable {
 struct FolderEnumerator: FolderEnumerating, Sendable {
     private let queue: DispatchQueue
     private let executionObserver: @Sendable (Bool) -> Void
+    private let enumerationProgressObserver: @Sendable (Int) -> Void
 
     init(
         queue: DispatchQueue = DispatchQueue(
@@ -20,10 +22,12 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
             qos: .userInitiated,
             attributes: .concurrent
         ),
-        executionObserver: @escaping @Sendable (Bool) -> Void = { _ in }
+        executionObserver: @escaping @Sendable (Bool) -> Void = { _ in },
+        enumerationProgressObserver: @escaping @Sendable (Int) -> Void = { _ in }
     ) {
         self.queue = queue
         self.executionObserver = executionObserver
+        self.enumerationProgressObserver = enumerationProgressObserver
     }
 
     func enumerate(
@@ -31,33 +35,43 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
         showHidden: Bool = false,
         generation: UInt64
     ) async throws -> FolderEnumerationResult {
-        try Task.checkCancellation()
-        let result = try await withCheckedThrowingContinuation {
-            (continuation: CheckedContinuation<FolderEnumerationResult, Error>) in
-            queue.async {
-                executionObserver(Thread.isMainThread)
-                do {
-                    continuation.resume(
-                        returning: try Self.enumerateSynchronously(
-                            root: root,
-                            showHidden: showHidden,
-                            generation: generation
+        let cancellation = FolderEnumerationCancellation()
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            let result = try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<FolderEnumerationResult, Error>) in
+                queue.async {
+                    executionObserver(Thread.isMainThread)
+                    do {
+                        continuation.resume(
+                            returning: try Self.enumerateSynchronously(
+                                root: root,
+                                showHidden: showHidden,
+                                generation: generation,
+                                cancellation: cancellation,
+                                progressObserver: enumerationProgressObserver
+                            )
                         )
-                    )
-                } catch {
-                    continuation.resume(throwing: error)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
+            try Task.checkCancellation()
+            return result
+        } onCancel: {
+            cancellation.cancel()
         }
-        try Task.checkCancellation()
-        return result
     }
 
     private static func enumerateSynchronously(
         root: URL,
         showHidden: Bool,
-        generation: UInt64
+        generation: UInt64,
+        cancellation: FolderEnumerationCancellation,
+        progressObserver: @Sendable (Int) -> Void
     ) throws -> FolderEnumerationResult {
+        try cancellation.check()
         let root = root.standardizedFileURL
         let options: FileManager.DirectoryEnumerationOptions = showHidden ? [] : [.skipsHiddenFiles]
         let childURLs: [URL]
@@ -70,10 +84,12 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
         } catch let error as NSError {
             throw FolderAccessError.classifyRootError(url: root, error: error)
         }
+        try cancellation.check()
 
         var items: [FileItem] = []
         var diagnostics: [FolderItemDiagnostic] = []
-        for childURL in childURLs {
+        for (index, childURL) in childURLs.enumerated() {
+            try cancellation.check()
             do {
                 items.append(try makeFileItem(url: childURL))
             } catch let error as NSError {
@@ -84,7 +100,9 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
                     )
                 )
             }
+            progressObserver(index + 1)
         }
+        try cancellation.check()
         items.sort(by: Self.sortItems)
         return FolderEnumerationResult(
             root: root,
@@ -121,6 +139,20 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
             return comparison == .orderedAscending
         }
         return left.url.path < right.url.path
+    }
+}
+
+private final class FolderEnumerationCancellation: Sendable {
+    private let cancelled = Mutex(false)
+
+    func cancel() {
+        cancelled.withLock { $0 = true }
+    }
+
+    func check() throws {
+        if cancelled.withLock({ $0 }) {
+            throw CancellationError()
+        }
     }
 }
 

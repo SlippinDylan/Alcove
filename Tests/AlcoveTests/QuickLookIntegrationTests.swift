@@ -7,7 +7,7 @@ final class QuickLookIntegrationTests: XCTestCase {
     @MainActor
     func testSelectionKeepsGridOrderForPreviewDataSource() {
         let panel = QuickLookPanelSpy()
-        let integration = QuickLookIntegration(panelProvider: { panel })
+        let integration = makeIntegration(panel: panel)
         let urls = [
             URL(fileURLWithPath: "/tmp/first.pdf"),
             URL(fileURLWithPath: "/tmp/second.png"),
@@ -24,7 +24,7 @@ final class QuickLookIntegrationTests: XCTestCase {
     @MainActor
     func testSpacePresentsSelectionThenDismissesOnlyTheOwnedPanel() {
         let panel = QuickLookPanelSpy()
-        let integration = QuickLookIntegration(panelProvider: { panel })
+        let integration = makeIntegration(panel: panel)
         let url = URL(fileURLWithPath: "/tmp/preview.txt")
 
         integration.handleSpace(for: [url])
@@ -36,14 +36,17 @@ final class QuickLookIntegrationTests: XCTestCase {
         integration.handleSpace(for: [url])
 
         XCTAssertEqual(panel.dismissalCount, 1)
-        XCTAssertNil(panel.dataSource)
-        XCTAssertNil(panel.delegate)
+        XCTAssertTrue(panel.dataSource === integration)
+        XCTAssertTrue(panel.delegate === integration)
+
+        integration.handleSpace(for: [url])
+        XCTAssertEqual(panel.presentationCount, 2)
     }
 
     @MainActor
     func testSpaceWithEmptySelectionDoesNotRequestPanel() {
         let panel = QuickLookPanelSpy()
-        let integration = QuickLookIntegration(panelProvider: { panel })
+        let integration = makeIntegration(panel: panel)
 
         integration.handleSpace(for: [])
 
@@ -55,7 +58,7 @@ final class QuickLookIntegrationTests: XCTestCase {
     @MainActor
     func testSelectionUpdateReloadsAndRepairsPreviewIndex() {
         let panel = QuickLookPanelSpy()
-        let integration = QuickLookIntegration(panelProvider: { panel })
+        let integration = makeIntegration(panel: panel)
         integration.handleSpace(for: [
             URL(fileURLWithPath: "/tmp/one.txt"),
             URL(fileURLWithPath: "/tmp/two.txt"),
@@ -71,26 +74,28 @@ final class QuickLookIntegrationTests: XCTestCase {
     @MainActor
     func testRelinquishDoesNotClearReferencesTakenByAnotherOwner() {
         let panel = QuickLookPanelSpy()
-        let integration = QuickLookIntegration(panelProvider: { panel })
+        let integration = makeIntegration(panel: panel)
         let alternate = QuickLookPanelParticipant()
         integration.handleSpace(for: [URL(fileURLWithPath: "/tmp/item.txt")])
         panel.dataSource = alternate
+        panel.currentController = alternate
 
         integration.relinquishControl()
 
         XCTAssertTrue(panel.dataSource === alternate)
-        XCTAssertNil(panel.delegate)
+        XCTAssertTrue(panel.delegate === integration)
         XCTAssertEqual(panel.dismissalCount, 0)
     }
 
     @MainActor
     func testSelectionUpdateDoesNotMutatePanelTakenByAnotherOwner() {
         let panel = QuickLookPanelSpy()
-        let integration = QuickLookIntegration(panelProvider: { panel })
+        let integration = makeIntegration(panel: panel)
         let alternate = QuickLookPanelParticipant()
         integration.handleSpace(for: [URL(fileURLWithPath: "/tmp/old.txt")])
         panel.dataSource = alternate
         panel.delegate = alternate
+        panel.currentController = alternate
         panel.currentPreviewItemIndex = 7
         let reloadCount = panel.reloadCount
         let newURL = URL(fileURLWithPath: "/tmp/new.txt")
@@ -107,7 +112,7 @@ final class QuickLookIntegrationTests: XCTestCase {
     @MainActor
     func testInvalidatingSelectionDismissesOwnedPanelAndRejectsOldTabItems() {
         let panel = QuickLookPanelSpy()
-        let integration = QuickLookIntegration(panelProvider: { panel })
+        let integration = makeIntegration(panel: panel)
         integration.handleSpace(for: [URL(fileURLWithPath: "/tmp/old-tab.txt")])
 
         integration.invalidateSelection()
@@ -118,12 +123,16 @@ final class QuickLookIntegrationTests: XCTestCase {
         XCTAssertEqual(panel.dismissalCount, 1)
         XCTAssertNil(panel.dataSource)
         XCTAssertNil(panel.delegate)
+
+        integration.handleSpace(for: [URL(fileURLWithPath: "/tmp/new-item.txt")])
+        XCTAssertEqual(panel.presentationCount, 2)
+        XCTAssertTrue(panel.dataSource === integration)
     }
 
     @MainActor
     func testDetachRestoresResponderChainAndClearsStalePanelReferences() {
         let panel = QuickLookPanelSpy()
-        let integration = QuickLookIntegration(panelProvider: { panel })
+        let integration = makeIntegration(panel: panel)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
             styleMask: [.titled],
@@ -144,7 +153,7 @@ final class QuickLookIntegrationTests: XCTestCase {
     @MainActor
     func testWindowCloseNotificationSynchronouslyDetachesResponderAndPanel() {
         let panel = QuickLookPanelSpy()
-        let integration = QuickLookIntegration(panelProvider: { panel })
+        let integration = makeIntegration(panel: panel)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
             styleMask: [.titled],
@@ -162,6 +171,36 @@ final class QuickLookIntegrationTests: XCTestCase {
         XCTAssertNil(panel.dataSource)
         XCTAssertNil(panel.delegate)
     }
+
+    @MainActor
+    func testClearingSelectionDismissesOwnedVisiblePanel() {
+        let panel = QuickLookPanelSpy()
+        let integration = makeIntegration(panel: panel)
+        integration.handleSpace(for: [URL(fileURLWithPath: "/tmp/item.txt")])
+
+        integration.updateSelection([])
+
+        XCTAssertTrue(integration.selectedURLs.isEmpty)
+        XCTAssertEqual(panel.dismissalCount, 1)
+        XCTAssertNil(panel.dataSource)
+        XCTAssertNil(panel.delegate)
+    }
+
+    @MainActor
+    func testSpaceDoesNotMutateOrPresentPanelControlledByAnotherResponder() {
+        let panel = QuickLookPanelSpy()
+        let integration = QuickLookIntegration(panelProvider: { panel })
+        let alternate = QuickLookPanelParticipant()
+        panel.currentController = alternate
+        panel.dataSource = alternate
+        panel.delegate = alternate
+
+        integration.handleSpace(for: [URL(fileURLWithPath: "/tmp/item.txt")])
+
+        XCTAssertEqual(panel.presentationCount, 0)
+        XCTAssertTrue(panel.dataSource === alternate)
+        XCTAssertTrue(panel.delegate === alternate)
+    }
 }
 
 @MainActor
@@ -171,12 +210,28 @@ private final class QuickLookPanelSpy: QuickLookPanelManaging {
     var currentPreviewItemIndex = NSNotFound
     var dataSource: (any QLPreviewPanelDataSource)?
     var delegate: AnyObject?
+    weak var controllerCandidate: QuickLookIntegration?
+    var currentController: AnyObject?
     private(set) var reloadCount = 0
     private(set) var presentationCount = 0
     private(set) var dismissalCount = 0
 
     func reloadData() {
         reloadCount += 1
+    }
+
+    func updateController() {
+        guard let controllerCandidate else {
+            return
+        }
+        guard controllerCandidate.acceptsPreviewPanelControl(nil) else {
+            if currentController === controllerCandidate {
+                currentController = nil
+            }
+            return
+        }
+        currentController = controllerCandidate
+        controllerCandidate.beginControl(of: self)
     }
 
     func present() {
@@ -188,6 +243,13 @@ private final class QuickLookPanelSpy: QuickLookPanelManaging {
         dismissalCount += 1
         isVisible = false
     }
+}
+
+@MainActor
+private func makeIntegration(panel: QuickLookPanelSpy) -> QuickLookIntegration {
+    let integration = QuickLookIntegration(panelProvider: { panel })
+    panel.controllerCandidate = integration
+    return integration
 }
 
 @MainActor

@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import XCTest
 @testable import Alcove
 
@@ -238,6 +239,40 @@ final class FolderAccessTests: XCTestCase {
             cancelledResult,
             .discarded(request: FolderLoadRequest(generation: 3))
         )
+    }
+
+    func testRealEnumeratorStopsAtIncrementalCancellationBoundary() async throws {
+        try await withTemporaryDirectory { root in
+            for index in 0..<20 {
+                try Data().write(to: root.appendingPathComponent("item-\(index)"))
+            }
+            let firstItemReached = DispatchSemaphore(value: 0)
+            let allowWorkerToContinue = DispatchSemaphore(value: 0)
+            let processedCount = Mutex(0)
+            let enumerator = FolderEnumerator { _ in
+            } enumerationProgressObserver: { count in
+                processedCount.withLock { $0 = count }
+                if count == 1 {
+                    firstItemReached.signal()
+                    allowWorkerToContinue.wait()
+                }
+            }
+            let task = Task {
+                try await enumerator.enumerate(root: root, generation: 1)
+            }
+
+            XCTAssertEqual(firstItemReached.wait(timeout: .now() + 1), .success)
+            task.cancel()
+            allowWorkerToContinue.signal()
+
+            do {
+                _ = try await task.value
+                XCTFail("Cancelled production enumeration must not finish the remaining items")
+            } catch is CancellationError {
+                // Expected at the next per-item cancellation boundary.
+            }
+            XCTAssertEqual(processedCount.withLock { $0 }, 1)
+        }
     }
 }
 

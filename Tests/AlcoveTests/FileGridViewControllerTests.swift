@@ -66,7 +66,11 @@ final class FileGridViewControllerTests: XCTestCase {
     @MainActor
     func testDoubleClickAndOpenSelectionUseWorkspaceBoundary() {
         let opener = WorkspaceOpenerSpy(failingNames: ["file-2"])
-        let controller = FileGridViewController(workspaceOpener: opener)
+        let failurePresenter = WorkspaceOpenFailurePresenterSpy()
+        let controller = FileGridViewController(
+            workspaceOpener: opener,
+            openFailurePresenter: failurePresenter
+        )
         controller.loadView()
         let items = makeItems(count: 3)
         controller.setItems(items)
@@ -81,6 +85,7 @@ final class FileGridViewControllerTests: XCTestCase {
             [items[0].url, items[0].url, items[1].url, items[2].url]
         )
         XCTAssertEqual(controller.failedOpenURLs, [items[2].url])
+        XCTAssertEqual(failurePresenter.failedURLs, [items[2].url])
     }
 
     @MainActor
@@ -187,5 +192,14 @@ private final class WorkspaceOpenerSpy: WorkspaceOpening {
     func open(_ url: URL) -> Bool {
         openedURLs.append(url)
         return !failingNames.contains(url.lastPathComponent)
+    }
+}
+
+@MainActor
+private final class WorkspaceOpenFailurePresenterSpy: WorkspaceOpenFailurePresenting {
+    private(set) var failedURLs: [URL] = []
+
+    func presentFailure(for url: URL) {
+        failedURLs.append(url)
     }
 }

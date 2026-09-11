@@ -1,4 +1,5 @@
 import AppKit
+import AlcoveCore
 import XCTest
 @testable import Alcove
 
@@ -135,6 +136,25 @@ final class PortalCreationCoordinatorTests: XCTestCase {
         frameSelector.complete(with: nil)
         await coordinator.waitForCurrentCreation()
         XCTAssertEqual(coordinator.state, .idle)
+    }
+
+    @MainActor
+    func testCreationOverlaySupportsKeyboardAndAccessibilityDefaultFrame() throws {
+        let visibleFrame = NSRect(x: 0, y: 0, width: 800, height: 600)
+        let overlay = PortalCreationOverlayView(
+            screenFrame: visibleFrame,
+            visibleFrame: visibleFrame,
+            grid: try CreationGrid(metrics: GridMetrics(iconSize: .medium))
+        )
+        var selectedFrame: NSRect?
+        overlay.onCompletion = { selectedFrame = $0 }
+
+        XCTAssertEqual(overlay.accessibilityRole(), .button)
+        XCTAssertEqual(overlay.accessibilityLabel(), "Create portal area")
+        XCTAssertTrue(overlay.accessibilityPerformPress())
+        let frame = try XCTUnwrap(selectedFrame)
+        XCTAssertTrue(visibleFrame.contains(frame))
+        XCTAssertTrue(frame.contains(NSPoint(x: visibleFrame.midX, y: visibleFrame.midY)))
     }
 }
 

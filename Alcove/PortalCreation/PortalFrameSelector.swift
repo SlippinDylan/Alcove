@@ -94,7 +94,7 @@ private final class PortalCreationOverlayWindow: NSWindow {
 }
 
 @MainActor
-private final class PortalCreationOverlayView: NSView {
+final class PortalCreationOverlayView: NSView {
     var onCompletion: ((NSRect?) -> Void)?
 
     private let screenFrame: NSRect
@@ -110,6 +110,12 @@ private final class PortalCreationOverlayView: NSView {
         self.grid = grid
         super.init(frame: NSRect(origin: .zero, size: screenFrame.size))
         wantsLayer = true
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel("Create portal area")
+        setAccessibilityHelp(
+            "Drag to choose a portal frame, or press Return to use a default frame."
+        )
     }
 
     @available(*, unavailable)
@@ -169,8 +175,35 @@ private final class PortalCreationOverlayView: NSView {
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 {
             finish(nil)
+        } else if event.keyCode == 36 || event.keyCode == 76 {
+            _ = selectDefaultFrame()
         } else {
             super.keyDown(with: event)
+        }
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        selectDefaultFrame()
+    }
+
+    @discardableResult
+    func selectDefaultFrame() -> Bool {
+        let center = CGPoint(x: visibleFrame.midX, y: visibleFrame.midY)
+        let halfWidth = grid.minimumSize.width / 2
+        let halfHeight = grid.minimumSize.height / 2
+        do {
+            let frame = try CreationGeometry.rectangle(
+                mouseDown: CGPoint(x: center.x - halfWidth, y: center.y - halfHeight),
+                currentPoint: CGPoint(x: center.x + halfWidth, y: center.y + halfHeight),
+                visibleFrame: visibleFrame,
+                grid: grid
+            ).frame
+            selectedFrame = frame
+            finish(frame)
+            return true
+        } catch {
+            finish(nil)
+            return false
         }
     }
 

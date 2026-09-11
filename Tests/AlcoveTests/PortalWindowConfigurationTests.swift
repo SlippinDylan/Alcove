@@ -166,6 +166,34 @@ final class PortalWindowConfigurationTests: XCTestCase {
     }
 
     @MainActor
+    func testPresentReinstallsQuickLookAfterWindowClose() throws {
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/portal"),
+            frame: NSRect(x: 20, y: 30, width: 560, height: 480),
+            display: DisplayDescriptor(
+                identity: DisplayIdentity(rawValue: "test-display"),
+                visibleFrame: NSRect(x: 0, y: 0, width: 1440, height: 900)
+            )
+        )
+        let quickLook = QuickLookIntegration(panelProvider: { nil })
+        let controller = PortalWindowController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(),
+            initialFrame: portal.frame,
+            quickLookIntegration: quickLook
+        )
+        let window = try XCTUnwrap(controller.window)
+        XCTAssertTrue(window.nextResponder === quickLook)
+
+        NotificationCenter.default.post(name: NSWindow.willCloseNotification, object: window)
+        XCTAssertFalse(window.nextResponder === quickLook)
+
+        controller.present()
+        XCTAssertTrue(window.nextResponder === quickLook)
+        controller.close()
+    }
+
+    @MainActor
     func testCancelledDragClearsInteractionWithoutCommitting() {
         let window = makeWindow()
         var commits: [NSRect] = []

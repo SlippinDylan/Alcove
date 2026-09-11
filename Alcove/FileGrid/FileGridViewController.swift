@@ -10,6 +10,7 @@ struct FileGridRuntimeState: Equatable {
 final class FileGridViewController: NSViewController {
     private let collectionView = FileCollectionView()
     private let workspaceOpener: any WorkspaceOpening
+    private let openFailurePresenter: any WorkspaceOpenFailurePresenting
     private var metrics: GridMetrics
     private var items: [FileItem] = []
     private(set) var selectionState = SelectionState()
@@ -19,9 +20,11 @@ final class FileGridViewController: NSViewController {
 
     init(
         workspaceOpener: any WorkspaceOpening = SystemWorkspaceOpener(),
+        openFailurePresenter: any WorkspaceOpenFailurePresenting = WorkspaceOpenFailurePresenter(),
         iconSize: IconSize = .medium
     ) {
         self.workspaceOpener = workspaceOpener
+        self.openFailurePresenter = openFailurePresenter
         metrics = GridMetrics(iconSize: iconSize)
         super.init(nibName: nil, bundle: nil)
     }
@@ -219,6 +222,7 @@ final class FileGridViewController: NSViewController {
         let didOpen = workspaceOpener.open(item.url)
         if !didOpen {
             failedOpenURLs.append(item.url)
+            openFailurePresenter.presentFailure(for: item.url)
         }
         return didOpen
     }

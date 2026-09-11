@@ -8,8 +8,10 @@ protocol QuickLookPanelManaging: AnyObject {
     var currentPreviewItemIndex: Int { get set }
     var dataSource: (any QLPreviewPanelDataSource)? { get set }
     var delegate: AnyObject? { get set }
+    var currentController: AnyObject? { get }
 
     func reloadData()
+    func updateController()
     func present()
     func dismiss()
 }
@@ -36,9 +38,14 @@ private final class SystemQuickLookPanel: QuickLookPanelManaging {
         get { panel.delegate }
         set { panel.delegate = newValue }
     }
+    var currentController: AnyObject? { panel.currentController as AnyObject? }
 
     func reloadData() {
         panel.reloadData()
+    }
+
+    func updateController() {
+        panel.updateController()
     }
 
     func present() {
@@ -98,8 +105,14 @@ final class QuickLookIntegration: NSResponder,
         }
     }
 
+    func installIfNeeded(in window: NSWindow) {
+        guard installedWindow !== window || window.nextResponder !== self else { return }
+        install(in: window)
+    }
+
     /// Removes the responder-chain link and any Objective-C assign references.
     func detach() {
+        previewItems = []
         relinquishControl()
         if let installedWindow, installedWindow.nextResponder === self {
             installedWindow.nextResponder = originalWindowResponder
@@ -116,30 +129,33 @@ final class QuickLookIntegration: NSResponder,
     /// Replaces the data-source snapshot in the exact order supplied by the grid.
     func updateSelection(_ urls: [URL]) {
         previewItems = urls.map(URLPreviewItem.init(url:))
+        if previewItems.isEmpty {
+            relinquishControl()
+            return
+        }
         guard let controlledPanel else { return }
         guard ownsControl(of: controlledPanel) else {
-            clearReferencesOwnedBySelf(in: controlledPanel)
             self.controlledPanel = nil
             return
         }
         controlledPanel.reloadData()
-        if previewItems.isEmpty {
-            controlledPanel.currentPreviewItemIndex = NSNotFound
-        } else if !previewItems.indices.contains(controlledPanel.currentPreviewItemIndex) {
+        if !previewItems.indices.contains(controlledPanel.currentPreviewItemIndex) {
             controlledPanel.currentPreviewItemIndex = 0
         }
     }
 
     /// Applies the verified Space policy: no selection does nothing; a visible Alcove-owned panel closes.
     func handleSpace(for urls: [URL]) {
-        guard !urls.isEmpty else { return }
+        guard !urls.isEmpty else {
+            updateSelection([])
+            return
+        }
         if let controlledPanel {
             if ownsControl(of: controlledPanel), controlledPanel.isVisible {
-                relinquishControl()
+                controlledPanel.dismiss()
                 return
             }
             if !ownsControl(of: controlledPanel) {
-                clearReferencesOwnedBySelf(in: controlledPanel)
                 self.controlledPanel = nil
             }
         }
@@ -149,18 +165,24 @@ final class QuickLookIntegration: NSResponder,
 
     /// Invalidates the current tab's selection as well as any panel ownership.
     func invalidateSelection() {
-        relinquishControl()
         previewItems = []
+        relinquishControl()
     }
 
     /// Call on a tab switch or any portal lifecycle transition that invalidates this selection.
     func relinquishControl() {
         guard let controlledPanel else { return }
-        if ownsControl(of: controlledPanel), controlledPanel.isVisible {
-            controlledPanel.dismiss()
+        let wasCurrentController = controlledPanel.currentController === self
+        if ownsControl(of: controlledPanel) {
+            if controlledPanel.isVisible {
+                controlledPanel.dismiss()
+            }
+            clearReferencesOwnedBySelf(in: controlledPanel)
         }
-        clearReferencesOwnedBySelf(in: controlledPanel)
         self.controlledPanel = nil
+        if wasCurrentController {
+            controlledPanel.updateController()
+        }
     }
 
     nonisolated override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
@@ -172,7 +194,7 @@ final class QuickLookIntegration: NSResponder,
     nonisolated override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
         MainActor.assumeIsolated {
             guard let panel else { return }
-            takeControl(of: SystemQuickLookPanel(panel: panel))
+            beginControl(of: SystemQuickLookPanel(panel: panel))
         }
     }
 
@@ -201,11 +223,12 @@ final class QuickLookIntegration: NSResponder,
 
     private func presentPreview() {
         guard let panel = panelProvider() else { return }
-        takeControl(of: panel)
+        panel.updateController()
+        guard panel.currentController === self, ownsControl(of: panel) else { return }
         panel.present()
     }
 
-    private func takeControl(of panel: any QuickLookPanelManaging) {
+    func beginControl(of panel: any QuickLookPanelManaging) {
         if let controlledPanel, !isSamePanel(controlledPanel, panel) {
             clearReferencesOwnedBySelf(in: controlledPanel)
         }
@@ -228,7 +251,9 @@ final class QuickLookIntegration: NSResponder,
     }
 
     private func ownsControl(of panel: any QuickLookPanelManaging) -> Bool {
-        panel.dataSource === self && panel.delegate === self
+        panel.currentController === self
+            && panel.dataSource === self
+            && panel.delegate === self
     }
 
     private func isSamePanel(

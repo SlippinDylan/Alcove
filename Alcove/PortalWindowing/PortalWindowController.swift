@@ -72,6 +72,9 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     }
 
     func present() {
+        if let window {
+            quickLookIntegration.installIfNeeded(in: window)
+        }
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
     }

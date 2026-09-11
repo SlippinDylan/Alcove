@@ -22,7 +22,9 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, CGRect(x: 116, y: 80, width: 126, height: 160))
+        XCTAssertEqual(rectangle.frame, CGRect(x: 58, y: 80, width: 126, height: 160))
+        assert(rectangle.frame, contains: CGPoint(x: 100, y: 100))
+        assert(rectangle.frame, contains: CGPoint(x: 110, y: 110))
     }
 
     func testRectangleSnapsSizeUpAndOriginToGrid() throws {
@@ -34,6 +36,8 @@ final class CreationGeometryTests: XCTestCase {
         )
 
         XCTAssertEqual(rectangle.frame, CGRect(x: 58, y: 80, width: 184, height: 240))
+        assert(rectangle.frame, contains: CGPoint(x: 63, y: 81))
+        assert(rectangle.frame, contains: CGPoint(x: 216, y: 269))
     }
 
     func testRectanglePreservesNegativeDirection() throws {
@@ -45,6 +49,8 @@ final class CreationGeometryTests: XCTestCase {
         )
 
         XCTAssertEqual(rectangle.frame, CGRect(x: 174, y: 160, width: 184, height: 160))
+        assert(rectangle.frame, contains: CGPoint(x: 330, y: 320))
+        assert(rectangle.frame, contains: CGPoint(x: 200, y: 190))
     }
 
     func testRectangleSupportsMixedDragDirections() throws {
@@ -61,8 +67,12 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(downThenLeft.frame, CGRect(x: 116, y: 80, width: 184, height: 160))
-        XCTAssertEqual(upThenRight.frame, CGRect(x: 116, y: 160, width: 184, height: 160))
+        XCTAssertEqual(downThenLeft.frame, CGRect(x: 116, y: 80, width: 184, height: 240))
+        XCTAssertEqual(upThenRight.frame, CGRect(x: 58, y: 80, width: 184, height: 240))
+        assert(downThenLeft.frame, contains: CGPoint(x: 300, y: 100))
+        assert(downThenLeft.frame, contains: CGPoint(x: 170, y: 250))
+        assert(upThenRight.frame, contains: CGPoint(x: 100, y: 300))
+        assert(upThenRight.frame, contains: CGPoint(x: 230, y: 150))
     }
 
     func testRectangleClampsPointsAndFinalSnapToVisibleFrame() throws {
@@ -119,5 +129,17 @@ final class CreationGeometryTests: XCTestCase {
         XCTAssertThrowsError(try CreationGrid(metrics: invalidMetrics)) { error in
             XCTAssertEqual(error as? CreationGeometryError, .invalidGridMetrics)
         }
+    }
+
+    private func assert(
+        _ frame: CGRect,
+        contains point: CGPoint,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertGreaterThanOrEqual(point.x, frame.minX, file: file, line: line)
+        XCTAssertLessThanOrEqual(point.x, frame.maxX, file: file, line: line)
+        XCTAssertGreaterThanOrEqual(point.y, frame.minY, file: file, line: line)
+        XCTAssertLessThanOrEqual(point.y, frame.maxY, file: file, line: line)
     }
 }

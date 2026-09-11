@@ -111,9 +111,9 @@ public enum CreationGeometry {
     /// Both gesture points are first clamped to `visibleFrame`. The rectangle grows
     /// from the mouse-down edge toward the current point, which preserves every drag
     /// direction. Its size is then rounded up to the next grid row or column that can
-    /// contain the drag. Origins snap to the nearest grid point relative to the visible
-    /// frame origin, with half-grid values rounded away from zero. The final clamp keeps
-    /// the returned frame on-screen after snapping.
+    /// contain the drag. Origins snap outward relative to the drag direction; when an
+    /// aligned frame would exclude either gesture point, the affected extent grows by
+    /// one grid unit. The final clamp keeps the returned frame on-screen.
     public static func rectangle(
         mouseDown: CGPoint,
         currentPoint: CGPoint,
@@ -136,29 +136,33 @@ public enum CreationGeometry {
             width: min(max(dragged.width, grid.minimumSize.width), visibleFrame.width),
             height: min(max(dragged.height, grid.minimumSize.height), visibleFrame.height)
         )
-        let snappedSize = grid.snappedSize(for: requestedSize, within: visibleFrame.size)
-        let unsnappedOrigin = CGPoint(
-            x: current.x >= start.x ? dragged.minX : dragged.maxX - snappedSize.width,
-            y: current.y >= start.y ? dragged.minY : dragged.maxY - snappedSize.height
+        let initialSize = grid.snappedSize(for: requestedSize, within: visibleFrame.size)
+        let horizontal = snappedAxis(
+            minimum: dragged.minX,
+            maximum: dragged.maxX,
+            initialExtent: initialSize.width,
+            growsPositive: current.x >= start.x,
+            visibleMinimum: visibleFrame.minX,
+            visibleMaximum: visibleFrame.maxX,
+            increment: grid.columnIncrement
         )
-        let snappedOrigin = CGPoint(
-            x: snap(unsnappedOrigin.x, relativeTo: visibleFrame.minX, grid: grid.columnIncrement),
-            y: snap(unsnappedOrigin.y, relativeTo: visibleFrame.minY, grid: grid.rowIncrement)
+        let vertical = snappedAxis(
+            minimum: dragged.minY,
+            maximum: dragged.maxY,
+            initialExtent: initialSize.height,
+            growsPositive: current.y >= start.y,
+            visibleMinimum: visibleFrame.minY,
+            visibleMaximum: visibleFrame.maxY,
+            increment: grid.rowIncrement
         )
-        let origin = CGPoint(
-            x: clamp(
-                snappedOrigin.x,
-                minimum: visibleFrame.minX,
-                maximum: visibleFrame.maxX - snappedSize.width
-            ),
-            y: clamp(
-                snappedOrigin.y,
-                minimum: visibleFrame.minY,
-                maximum: visibleFrame.maxY - snappedSize.height
+        return CreationRectangle(
+            frame: CGRect(
+                x: horizontal.origin,
+                y: vertical.origin,
+                width: horizontal.extent,
+                height: vertical.extent
             )
         )
-
-        return CreationRectangle(frame: CGRect(origin: origin, size: snappedSize))
     }
 
     private static func validate(_ point: CGPoint, label: String) throws {
@@ -187,8 +191,39 @@ public enum CreationGeometry {
         )
     }
 
-    private static func snap(_ value: CGFloat, relativeTo origin: CGFloat, grid: CGFloat) -> CGFloat {
-        origin + ((value - origin) / grid).rounded(.toNearestOrAwayFromZero) * grid
+    private static func snappedAxis(
+        minimum: CGFloat,
+        maximum: CGFloat,
+        initialExtent: CGFloat,
+        growsPositive: Bool,
+        visibleMinimum: CGFloat,
+        visibleMaximum: CGFloat,
+        increment: CGFloat
+    ) -> (origin: CGFloat, extent: CGFloat) {
+        let visibleExtent = visibleMaximum - visibleMinimum
+        var extent = initialExtent
+
+        while true {
+            if extent >= visibleExtent {
+                return (visibleMinimum, visibleExtent)
+            }
+            let unsnappedOrigin = growsPositive ? minimum : maximum - extent
+            let roundingRule: FloatingPointRoundingRule = growsPositive ? .down : .up
+            let origin = visibleMinimum
+                + ((unsnappedOrigin - visibleMinimum) / increment).rounded(roundingRule) * increment
+            let containsDrag = origin <= minimum && origin + extent >= maximum
+            if containsDrag {
+                return (
+                    clamp(
+                        origin,
+                        minimum: visibleMinimum,
+                        maximum: visibleMaximum - extent
+                    ),
+                    extent
+                )
+            }
+            extent = min(extent + increment, visibleExtent)
+        }
     }
 
     private static func clamp(_ value: CGFloat, minimum: CGFloat, maximum: CGFloat) -> CGFloat {
