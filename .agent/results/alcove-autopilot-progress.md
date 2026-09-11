@@ -85,7 +85,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [ ] Slice 7 — Quick Look: production responder, ordered selection, ownership cleanup, 56 hosted tests, and universal build complete; real panel behavior remains manual.
 - [ ] Slice 8 — Display Placement Persistence: production v2 migration, user-only commits, topology/wake recovery, 110 Core tests, 88 hosted tests, and universal build complete; physical hardware matrix remains.
 - [ ] Slice 9 — Directory Observation and Auto-Refresh: active-tab FSEvents, debounce, identity-safe recovery, 97 hosted tests, and real grid refresh complete; Locate Folder/TCC remain.
-- [ ] Slice 10 — Hardening, Accessibility, and Release Preparation (automated feature, accessibility, performance, CI, and unsigned artifact work complete; manual compatibility evidence and final validation remain).
+- [ ] Slice 10 — Hardening, Accessibility, and Release Preparation (automated feature, accessibility, performance, CI, final review fixes, and unsigned artifact work complete; manual compatibility evidence remains).
 
 ## MVP Acceptance
 
@@ -129,3 +129,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-09-12: Production Slice 10B moved portal chrome onto public macOS 26 Glass with the semantic macOS 15–25 visual-effect fallback, added Reduce Transparency/Increase Contrast/Reduce Motion handling, and completed testable grid and tab accessibility metadata/actions. AlcoveCore passes 110 tests and the hosted app passes 107; visual compatibility and real VoiceOver checks remain manual.
 - 2026-09-12: Production Slice 10C added explicit Locate Folder and Retry states, fixed-internal-volume revalidation, identity-preserving tab remapping, persistence-before-window updates, and observation restart after recovery. AlcoveCore passes 110 tests and the hosted app passes 111; real TCC and picker UI remain manual.
 - 2026-09-12: Production Slice 10D added push/PR CI on macOS 26 with pinned Xcode 26.6, full tests, source-policy checks, universal unsigned artifact verification/upload, and a real 999-item NFR-03 enumeration test. AlcoveCore passes 110 tests and the hosted app passes 112 locally; signing and DMG work remain isolated in Spike 0.6.
+- 2026-09-12: Final MVP review found and fixed three Medium implementation gaps: resize dimensions now snap at live-resize end, creation/icon changes enforce the chrome-aware 2×2 minimum without adopting a temporary display as home, and tab switches cancel old loads and hide stale content synchronously. AlcoveCore passes 110 tests, the hosted app passes 117, and independent final re-review found no remaining Critical/High/Medium issue in the changed paths.

@@ -16,6 +16,33 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testContentSizeSnapsToGridIncrementsAndMinimum() {
+        let metrics = GridMetrics(iconSize: .medium)
+        let minimum = PortalViewController.minimumContentSize(for: .medium)
+
+        XCTAssertEqual(
+            PortalViewController.snappedContentSize(
+                NSSize(width: minimum.width - 20, height: minimum.height - 20),
+                for: .medium
+            ),
+            minimum
+        )
+        XCTAssertEqual(
+            PortalViewController.snappedContentSize(
+                NSSize(
+                    width: minimum.width + metrics.itemSize.width + metrics.horizontalSpacing + 3,
+                    height: minimum.height + metrics.itemSize.height + metrics.verticalSpacing + 3
+                ),
+                for: .medium
+            ),
+            NSSize(
+                width: minimum.width + metrics.itemSize.width + metrics.horizontalSpacing,
+                height: minimum.height + metrics.itemSize.height + metrics.verticalSpacing
+            )
+        )
+    }
+
+    @MainActor
     func testReloadAppliesAcceptedFolderContents() async throws {
         let root = URL(fileURLWithPath: "/tmp/portal")
         let item = FileItem(
@@ -124,6 +151,41 @@ final class PortalViewControllerTests: XCTestCase {
         XCTAssertTrue(permissionPresentation.detail.contains("Privacy & Security"))
         XCTAssertEqual(readPresentation.action, .retry)
         XCTAssertEqual(readPresentation.detail, url.path)
+    }
+
+    @MainActor
+    func testTabSwitchHidesOldGridBeforeAsyncObservationStarts() async throws {
+        let root = URL(fileURLWithPath: "/tmp/first")
+        let item = FileItem(
+            url: root.appendingPathComponent("old.txt"),
+            name: "old.txt",
+            isDirectory: false,
+            isHidden: false
+        )
+        var portal = try Portal(
+            folderURL: root,
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(
+                enumerator: FixedFolderEnumerator(root: root, items: [item])
+            )
+        )
+        controller.loadView()
+        await controller.reload()
+        XCTAssertEqual(controller.presentationState, .items(1))
+
+        let secondID = try portal.appendTab(
+            folderURL: URL(fileURLWithPath: "/tmp/second")
+        )
+        try portal.selectTab(secondID)
+
+        controller.updatePortal(portal)
+
+        XCTAssertEqual(controller.presentationState, .loading)
+        controller.stopObservation()
     }
 
     @MainActor

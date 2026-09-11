@@ -82,7 +82,17 @@ final class PortalCoordinatorTests: XCTestCase {
             let saves = await store.savedSnapshots()
             XCTAssertEqual(saves.count, 1)
             XCTAssertEqual(saves[0], coordinator.portalStates)
-            XCTAssertEqual(coordinator.portalStates.first?.frame, frame)
+            let createdFrame = try XCTUnwrap(coordinator.portalStates.first?.frame)
+            XCTAssertGreaterThanOrEqual(createdFrame.width, frame.width)
+            XCTAssertGreaterThan(createdFrame.height, frame.height)
+            let contentSize = NSWindow.contentRect(
+                forFrameRect: createdFrame,
+                styleMask: [.titled, .closable, .miniaturizable, .resizable]
+            ).size
+            XCTAssertEqual(
+                contentSize,
+                PortalViewController.snappedContentSize(contentSize, for: .medium)
+            )
             XCTAssertEqual(factory.windows.first?.presentCount, 1)
         }
     }
@@ -619,6 +629,85 @@ final class PortalCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.portalStates, [portal])
         XCTAssertEqual(factory.windows[0].closeCount, 0)
         XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
+    }
+
+    @MainActor
+    func testLargeIconPresetPersistsAndAppliesMinimumPlacement() async throws {
+        let portal = try makePortal(path: "/tmp/first", x: 10)
+        let store = PortalStoreSpy(portals: [portal])
+        let factory = PortalWindowFactorySpy()
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+
+        await coordinator.setIconSize(.large, for: portal.id)
+
+        let updated = coordinator.portalStates[0]
+        XCTAssertEqual(updated.iconSize, .large)
+        XCTAssertGreaterThan(updated.frame.height, portal.frame.height)
+        let appliedFrame = try XCTUnwrap(factory.windows[0].systemFrames.last)
+        XCTAssertEqual(appliedFrame.size, updated.frame.size)
+        XCTAssertTrue(coordinatorTestDisplay.visibleFrame.contains(appliedFrame))
+        let saves = await store.savedSnapshots()
+        XCTAssertEqual(saves.last, [updated])
+    }
+
+    @MainActor
+    func testIconPresetDuringEvictionPreservesDurableHomeAndReturnsThere() async throws {
+        let portal = try makePortal(path: "/tmp/first", x: 10)
+        let store = PortalStoreSpy(portals: [portal])
+        let factory = PortalWindowFactorySpy()
+        let fallback = DisplayDescriptor(
+            identity: DisplayIdentity(rawValue: "fallback-display"),
+            visibleFrame: CGRect(x: -1000, y: 0, width: 1000, height: 700)
+        )
+        let snapshotBox = DisplaySnapshotResultBox(
+            .success(
+                try DisplaySnapshot(
+                    displays: [coordinatorTestDisplay],
+                    primaryDisplay: coordinatorTestDisplay.identity
+                )
+            )
+        )
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            displaySnapshotProvider: { snapshotBox.result }
+        )
+        try await coordinator.restorePortals()
+        snapshotBox.result = .success(
+            try DisplaySnapshot(displays: [fallback], primaryDisplay: fallback.identity)
+        )
+        coordinator.reconcileDisplayTopology(snapshotBox.result)
+        await coordinator.waitForPersistenceForTesting()
+
+        await coordinator.setIconSize(.large, for: portal.id)
+
+        XCTAssertEqual(coordinator.portalStates[0].placement.homeDisplay, portal.placement.homeDisplay)
+        XCTAssertTrue(fallback.visibleFrame.contains(try XCTUnwrap(factory.windows[0].systemFrames.last)))
+
+        snapshotBox.result = .success(
+            try DisplaySnapshot(
+                displays: [fallback, coordinatorTestDisplay],
+                primaryDisplay: fallback.identity
+            )
+        )
+        coordinator.reconcileDisplayTopology(snapshotBox.result)
+        await coordinator.waitForPersistenceForTesting()
+
+        XCTAssertTrue(
+            coordinatorTestDisplay.visibleFrame.contains(
+                try XCTUnwrap(factory.windows[0].systemFrames.last)
+            )
+        )
+        XCTAssertEqual(coordinator.portalStates[0].placement.homeDisplay, portal.placement.homeDisplay)
     }
 
     @MainActor

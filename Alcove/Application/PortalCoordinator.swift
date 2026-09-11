@@ -88,10 +88,15 @@ final class PortalCoordinator: PortalCoordinating {
                 throw PortalCoordinatorError.persistentStateNotLoaded
             }
             let snapshot = try currentDisplaySnapshot()
-            let initialFrame = frame ?? Self.defaultFrame(on: snapshot.primaryDescriptor)
+            let requestedFrame = frame ?? Self.defaultFrame(on: snapshot.primaryDescriptor)
             let display = try LegacyFrameDisplayResolver.resolve(
-                frame: initialFrame,
+                frame: requestedFrame,
                 in: snapshot
+            )
+            let initialFrame = Self.frameEnsuringMinimumContent(
+                requestedFrame,
+                iconSize: .medium,
+                visibleFrame: display.visibleFrame
             )
             let portal = try Portal(
                 folderURL: folderURL,
@@ -164,7 +169,26 @@ final class PortalCoordinator: PortalCoordinating {
                 }
                 var portal = portalStates[index]
                 portal.updateIconSize(iconSize)
+                let previousFrame = portal.frame
+                let minimumSize = Self.minimumWindowFrameSize(for: iconSize)
+                if previousFrame.width < minimumSize.width || previousFrame.height < minimumSize.height {
+                    let homeEntry = portal.placement.homeEntry
+                    let homeDisplay = DisplayDescriptor(
+                        identity: portal.placement.homeDisplay,
+                        visibleFrame: homeEntry.referenceVisibleFrame
+                    )
+                    let adjustedFrame = Self.frameEnsuringMinimumContent(
+                        previousFrame,
+                        iconSize: iconSize,
+                        visibleFrame: homeDisplay.visibleFrame
+                    )
+                    try portal.recordUserPlacement(frame: adjustedFrame, display: homeDisplay)
+                }
                 try await commit(portal, at: index)
+                if portal.frame != previousFrame {
+                    placementSessions[portalID] = try placementSession(for: portal)
+                    applyDisplayTopology(displaySnapshotProvider())
+                }
             }
             persistenceError = nil
         } catch {
@@ -639,6 +663,46 @@ final class PortalCoordinator: PortalCoordinating {
             width: size.width,
             height: size.height
         )
+    }
+
+    private static func minimumWindowFrameSize(for iconSize: IconSize) -> NSSize {
+        let contentRect = NSRect(
+            origin: .zero,
+            size: PortalViewController.minimumContentSize(for: iconSize)
+        )
+        return NSWindow.frameRect(
+            forContentRect: contentRect,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable]
+        ).size
+    }
+
+    private static func frameEnsuringMinimumContent(
+        _ frame: NSRect,
+        iconSize: IconSize,
+        visibleFrame: NSRect
+    ) -> NSRect {
+        let styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
+        let requestedContentSize = NSWindow.contentRect(
+            forFrameRect: NSRect(origin: .zero, size: frame.size),
+            styleMask: styleMask
+        ).size
+        let snappedContentSize = PortalViewController.snappedContentSize(
+            requestedContentSize,
+            for: iconSize
+        )
+        let snappedFrameSize = NSWindow.frameRect(
+            forContentRect: NSRect(origin: .zero, size: snappedContentSize),
+            styleMask: styleMask
+        ).size
+        let size = NSSize(
+            width: min(snappedFrameSize.width, visibleFrame.width),
+            height: min(snappedFrameSize.height, visibleFrame.height)
+        )
+        let origin = NSPoint(
+            x: min(max(frame.minX, visibleFrame.minX), visibleFrame.maxX - size.width),
+            y: min(max(frame.minY, visibleFrame.minY), visibleFrame.maxY - size.height)
+        )
+        return NSRect(origin: origin, size: size)
     }
 }
 

@@ -1,4 +1,5 @@
 import AppKit
+import AlcoveCore
 import XCTest
 @testable import Alcove
 
@@ -127,6 +128,41 @@ final class PortalWindowConfigurationTests: XCTestCase {
 
         XCTAssertEqual(commits, [NSRect(x: 80, y: 90, width: 400, height: 300)])
         XCTAssertFalse(window.isUserPlacementInteractionActive)
+    }
+
+    @MainActor
+    func testControllerSnapsContentSizeBeforeCommittingLiveResize() throws {
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/portal"),
+            frame: NSRect(x: 20, y: 30, width: 560, height: 480),
+            display: DisplayDescriptor(
+                identity: DisplayIdentity(rawValue: "test-display"),
+                visibleFrame: NSRect(x: 0, y: 0, width: 1440, height: 900)
+            ),
+            iconSize: .medium
+        )
+        let controller = PortalWindowController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(),
+            initialFrame: portal.frame
+        )
+        let window = try XCTUnwrap(controller.window as? PortalWindow)
+        let minimum = PortalViewController.minimumContentSize(for: .medium)
+        window.setContentSize(NSSize(width: minimum.width + 41, height: minimum.height + 73))
+        var commits: [NSRect] = []
+        controller.onUserPlacementCommit = { commits.append($0) }
+
+        controller.windowWillStartLiveResize(Notification(name: NSWindow.willStartLiveResizeNotification))
+        controller.windowDidEndLiveResize(Notification(name: NSWindow.didEndLiveResizeNotification))
+
+        XCTAssertEqual(
+            window.contentRect(forFrameRect: window.frame).size,
+            PortalViewController.snappedContentSize(
+                NSSize(width: minimum.width + 41, height: minimum.height + 73),
+                for: .medium
+            )
+        )
+        XCTAssertEqual(commits, [window.frame])
     }
 
     @MainActor

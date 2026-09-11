@@ -28,6 +28,32 @@ final class PortalViewController: NSViewController {
         return NSSize(width: gridSize.width, height: gridSize.height + tabBarHeight)
     }
 
+    static func snappedContentSize(_ requestedSize: NSSize, for iconSize: IconSize) -> NSSize {
+        let metrics = GridMetrics(iconSize: iconSize)
+        let minimum = minimumContentSize(for: iconSize)
+        let width = snappedExtent(
+            requestedSize.width,
+            minimum: minimum.width,
+            increment: metrics.itemSize.width + metrics.horizontalSpacing
+        )
+        let height = snappedExtent(
+            requestedSize.height,
+            minimum: minimum.height,
+            increment: metrics.itemSize.height + metrics.verticalSpacing
+        )
+        return NSSize(width: width, height: height)
+    }
+
+    private static func snappedExtent(
+        _ requested: CGFloat,
+        minimum: CGFloat,
+        increment: CGFloat
+    ) -> CGFloat {
+        let constrained = max(requested, minimum)
+        let steps = ((constrained - minimum) / increment).rounded(.toNearestOrAwayFromZero)
+        return minimum + steps * increment
+    }
+
     private var portal: Portal
     private let loadingCoordinator: FolderLoadingCoordinator
     private let tabBarView: TabBarView
@@ -168,7 +194,10 @@ final class PortalViewController: NSViewController {
         }
         if portal.selectedTabID != previousTabID || folderURL != previousFolderURL {
             onSelectionInvalidated?()
-            startObservation()
+            if isViewLoaded {
+                showLoading()
+                startObservation()
+            }
         }
     }
 
@@ -203,6 +232,8 @@ final class PortalViewController: NSViewController {
     }
 
     private func startObservation() {
+        loadTask?.cancel()
+        loadTask = nil
         observationTask?.cancel()
         observationCoordinator.stop()
         let root = folderURL

@@ -19,6 +19,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     }
     private let portalViewController: PortalViewController
     private let quickLookIntegration: QuickLookIntegration
+    private var iconSize: IconSize
 
     init(
         portal: Portal,
@@ -28,6 +29,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         quickLookIntegration: QuickLookIntegration = QuickLookIntegration()
     ) {
         self.quickLookIntegration = quickLookIntegration
+        iconSize = portal.iconSize
         portalViewController = PortalViewController(
             portal: portal,
             loadingCoordinator: loadingCoordinator
@@ -75,6 +77,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     }
 
     func updatePortal(_ portal: Portal) {
+        iconSize = portal.iconSize
         portalViewController.updatePortal(portal)
         window?.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconSize)
         let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
@@ -101,6 +104,12 @@ extension PortalWindowController: NSWindowDelegate {
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
-        (window as? PortalWindow)?.endUserResize()
+        guard let portalWindow = window as? PortalWindow else { return }
+        let contentSize = portalWindow.contentRect(forFrameRect: portalWindow.frame).size
+        let snappedSize = PortalViewController.snappedContentSize(contentSize, for: iconSize)
+        if snappedSize != contentSize {
+            portalWindow.setContentSize(snappedSize)
+        }
+        portalWindow.endUserResize()
     }
 }
