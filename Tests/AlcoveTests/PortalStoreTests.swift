@@ -123,6 +123,60 @@ final class PortalStoreTests: XCTestCase {
         }
     }
 
+    func testDuplicatePortalIDsAndRelativeFolderPathsAreRejected() async throws {
+        try await withStoreDirectory { directory in
+            let duplicateID = PortalID(rawValue: UUID())
+            let first = try Portal(
+                id: duplicateID,
+                folderURL: URL(fileURLWithPath: "/tmp/first"),
+                frame: CGRect(x: 0, y: 0, width: 320, height: 240)
+            )
+            let second = try Portal(
+                id: duplicateID,
+                folderURL: URL(fileURLWithPath: "/tmp/second"),
+                frame: CGRect(x: 20, y: 20, width: 320, height: 240)
+            )
+            let storeURL = directory.appendingPathComponent("portals.json")
+            do {
+                try await PortalStore(url: storeURL).save([first, second])
+                XCTFail("Duplicate portal IDs must not be stored")
+            } catch let error as PortalStoreError {
+                XCTAssertEqual(
+                    error,
+                    .duplicatePortalID(index: 1, id: duplicateID.rawValue)
+                )
+            }
+            XCTAssertFalse(FileManager.default.fileExists(atPath: storeURL.path))
+
+            let relativePathJSON = """
+            {
+              "version": 1,
+              "portals": [{
+                "id": "00000000-0000-0000-0000-000000000001",
+                "tabs": [{
+                  "id": "00000000-0000-0000-0000-000000000002",
+                  "folder_path": "relative/folder"
+                }],
+                "selected_tab_id": "00000000-0000-0000-0000-000000000002",
+                "frame": {"x": 0, "y": 0, "width": 300, "height": 240},
+                "icon_size": 64
+              }]
+            }
+            """
+            try Data(relativePathJSON.utf8).write(to: storeURL)
+            do {
+                _ = try await PortalStore(url: storeURL).load()
+                XCTFail("Relative folder paths must not restore")
+            } catch let error as PortalStoreError {
+                guard case .invalidPortal(let index, let reason) = error else {
+                    return XCTFail("Expected invalidPortal, got \(error)")
+                }
+                XCTAssertEqual(index, 0)
+                XCTAssertTrue(reason.contains("invalidFolderPath"))
+            }
+        }
+    }
+
     private func makePortal(path: String, x: CGFloat) throws -> Portal {
         try Portal(
             folderURL: URL(fileURLWithPath: path),

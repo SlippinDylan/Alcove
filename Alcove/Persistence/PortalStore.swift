@@ -48,10 +48,20 @@ actor PortalStore: PortalStoring {
         }
 
         var portals: [Portal] = []
+        var portalIDs = Set<PortalID>()
         portals.reserveCapacity(envelope.portals.count)
         for (index, dto) in envelope.portals.enumerated() {
             do {
-                portals.append(try dto.domainValue())
+                let portal = try dto.domainValue()
+                guard portalIDs.insert(portal.id).inserted else {
+                    throw PortalStoreError.duplicatePortalID(
+                        index: index,
+                        id: portal.id.rawValue
+                    )
+                }
+                portals.append(portal)
+            } catch let error as PortalStoreError {
+                throw error
             } catch {
                 throw PortalStoreError.invalidPortal(
                     index: index,
@@ -63,6 +73,16 @@ actor PortalStore: PortalStoring {
     }
 
     func save(_ portals: [Portal]) async throws {
+        var portalIDs = Set<PortalID>()
+        for (index, portal) in portals.enumerated() {
+            guard portalIDs.insert(portal.id).inserted else {
+                throw PortalStoreError.duplicatePortalID(
+                    index: index,
+                    id: portal.id.rawValue
+                )
+            }
+        }
+
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         var data = try encoder.encode(PortalEnvelopeDTO(portals: portals))

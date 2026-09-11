@@ -42,7 +42,7 @@ struct PortalDTO: Codable, Equatable {
         }
         return try Portal(
             id: PortalID(rawValue: id),
-            tabs: tabs.map { $0.domainValue() },
+            tabs: try tabs.map { try $0.domainValue() },
             selectedTabID: FolderTabID(rawValue: selectedTabID),
             frame: frame.cgRect,
             iconSize: iconSize
@@ -64,8 +64,11 @@ struct FolderTabDTO: Codable, Equatable {
         folderPath = tab.folderURL.path
     }
 
-    func domainValue() -> FolderTab {
-        FolderTab(
+    func domainValue() throws -> FolderTab {
+        guard folderPath.hasPrefix("/") else {
+            throw PortalStoreMappingError.invalidFolderPath(folderPath)
+        }
+        return FolderTab(
             id: FolderTabID(rawValue: id),
             folderURL: URL(fileURLWithPath: folderPath)
         )
@@ -92,6 +95,7 @@ struct FrameDTO: Codable, Equatable {
 
 enum PortalStoreMappingError: Error, Equatable {
     case invalidIconSize(Double)
+    case invalidFolderPath(String)
 }
 
 struct PortalStoreErrorMetadata: Equatable, Sendable {
@@ -109,6 +113,7 @@ enum PortalStoreError: Error, Equatable, Sendable {
     case corruptedFile(url: URL, metadata: PortalStoreErrorMetadata)
     case unsupportedVersion(Int)
     case invalidPortal(index: Int, reason: String)
+    case duplicatePortalID(index: Int, id: UUID)
     case writeFailed(url: URL, metadata: PortalStoreErrorMetadata)
     case writeAndCleanupFailed(
         url: URL,

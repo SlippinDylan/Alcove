@@ -265,9 +265,9 @@ Each slice produces a runnable, observable increment and adds only the domain or
 
 **Exit Gate:**
 - [ ] Current portal state survives restart.
-- [ ] JSON is versioned and human-readable.
-- [ ] Domain types are not Codable persistence DTOs.
-- [ ] No speculative migration framework or display-topology state machine has been added.
+- [x] JSON is versioned and human-readable.
+- [x] Domain types are not Codable persistence DTOs.
+- [x] No speculative migration framework or display-topology state machine has been added.
 
 ---
 

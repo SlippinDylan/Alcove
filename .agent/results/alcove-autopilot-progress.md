@@ -80,7 +80,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [ ] Slice 2 — Minimal Single Portal: Core, FolderAccess, portal/grid, 28 automated tests, and universal build complete; manual desktop/window/scroll checks remain.
 - [ ] Slice 3 — Selection and Opening: 8 Core selection tests and hosted input/opening tests complete; manual pointer/keyboard/NSWorkspace checks remain.
 - [ ] Slice 4 — Portal Creation Flow: geometry, overlay, picker, validation transaction, menu action, and 28 hosted tests complete; manual UI flow remains.
-- [ ] Slice 5 — Minimal Persistence.
+- [ ] Slice 5 — Minimal Persistence: v1 DTO/store, atomic failure preservation, startup restore, and frame writeback complete; manual relaunch remains.
 - [ ] Slice 6 — Tabs.
 - [ ] Slice 7 — Quick Look.
 - [ ] Slice 8 — Display Placement Persistence.
@@ -119,3 +119,4 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - 2026-09-11: Production Slice 2 added AlcoveCore, async FolderAccess, fixed-internal folder validation, the provisional desktop NSWindow, native icon grid, and loading/empty/error states. Nine package tests and 19 hosted tests pass; manual desktop-layer and interaction checks remain.
 - 2026-09-11: Production Slice 3 added Finder-style selection, keyboard navigation, and injected workspace opening. Seventeen Core tests and 22 hosted tests pass; real desktop focus and NSWorkspace behavior remain manual.
 - 2026-09-11: Production Slice 4 enabled New Portal and added constrained grid-snapped overlay geometry, async folder choice, fail-closed location validation, cancellation/retry, and concurrent-session suppression. Twenty-six Core tests and 28 hosted tests pass; visible creation remains manual.
+- 2026-09-11: Production Slice 5 added a validated non-Codable Portal aggregate, readable v1 DTOs, atomic PortalStore, startup restoration, and serialized frame persistence. Thirty-four Core tests and 38 hosted tests pass; manual relaunch remains.

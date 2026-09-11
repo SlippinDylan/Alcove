@@ -32,7 +32,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             startupTask = Task { [weak self] in
                 guard let self else { return }
                 do {
+                    try await portalCoordinator.restorePortals()
                     try await portalCoordinator.createPortal(for: startupFolderURL, frame: nil)
+                } catch {
+                    startupError = error
+                }
+            }
+        } else {
+            startupTask = Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await portalCoordinator.restorePortals()
                 } catch {
                     startupError = error
                 }

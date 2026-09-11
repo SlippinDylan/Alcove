@@ -26,6 +26,7 @@
 		100000000000000000000011 /* PortalWindowStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000013 /* PortalWindowStrategy.swift */; };
 		100000000000000000000012 /* PortalWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000014 /* PortalWindow.swift */; };
 		100000000000000000000013 /* PortalWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000015 /* PortalWindowController.swift */; };
+		100000000000000000000023 /* PortalWindowFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000025 /* PortalWindowFactory.swift */; };
 		100000000000000000000014 /* FolderAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* FolderAccessTests.swift */; };
 		100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000017 /* PortalCoordinatorTests.swift */; };
 		100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000018 /* FileGridViewControllerTests.swift */; };
@@ -75,6 +76,7 @@
 		200000000000000000000013 /* PortalWindowStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowStrategy.swift; sourceTree = "<group>"; };
 		200000000000000000000014 /* PortalWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindow.swift; sourceTree = "<group>"; };
 		200000000000000000000015 /* PortalWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowController.swift; sourceTree = "<group>"; };
+		200000000000000000000025 /* PortalWindowFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowFactory.swift; sourceTree = "<group>"; };
 		200000000000000000000016 /* FolderAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAccessTests.swift; sourceTree = "<group>"; };
 		200000000000000000000017 /* PortalCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCoordinatorTests.swift; sourceTree = "<group>"; };
 		200000000000000000000018 /* FileGridViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridViewControllerTests.swift; sourceTree = "<group>"; };
@@ -235,6 +237,7 @@
 				200000000000000000000013 /* PortalWindowStrategy.swift */,
 				200000000000000000000014 /* PortalWindow.swift */,
 				200000000000000000000015 /* PortalWindowController.swift */,
+				200000000000000000000025 /* PortalWindowFactory.swift */,
 			);
 			path = PortalWindowing;
 			sourceTree = "<group>";
@@ -385,6 +388,7 @@
 				100000000000000000000011 /* PortalWindowStrategy.swift in Sources */,
 				100000000000000000000012 /* PortalWindow.swift in Sources */,
 				100000000000000000000013 /* PortalWindowController.swift in Sources */,
+				100000000000000000000023 /* PortalWindowFactory.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
