@@ -78,6 +78,8 @@ Domain models and pure layout math. Zero AppKit imports.
 - `IconSize` — validated icon dimension value type
 - `ColumnCount` — validated column count value type
 - `GridLayout` — computes item frames from container size, icon size, column count, and spacing
+- `PlacementGeometry` — captures and restores per-display frames with normalized movable-range anchors
+- `PlacementStateMachine` — preserves user-confirmed home placement while emitting transient topology directives
 
 ### 3.2 AlcoveApp
 

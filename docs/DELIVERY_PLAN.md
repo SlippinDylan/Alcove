@@ -353,7 +353,7 @@ are observed on the supported desktop-window configurations.
 **Exit Gate:**
 - [ ] Placement survives the verified topology scenarios.
 - [ ] Home placement is preserved across system-driven moves.
-- [ ] Pure placement-state tests cover critical and exceptional paths.
+- [x] Production AlcoveCore placement-state tests cover critical and exceptional paths.
 
 ---
 
