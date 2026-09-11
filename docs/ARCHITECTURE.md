@@ -98,6 +98,7 @@ App entry point and global coordination.
   - `collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]`
 - The spike harness must make strategies switchable and compare `.stationary`, `.moveToActiveSpace`, `.fullScreenAuxiliary`, use or omission of `.canJoinAllSpaces`, `NSWindow` versus `NSPanel`, and whether the portal may become key.
 - Final window level, collection behaviors, window class, and key-window policy are provisional until Spike 0.1 is resolved.
+- Production development uses the replaceable Phase 0.1D default: key-eligible `NSWindow`, `desktopIconWindow + 1`, and `[.canJoinAllSpaces, .stationary, .ignoresCycle]`. This is an implementation starting point, not a claim that the manual WindowServer matrix passed.
 - Regardless of the selected strategy, the portal must provide:
   - `isMovableByWindowBackground = true`
   - Standard resize from edges/corners

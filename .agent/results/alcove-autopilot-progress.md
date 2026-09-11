@@ -19,6 +19,7 @@ This checklist mirrors `docs/DELIVERY_PLAN.md`. A checked item means its require
 - [x] Phase 0.1B `NSWindow` strategy model and switchable combinations complete.
 - [x] Phase 0.1C `NSWindow`/`NSPanel` and key-window lifecycle comparison complete.
 - [x] Reproducible 12-variant manual system-transition protocol prepared with every result `NR`.
+- [x] Replaceable key-eligible `NSWindow` desktop development default recorded; not a final manual-gate decision.
 - [ ] Finder icon and normal-window layer ordering manually recorded.
 - [ ] Spaces, Show Desktop, and Mission Control manually recorded.
 - [ ] Stage Manager and full-screen behavior manually recorded.

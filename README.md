@@ -46,6 +46,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 | [Research](docs/RESEARCH.md) | Evidence table, API analysis, reference project inspections |
 | [Delivery Plan](docs/DELIVERY_PLAN.md) | Phase 0 spikes, incremental slices, test matrix, gates |
 | [Desktop Window Spike](docs/SPIKE_DESKTOP_WINDOW.md) | Disposable AppKit harness, automated evidence, and pending manual matrix |
+| [Desktop Window Development Default](docs/SPIKE_DESKTOP_WINDOW_DEVELOPMENT_DEFAULT.md) | Replaceable NSWindow starting configuration; manual gate remains open |
 | [Display Placement Spike](docs/SPIKE_DISPLAY_PLACEMENT.md) | Pure placement geometry evidence and pending screen/topology validation |
 | [Folder Location Eligibility Spike](docs/SPIKE_FOLDER_LOCATION_ELIGIBILITY.md) | Internal fixed local-storage acceptance and unsupported-volume rejection |
 | [Folder Observation Decision](docs/SPIKE_FOLDER_OBSERVATION_DECISION.md) | FSEvents selection and fail-closed recovery contract |

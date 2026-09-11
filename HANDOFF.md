@@ -10,6 +10,8 @@ Historical spike summaries below retain the scope that applied when they were ru
 
 The user confirmed on 2026-09-11 that the documented full feature set remains the MVP target; do not reduce it to a smaller product scope. Intermediate vertical slices may be incomplete engineering milestones, but MVP completion still requires the full PRD acceptance set. Formal signing work remains deferred behind the separate Spike 0.6 release gate and must not block current product work.
 
+Phase 0.1D records a replaceable production-development window default: key-eligible `NSWindow`, `desktopIconWindow + 1`, and `[.canJoinAllSpaces, .stationary, .ignoresCycle]`. It permits production scaffolding but does not close the manual WindowServer behavior gate.
+
 ## 1. What We Are Building
 
 Alcove is a native macOS menu-bar app that creates movable, resizable desktop folder portals. Each portal displays the direct children of a user-selected folder on the Mac's internal, fixed local storage in a native icon grid, supports multiple folder tabs, and can coexist with other portals across multiple displays.

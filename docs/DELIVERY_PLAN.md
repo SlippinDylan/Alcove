@@ -133,13 +133,13 @@ Each spike records its findings in `docs/SPIKE_<name>.md`. The candidate archite
 
 ## Phase 1: Vertical Slices to MVP
 
-Each slice produces a runnable, observable increment and adds only the domain or infrastructure required by that increment. Spikes 0.1–0.5 must be resolved before Slice 1 because they define the production architecture boundary. Spike 0.6 may continue in parallel and blocks only the first public GitHub Release.
+Each slice produces a runnable, observable increment and adds only the domain or infrastructure required by that increment. Recorded, replaceable development defaults may unblock implementation while manual Phase 0 gates continue; unresolved gates still block the affected MVP acceptance criteria and architecture from being called final. Spike 0.6 may continue in parallel and blocks only the first public GitHub Release.
 
 ### Slice 1 — App Shell and Menu Bar
 
 **Goal:** Launchable LSUIElement app with a menu-bar icon, disabled "New Portal" item, and "Quit"; no portal window yet.
 
-**Entry Gate:** Spikes 0.1–0.5 are resolved with recorded evidence and explicit architecture or product-scope decisions; the candidate architecture has been updated and locked for production implementation. Spike 0.6 is not an entry requirement.
+**Entry Gate:** The production module boundaries and replaceable development defaults are recorded. Phase 0.1D supplies the provisional window default; unresolved manual system behavior remains an MVP exit gate rather than a blocker for the app shell. Spike 0.6 is not an entry requirement.
 
 **Deliverables:**
 - Xcode project with universal binary target (arm64 + x86_64).
