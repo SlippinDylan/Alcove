@@ -14,6 +14,8 @@ final class FileGridViewController: NSViewController {
     private var items: [FileItem] = []
     private(set) var selectionState = SelectionState()
     private(set) var failedOpenURLs: [URL] = []
+    var onQuickLookRequested: (([URL]) -> Void)?
+    var onSelectionChanged: (([URL]) -> Void)?
 
     init(workspaceOpener: any WorkspaceOpening = SystemWorkspaceOpener()) {
         self.workspaceOpener = workspaceOpener
@@ -138,6 +140,13 @@ final class FileGridViewController: NSViewController {
             applySelection()
         case .openSelection:
             openSelection()
+        case .toggleQuickLook:
+            let urls = items.compactMap { item in
+                selectionState.selectedIDs.contains(item.id) ? item.url : nil
+            }
+            if !urls.isEmpty {
+                onQuickLookRequested?(urls)
+            }
         case .noOperation:
             break
         }
@@ -196,6 +205,10 @@ final class FileGridViewController: NSViewController {
                 : nil
         })
         collectionView.selectionIndexPaths = selectedPaths
+        let selectedURLs = items.compactMap { item in
+            selectionState.selectedIDs.contains(item.id) ? item.url : nil
+        }
+        onSelectionChanged?(selectedURLs)
     }
 }
 

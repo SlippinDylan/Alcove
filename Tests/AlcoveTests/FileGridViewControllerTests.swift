@@ -102,13 +102,32 @@ final class FileGridViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testQuickLookRequestUsesSelectedItemsInGridOrderAndIgnoresEmptySelection() {
+        let items = makeItems(count: 3)
+        let controller = FileGridViewController()
+        controller.loadView()
+        controller.setItems(items)
+        var requests: [[URL]] = []
+        controller.onQuickLookRequested = { requests.append($0) }
+
+        controller.handleKeyCommand(.toggleQuickLook)
+        XCTAssertTrue(requests.isEmpty)
+
+        controller.handleClick(index: 2, modifiers: [])
+        controller.handleClick(index: 0, modifiers: .command)
+        controller.handleKeyCommand(.toggleQuickLook)
+
+        XCTAssertEqual(requests, [[items[0].url, items[2].url]])
+    }
+
+    @MainActor
     func testKeyCodesMapToFinderCommands() {
         XCTAssertEqual(FileCollectionView.command(keyCode: 0, modifiers: .command), .selectAll)
         XCTAssertEqual(FileCollectionView.command(keyCode: 31, modifiers: .command), .openSelection)
         XCTAssertEqual(FileCollectionView.command(keyCode: 125, modifiers: .command), .openSelection)
         XCTAssertEqual(FileCollectionView.command(keyCode: 123, modifiers: .shift), .moveLeft(extending: true))
         XCTAssertEqual(FileCollectionView.command(keyCode: 36, modifiers: []), .noOperation)
-        XCTAssertNil(FileCollectionView.command(keyCode: 49, modifiers: []))
+        XCTAssertEqual(FileCollectionView.command(keyCode: 49, modifiers: []), .toggleQuickLook)
     }
 
     private func makeItems(count: Int) -> [FileItem] {

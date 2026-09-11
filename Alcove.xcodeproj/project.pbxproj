@@ -30,6 +30,9 @@
 		100000000000000000000024 /* TabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000026 /* TabBarView.swift */; };
 		100000000000000000000025 /* LastTabRemovalConfirmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000027 /* LastTabRemovalConfirmer.swift */; };
 		100000000000000000000026 /* TabBarViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000028 /* TabBarViewTests.swift */; };
+		100000000000000000000027 /* QuickLookIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000029 /* QuickLookIntegration.swift */; };
+		100000000000000000000028 /* QuickLookIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002A /* QuickLookIntegrationTests.swift */; };
+		100000000000000000000029 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002B /* Quartz.framework */; };
 		100000000000000000000014 /* FolderAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* FolderAccessTests.swift */; };
 		100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000017 /* PortalCoordinatorTests.swift */; };
 		100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000018 /* FileGridViewControllerTests.swift */; };
@@ -83,6 +86,9 @@
 		200000000000000000000026 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
 		200000000000000000000027 /* LastTabRemovalConfirmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastTabRemovalConfirmer.swift; sourceTree = "<group>"; };
 		200000000000000000000028 /* TabBarViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarViewTests.swift; sourceTree = "<group>"; };
+		200000000000000000000029 /* QuickLookIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookIntegration.swift; sourceTree = "<group>"; };
+		20000000000000000000002A /* QuickLookIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookIntegrationTests.swift; sourceTree = "<group>"; };
+		20000000000000000000002B /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
 		200000000000000000000016 /* FolderAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAccessTests.swift; sourceTree = "<group>"; };
 		200000000000000000000017 /* PortalCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCoordinatorTests.swift; sourceTree = "<group>"; };
 		200000000000000000000018 /* FileGridViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridViewControllerTests.swift; sourceTree = "<group>"; };
@@ -107,6 +113,7 @@
 			files = (
 				100000000000000000000008 /* AlcoveCore in Frameworks */,
 				100000000000000000000004 /* AppKit.framework in Frameworks */,
+				100000000000000000000029 /* Quartz.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -140,6 +147,7 @@
 				70000000000000000000000D /* PortalCreation */,
 				70000000000000000000000B /* PortalPresentation */,
 				70000000000000000000000C /* PortalWindowing */,
+				70000000000000000000000F /* QuickLookIntegration */,
 				70000000000000000000000E /* Persistence */,
 				700000000000000000000004 /* Resources */,
 			);
@@ -182,6 +190,7 @@
 				200000000000000000000017 /* PortalCoordinatorTests.swift */,
 				200000000000000000000020 /* PortalCreationCoordinatorTests.swift */,
 				200000000000000000000024 /* PortalStoreTests.swift */,
+				20000000000000000000002A /* QuickLookIntegrationTests.swift */,
 				200000000000000000000028 /* TabBarViewTests.swift */,
 				20000000000000000000001A /* PortalViewControllerTests.swift */,
 				200000000000000000000019 /* PortalWindowConfigurationTests.swift */,
@@ -194,6 +203,7 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000007 /* AppKit.framework */,
+				20000000000000000000002B /* Quartz.framework */,
 				200000000000000000000008 /* XCTest.framework */,
 			);
 			name = Frameworks;
@@ -249,6 +259,14 @@
 				200000000000000000000025 /* PortalWindowFactory.swift */,
 			);
 			path = PortalWindowing;
+			sourceTree = "<group>";
+		};
+		70000000000000000000000F /* QuickLookIntegration */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000029 /* QuickLookIntegration.swift */,
+			);
+			path = QuickLookIntegration;
 			sourceTree = "<group>";
 		};
 		70000000000000000000000D /* PortalCreation */ = {
@@ -400,6 +418,7 @@
 				100000000000000000000012 /* PortalWindow.swift in Sources */,
 				100000000000000000000013 /* PortalWindowController.swift in Sources */,
 				100000000000000000000023 /* PortalWindowFactory.swift in Sources */,
+				100000000000000000000027 /* QuickLookIntegration.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -413,6 +432,7 @@
 				100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */,
 				10000000000000000000001E /* PortalCreationCoordinatorTests.swift in Sources */,
 				100000000000000000000022 /* PortalStoreTests.swift in Sources */,
+				100000000000000000000028 /* QuickLookIntegrationTests.swift in Sources */,
 				100000000000000000000026 /* TabBarViewTests.swift in Sources */,
 				100000000000000000000018 /* PortalViewControllerTests.swift in Sources */,
 				100000000000000000000017 /* PortalWindowConfigurationTests.swift in Sources */,

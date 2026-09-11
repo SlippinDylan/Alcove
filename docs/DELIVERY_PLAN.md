@@ -320,7 +320,11 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Exit Gate:**
 - [ ] Single- and multi-item Quick Look work.
 - [ ] Ownership and dismissal match Spike 0.3 evidence.
-- [ ] No stale panel data source or delegate remains.
+- [x] Automated lifecycle coverage leaves no stale panel data source or delegate owned by Alcove.
+
+The production integration and adapter-backed automated coverage are complete. The first two
+items remain open until real `QLPreviewPanel` rendering, navigation, dismissal, and focus handoff
+are observed on the supported desktop-window configurations.
 
 ---
 

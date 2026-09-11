@@ -21,6 +21,9 @@ final class PortalViewController: NSViewController {
     var onSelectTab: ((FolderTabID) -> Void)?
     var onAddTab: (() -> Void)?
     var onCloseTab: ((FolderTabID) -> Void)?
+    var onQuickLookRequested: (([URL]) -> Void)?
+    var onQuickLookSelectionChanged: (([URL]) -> Void)?
+    var onSelectionInvalidated: (() -> Void)?
 
     init(portal: Portal, loadingCoordinator: FolderLoadingCoordinator) {
         self.portal = portal
@@ -50,6 +53,12 @@ final class PortalViewController: NSViewController {
         rootView.addSubview(tabBarView)
 
         addChild(gridViewController)
+        gridViewController.onQuickLookRequested = { [weak self] urls in
+            self?.onQuickLookRequested?(urls)
+        }
+        gridViewController.onSelectionChanged = { [weak self] urls in
+            self?.onQuickLookSelectionChanged?(urls)
+        }
         let gridView = gridViewController.view
         gridView.translatesAutoresizingMaskIntoConstraints = false
         rootView.addSubview(gridView)
@@ -111,6 +120,7 @@ final class PortalViewController: NSViewController {
             tabBarView.configure(with: portal)
         }
         if portal.selectedTabID != previousTabID {
+            onSelectionInvalidated?()
             load()
         }
     }

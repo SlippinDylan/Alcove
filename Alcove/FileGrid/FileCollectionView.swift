@@ -7,6 +7,7 @@ enum FileGridKeyCommand: Equatable {
     case moveDown(extending: Bool)
     case selectAll
     case openSelection
+    case toggleQuickLook
     case noOperation
 }
 
@@ -62,6 +63,8 @@ final class FileCollectionView: NSCollectionView {
             return .openSelection
         case 36, 76:
             return .noOperation
+        case 49:
+            return .toggleQuickLook
         default:
             return nil
         }

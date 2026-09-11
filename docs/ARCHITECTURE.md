@@ -128,9 +128,10 @@ Visual chrome inside each portal window.
 
 `QLPreviewPanel` integration via responder chain.
 
-- Implements `QLPreviewPanelDataSource` and `QLPreviewPanelDelegate`
-- Injected into the responder chain between `PortalWindow` and `NSApplication`
-- Intended behavior is to present on Space when selection is non-empty and dismiss on second Space; the spike validates the exact panel lifecycle
+- A dedicated `QuickLookIntegration` responder implements `QLPreviewPanelDataSource` and `QLPreviewPanelDelegate`
+- `PortalWindowController` inserts it between `PortalWindow` and the window's previous responder, then restores the exact previous link on detach
+- The integration owns an ordered URL snapshot, presents on Space when selection is non-empty, and dismisses on second Space only while Alcove still owns the visible panel
+- Tab switches invalidate the old URL snapshot and relinquish panel control; window teardown clears only data-source/delegate references still owned by that integration
 - **Prototype gate:** responder chain behavior requires spike validation on each macOS version target
 
 ### 3.7 FolderAccess
@@ -558,25 +559,26 @@ PortalViewController
 ## 10. Quick Look Responder Chain Ownership
 
 ```
-NSApplication
-    │
+FileCollectionView
+    │ Space forwards the ordered selection
     ▼
-PortalWindow  (key-window eligibility is selected by Spike 0.1)
-    │
+PortalWindow
+    │ nextResponder
     ▼
-PortalViewController  (implements QLPreviewPanelDataSource, QLPreviewPanelDelegate)
-    │
+QuickLookIntegration  (QLPreviewPanelDataSource, QLPreviewPanelDelegate)
+    │ preserves the former successor
     ▼
-FileGridViewController  (forwards keyDown: Space to parent)
+PortalWindowController / NSApplication
 ```
 
-- `QLPreviewPanel` is shared and responder-chain controlled. `PortalViewController` overrides `acceptsPreviewPanelControl(_:)` → returns `true` when selection is non-empty.
-- On Space, the owning controller obtains the shared panel, sets its data source/delegate, and calls `makeKeyAndOrderFront(nil)` to present it; while the panel is visible, Space calls `orderOut(nil)` to dismiss it. The spike validates this behavior for Alcove's window configuration.
-- The controller assigns/clears `dataSource` and `delegate` only while it owns control of the panel.
+- `QLPreviewPanel` is shared and responder-chain controlled. `QuickLookIntegration` accepts control only when its ordered selection snapshot is non-empty.
+- On Space, the grid passes selected URLs in grid order. The integration obtains the shared panel, sets its data source/delegate, and calls `makeKeyAndOrderFront(nil)`; a second Space calls `orderOut(nil)` only if this integration still owns the visible panel.
+- The integration assigns and clears `dataSource` and `delegate` only while it owns those references. It never clears or dismisses a panel already taken over by another responder.
 - The panel shows previews for all selected items (multi-item preview with arrow navigation).
-- Dismissal behavior when portal loses key window status is spike-validated; do not assume it always dismisses merely because the portal loses key status.
+- A tab switch invalidates the outgoing selection and relinquishes control. Window close detaches the responder and clears owned panel references.
+- Dismissal behavior when the portal loses key-window status remains manual/spike-validated; do not assume it always dismisses merely because the portal loses key status.
 
-**Prototype Gate:** The exact responder chain injection point and `QLPreviewPanel` behavior from Alcove's borderless desktop-level key window across macOS 15–26 requires spike validation. The panel may need explicit `dataSource`/`delegate` assignment rather than relying solely on responder chain auto-discovery.
+**Prototype Gate:** Automated tests verify selection ordering, explicit ownership, takeover safety, second-Space dismissal policy, and responder restoration. Actual preview rendering, carousel navigation, focus handoff, and desktop-level behavior across macOS 15–26 still require manual validation.
 
 ---
 

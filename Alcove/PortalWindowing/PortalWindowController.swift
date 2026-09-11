@@ -14,13 +14,16 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         didSet { portalViewController.onCloseTab = onCloseTab }
     }
     private let portalViewController: PortalViewController
+    private let quickLookIntegration: QuickLookIntegration
 
     init(
         portal: Portal,
         loadingCoordinator: FolderLoadingCoordinator,
         initialFrame: NSRect? = nil,
-        strategy: PortalWindowStrategy = .developmentDefault
+        strategy: PortalWindowStrategy = .developmentDefault,
+        quickLookIntegration: QuickLookIntegration = QuickLookIntegration()
     ) {
+        self.quickLookIntegration = quickLookIntegration
         portalViewController = PortalViewController(
             portal: portal,
             loadingCoordinator: loadingCoordinator
@@ -35,6 +38,16 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         super.init(window: window)
         shouldCascadeWindows = false
         window.delegate = self
+        portalViewController.onQuickLookRequested = { [weak quickLookIntegration] urls in
+            quickLookIntegration?.handleSpace(for: urls)
+        }
+        portalViewController.onQuickLookSelectionChanged = { [weak quickLookIntegration] urls in
+            quickLookIntegration?.updateSelection(urls)
+        }
+        portalViewController.onSelectionInvalidated = { [weak quickLookIntegration] in
+            quickLookIntegration?.invalidateSelection()
+        }
+        quickLookIntegration.install(in: window)
         if initialFrame == nil {
             window.center()
         }
@@ -58,6 +71,10 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
 }
 
 extension PortalWindowController: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        quickLookIntegration.detach()
+    }
+
     func windowDidMove(_ notification: Notification) {
         publishFrame()
     }
