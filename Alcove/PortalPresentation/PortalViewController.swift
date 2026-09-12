@@ -91,6 +91,7 @@ final class PortalViewController: NSViewController {
     private let stateLabel = NSTextField(labelWithString: "")
     private let recoveryButton = NSButton()
     private let progressIndicator = NSProgressIndicator()
+    private let resizeCapacityOverlay = PortalResizeCapacityOverlay()
     private var loadTask: Task<Void, Never>?
     private var observationTask: Task<Void, Never>?
     private var runtimeStates: [FolderTabID: FileGridRuntimeState] = [:]
@@ -187,6 +188,10 @@ final class PortalViewController: NSViewController {
         progressIndicator.isHidden = true
         rootView.addSubview(progressIndicator)
 
+        resizeCapacityOverlay.translatesAutoresizingMaskIntoConstraints = false
+        resizeCapacityOverlay.isHidden = true
+        rootView.addSubview(resizeCapacityOverlay)
+
         NSLayoutConstraint.activate([
             portalMaterialView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             portalMaterialView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
@@ -208,8 +213,23 @@ final class PortalViewController: NSViewController {
             recoveryButton.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             progressIndicator.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             progressIndicator.bottomAnchor.constraint(equalTo: stateLabel.topAnchor, constant: -12),
+            resizeCapacityOverlay.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            resizeCapacityOverlay.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            resizeCapacityOverlay.topAnchor.constraint(equalTo: rootView.topAnchor),
+            resizeCapacityOverlay.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
         ])
         view = rootView
+    }
+
+    func showResizeCapacityPreview(_ preview: GridCapacityPreview) {
+        loadViewIfNeeded()
+        resizeCapacityOverlay.preview = preview
+        resizeCapacityOverlay.isHidden = false
+    }
+
+    func hideResizeCapacityPreview() {
+        guard isViewLoaded else { return }
+        resizeCapacityOverlay.isHidden = true
     }
 
     override func viewDidAppear() {
@@ -468,5 +488,52 @@ final class PortalViewController: NSViewController {
             preconditionFailure("Portal selected-tab invariant violated")
         }
         return tab.folderURL
+    }
+}
+
+@MainActor
+private final class PortalResizeCapacityOverlay: NSView {
+    var preview: GridCapacityPreview? {
+        didSet { needsDisplay = true }
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let preview else { return }
+        let committed = "\(preview.capacity.columns) × \(preview.capacity.rows)"
+        let text: String
+        if let candidate = preview.candidateCapacity {
+            text = "\(committed)  →  \(candidate.columns) × \(candidate.rows)"
+        } else {
+            text = committed
+        }
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold),
+            .foregroundColor: NSColor.labelColor,
+        ]
+        let attributedText = NSAttributedString(string: text, attributes: attributes)
+        let textSize = attributedText.size()
+        let badge = NSRect(
+            x: bounds.midX - (textSize.width + 28) / 2,
+            y: 14,
+            width: textSize.width + 28,
+            height: 32
+        )
+        NSColor.windowBackgroundColor.withAlphaComponent(0.72).setFill()
+        NSBezierPath(roundedRect: badge, xRadius: 16, yRadius: 16).fill()
+        let border = NSBezierPath(roundedRect: badge, xRadius: 16, yRadius: 16)
+        border.lineWidth = 1.5
+        border.setLineDash([5, 4], count: 2, phase: 0)
+        NSColor.controlAccentColor.withAlphaComponent(0.8).setStroke()
+        border.stroke()
+        attributedText.draw(
+            at: NSPoint(
+                x: badge.midX - textSize.width / 2,
+                y: badge.midY - textSize.height / 2
+            )
+        )
     }
 }

@@ -90,4 +90,32 @@ final class GridLayoutTests: XCTestCase {
             )
         }
     }
+
+    func testCapacityPreviewExposesOnlyTheUncommittedHalfCell() throws {
+        let minimumSize = metrics.contentSize(for: .minimum)
+        let columnPitch = metrics.itemSize.width + metrics.horizontalSpacing
+        let rowPitch = metrics.itemSize.height + metrics.verticalSpacing
+        let belowThreshold = try metrics.capacityPreview(
+            for: CGSize(
+                width: minimumSize.width + columnPitch * 0.2,
+                height: minimumSize.height + rowPitch * 0.2
+            )
+        )
+        let atThreshold = try metrics.capacityPreview(
+            for: CGSize(
+                width: minimumSize.width + columnPitch * 0.5,
+                height: minimumSize.height + rowPitch * 0.5
+            )
+        )
+
+        XCTAssertEqual(belowThreshold.capacity, .minimum)
+        XCTAssertEqual(
+            belowThreshold.candidateCapacity,
+            try GridCapacity(columns: 4, rows: 2)
+        )
+        XCTAssertEqual(belowThreshold.ghostColumnProgress, 0.4, accuracy: 0.001)
+        XCTAssertEqual(belowThreshold.ghostRowProgress, 0.4, accuracy: 0.001)
+        XCTAssertEqual(atThreshold.capacity, try GridCapacity(columns: 4, rows: 2))
+        XCTAssertNil(atThreshold.candidateCapacity)
+    }
 }

@@ -4,6 +4,7 @@ import AppKit
 @MainActor
 protocol PortalWindowPresenting: AnyObject {
     var onUserPlacementCommit: ((NSRect) -> Void)? { get set }
+    var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)? { get set }
     var onUserPlacementInteractionCancelled: (() -> Void)? { get set }
     var onSelectTab: ((FolderTabID) -> Void)? { get set }
     var onAddTab: (() -> Void)? { get set }

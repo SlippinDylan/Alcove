@@ -36,6 +36,20 @@ public enum GridCapacityError: Error, Equatable, Sendable {
     case nonFiniteContentSize(CGSize)
 }
 
+public struct GridCapacityPreview: Sendable, Hashable {
+    public let capacity: GridCapacity
+    public let ghostColumnProgress: CGFloat
+    public let ghostRowProgress: CGFloat
+
+    public var candidateCapacity: GridCapacity? {
+        guard ghostColumnProgress > 0 || ghostRowProgress > 0 else { return nil }
+        return GridCapacity(
+            validatedColumns: capacity.columns + (ghostColumnProgress > 0 ? 1 : 0),
+            validatedRows: capacity.rows + (ghostRowProgress > 0 ? 1 : 0)
+        )
+    }
+}
+
 /// Measurements shared by a portal's tab strip and its grid content.
 public enum PortalLayoutMetrics {
     public static let tabBarHeight: CGFloat = 40
@@ -127,10 +141,14 @@ public struct GridMetrics: Sendable, Hashable {
 
     /// Quantizes a grid content extent to the nearest valid portal capacity.
     public func nearestCapacity(for contentSize: CGSize) throws -> GridCapacity {
+        try capacityPreview(for: contentSize).capacity
+    }
+
+    public func capacityPreview(for contentSize: CGSize) throws -> GridCapacityPreview {
         guard contentSize.width.isFinite, contentSize.height.isFinite else {
             throw GridCapacityError.nonFiniteContentSize(contentSize)
         }
-        let columns = nearestCount(
+        let horizontal = nearestAxis(
             extent: contentSize.width,
             leadingInset: contentInsets.leading,
             trailingInset: contentInsets.trailing,
@@ -138,7 +156,7 @@ public struct GridMetrics: Sendable, Hashable {
             spacing: horizontalSpacing,
             minimum: GridCapacity.minimum.columns
         )
-        let rows = nearestCount(
+        let vertical = nearestAxis(
             extent: contentSize.height,
             leadingInset: contentInsets.top,
             trailingInset: contentInsets.bottom,
@@ -146,20 +164,37 @@ public struct GridMetrics: Sendable, Hashable {
             spacing: verticalSpacing,
             minimum: GridCapacity.minimum.rows
         )
-        return GridCapacity(validatedColumns: columns, validatedRows: rows)
+        return GridCapacityPreview(
+            capacity: GridCapacity(
+                validatedColumns: horizontal.count,
+                validatedRows: vertical.count
+            ),
+            ghostColumnProgress: horizontal.ghostProgress,
+            ghostRowProgress: vertical.ghostProgress
+        )
     }
 
-    private func nearestCount(
+    private func nearestAxis(
         extent: CGFloat,
         leadingInset: CGFloat,
         trailingInset: CGFloat,
         itemExtent: CGFloat,
         spacing: CGFloat,
         minimum: Int
-    ) -> Int {
-        let count = ((extent - leadingInset - trailingInset + spacing) / (itemExtent + spacing))
-            .rounded(.toNearestOrAwayFromZero)
-        return max(minimum, Int(count))
+    ) -> (count: Int, ghostProgress: CGFloat) {
+        let rawCount = max(
+            CGFloat(minimum),
+            (extent - leadingInset - trailingInset + spacing) / (itemExtent + spacing)
+        )
+        let roundedCount = Int(rawCount.rounded(.toNearestOrAwayFromZero))
+        let lowerCount = Int(rawCount.rounded(.down))
+        let ghostProgress: CGFloat
+        if roundedCount == lowerCount {
+            ghostProgress = min(1, (rawCount - CGFloat(lowerCount)) * 2)
+        } else {
+            ghostProgress = 0
+        }
+        return (roundedCount, ghostProgress)
     }
 }
 

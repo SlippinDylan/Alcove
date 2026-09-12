@@ -136,7 +136,7 @@ final class PortalWindowConfigurationTests: XCTestCase {
     func testUserResizeCommitsOnceAtLiveResizeEnd() {
         let window = makeWindow()
         var commits: [NSRect] = []
-        window.onUserPlacementCommit = { commits.append($0) }
+        window.onUserResizeCommit = { commits.append($0) }
         window.beginUserResize()
         window.setFrame(NSRect(x: 80, y: 90, width: 400, height: 300), display: false)
 
@@ -168,8 +168,8 @@ final class PortalWindowConfigurationTests: XCTestCase {
         let window = try XCTUnwrap(controller.window as? PortalWindow)
         let minimum = PortalViewController.minimumContentSize(for: .medium)
         window.setContentSize(NSSize(width: minimum.width + 41, height: minimum.height + 73))
-        var commits: [NSRect] = []
-        controller.onUserPlacementCommit = { commits.append($0) }
+        var commits: [(NSRect, GridCapacity)] = []
+        controller.onUserResizeCommit = { commits.append(($0, $1)) }
 
         controller.windowWillStartLiveResize(Notification(name: NSWindow.willStartLiveResizeNotification))
         controller.windowDidEndLiveResize(Notification(name: NSWindow.didEndLiveResizeNotification))
@@ -181,7 +181,60 @@ final class PortalWindowConfigurationTests: XCTestCase {
                 for: .medium
             )
         )
-        XCTAssertEqual(commits, [window.frame])
+        XCTAssertEqual(commits.count, 1)
+        XCTAssertEqual(commits[0].0, window.frame)
+        XCTAssertEqual(commits[0].1, try GridCapacity(columns: 3, rows: 2))
+    }
+
+    @MainActor
+    func testControllerSwitchesCapacityAtHalfCellThresholdsDuringLiveResize() throws {
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/portal"),
+            frame: NSRect(x: 20, y: 30, width: 560, height: 480),
+            display: DisplayDescriptor(
+                identity: DisplayIdentity(rawValue: "test-display"),
+                visibleFrame: NSRect(x: 0, y: 0, width: 1440, height: 900)
+            )
+        )
+        let controller = PortalWindowController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(),
+            initialFrame: portal.frame
+        )
+        let window = try XCTUnwrap(controller.window)
+        let minimum = PortalViewController.contentSize(
+            for: .minimum,
+            iconLayout: portal.iconLayout
+        )
+        let metrics = GridMetrics(iconSize: portal.iconSize, labelFontSize: portal.textSize)
+        let columnPitch = metrics.itemSize.width + metrics.horizontalSpacing
+        let rowPitch = metrics.itemSize.height + metrics.verticalSpacing
+
+        let belowThreshold = frameSize(
+            for: NSSize(
+                width: minimum.width + columnPitch * 0.2,
+                height: minimum.height + rowPitch * 0.2
+            ),
+            in: window
+        )
+        let belowResult = controller.windowWillResize(window, toFrameSize: belowThreshold)
+        XCTAssertEqual(contentSize(for: belowResult, in: window), minimum)
+
+        let threshold = frameSize(
+            for: NSSize(
+                width: minimum.width + columnPitch * 0.5,
+                height: minimum.height + rowPitch * 0.5
+            ),
+            in: window
+        )
+        let thresholdResult = controller.windowWillResize(window, toFrameSize: threshold)
+        XCTAssertEqual(
+            contentSize(for: thresholdResult, in: window),
+            PortalViewController.contentSize(
+                for: try GridCapacity(columns: 4, rows: 2),
+                iconLayout: portal.iconLayout
+            )
+        )
     }
 
     @MainActor
@@ -266,7 +319,7 @@ final class PortalWindowConfigurationTests: XCTestCase {
         let window = makeWindow()
         var commits: [NSRect] = []
         var cancellationCount = 0
-        window.onUserPlacementCommit = { commits.append($0) }
+        window.onUserResizeCommit = { commits.append($0) }
         window.onUserPlacementInteractionCancelled = { cancellationCount += 1 }
         window.beginUserResize()
 
@@ -290,6 +343,20 @@ final class PortalWindowConfigurationTests: XCTestCase {
             contentViewController: contentController,
             pointerLocationProvider: pointerLocationProvider
         )
+    }
+
+    @MainActor
+    private func frameSize(for contentSize: NSSize, in window: NSWindow) -> NSSize {
+        window.frameRect(
+            forContentRect: NSRect(origin: .zero, size: contentSize)
+        ).size
+    }
+
+    @MainActor
+    private func contentSize(for frameSize: NSSize, in window: NSWindow) -> NSSize {
+        window.contentRect(
+            forFrameRect: NSRect(origin: .zero, size: frameSize)
+        ).size
     }
 
     @MainActor

@@ -137,6 +137,46 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testUserResizeCommitPersistsFrameAndCapacityTogether() async throws {
+        let portal = try makePortal(path: "/tmp/first", x: 10)
+        let store = PortalStoreSpy(portals: [portal])
+        let factory = PortalWindowFactorySpy()
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+        let capacity = try GridCapacity(columns: 5, rows: 3)
+        let contentSize = PortalViewController.contentSize(
+            for: capacity,
+            iconLayout: portal.iconLayout
+        )
+        let frameSize = NSWindow.frameRect(
+            forContentRect: NSRect(origin: .zero, size: contentSize),
+            styleMask: [.resizable]
+        ).size
+        let resizedFrame = NSRect(
+            origin: NSPoint(x: 90, y: 100),
+            size: frameSize
+        )
+        let expectedFrame = try snappedPlacementFrame(resizedFrame)
+
+        factory.windows[0].simulateUserResizeCommit(resizedFrame, capacity: capacity)
+        await coordinator.waitForPersistenceForTesting()
+
+        XCTAssertEqual(coordinator.portalStates[0].gridCapacity, capacity)
+        XCTAssertEqual(coordinator.portalStates[0].frame, expectedFrame)
+        let saves = await store.savedSnapshots()
+        XCTAssertEqual(saves.count, 1)
+        XCTAssertEqual(saves[0], coordinator.portalStates)
+    }
+
+    @MainActor
     func testTopologyReconciliationMovesWindowWithoutPersistingHomePlacement() async throws {
         let portal = try makePortal(path: "/tmp/first", x: 10)
         let originalPlacement = portal.placement
@@ -1410,6 +1450,7 @@ private final class PortalWindowFactorySpy: PortalWindowBuilding {
 @MainActor
 private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var onUserPlacementCommit: ((NSRect) -> Void)?
+    var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)?
     var onUserPlacementInteractionCancelled: (() -> Void)?
     var onSelectTab: ((FolderTabID) -> Void)?
     var onAddTab: (() -> Void)?
@@ -1449,6 +1490,10 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
 
     func simulateUserPlacementCommit(_ frame: NSRect) {
         onUserPlacementCommit?(frame)
+    }
+
+    func simulateUserResizeCommit(_ frame: NSRect, capacity: GridCapacity) {
+        onUserResizeCommit?(frame, capacity)
     }
 }
 

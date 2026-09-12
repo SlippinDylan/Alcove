@@ -421,6 +421,13 @@ final class PortalCoordinator: PortalCoordinating {
         window.onUserPlacementCommit = { [weak self] frame in
             self?.recordUserPlacement(frame, portalID: portal.id)
         }
+        window.onUserResizeCommit = { [weak self] frame, gridCapacity in
+            self?.recordUserPlacement(
+                frame,
+                gridCapacity: gridCapacity,
+                portalID: portal.id
+            )
+        }
         window.onUserPlacementInteractionCancelled = { [weak self] in
             self?.retryDeferredTopology(for: portal.id)
         }
@@ -457,12 +464,17 @@ final class PortalCoordinator: PortalCoordinating {
         window.present()
     }
 
-    private func recordUserPlacement(_ frame: NSRect, portalID: PortalID) {
+    private func recordUserPlacement(
+        _ frame: NSRect,
+        gridCapacity: GridCapacity? = nil,
+        portalID: PortalID
+    ) {
         let snapshotResult = displaySnapshotProvider()
         nextUserPlacementGeneration += 1
         let pending = PendingUserPlacement(
             generation: nextUserPlacementGeneration,
-            frame: frame
+            frame: frame,
+            gridCapacity: gridCapacity
         )
         pendingUserPlacements[portalID] = pending
         pendingPlacementAttempts[portalID] = pending.generation
@@ -493,6 +505,9 @@ final class PortalCoordinator: PortalCoordinating {
                     in: displaySnapshot
                 )
                 var portal = portalStates[index]
+                if let gridCapacity = pending.gridCapacity {
+                    portal.updateGridCapacity(gridCapacity)
+                }
                 let captured = try PlacementGeometry.capture(
                     windowFrame: pending.frame,
                     visibleFrame: display.visibleFrame
@@ -990,6 +1005,7 @@ final class PortalCoordinator: PortalCoordinating {
 private struct PendingUserPlacement {
     let generation: UInt64
     let frame: NSRect
+    let gridCapacity: GridCapacity?
 }
 
 enum PortalCoordinatorError: Error, Equatable {

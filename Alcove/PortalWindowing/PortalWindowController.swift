@@ -4,6 +4,7 @@ import AlcoveCore
 @MainActor
 final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     var onUserPlacementCommit: ((NSRect) -> Void)?
+    var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)?
     var onUserPlacementInteractionCancelled: (() -> Void)?
     var onSelectTab: ((FolderTabID) -> Void)? {
         didSet { portalViewController.onSelectTab = onSelectTab }
@@ -23,6 +24,8 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     private let portalViewController: PortalViewController
     private let quickLookIntegration: QuickLookIntegration
     private var iconLayout: PortalIconLayout
+    private var gridCapacity: GridCapacity
+    private var pendingResizeCapacity: GridCapacity?
 
     init(
         portal: Portal,
@@ -33,6 +36,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     ) {
         self.quickLookIntegration = quickLookIntegration
         iconLayout = portal.iconLayout
+        gridCapacity = portal.gridCapacity
         portalViewController = PortalViewController(
             portal: portal,
             loadingCoordinator: loadingCoordinator
@@ -51,6 +55,12 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         window.delegate = self
         window.onUserPlacementCommit = { [weak self] frame in
             self?.onUserPlacementCommit?(frame)
+        }
+        window.onUserResizeCommit = { [weak self] frame in
+            guard let self, let capacity = self.pendingResizeCapacity else { return }
+            self.gridCapacity = capacity
+            self.pendingResizeCapacity = nil
+            self.onUserResizeCommit?(frame, capacity)
         }
         window.onUserPlacementInteractionCancelled = { [weak self] in
             self?.onUserPlacementInteractionCancelled?()
@@ -85,6 +95,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
 
     func updatePortal(_ portal: Portal) {
         iconLayout = portal.iconLayout
+        gridCapacity = portal.gridCapacity
         portalViewController.updatePortal(portal)
         window?.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconLayout)
         let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
@@ -111,16 +122,61 @@ extension PortalWindowController: NSWindowDelegate {
     }
 
     func windowWillStartLiveResize(_ notification: Notification) {
+        pendingResizeCapacity = nil
         (window as? PortalWindow)?.beginUserResize()
+    }
+
+    func windowWillResize(
+        _ sender: NSWindow,
+        toFrameSize frameSize: NSSize
+    ) -> NSSize {
+        let proposedContentSize = sender.contentRect(
+            forFrameRect: NSRect(origin: .zero, size: frameSize)
+        ).size
+        guard proposedContentSize.width.isFinite,
+              proposedContentSize.height.isFinite else {
+            return frameSize
+        }
+        let metrics = GridMetrics(
+            iconSize: iconLayout.iconSize,
+            labelFontSize: iconLayout.textSize
+        )
+        let proposedGridSize = NSSize(
+            width: proposedContentSize.width,
+            height: max(0, proposedContentSize.height - PortalViewController.tabBarHeight)
+        )
+        let preview: GridCapacityPreview
+        do {
+            preview = try metrics.capacityPreview(for: proposedGridSize)
+        } catch {
+            assertionFailure("Finite AppKit resize geometry must produce a grid capacity: \(error)")
+            return frameSize
+        }
+        pendingResizeCapacity = preview.capacity
+        portalViewController.showResizeCapacityPreview(preview)
+        let snappedContentSize = PortalViewController.contentSize(
+            for: preview.capacity,
+            iconLayout: iconLayout
+        )
+        return sender.frameRect(
+            forContentRect: NSRect(origin: .zero, size: snappedContentSize)
+        ).size
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
         guard let portalWindow = window as? PortalWindow else { return }
-        let contentSize = portalWindow.contentRect(forFrameRect: portalWindow.frame).size
-        let snappedSize = PortalViewController.snappedContentSize(contentSize, for: iconLayout)
-        if snappedSize != contentSize {
-            portalWindow.setContentSize(snappedSize)
+        _ = windowWillResize(portalWindow, toFrameSize: portalWindow.frame.size)
+        if let pendingResizeCapacity {
+            let snappedSize = PortalViewController.contentSize(
+                for: pendingResizeCapacity,
+                iconLayout: iconLayout
+            )
+            let contentSize = portalWindow.contentRect(forFrameRect: portalWindow.frame).size
+            if snappedSize != contentSize {
+                portalWindow.setContentSize(snappedSize)
+            }
         }
         portalWindow.endUserResize()
+        portalViewController.hideResizeCapacityPreview()
     }
 }

@@ -60,6 +60,7 @@ final class PortalWindow: NSWindow {
     private var isPerformingLiveResize = false
 
     var onUserPlacementCommit: ((NSRect) -> Void)?
+    var onUserResizeCommit: ((NSRect) -> Void)?
     var onUserPlacementInteractionCancelled: (() -> Void)?
 
     var isUserPlacementInteractionActive: Bool {
@@ -141,7 +142,7 @@ final class PortalWindow: NSWindow {
             return
         }
         isPerformingLiveResize = false
-        onUserPlacementCommit?(frame)
+        onUserResizeCommit?(frame)
     }
 
     func cancelUserPlacementInteraction(notify: Bool = true) {
