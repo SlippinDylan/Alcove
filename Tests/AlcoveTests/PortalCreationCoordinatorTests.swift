@@ -235,6 +235,8 @@ private final class PortalCoordinatorStub: PortalCoordinating {
 
     func restorePortals() async throws {}
 
+    func refreshFollowedDesktopIconSettings() async {}
+
     func stop() {}
 
     func prepareForTermination() async {}

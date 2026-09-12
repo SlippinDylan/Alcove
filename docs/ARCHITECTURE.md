@@ -76,6 +76,8 @@ Domain models and pure layout math. Zero AppKit imports.
 - `FileItem` — enumerated file/folder entry
 - `SelectionState` — per-tab selection model
 - `IconSize` — validated icon dimension value type
+- `DesktopIconSettings` — validated Finder desktop icon and text sizes captured through the scripting boundary
+- `PortalIconLayout` — either a fixed Alcove icon size or Follow Desktop with the last valid Finder settings
 - `PortalBackgroundStyle` — per-portal High Transparency, Standard, or Low Transparency preference
 - `ColumnCount` — validated column count value type
 - `GridLayout` — computes item frames from container size, icon size, column count, and spacing
@@ -88,6 +90,7 @@ App entry point and global coordination.
 
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
+- `FinderDesktopSettingsReader` — executes the user-approved Finder script on a dedicated queue and validates the returned desktop icon/text sizes; it never reads private Finder preference keys
 - `NewPortalOverlay` — pointer-display overlay with dashed drag rectangle, constrained to `visibleFrame`
 - Info.plist: `LSUIElement = YES`, `LSBackgroundOnly = NO`
 
@@ -132,7 +135,7 @@ Visual chrome inside each portal window.
 `NSCollectionView`-based icon grid.
 
 - `FileGridViewController` — owns `NSScrollView` + `NSCollectionView`
-- `FileItemCell` — displays icon (`NSWorkspace.icon(forFile:)`), file name, selection highlight
+- `FileItemCell` — one accessible tile containing a padded system icon, a two-line title, and separate Finder-style icon/title selection regions
 - `FileGridDataSource` — bridges `FolderAccess` enumeration results to collection view items
 - `FileGridDelegate` — handles selection, double-click, keyboard events, and forwards to `QuickLookIntegration`
 - Selection protocol: single-click select, Command-click toggle, Shift-click range, arrow keys navigate
@@ -333,7 +336,7 @@ struct NormalizedAnchor: Sendable {
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "portals": [ ... ]
 }
 ```
@@ -352,11 +355,12 @@ All JSON keys are `snake_case`. Dates are ISO 8601.
 ### 5.3 Migration Strategy
 
 The concrete v1 migration maps each legacy frame to the display with the largest positive
-visible-frame intersection, falling back to the explicit primary display. Both v1 and v2
-default the new per-portal background preference to Standard and are atomically rewritten
-as v3. Before conversion the store writes `portals.v1.json.bak` or `portals.v2.json.bak`
-once and never replaces a different existing backup. Migrations remain explicit rather
-than using a speculative generic framework.
+visible-frame intersection, falling back to the explicit primary display. Versions 1–3
+default the icon layout to the stored fixed icon size; v1 and v2 also default the newer
+per-portal background preference to Standard. All legacy versions are atomically rewritten
+as v4. Before conversion the store writes the matching `portals.vN.json.bak` once and never
+replaces a different existing backup. Migrations remain explicit rather than using a
+speculative generic framework.
 
 ### 5.4 Failure Policy
 
@@ -370,8 +374,8 @@ than using a speculative generic framework.
 
 ### 5.5 Backup
 
-The v1→v3 and v2→v3 migrations preserve the original as `portals.v1.json.bak` or
-`portals.v2.json.bak`. The first backup is write-once; a different existing backup stops
+The v1/v2/v3→v4 migrations preserve the original as the matching
+`portals.vN.json.bak`. The first backup is write-once; a different existing backup stops
 migration instead of overwriting evidence.
 
 ---
@@ -569,13 +573,16 @@ PortalViewController
          │         └─ Supplementary views: (none in MVP)
          │
          └─ FileItemCell (NSCollectionViewItem)
-              ├─ NSImageView (icon from NSWorkspace)
-              └─ NSTextField (file name, truncated with ellipsis)
+              ├─ Icon selection region
+              │    └─ NSImageView (icon from NSWorkspace)
+              └─ Title selection region
+                   └─ NSTextField (file name, two-line character wrapping)
 ```
 
 - Each portal creates one `FileGridViewController` and reuses its collection view for every tab.
 - On tab switch, the controller saves the outgoing tab's runtime selection/scroll state, replaces the grid model, and restores the incoming tab's runtime state after loading.
-- Item size is computed by `GridLayout` from `IconSize`, `ColumnCount`, and the scroll view's width.
+- Item frames come from one fixed `GridLayout` used directly by the custom `NSCollectionViewLayout`; rendering, column count, keyboard navigation, portal minimum size, and snapping therefore share the same tile and spacing metrics.
+- A tile is wider than its icon and owns explicit icon/title regions and padding. Selection never paints the entire tile as one rectangle.
 - `NSScrollView` always shows vertical scrollbar; horizontal is disabled (grid wraps to columns).
 
 ---
@@ -778,6 +785,7 @@ Alcove is **non-sandboxed**. No entitlement file is required to declare `app-san
 | Accessibility | No | Core interaction is within Alcove-owned windows |
 | Full Disk Access | No | User selects folders via `NSOpenPanel`; non-sandboxed app has normal POSIX access |
 | TCC (Desktop, Documents, Downloads) | Conditional | System may show permission dialog on first access; Alcove surfaces TCC errors explicitly, does not silently fail |
+| Finder Automation | Conditional | The explicit Follow Desktop action may request consent. Later launch/activation refreshes preflight with `askUserIfNeeded = false`, never trigger a new prompt, and preserve the last valid layout if access is unavailable. |
 | Network | No | Zero network calls in MVP |
 | Folder source | Internal fixed local storage only | Selection and re-mapping reject removable, ejectable, and network-volume locations |
 
@@ -935,5 +943,5 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 | **Core Data / SQLite** | Portal state is a small, infrequently-written JSON document; no query language or relational model needed; atomic file replacement is simpler and safer |
 | **UserDefaults** | Not suitable for structured, versioned, multi-entity state; file-based persistence allows backup, migration, and inspection |
 | **Storing absolute frames only** | Candidate restoration also stores save-time `visibleFrame`, preferred size, and an origin normalized within the actual movable range; Spike 0.2 validates whether this is sufficient for multi-display stability |
-| **Reading Finder desktop icon size via private API** | No public API exists (research conclusion, not Apple-confirmed); app-owned `IconSize` presets are explicit and stable; no private Finder preference investigation proposed |
+| **Reading Finder desktop layout from private preferences** | Follow Desktop reads only the icon/text values exposed by Finder's scripting dictionary after user approval; grid spacing remains an explicit Alcove metric, and private `com.apple.finder` preference keys are not used |
 | **Sandboxed distribution** | Non-sandboxed allows normal POSIX file access without security-scoped bookmarks; simplifies implementation; distribution via GitHub with documented quarantine removal |

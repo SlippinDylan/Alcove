@@ -27,7 +27,9 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(controller.itemCount, 2)
         XCTAssertEqual(controller.item(at: 0), items[0])
         XCTAssertEqual(controller.item(at: 1), items[1])
-        XCTAssertTrue(controller.view is NSScrollView)
+        let scrollView = controller.view as? NSScrollView
+        XCTAssertNotNil(scrollView)
+        XCTAssertEqual(scrollView?.scrollerStyle, .overlay)
     }
 
     @MainActor
@@ -57,7 +59,10 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(controller.selectionState.selectedIDs, [items[1].id])
         XCTAssertEqual(controller.lastKeyboardScrollPosition, .nearestHorizontalEdge)
         controller.handleKeyCommand(.moveDown(extending: true))
-        XCTAssertTrue(controller.selectionState.selectedIDs.contains(items[7].id))
+        let columnCount = GridLayout(metrics: GridMetrics(iconSize: .medium))
+            .layout(itemCount: items.count, availableWidth: 560)
+            .columnCount
+        XCTAssertTrue(controller.selectionState.selectedIDs.contains(items[1 + columnCount].id))
         XCTAssertEqual(controller.lastKeyboardScrollPosition, .nearestVerticalEdge)
 
         let stateBeforeReturn = controller.selectionState.selectedIDs
@@ -151,11 +156,13 @@ final class FileGridViewControllerTests: XCTestCase {
         controller.setItems([item])
         let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
         let collectionView = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
-        let layout = try XCTUnwrap(collectionView.collectionViewLayout as? NSCollectionViewFlowLayout)
+        let layout = try XCTUnwrap(
+            collectionView.collectionViewLayout as? PortalGridCollectionViewLayout
+        )
 
-        XCTAssertEqual(layout.itemSize, GridMetrics(iconSize: .small).itemSize)
+        XCTAssertEqual(layout.metrics.itemSize, GridMetrics(iconSize: .small).itemSize)
         controller.updateIconSize(.large)
-        XCTAssertEqual(layout.itemSize, GridMetrics(iconSize: .large).itemSize)
+        XCTAssertEqual(layout.metrics.itemSize, GridMetrics(iconSize: .large).itemSize)
 
         let cell = try XCTUnwrap(
             controller.collectionView(collectionView, itemForRepresentedObjectAt: IndexPath(item: 0, section: 0))
@@ -172,6 +179,101 @@ final class FileGridViewControllerTests: XCTestCase {
         controller.handleClick(index: 0, modifiers: [])
         controller.updateIconSize(.medium)
         XCTAssertEqual(collectionView.selectionIndexPaths, [IndexPath(item: 0, section: 0)])
+    }
+
+    @MainActor
+    func testRenderedLayoutUsesTheSameFixedFramesAsCoreGridLayout() throws {
+        let controller = FileGridViewController(iconSize: .medium)
+        controller.loadView()
+        controller.setItems(makeItems(count: 5))
+        let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
+        let collectionView = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
+        collectionView.frame.size.width = 500
+        let layout = try XCTUnwrap(
+            collectionView.collectionViewLayout as? PortalGridCollectionViewLayout
+        )
+
+        layout.prepare()
+
+        let expected = GridLayout(metrics: layout.metrics).layout(
+            itemCount: 5,
+            availableWidth: collectionView.bounds.width
+        )
+        XCTAssertEqual(layout.collectionViewContentSize, expected.contentSize)
+        for index in 0..<5 {
+            XCTAssertEqual(
+                layout.layoutAttributesForItem(
+                    at: IndexPath(item: index, section: 0)
+                )?.frame,
+                expected.itemFrames[index]
+            )
+        }
+    }
+
+    @MainActor
+    func testOverlayScrollerPreservesThreeColumnBoundaryWithScrollableContent() throws {
+        let controller = FileGridViewController(iconSize: .medium)
+        controller.loadView()
+        let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
+        scrollView.frame = NSRect(x: 0, y: 0, width: 392, height: 180)
+        controller.setItems(makeItems(count: 20))
+        let collectionView = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
+        collectionView.frame.size.width = scrollView.contentSize.width
+        let layout = try XCTUnwrap(
+            collectionView.collectionViewLayout as? PortalGridCollectionViewLayout
+        )
+
+        layout.prepare()
+
+        let first = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))
+        )
+        let third = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 2, section: 0))
+        )
+        let fourth = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 3, section: 0))
+        )
+        XCTAssertEqual(scrollView.scrollerStyle, .overlay)
+        XCTAssertEqual(first.frame.minY, third.frame.minY)
+        XCTAssertGreaterThan(fourth.frame.minY, first.frame.minY)
+    }
+
+    @MainActor
+    func testCellUsesSeparateSelectionRegionsAndTwoLineCharacterWrapping() throws {
+        let item = FileItem(
+            url: URL(fileURLWithPath: "/tmp/Sunrise_会员维护模型业务规则_v1.2.md"),
+            name: "Sunrise_会员维护模型业务规则_v1.2.md",
+            isDirectory: false,
+            isHidden: false
+        )
+        let metrics = GridMetrics(iconSize: .medium, labelFontSize: 12)
+        let cell = FileItemCell()
+        cell.loadView()
+        cell.configure(
+            with: item,
+            metrics: metrics,
+            position: 1,
+            itemCount: 1,
+            onOpen: { true }
+        )
+        cell.view.frame = NSRect(origin: .zero, size: metrics.itemSize)
+        cell.view.layoutSubtreeIfNeeded()
+
+        XCTAssertEqual(cell.nameLabel.lineBreakMode, .byCharWrapping)
+        XCTAssertEqual(cell.nameLabel.maximumNumberOfLines, 2)
+        XCTAssertEqual(cell.nameLabel.font?.pointSize, 12)
+        XCTAssertEqual(cell.iconView.frame.size, NSSize(width: 64, height: 64))
+        XCTAssertEqual(cell.iconSelectionView.frame.size, NSSize(width: 72, height: 72))
+        XCTAssertGreaterThan(cell.nameLabel.frame.height, 12)
+        XCTAssertEqual(cell.view.layer?.backgroundColor?.alpha ?? 0, 0)
+
+        cell.isSelected = true
+
+        XCTAssertGreaterThan(cell.iconSelectionView.layer?.backgroundColor?.alpha ?? 0, 0)
+        XCTAssertGreaterThan(cell.labelSelectionView.layer?.backgroundColor?.alpha ?? 0, 0)
+        XCTAssertEqual(cell.view.layer?.backgroundColor?.alpha ?? 0, 0)
+        XCTAssertEqual(cell.view.accessibilityLabel(), item.name)
     }
 
     private func makeItems(count: Int) -> [FileItem] {

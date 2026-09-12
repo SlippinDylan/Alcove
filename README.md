@@ -15,9 +15,9 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 > The documentation baseline and automated portions of Spikes 0.1A–0.5C7 are complete. Manual
 > system-behavior matrices and remaining integration evidence are still in progress. Production
 > Slices 1–10 now provide the tested universal AppKit shell, multi-tab portals,
-> Finder-style interaction, transactional creation, Quick Look, v3 portal
+> Finder-style interaction and icon tiles, transactional creation, Quick Look, v4 portal
 > persistence, multi-display recovery, automatic FSEvents folder refresh,
-> menu-bar portal management, persisted icon-size and per-portal frosted-background presets, adaptive macOS 26
+> menu-bar portal management, persisted per-portal Finder desktop sizing or manual icon presets, per-portal frosted-background presets, adaptive macOS 26
 > Glass/macOS 15 fallback chrome, accessibility display-option handling, and
 > explicit recovery from missing, replaced, permission, read, and persistence
 > failures. Three production-wide code review passes are complete, and CI tests
@@ -40,6 +40,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 - **Native AppKit**, not WidgetKit
 - **Liquid Glass on macOS 26** for the centered folder-tab control group, with three persisted per-portal transparency levels on an always-active frosted background; macOS 15–25 uses `NSVisualEffectView` for both roles
 - **Finder-consistent interaction**: click selects, Command-click toggles, Shift-click ranges, arrow keys navigate, Command-A selects all, Space for Quick Look, Command-Down or Command-O opens selection
+- **Finder-style icon tiles**: separate icon/title selection regions, two-line labels, and a fixed grid shared by rendering, keyboard navigation, and window snapping; a user-invoked Follow Desktop mode reads Finder's scripted icon/text sizes
 - **Internal local folders only**: folder selection rejects removable, ejectable, and network-volume locations
 - **Eviction-safe placement design**: persists display UUID plus absolute and normalized placement, while preserving remembered home placement during system-driven moves; UUID stability and transition behavior are Phase 0 spike gates
 - **Read-only MVP**: no rename, trash, new folder, or file mutations

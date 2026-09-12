@@ -35,11 +35,14 @@
 | `NSWorkspace.shared.open(_:)` opens a file with its default application | **Confirmed by Apple** | [Apple Developer — NSWorkspace](https://developer.apple.com/documentation/appkit/nsworkspace) |
 | `NSWorkspace.shared.open(_:configuration:completionHandler:)` with a folder URL opens it in Finder | **Confirmed by Apple** | [Apple Developer — NSWorkspace](https://developer.apple.com/documentation/appkit/nsworkspace) |
 | `NSWorkspace.shared.icon(forFile:)` returns the system icon for any file or folder | **Confirmed by Apple** | [Apple Developer — NSWorkspace](https://developer.apple.com/documentation/appkit/nsworkspace) |
+| `NSCollectionViewFlowLayout` exposes item size and minimum spacing, but may distribute remaining line space; fixed Finder-style frames require an app-owned layout | **Confirmed by Apple / architecture consequence** | [Apple Developer — NSCollectionViewFlowLayout](https://developer.apple.com/documentation/appkit/nscollectionviewflowlayout) |
+| `NSTextField.maximumNumberOfLines` limits a wrapping field before clipping or truncating | **Confirmed by Apple** | [Apple Developer — maximumNumberOfLines](https://developer.apple.com/documentation/appkit/nstextfield/maximumnumberoflines) |
+| Finder desktop icon size, grid spacing, and text size are user-configurable rather than universal constants | **Confirmed by Apple Support** | [Apple Support — Align and resize items in icon view](https://support.apple.com/guide/mac-help/align-and-resize-items-in-icon-view-on-mac-mchlp2209/mac) |
 | `DispatchSource.makeFileSystemObjectSource` monitors a directory for changes using kqueue | **Confirmed by Apple** | [Apple Developer — DispatchSourceFileSystemObject](https://developer.apple.com/documentation/dispatch/dispatchsourcefilesystemobject) |
 | FSEvents (`FSEventStreamCreate`) provides per-volume change notifications | **Confirmed by Apple** | [Apple Developer — File System Events](https://developer.apple.com/documentation/coreservices/file_system_events) |
 | FSEvents as Alcove's active-tab observer | **Selected from local spike evidence** | Phase 0.5A–0.5C7 compared event coverage, path lifecycle, resources, latency, load, teardown, and recovery signals; FSEvents was selected without a DispatchSource fallback |
 | Declaring an actor does not by itself prove that a synchronous `FileManager` call executes on a dedicated background thread; a one-shot `contentsOfDirectory` call cannot provide cooperative cancellation during the call | **Architecture constraint / inference to verify in implementation** | Actor isolation coordinates access and ordering; the candidate architecture requires an explicit background execution boundary and does not claim mid-call cancellation for a synchronous API |
-| Finder desktop icon size has no documented public API | **Research conclusion** | No Apple documentation exists for reading or controlling Finder's desktop icon grid size; Alcove must provide its own sizing |
+| Finder's scripting dictionary exposes desktop icon size and text size, but not grid spacing or Finder's selection renderer | **Confirmed by installed Finder scripting dictionary / API-boundary conclusion** | Reading the exposed values sends an Apple event and requires user-approved Finder Automation access; Alcove must own grid spacing and cell rendering and does not read private Finder preference keys |
 
 ### 1.4 Quick Look
 
@@ -171,7 +174,7 @@ These are conclusions drawn from confirmed facts and observations, not directly 
 | INF-04 | Alcove applies Liquid Glass to the centered folder-navigation capsule and keeps the file grid on an always-active translucent material rather than a glass content canvas | Apple says Liquid Glass belongs to the top-level controls/navigation layer, nearby controls should share a logical glass group, and `NSGlassEffectView` has no active-state override |
 | INF-05 | Non-sandboxed app with `NSOpenPanel`-selected folders needs no sandbox entitlement or security-scoped bookmark for the MVP path | Access remains subject to normal POSIX permissions and TCC; the spike verifies protected locations |
 | INF-06 | Personal Team is suitable for local/development signing, while PR CI disables signing; the proposed end-user release path is an unsupported, non-notarized compromise | Apple's membership comparison defines development/testing scope, not customer distribution; Spike 0.6 must inspect the actual artifact and launch behavior |
-| INF-07 | Finder desktop icon size cannot be read programmatically; Alcove must provide its own icon size presets | No public API exists; Finder preferences are internal |
+| INF-07 | A user-invoked Apple event can read Finder desktop icon/text sizes; exact grid spacing and selection rendering remain app-owned | Finder's scripting dictionary exposes `icon size` and `text size` on desktop icon-view options but no grid-spacing property or reusable desktop cell |
 
 ---
 
@@ -216,6 +219,9 @@ These items need empirical testing before implementation commitment:
 - [NSScreen.visibleFrame](https://developer.apple.com/documentation/appkit/nsscreen/visibleframe)
 - [CGDisplayCreateUUIDFromDisplayID](https://developer.apple.com/documentation/colorsync/cgdisplaycreateuuidfromdisplayid(_:))
 - [NSWorkspace](https://developer.apple.com/documentation/appkit/nsworkspace)
+- [NSCollectionViewFlowLayout](https://developer.apple.com/documentation/appkit/nscollectionviewflowlayout)
+- [NSTextField.maximumNumberOfLines](https://developer.apple.com/documentation/appkit/nstextfield/maximumnumberoflines)
+- [Apple Support — Align and resize items in icon view](https://support.apple.com/guide/mac-help/align-and-resize-items-in-icon-view-on-mac-mchlp2209/mac)
 - [QLPreviewPanel](https://developer.apple.com/documentation/quicklookui/qlpreviewpanel)
 - [File System Events](https://developer.apple.com/documentation/coreservices/file_system_events)
 - [DispatchSourceFileSystemObject](https://developer.apple.com/documentation/dispatch/dispatchsourcefilesystemobject)

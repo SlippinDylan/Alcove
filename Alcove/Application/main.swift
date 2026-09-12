@@ -26,6 +26,9 @@ let statusMenuController = StatusMenuController(
     },
     onSetIconSize: { portalID, iconSize in
         Task { await portalCoordinator.setIconSize(iconSize, for: portalID) }
+    },
+    onFollowDesktopIconSettings: { portalID in
+        Task { await portalCoordinator.followDesktopIconSettings(for: portalID) }
     }
 )
 portalCoordinator.onPortalsChanged = { [weak statusMenuController] entries in

@@ -25,7 +25,11 @@ public struct CreationGrid: Sendable, Hashable {
         }
         guard metrics.itemSize.width > 0,
               metrics.itemSize.height > 0,
+              metrics.labelFontSize > 0,
               metrics.labelHeight >= 0,
+              metrics.itemHorizontalPadding >= 0,
+              metrics.iconSelectionPadding >= 0,
+              metrics.iconLabelSpacing >= 0,
               metrics.horizontalSpacing >= 0,
               metrics.verticalSpacing >= 0,
               metrics.contentInsets.top >= 0,

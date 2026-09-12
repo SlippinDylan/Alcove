@@ -5,8 +5,39 @@ import AppKit
 protocol PortalCoordinating: AnyObject {
     func restorePortals() async throws
     func createPortal(for folderURL: URL, frame: NSRect?) async throws
+    func refreshFollowedDesktopIconSettings() async
     func stop()
     func prepareForTermination() async
+}
+
+@MainActor
+protocol FinderDesktopSettingsErrorPresenting: AnyObject {
+    func present(_ error: FinderDesktopSettingsReaderError)
+}
+
+@MainActor
+final class FinderDesktopSettingsErrorPresenter: FinderDesktopSettingsErrorPresenting {
+    func present(_ error: FinderDesktopSettingsReaderError) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Unable to read Finder desktop settings"
+        alert.informativeText = Self.message(for: error)
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    private static func message(for error: FinderDesktopSettingsReaderError) -> String {
+        if error == .automationPermissionDenied {
+            return """
+            Allow Alcove to control Finder in System Settings → Privacy & Security → Automation, then choose Follow Desktop again.
+            """
+        }
+        return """
+        Finder did not provide valid desktop icon settings. Alcove kept the portal's previous layout.
+
+        \(String(describing: error))
+        """
+    }
 }
 
 @MainActor
@@ -17,6 +48,8 @@ final class PortalCoordinator: PortalCoordinating {
     private let tabFolderPicker: any FolderPicking
     private let errorPresenter: any PortalCreationErrorPresenting
     private let persistenceErrorPresenter: any PortalPersistenceErrorPresenting
+    private let finderSettingsReader: any FinderDesktopSettingsReading
+    private let finderSettingsErrorPresenter: any FinderDesktopSettingsErrorPresenting
     private let lastTabRemovalConfirmer: any LastTabRemovalConfirming
     private let displaySnapshotProvider: DisplayPlacementObserver.SnapshotProvider
     private let displayNotificationCenter: NotificationCenter
@@ -26,6 +59,9 @@ final class PortalCoordinator: PortalCoordinating {
     private var pendingUserPlacements: [PortalID: PendingUserPlacement] = [:]
     private var pendingPlacementAttempts: [PortalID: UInt64] = [:]
     private var nextUserPlacementGeneration: UInt64 = 0
+    private var nextDesktopSettingsGeneration: UInt64 = 0
+    private var desktopSettingsGenerations: [PortalID: UInt64] = [:]
+    private var explicitFollowGenerations: [PortalID: UInt64] = [:]
     private var mutationTail: Task<Void, Never>?
     private var mutationGeneration: UInt64 = 0
     private var folderSelectionTask: Task<Void, Never>?
@@ -34,6 +70,7 @@ final class PortalCoordinator: PortalCoordinating {
     private(set) var portalStates: [Portal] = []
     private(set) var persistenceError: Error?
     private(set) var displayError: Error?
+    private(set) var finderSettingsError: FinderDesktopSettingsReaderError?
     var onPortalsChanged: (([PortalMenuEntry]) -> Void)? {
         didSet { publishPortalMenu() }
     }
@@ -52,6 +89,8 @@ final class PortalCoordinator: PortalCoordinating {
         tabFolderPicker: any FolderPicking = OpenPanelFolderPicker(),
         errorPresenter: any PortalCreationErrorPresenting = PortalCreationErrorPresenter(),
         persistenceErrorPresenter: any PortalPersistenceErrorPresenting = PortalPersistenceErrorPresenter(),
+        finderSettingsReader: any FinderDesktopSettingsReading = FinderDesktopSettingsReader(),
+        finderSettingsErrorPresenter: any FinderDesktopSettingsErrorPresenting = FinderDesktopSettingsErrorPresenter(),
         lastTabRemovalConfirmer: any LastTabRemovalConfirming = LastTabRemovalConfirmer(),
         displayNotificationCenter: NotificationCenter = .default,
         displaySnapshotProvider: @escaping DisplayPlacementObserver.SnapshotProvider = {
@@ -66,6 +105,8 @@ final class PortalCoordinator: PortalCoordinating {
         self.tabFolderPicker = tabFolderPicker
         self.errorPresenter = errorPresenter
         self.persistenceErrorPresenter = persistenceErrorPresenter
+        self.finderSettingsReader = finderSettingsReader
+        self.finderSettingsErrorPresenter = finderSettingsErrorPresenter
         self.lastTabRemovalConfirmer = lastTabRemovalConfirmer
         self.displayNotificationCenter = displayNotificationCenter
         self.displaySnapshotProvider = displaySnapshotProvider
@@ -168,39 +209,180 @@ final class PortalCoordinator: PortalCoordinating {
     }
 
     func setIconSize(_ iconSize: IconSize, for portalID: PortalID) async {
+        invalidateDesktopSettingsRequest(for: portalID)
         do {
-            try await performMutation { [weak self] in
-                guard let self,
-                      let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
-                    return
-                }
-                var portal = portalStates[index]
-                portal.updateIconSize(iconSize)
-                let previousFrame = portal.frame
-                let minimumSize = Self.minimumWindowFrameSize(for: iconSize)
-                if previousFrame.width < minimumSize.width || previousFrame.height < minimumSize.height {
-                    let homeEntry = portal.placement.homeEntry
-                    let homeDisplay = DisplayDescriptor(
-                        identity: portal.placement.homeDisplay,
-                        visibleFrame: homeEntry.referenceVisibleFrame
-                    )
-                    let adjustedFrame = Self.frameEnsuringMinimumContent(
-                        previousFrame,
-                        iconSize: iconSize,
-                        visibleFrame: homeDisplay.visibleFrame
-                    )
-                    try portal.recordUserPlacement(frame: adjustedFrame, display: homeDisplay)
-                }
-                try await commit(portal, at: index)
-                if portal.frame != previousFrame {
-                    placementSessions[portalID] = try placementSession(for: portal)
-                    applyDisplayTopology(displaySnapshotProvider())
-                }
-            }
+            try await setIconLayout(.fixed(iconSize), for: portalID)
             persistenceError = nil
         } catch {
             presentPersistenceError(error)
         }
+    }
+
+    func followDesktopIconSettings(for portalID: PortalID) async {
+        let generation = beginDesktopSettingsRequest(for: [portalID], explicit: true)
+        do {
+            let settings = try await finderSettingsReader.readDesktopIconSettings(
+                promptIfNeeded: true
+            )
+            try Task.checkCancellation()
+            guard desktopSettingsGenerations[portalID] == generation else { return }
+            try await setIconLayout(.followDesktop(settings), for: portalID)
+            clearDesktopSettingsRequest(for: portalID, generation: generation)
+            finderSettingsError = nil
+            persistenceError = nil
+        } catch let error as FinderDesktopSettingsReaderError {
+            clearDesktopSettingsRequest(for: portalID, generation: generation)
+            finderSettingsError = error
+            finderSettingsErrorPresenter.present(error)
+        } catch is CancellationError {
+            clearDesktopSettingsRequest(for: portalID, generation: generation)
+        } catch {
+            clearDesktopSettingsRequest(for: portalID, generation: generation)
+            presentPersistenceError(error)
+        }
+    }
+
+    func refreshFollowedDesktopIconSettings() async {
+        let portalIDs = portalStates.compactMap { portal -> PortalID? in
+            if case .followDesktop = portal.iconLayout,
+               explicitFollowGenerations[portal.id] == nil {
+                return portal.id
+            }
+            return nil
+        }
+        guard !portalIDs.isEmpty else { return }
+        let generation = beginDesktopSettingsRequest(for: portalIDs, explicit: false)
+        do {
+            let settings = try await finderSettingsReader.readDesktopIconSettings(
+                promptIfNeeded: false
+            )
+            try Task.checkCancellation()
+            try await performMutation { [weak self] in
+                guard let self else { return }
+                var updatedPortals = portalStates
+                var changedPortalIDs = Set<PortalID>()
+                var resizedPortalIDs = Set<PortalID>()
+                for index in updatedPortals.indices {
+                    let portalID = updatedPortals[index].id
+                    guard desktopSettingsGenerations[portalID] == generation,
+                          case .followDesktop = updatedPortals[index].iconLayout else {
+                        continue
+                    }
+                    let previousFrame = updatedPortals[index].frame
+                    updatedPortals[index].refreshDesktopIconSettings(settings)
+                    updatedPortals[index] = try portalSnappingFrame(updatedPortals[index])
+                    guard updatedPortals[index] != portalStates[index] else { continue }
+                    changedPortalIDs.insert(updatedPortals[index].id)
+                    if updatedPortals[index].frame != previousFrame {
+                        resizedPortalIDs.insert(updatedPortals[index].id)
+                    }
+                }
+                guard !changedPortalIDs.isEmpty else { return }
+                try await store.save(updatedPortals)
+                portalStates = updatedPortals
+                for portal in updatedPortals where changedPortalIDs.contains(portal.id) {
+                    windows[portal.id]?.updatePortal(portal)
+                    if resizedPortalIDs.contains(portal.id) {
+                        placementSessions[portal.id] = try placementSession(for: portal)
+                    }
+                }
+                publishPortalMenu()
+                if !resizedPortalIDs.isEmpty {
+                    applyDisplayTopology(displaySnapshotProvider())
+                }
+            }
+            clearDesktopSettingsRequests(for: portalIDs, generation: generation)
+            finderSettingsError = nil
+            persistenceError = nil
+        } catch let error as FinderDesktopSettingsReaderError {
+            clearDesktopSettingsRequests(for: portalIDs, generation: generation)
+            finderSettingsError = error
+        } catch is CancellationError {
+            clearDesktopSettingsRequests(for: portalIDs, generation: generation)
+            return
+        } catch {
+            clearDesktopSettingsRequests(for: portalIDs, generation: generation)
+            presentPersistenceError(error)
+        }
+    }
+
+    private func beginDesktopSettingsRequest(
+        for portalIDs: [PortalID],
+        explicit: Bool
+    ) -> UInt64 {
+        nextDesktopSettingsGeneration &+= 1
+        let generation = nextDesktopSettingsGeneration
+        for portalID in portalIDs {
+            desktopSettingsGenerations[portalID] = generation
+            if explicit {
+                explicitFollowGenerations[portalID] = generation
+            }
+        }
+        return generation
+    }
+
+    private func clearDesktopSettingsRequest(
+        for portalID: PortalID,
+        generation: UInt64
+    ) {
+        guard desktopSettingsGenerations[portalID] == generation else { return }
+        desktopSettingsGenerations.removeValue(forKey: portalID)
+        if explicitFollowGenerations[portalID] == generation {
+            explicitFollowGenerations.removeValue(forKey: portalID)
+        }
+    }
+
+    private func invalidateDesktopSettingsRequest(for portalID: PortalID) {
+        desktopSettingsGenerations.removeValue(forKey: portalID)
+        explicitFollowGenerations.removeValue(forKey: portalID)
+    }
+
+    private func clearDesktopSettingsRequests(
+        for portalIDs: [PortalID],
+        generation: UInt64
+    ) {
+        for portalID in portalIDs {
+            clearDesktopSettingsRequest(for: portalID, generation: generation)
+        }
+    }
+
+    private func setIconLayout(
+        _ iconLayout: PortalIconLayout,
+        for portalID: PortalID
+    ) async throws {
+        try await performMutation { [weak self] in
+            guard let self,
+                  let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
+                return
+            }
+            let previousFrame = portalStates[index].frame
+            var portal = portalStates[index]
+            portal.updateIconLayout(iconLayout)
+            portal = try portalSnappingFrame(portal)
+            try await commit(portal, at: index)
+            if portal.frame != previousFrame {
+                placementSessions[portalID] = try placementSession(for: portal)
+                applyDisplayTopology(displaySnapshotProvider())
+            }
+        }
+    }
+
+    private func portalSnappingFrame(_ portal: Portal) throws -> Portal {
+        var portal = portal
+        let homeEntry = portal.placement.homeEntry
+        let homeDisplay = DisplayDescriptor(
+            identity: portal.placement.homeDisplay,
+            visibleFrame: homeEntry.referenceVisibleFrame
+        )
+        let adjustedFrame = Self.frameEnsuringMinimumContent(
+            portal.frame,
+            iconLayout: portal.iconLayout,
+            visibleFrame: homeDisplay.visibleFrame,
+            roundingRule: .toNearestOrAwayFromZero
+        )
+        guard adjustedFrame != portal.frame else { return portal }
+        try portal.recordUserPlacement(frame: adjustedFrame, display: homeDisplay)
+        return portal
     }
 
     func setBackgroundStyle(
@@ -720,7 +902,7 @@ final class PortalCoordinator: PortalCoordinating {
             tabs: tabs,
             selectedTabID: portal.selectedTabID,
             placement: portal.placement,
-            iconSize: portal.iconSize,
+            iconLayout: portal.iconLayout,
             backgroundStyle: portal.backgroundStyle
         )
     }
@@ -730,13 +912,15 @@ final class PortalCoordinator: PortalCoordinating {
         deferredTopologyPortals.remove(portalID)
         pendingUserPlacements.removeValue(forKey: portalID)
         pendingPlacementAttempts.removeValue(forKey: portalID)
+        desktopSettingsGenerations.removeValue(forKey: portalID)
+        explicitFollowGenerations.removeValue(forKey: portalID)
     }
 
     private func publishPortalMenu() {
         let entries = portalStates.map { portal in
             let title = portal.tabs.first(where: { $0.id == portal.selectedTabID })?
                 .folderURL.lastPathComponent ?? "Portal"
-            return PortalMenuEntry(id: portal.id, title: title, iconSize: portal.iconSize)
+            return PortalMenuEntry(id: portal.id, title: title, iconLayout: portal.iconLayout)
         }
         onPortalsChanged?(entries)
     }
@@ -752,21 +936,24 @@ final class PortalCoordinator: PortalCoordinating {
         )
     }
 
-    private static func minimumWindowFrameSize(for iconSize: IconSize) -> NSSize {
-        let contentRect = NSRect(
-            origin: .zero,
-            size: PortalViewController.minimumContentSize(for: iconSize)
-        )
-        return NSWindow.frameRect(
-            forContentRect: contentRect,
-            styleMask: [.resizable]
-        ).size
-    }
-
     private static func frameEnsuringMinimumContent(
         _ frame: NSRect,
         iconSize: IconSize,
         visibleFrame: NSRect
+    ) -> NSRect {
+        frameEnsuringMinimumContent(
+            frame,
+            iconLayout: .fixed(iconSize),
+            visibleFrame: visibleFrame,
+            roundingRule: .up
+        )
+    }
+
+    private static func frameEnsuringMinimumContent(
+        _ frame: NSRect,
+        iconLayout: PortalIconLayout,
+        visibleFrame: NSRect,
+        roundingRule: FloatingPointRoundingRule
     ) -> NSRect {
         let styleMask: NSWindow.StyleMask = [.resizable]
         let requestedContentSize = NSWindow.contentRect(
@@ -775,7 +962,8 @@ final class PortalCoordinator: PortalCoordinating {
         ).size
         let snappedContentSize = PortalViewController.snappedContentSize(
             requestedContentSize,
-            for: iconSize
+            for: iconLayout,
+            roundingRule: roundingRule
         )
         let snappedFrameSize = NSWindow.frameRect(
             forContentRect: NSRect(origin: .zero, size: snappedContentSize),

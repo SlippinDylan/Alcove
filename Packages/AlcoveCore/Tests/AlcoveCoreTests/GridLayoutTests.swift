@@ -5,10 +5,23 @@ final class GridLayoutTests: XCTestCase {
     private let metrics = GridMetrics(
         iconSize: .small,
         labelHeight: 20,
+        itemHorizontalPadding: 0,
+        iconSelectionPadding: 0,
+        iconLabelSpacing: 0,
         horizontalSpacing: 10,
         verticalSpacing: 12,
         contentInsets: GridInsets(top: 8, leading: 6, bottom: 4, trailing: 14)
     )
+
+    func testDefaultMetricsProvideDesktopStyleTileSpaceAroundTheIcon() {
+        let metrics = GridMetrics(iconSize: .medium)
+
+        XCTAssertEqual(metrics.iconSelectionSize, CGSize(width: 72, height: 72))
+        XCTAssertEqual(metrics.itemSize, CGSize(width: 112, height: 108))
+        XCTAssertEqual(metrics.horizontalSpacing, 12)
+        XCTAssertEqual(metrics.verticalSpacing, 4)
+        XCTAssertEqual(metrics.minimumPortalSize, CGSize(width: 268, height: 252))
+    }
 
     func testMinimumContainerSizeAllowsTwoColumns() {
         XCTAssertEqual(metrics.minimumContainerSize.width, 126)

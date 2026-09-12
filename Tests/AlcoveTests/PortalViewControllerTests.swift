@@ -99,6 +99,36 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testFollowedTextSizeUpdatesGridWhenIconSizeIsUnchanged() throws {
+        var portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/portal"),
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let grid = FileGridViewController(iconSize: portal.iconSize, textSize: portal.textSize)
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(),
+            gridViewController: grid
+        )
+        controller.loadView()
+        let settings = try XCTUnwrap(
+            DesktopIconSettings(iconSize: .medium, textSize: 16)
+        )
+
+        portal.followDesktop(settings)
+        controller.updatePortal(portal)
+
+        let scrollView = try XCTUnwrap(grid.view as? NSScrollView)
+        let collectionView = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
+        let layout = try XCTUnwrap(
+            collectionView.collectionViewLayout as? PortalGridCollectionViewLayout
+        )
+        XCTAssertEqual(layout.metrics.iconSize, .medium)
+        XCTAssertEqual(layout.metrics.labelFontSize, 16)
+    }
+
+    @MainActor
     func testFolderCapsulesAreVisibleOnTheFirstPortalWindowLayout() throws {
         var portal = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/first"),

@@ -4,7 +4,7 @@ import AlcoveCore
 struct PortalMenuEntry: Equatable {
     let id: PortalID
     let title: String
-    let iconSize: IconSize
+    let iconLayout: PortalIconLayout
 }
 
 @MainActor
@@ -14,6 +14,7 @@ final class StatusMenuController: StatusMenuControlling {
     private let onShowPortal: (PortalID) -> Void
     private let onRemovePortal: (PortalID) -> Void
     private let onSetIconSize: (PortalID, IconSize) -> Void
+    private let onFollowDesktopIconSettings: (PortalID) -> Void
     private var portalEntries: [PortalMenuEntry] = []
     private var actionTargets: [PortalMenuActionTarget] = []
     private(set) var statusItem: NSStatusItem?
@@ -23,13 +24,15 @@ final class StatusMenuController: StatusMenuControlling {
         onNewPortal: @escaping () -> Void,
         onShowPortal: @escaping (PortalID) -> Void = { _ in },
         onRemovePortal: @escaping (PortalID) -> Void = { _ in },
-        onSetIconSize: @escaping (PortalID, IconSize) -> Void = { _, _ in }
+        onSetIconSize: @escaping (PortalID, IconSize) -> Void = { _, _ in },
+        onFollowDesktopIconSettings: @escaping (PortalID) -> Void = { _ in }
     ) {
         self.statusBar = statusBar
         self.onNewPortal = onNewPortal
         self.onShowPortal = onShowPortal
         self.onRemovePortal = onRemovePortal
         self.onSetIconSize = onSetIconSize
+        self.onFollowDesktopIconSettings = onFollowDesktopIconSettings
     }
 
     func start() {
@@ -108,12 +111,23 @@ final class StatusMenuController: StatusMenuControlling {
 
         let iconSizeItem = NSMenuItem(title: "Icon Size", action: nil, keyEquivalent: "")
         let iconSizeMenu = NSMenu(title: "Icon Size")
+        let followItem = makeActionItem(
+            title: "Follow Desktop",
+            action: .followDesktopIconSettings(entry.id)
+        )
+        if case .followDesktop = entry.iconLayout {
+            followItem.state = .on
+        }
+        iconSizeMenu.addItem(followItem)
+        iconSizeMenu.addItem(.separator())
         for size in [IconSize.small, .medium, .large] {
             let item = makeActionItem(
                 title: iconSizeTitle(size),
                 action: .setIconSize(entry.id, size)
             )
-            item.state = size == entry.iconSize ? .on : .off
+            if case .fixed(let selectedSize) = entry.iconLayout {
+                item.state = size == selectedSize ? .on : .off
+            }
             iconSizeMenu.addItem(item)
         }
         iconSizeItem.submenu = iconSizeMenu
@@ -149,6 +163,7 @@ final class StatusMenuController: StatusMenuControlling {
         case .show(let id): onShowPortal(id)
         case .remove(let id): onRemovePortal(id)
         case .setIconSize(let id, let size): onSetIconSize(id, size)
+        case .followDesktopIconSettings(let id): onFollowDesktopIconSettings(id)
         }
     }
 }
@@ -157,6 +172,7 @@ private enum PortalMenuAction {
     case show(PortalID)
     case remove(PortalID)
     case setIconSize(PortalID, IconSize)
+    case followDesktopIconSettings(PortalID)
 }
 
 @MainActor

@@ -226,6 +226,35 @@ final class PortalTests: XCTestCase {
         )
     }
 
+    func testIconLayoutSupportsFixedAndFollowDesktopPreferences() throws {
+        var portal = try makePortal(path: "/tmp/folder")
+        let followed = try XCTUnwrap(
+            DesktopIconSettings(iconSize: .large, textSize: 14)
+        )
+        let refreshed = try XCTUnwrap(
+            DesktopIconSettings(iconSize: .small, textSize: 10)
+        )
+
+        XCTAssertEqual(portal.iconLayout, .fixed(.medium))
+        XCTAssertEqual(portal.iconSize, .medium)
+        XCTAssertEqual(portal.textSize, DesktopIconSettings.defaultTextSize)
+
+        portal.followDesktop(followed)
+        XCTAssertEqual(portal.iconLayout, .followDesktop(followed))
+        XCTAssertEqual(portal.iconSize, .large)
+        XCTAssertEqual(portal.textSize, 14)
+
+        portal.refreshDesktopIconSettings(refreshed)
+        XCTAssertEqual(portal.iconLayout, .followDesktop(refreshed))
+
+        portal.updateIconSize(.medium)
+        portal.refreshDesktopIconSettings(followed)
+        XCTAssertEqual(portal.iconLayout, .fixed(.medium))
+
+        portal.updateIconLayout(.followDesktop(followed))
+        XCTAssertEqual(portal.iconLayout, .followDesktop(followed))
+    }
+
     private func makePlacement() throws -> PlacementRecord {
         try PlacementRecord(frame: frame, display: display)
     }

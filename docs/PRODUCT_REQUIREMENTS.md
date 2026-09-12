@@ -144,7 +144,7 @@ Post-MVP.
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | FR-01 | Create portals via menu-bar → overlay → drag-rect → folder-choose flow | MVP |
-| FR-02 | Display folder contents as a native icon grid with file name and icon; default ordering is directories first, then localized standard name | MVP |
+| FR-02 | Display folder contents as Finder-style icon tiles with one object space containing padded icon and title regions, separate icon/title selection treatments, and a title that wraps to at most two lines; default ordering is directories first, then localized standard name | MVP |
 | FR-03 | Support adding, switching, and closing tabs per portal; persist creation order and the currently selected tab. Closing the last tab prompts to remove the portal. Tab reordering is Post-MVP. | MVP |
 | FR-04 | Finder-consistent selection (single, Command, Shift, keyboard) | MVP |
 | FR-05 | Double-click file opens with default app; double-click folder opens in Finder via NSWorkspace.open(folderURL) | MVP |
@@ -160,7 +160,7 @@ Post-MVP.
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
 | FR-17 | Drag-out from portals | Investigate |
-| FR-18 | Alcove-owned Small/Medium/Large icon sizing presets | MVP |
+| FR-18 | Each Portal supports a user-invoked Follow Desktop mode that reads Finder's current desktop icon and text sizes through its scripting interface, plus Alcove-owned Small/Medium/Large manual overrides | MVP |
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 
 ### Non-Functional Requirements
@@ -211,7 +211,7 @@ Post-MVP.
 | A-03 | Respects System Settings → Accessibility → Reduce Transparency |
 | A-04 | Respects System Settings → Accessibility → Increase Contrast |
 | A-05 | Standard macOS AppKit control sizes for interactive elements; sufficient focus indicators and contrast |
-| A-06 | User-configurable label/icon size via Alcove-owned presets (Small/Medium/Large) |
+| A-06 | Per-portal Follow Desktop sizing plus manual Small/Medium/Large overrides; Finder automation permission is requested only after the user chooses Follow Desktop |
 | A-07 | Respects System Settings → Accessibility → Reduce Motion |
 | A-08 | VoiceOver labels and actions for all interactive elements |
 
@@ -228,6 +228,7 @@ Post-MVP.
 | PR-05 | No App Groups, Keychain, security-scoped bookmarks, or application-level provisioning-profile dependency in MVP; the non-sandboxed app persists a standardized file URL/path. Spike 0.6 separately inspects whether a signing workflow embeds a profile in the release candidate. |
 | PR-06 | No telemetry, analytics, or network calls in MVP |
 | PR-07 | All state stored locally under `~/Library/Application Support/Alcove/` |
+| PR-08 | Finder Automation permission is requested only after the user explicitly chooses Follow Desktop. Once enabled, Alcove may read the approved icon/text sizes at launch or activation without prompting; denial or revoked access preserves the last valid Portal layout. |
 
 ---
 

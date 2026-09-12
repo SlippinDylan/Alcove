@@ -22,7 +22,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     }
     private let portalViewController: PortalViewController
     private let quickLookIntegration: QuickLookIntegration
-    private var iconSize: IconSize
+    private var iconLayout: PortalIconLayout
 
     init(
         portal: Portal,
@@ -32,7 +32,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         quickLookIntegration: QuickLookIntegration = QuickLookIntegration()
     ) {
         self.quickLookIntegration = quickLookIntegration
-        iconSize = portal.iconSize
+        iconLayout = portal.iconLayout
         portalViewController = PortalViewController(
             portal: portal,
             loadingCoordinator: loadingCoordinator
@@ -43,7 +43,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
             contentViewController: portalViewController,
             dragRegionHeight: PortalViewController.tabBarHeight
         )
-        window.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconSize)
+        window.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconLayout)
         let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
         window.title = selectedTab?.folderURL.lastPathComponent ?? "Alcove"
         super.init(window: window)
@@ -84,9 +84,9 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     }
 
     func updatePortal(_ portal: Portal) {
-        iconSize = portal.iconSize
+        iconLayout = portal.iconLayout
         portalViewController.updatePortal(portal)
-        window?.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconSize)
+        window?.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconLayout)
         let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
         window?.title = selectedTab?.folderURL.lastPathComponent ?? "Alcove"
     }
@@ -117,7 +117,7 @@ extension PortalWindowController: NSWindowDelegate {
     func windowDidEndLiveResize(_ notification: Notification) {
         guard let portalWindow = window as? PortalWindow else { return }
         let contentSize = portalWindow.contentRect(forFrameRect: portalWindow.frame).size
-        let snappedSize = PortalViewController.snappedContentSize(contentSize, for: iconSize)
+        let snappedSize = PortalViewController.snappedContentSize(contentSize, for: iconLayout)
         if snappedSize != contentSize {
             portalWindow.setContentSize(snappedSize)
         }

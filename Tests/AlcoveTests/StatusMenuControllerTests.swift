@@ -47,15 +47,23 @@ final class StatusMenuControllerTests: XCTestCase {
         var shownIDs: [PortalID] = []
         var removedIDs: [PortalID] = []
         var sizeRequests: [(PortalID, IconSize)] = []
+        var followRequests: [PortalID] = []
         let controller = StatusMenuController(
             onNewPortal: {},
             onShowPortal: { shownIDs.append($0) },
             onRemovePortal: { removedIDs.append($0) },
-            onSetIconSize: { sizeRequests.append(($0, $1)) }
+            onSetIconSize: { sizeRequests.append(($0, $1)) },
+            onFollowDesktopIconSettings: { followRequests.append($0) }
         )
         controller.updatePortals([
-            PortalMenuEntry(id: firstID, title: "First", iconSize: .small),
-            PortalMenuEntry(id: secondID, title: "Second", iconSize: .large),
+            PortalMenuEntry(id: firstID, title: "First", iconLayout: .fixed(.small)),
+            PortalMenuEntry(
+                id: secondID,
+                title: "Second",
+                iconLayout: .followDesktop(
+                    try XCTUnwrap(DesktopIconSettings(iconSize: .large, textSize: 14))
+                )
+            ),
         ])
 
         let menu = controller.makeMenu()
@@ -66,15 +74,22 @@ final class StatusMenuControllerTests: XCTestCase {
         firstMenu.performActionForItem(at: 0)
         firstMenu.performActionForItem(at: 3)
         let iconMenu = try XCTUnwrap(firstMenu.items[1].submenu)
-        XCTAssertEqual(iconMenu.items.map(\.title), ["Small", "Medium", "Large"])
-        XCTAssertEqual(iconMenu.items.map(\.state), [.on, .off, .off])
-        iconMenu.performActionForItem(at: 2)
+        XCTAssertEqual(
+            iconMenu.items.map(\.title),
+            ["Follow Desktop", "", "Small", "Medium", "Large"]
+        )
+        XCTAssertEqual(iconMenu.items.map(\.state), [.off, .off, .on, .off, .off])
+        iconMenu.performActionForItem(at: 4)
+        let secondIconMenu = try XCTUnwrap(menu.items[3].submenu?.items[1].submenu)
+        XCTAssertEqual(secondIconMenu.items[0].state, .on)
+        secondIconMenu.performActionForItem(at: 0)
 
         XCTAssertEqual(shownIDs, [firstID])
         XCTAssertEqual(removedIDs, [firstID])
         XCTAssertEqual(sizeRequests.count, 1)
         XCTAssertEqual(sizeRequests[0].0, firstID)
         XCTAssertEqual(sizeRequests[0].1, .large)
+        XCTAssertEqual(followRequests, [secondID])
     }
 
     @MainActor
@@ -83,7 +98,11 @@ final class StatusMenuControllerTests: XCTestCase {
         controller.start()
 
         controller.updatePortals([
-            PortalMenuEntry(id: PortalID(), title: "Documents", iconSize: .medium),
+            PortalMenuEntry(
+                id: PortalID(),
+                title: "Documents",
+                iconLayout: .fixed(.medium)
+            ),
         ])
 
         XCTAssertEqual(controller.statusItem?.menu?.items.map(\.title), [

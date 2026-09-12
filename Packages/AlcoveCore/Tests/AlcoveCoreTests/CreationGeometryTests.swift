@@ -5,6 +5,9 @@ final class CreationGeometryTests: XCTestCase {
     private let metrics = GridMetrics(
         iconSize: .small,
         labelHeight: 20,
+        itemHorizontalPadding: 0,
+        iconSelectionPadding: 0,
+        iconLabelSpacing: 0,
         horizontalSpacing: 10,
         verticalSpacing: 12,
         contentInsets: GridInsets(top: 8, leading: 6, bottom: 4, trailing: 14)

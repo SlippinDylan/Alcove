@@ -1,6 +1,64 @@
 import AlcoveCore
 import AppKit
 
+@MainActor
+final class PortalGridCollectionViewLayout: NSCollectionViewLayout {
+    var metrics: GridMetrics {
+        didSet { invalidateLayout() }
+    }
+
+    private var result: GridLayoutResult?
+    private var attributes: [IndexPath: NSCollectionViewLayoutAttributes] = [:]
+
+    init(metrics: GridMetrics) {
+        self.metrics = metrics
+        super.init()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func prepare() {
+        super.prepare()
+        guard let collectionView else { return }
+        let result = GridLayout(metrics: metrics).layout(
+            itemCount: collectionView.numberOfItems(inSection: 0),
+            availableWidth: collectionView.bounds.width
+        )
+        self.result = result
+        attributes = Dictionary(
+            uniqueKeysWithValues: result.itemFrames.enumerated().map { index, frame in
+                let indexPath = IndexPath(item: index, section: 0)
+                let attributes = NSCollectionViewLayoutAttributes(forItemWith: indexPath)
+                attributes.frame = frame
+                return (indexPath, attributes)
+            }
+        )
+    }
+
+    override var collectionViewContentSize: NSSize {
+        result?.contentSize ?? .zero
+    }
+
+    override func layoutAttributesForElements(
+        in rect: NSRect
+    ) -> [NSCollectionViewLayoutAttributes] {
+        attributes.values.filter { $0.frame.intersects(rect) }
+    }
+
+    override func layoutAttributesForItem(
+        at indexPath: IndexPath
+    ) -> NSCollectionViewLayoutAttributes? {
+        attributes[indexPath]
+    }
+
+    override func shouldInvalidateLayout(forBoundsChange newBounds: NSRect) -> Bool {
+        collectionView?.bounds.width != newBounds.width
+    }
+}
+
 struct FileGridRuntimeState: Equatable {
     let selection: SelectionState
     let scrollOrigin: NSPoint
@@ -22,11 +80,12 @@ final class FileGridViewController: NSViewController {
     init(
         workspaceOpener: any WorkspaceOpening = SystemWorkspaceOpener(),
         openFailurePresenter: any WorkspaceOpenFailurePresenting = WorkspaceOpenFailurePresenter(),
-        iconSize: IconSize = .medium
+        iconSize: IconSize = .medium,
+        textSize: CGFloat = 12
     ) {
         self.workspaceOpener = workspaceOpener
         self.openFailurePresenter = openFailurePresenter
-        metrics = GridMetrics(iconSize: iconSize)
+        metrics = GridMetrics(iconSize: iconSize, labelFontSize: textSize)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -40,18 +99,7 @@ final class FileGridViewController: NSViewController {
     }
 
     override func loadView() {
-        let flowLayout = NSCollectionViewFlowLayout()
-        flowLayout.itemSize = metrics.itemSize
-        flowLayout.sectionInset = NSEdgeInsets(
-            top: metrics.contentInsets.top,
-            left: metrics.contentInsets.leading,
-            bottom: metrics.contentInsets.bottom,
-            right: metrics.contentInsets.trailing
-        )
-        flowLayout.minimumInteritemSpacing = metrics.horizontalSpacing
-        flowLayout.minimumLineSpacing = metrics.verticalSpacing
-
-        collectionView.collectionViewLayout = flowLayout
+        collectionView.collectionViewLayout = PortalGridCollectionViewLayout(metrics: metrics)
         collectionView.frame = NSRect(
             origin: .zero,
             size: NSSize(width: 560, height: metrics.minimumContainerSize.height)
@@ -76,6 +124,7 @@ final class FileGridViewController: NSViewController {
         let scrollView = NSScrollView()
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
+        scrollView.scrollerStyle = .overlay
         scrollView.autohidesScrollers = true
         scrollView.documentView = collectionView
         view = scrollView
@@ -93,20 +142,17 @@ final class FileGridViewController: NSViewController {
     }
 
     func updateIconSize(_ iconSize: IconSize) {
-        guard metrics.iconSize != iconSize else { return }
-        metrics = GridMetrics(iconSize: iconSize)
+        updateIconLayout(iconSize: iconSize, textSize: metrics.labelFontSize)
+    }
+
+    func updateIconLayout(iconSize: IconSize, textSize: CGFloat) {
+        guard metrics.iconSize != iconSize || metrics.labelFontSize != textSize else { return }
+        metrics = GridMetrics(iconSize: iconSize, labelFontSize: textSize)
         guard isViewLoaded,
-              let flowLayout = collectionView.collectionViewLayout as? NSCollectionViewFlowLayout else {
+              let layout = collectionView.collectionViewLayout as? PortalGridCollectionViewLayout else {
             return
         }
-        flowLayout.itemSize = metrics.itemSize
-        flowLayout.sectionInset = NSEdgeInsets(
-            top: metrics.contentInsets.top,
-            left: metrics.contentInsets.leading,
-            bottom: metrics.contentInsets.bottom,
-            right: metrics.contentInsets.trailing
-        )
-        flowLayout.invalidateLayout()
+        layout.metrics = metrics
         collectionView.reloadData()
         applySelection()
     }
@@ -273,7 +319,7 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
         let item = items[indexPath.item]
         fileCell.configure(
             with: item,
-            iconSize: metrics.iconSize,
+            metrics: metrics,
             position: indexPath.item + 1,
             itemCount: items.count,
             onOpen: { [weak self] in self?.open(item) ?? false }

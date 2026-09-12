@@ -20,27 +20,48 @@ public struct GridMetrics: Sendable, Hashable {
     public static let minimumColumnCount = 2
 
     public let iconSize: IconSize
+    public let labelFontSize: CGFloat
     public let labelHeight: CGFloat
+    public let itemHorizontalPadding: CGFloat
+    public let iconSelectionPadding: CGFloat
+    public let iconLabelSpacing: CGFloat
     public let horizontalSpacing: CGFloat
     public let verticalSpacing: CGFloat
     public let contentInsets: GridInsets
 
     public init(
         iconSize: IconSize,
-        labelHeight: CGFloat = 36,
-        horizontalSpacing: CGFloat = 16,
-        verticalSpacing: CGFloat = 16,
+        labelFontSize: CGFloat = 12,
+        labelHeight: CGFloat? = nil,
+        itemHorizontalPadding: CGFloat = 48,
+        iconSelectionPadding: CGFloat = 4,
+        iconLabelSpacing: CGFloat = 4,
+        horizontalSpacing: CGFloat = 12,
+        verticalSpacing: CGFloat = 4,
         contentInsets: GridInsets = GridInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
     ) {
         self.iconSize = iconSize
+        self.labelFontSize = labelFontSize
         self.labelHeight = labelHeight
+            ?? (labelFontSize * 2.4 + 3).rounded(.up)
+        self.itemHorizontalPadding = itemHorizontalPadding
+        self.iconSelectionPadding = iconSelectionPadding
+        self.iconLabelSpacing = iconLabelSpacing
         self.horizontalSpacing = horizontalSpacing
         self.verticalSpacing = verticalSpacing
         self.contentInsets = contentInsets
     }
 
     public var itemSize: CGSize {
-        CGSize(width: iconSize.rawValue, height: iconSize.rawValue + labelHeight)
+        CGSize(
+            width: iconSize.rawValue + itemHorizontalPadding,
+            height: iconSelectionSize.height + iconLabelSpacing + labelHeight
+        )
+    }
+
+    public var iconSelectionSize: CGSize {
+        let extent = iconSize.rawValue + iconSelectionPadding * 2
+        return CGSize(width: extent, height: extent)
     }
 
     public var minimumContainerSize: CGSize {

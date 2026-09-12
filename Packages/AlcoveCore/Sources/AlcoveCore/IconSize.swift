@@ -2,7 +2,7 @@ import Foundation
 import CoreGraphics
 
 public struct IconSize: Sendable, Comparable, Hashable {
-    public static let minimum: CGFloat = 32
+    public static let minimum: CGFloat = 16
     public static let maximum: CGFloat = 128
 
     public let rawValue: CGFloat

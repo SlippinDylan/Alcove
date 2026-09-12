@@ -24,22 +24,42 @@ final class PortalViewController: NSViewController {
     static let tabBarHeight: CGFloat = 40
 
     static func minimumContentSize(for iconSize: IconSize) -> NSSize {
-        let gridSize = GridMetrics(iconSize: iconSize).minimumPortalSize
+        minimumContentSize(for: .fixed(iconSize))
+    }
+
+    static func minimumContentSize(for iconLayout: PortalIconLayout) -> NSSize {
+        let gridSize = GridMetrics(
+            iconSize: iconLayout.iconSize,
+            labelFontSize: iconLayout.textSize
+        ).minimumPortalSize
         return NSSize(width: gridSize.width, height: gridSize.height + tabBarHeight)
     }
 
     static func snappedContentSize(_ requestedSize: NSSize, for iconSize: IconSize) -> NSSize {
-        let metrics = GridMetrics(iconSize: iconSize)
-        let minimum = minimumContentSize(for: iconSize)
+        snappedContentSize(requestedSize, for: .fixed(iconSize))
+    }
+
+    static func snappedContentSize(
+        _ requestedSize: NSSize,
+        for iconLayout: PortalIconLayout,
+        roundingRule: FloatingPointRoundingRule = .toNearestOrAwayFromZero
+    ) -> NSSize {
+        let metrics = GridMetrics(
+            iconSize: iconLayout.iconSize,
+            labelFontSize: iconLayout.textSize
+        )
+        let minimum = minimumContentSize(for: iconLayout)
         let width = snappedExtent(
             requestedSize.width,
             minimum: minimum.width,
-            increment: metrics.itemSize.width + metrics.horizontalSpacing
+            increment: metrics.itemSize.width + metrics.horizontalSpacing,
+            roundingRule: roundingRule
         )
         let height = snappedExtent(
             requestedSize.height,
             minimum: minimum.height,
-            increment: metrics.itemSize.height + metrics.verticalSpacing
+            increment: metrics.itemSize.height + metrics.verticalSpacing,
+            roundingRule: roundingRule
         )
         return NSSize(width: width, height: height)
     }
@@ -47,10 +67,11 @@ final class PortalViewController: NSViewController {
     private static func snappedExtent(
         _ requested: CGFloat,
         minimum: CGFloat,
-        increment: CGFloat
+        increment: CGFloat,
+        roundingRule: FloatingPointRoundingRule
     ) -> CGFloat {
         let constrained = max(requested, minimum)
-        let steps = ((constrained - minimum) / increment).rounded(.toNearestOrAwayFromZero)
+        let steps = ((constrained - minimum) / increment).rounded(roundingRule)
         return minimum + steps * increment
     }
 
@@ -99,7 +120,7 @@ final class PortalViewController: NSViewController {
             backgroundStyle: portal.backgroundStyle
         )
         self.gridViewController = gridViewController
-            ?? FileGridViewController(iconSize: portal.iconSize)
+            ?? FileGridViewController(iconSize: portal.iconSize, textSize: portal.textSize)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -200,7 +221,7 @@ final class PortalViewController: NSViewController {
 
     func updatePortal(_ portal: Portal) {
         let previousTabID = self.portal.selectedTabID
-        let previousIconSize = self.portal.iconSize
+        let previousIconLayout = self.portal.iconLayout
         let previousBackgroundStyle = self.portal.backgroundStyle
         let previousFolderURL = folderURL
         if isViewLoaded,
@@ -209,8 +230,11 @@ final class PortalViewController: NSViewController {
             runtimeStates[previousTabID] = gridViewController.captureRuntimeState()
         }
         self.portal = portal
-        if portal.iconSize != previousIconSize {
-            gridViewController.updateIconSize(portal.iconSize)
+        if portal.iconLayout != previousIconLayout {
+            gridViewController.updateIconLayout(
+                iconSize: portal.iconSize,
+                textSize: portal.textSize
+            )
         }
         if portal.backgroundStyle != previousBackgroundStyle {
             portalMaterialView.updateBackgroundStyle(portal.backgroundStyle)

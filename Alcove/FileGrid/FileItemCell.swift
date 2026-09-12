@@ -5,56 +5,99 @@ import AppKit
 final class FileItemCell: NSCollectionViewItem {
     static let reuseIdentifier = NSUserInterfaceItemIdentifier("FileItemCell")
 
-    private let iconView = NSImageView()
-    private let nameLabel = NSTextField(labelWithString: "")
+    private(set) var iconView = NSImageView()
+    private(set) var nameLabel = NSTextField(labelWithString: "")
+    private(set) var iconSelectionView = NSView()
+    private(set) var labelSelectionView = NSView()
     private var iconWidthConstraint: NSLayoutConstraint?
     private var iconHeightConstraint: NSLayoutConstraint?
+    private var iconSelectionWidthConstraint: NSLayoutConstraint?
+    private var iconSelectionHeightConstraint: NSLayoutConstraint?
+    private var labelMaximumWidthConstraint: NSLayoutConstraint?
+    private var iconLabelSpacingConstraint: NSLayoutConstraint?
     private var itemPosition = 0
     private var itemCount = 0
     private var onOpen: (() -> Bool)?
 
     override func loadView() {
-        view = NSView()
+        let rootView = FileItemRootView()
+        rootView.onAppearanceChange = { [weak self] in
+            self?.updateSelectionAppearance()
+        }
+        view = rootView
         view.wantsLayer = true
-        view.layer?.cornerRadius = 8
 
         iconView.imageScaling = .scaleProportionallyUpOrDown
         iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconSelectionView.wantsLayer = true
+        iconSelectionView.layer?.cornerRadius = 10
+        iconSelectionView.translatesAutoresizingMaskIntoConstraints = false
+        labelSelectionView.wantsLayer = true
+        labelSelectionView.layer?.cornerRadius = 6
+        labelSelectionView.translatesAutoresizingMaskIntoConstraints = false
         nameLabel.alignment = .center
-        nameLabel.lineBreakMode = .byTruncatingMiddle
+        nameLabel.lineBreakMode = .byCharWrapping
         nameLabel.maximumNumberOfLines = 2
+        nameLabel.cell?.truncatesLastVisibleLine = true
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        view.addSubview(iconView)
-        view.addSubview(nameLabel)
+        view.addSubview(iconSelectionView)
+        iconSelectionView.addSubview(iconView)
+        view.addSubview(labelSelectionView)
+        labelSelectionView.addSubview(nameLabel)
         let iconWidthConstraint = iconView.widthAnchor.constraint(equalToConstant: 64)
         let iconHeightConstraint = iconView.heightAnchor.constraint(equalToConstant: 64)
+        let iconSelectionWidthConstraint = iconSelectionView.widthAnchor.constraint(
+            equalToConstant: 72
+        )
+        let iconSelectionHeightConstraint = iconSelectionView.heightAnchor.constraint(
+            equalToConstant: 72
+        )
+        let labelMaximumWidthConstraint = labelSelectionView.widthAnchor.constraint(
+            lessThanOrEqualToConstant: 112
+        )
         self.iconWidthConstraint = iconWidthConstraint
         self.iconHeightConstraint = iconHeightConstraint
+        self.iconSelectionWidthConstraint = iconSelectionWidthConstraint
+        self.iconSelectionHeightConstraint = iconSelectionHeightConstraint
+        self.labelMaximumWidthConstraint = labelMaximumWidthConstraint
+        let iconLabelSpacingConstraint = labelSelectionView.topAnchor.constraint(
+            equalTo: iconSelectionView.bottomAnchor,
+            constant: 4
+        )
+        self.iconLabelSpacingConstraint = iconLabelSpacingConstraint
         NSLayoutConstraint.activate([
-            iconView.topAnchor.constraint(equalTo: view.topAnchor, constant: 6),
-            iconView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            iconSelectionView.topAnchor.constraint(equalTo: view.topAnchor),
+            iconSelectionView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            iconSelectionWidthConstraint,
+            iconSelectionHeightConstraint,
+            iconView.centerXAnchor.constraint(equalTo: iconSelectionView.centerXAnchor),
+            iconView.centerYAnchor.constraint(equalTo: iconSelectionView.centerYAnchor),
             iconWidthConstraint,
             iconHeightConstraint,
-            nameLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 4),
-            nameLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 4),
-            nameLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -4),
-            nameLabel.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -4),
+            iconLabelSpacingConstraint,
+            labelSelectionView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            labelSelectionView.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor),
+            labelSelectionView.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor),
+            labelSelectionView.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor),
+            labelMaximumWidthConstraint,
+            nameLabel.topAnchor.constraint(equalTo: labelSelectionView.topAnchor, constant: 2),
+            nameLabel.leadingAnchor.constraint(equalTo: labelSelectionView.leadingAnchor, constant: 4),
+            nameLabel.trailingAnchor.constraint(equalTo: labelSelectionView.trailingAnchor, constant: -4),
+            nameLabel.bottomAnchor.constraint(equalTo: labelSelectionView.bottomAnchor, constant: -2),
         ])
     }
 
     override var isSelected: Bool {
         didSet {
-            view.layer?.backgroundColor = isSelected
-                ? NSColor.controlAccentColor.withAlphaComponent(0.24).cgColor
-                : NSColor.clear.cgColor
+            updateSelectionAppearance()
             updateAccessibilityValue()
         }
     }
 
     func configure(
         with item: FileItem,
-        iconSize: IconSize,
+        metrics: GridMetrics,
         position: Int,
         itemCount: Int,
         onOpen: @escaping () -> Bool
@@ -63,8 +106,14 @@ final class FileItemCell: NSCollectionViewItem {
         itemPosition = position
         self.itemCount = itemCount
         self.onOpen = onOpen
-        iconWidthConstraint?.constant = iconSize.rawValue
-        iconHeightConstraint?.constant = iconSize.rawValue
+        iconWidthConstraint?.constant = metrics.iconSize.rawValue
+        iconHeightConstraint?.constant = metrics.iconSize.rawValue
+        iconSelectionWidthConstraint?.constant = metrics.iconSelectionSize.width
+        iconSelectionHeightConstraint?.constant = metrics.iconSelectionSize.height
+        labelMaximumWidthConstraint?.constant = metrics.itemSize.width
+        iconLabelSpacingConstraint?.constant = metrics.iconLabelSpacing
+        nameLabel.font = NSFont.systemFont(ofSize: metrics.labelFontSize)
+        nameLabel.preferredMaxLayoutWidth = metrics.itemSize.width - 8
         nameLabel.stringValue = item.name
         iconView.image = NSWorkspace.shared.icon(forFile: item.url.path)
         view.toolTip = item.name
@@ -72,6 +121,7 @@ final class FileItemCell: NSCollectionViewItem {
         view.setAccessibilityRole(.button)
         view.setAccessibilityLabel(item.name)
         updateAccessibilityValue()
+        updateSelectionAppearance()
         view.setAccessibilityHelp(item.isDirectory ? "Folder. Double-click to open in Finder." : "File. Double-click to open.")
         view.setAccessibilityCustomActions([
             NSAccessibilityCustomAction(
@@ -87,7 +137,33 @@ final class FileItemCell: NSCollectionViewItem {
         view.setAccessibilityValue("\(selection), item \(itemPosition) of \(itemCount)")
     }
 
+    private func updateSelectionAppearance() {
+        view.effectiveAppearance.performAsCurrentDrawingAppearance {
+            iconSelectionView.layer?.backgroundColor = isSelected
+                ? NSColor.selectedContentBackgroundColor.withAlphaComponent(0.18).cgColor
+                : NSColor.clear.cgColor
+            iconSelectionView.layer?.borderWidth = isSelected ? 1 : 0
+            iconSelectionView.layer?.borderColor = isSelected
+                ? NSColor.separatorColor.cgColor
+                : nil
+            labelSelectionView.layer?.backgroundColor = isSelected
+                ? NSColor.selectedContentBackgroundColor.cgColor
+                : NSColor.clear.cgColor
+            nameLabel.textColor = isSelected ? .selectedTextColor : .labelColor
+        }
+    }
+
     @objc func performAccessibilityOpen() -> Bool {
         onOpen?() ?? false
+    }
+}
+
+@MainActor
+private final class FileItemRootView: NSView {
+    var onAppearanceChange: (() -> Void)?
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        onAppearanceChange?()
     }
 }

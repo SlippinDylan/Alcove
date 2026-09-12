@@ -145,10 +145,12 @@ public struct Portal: Identifiable, Equatable, Sendable {
     public private(set) var tabs: [FolderTab]
     public private(set) var selectedTabID: FolderTabID
     public private(set) var placement: PlacementRecord
-    public private(set) var iconSize: IconSize
+    public private(set) var iconLayout: PortalIconLayout
     public private(set) var backgroundStyle: PortalBackgroundStyle
 
     public var frame: CGRect { placement.homeEntry.absoluteFrame }
+    public var iconSize: IconSize { iconLayout.iconSize }
+    public var textSize: CGFloat { iconLayout.textSize }
 
     /// Creates a one-tab portal with a placement captured on a real display.
     public init(
@@ -157,6 +159,25 @@ public struct Portal: Identifiable, Equatable, Sendable {
         frame: CGRect,
         display: DisplayDescriptor,
         iconSize: IconSize = .medium,
+        backgroundStyle: PortalBackgroundStyle = .standard
+    ) throws {
+        try self.init(
+            id: id,
+            folderURL: folderURL,
+            frame: frame,
+            display: display,
+            iconLayout: .fixed(iconSize),
+            backgroundStyle: backgroundStyle
+        )
+    }
+
+    /// Creates a one-tab portal with an explicit icon-layout preference.
+    public init(
+        id: PortalID = PortalID(),
+        folderURL: URL,
+        frame: CGRect,
+        display: DisplayDescriptor,
+        iconLayout: PortalIconLayout,
         backgroundStyle: PortalBackgroundStyle = .standard
     ) throws {
         let tab = FolderTab(folderURL: folderURL)
@@ -171,7 +192,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
             tabs: [tab],
             selectedTabID: tab.id,
             placement: placement,
-            iconSize: iconSize,
+            iconLayout: iconLayout,
             backgroundStyle: backgroundStyle
         )
     }
@@ -183,6 +204,25 @@ public struct Portal: Identifiable, Equatable, Sendable {
         selectedTabID: FolderTabID,
         placement: PlacementRecord,
         iconSize: IconSize = .medium,
+        backgroundStyle: PortalBackgroundStyle = .standard
+    ) throws {
+        try self.init(
+            id: id,
+            tabs: tabs,
+            selectedTabID: selectedTabID,
+            placement: placement,
+            iconLayout: .fixed(iconSize),
+            backgroundStyle: backgroundStyle
+        )
+    }
+
+    /// Restores fully validated portal state with an explicit icon-layout preference.
+    public init(
+        id: PortalID = PortalID(),
+        tabs: [FolderTab],
+        selectedTabID: FolderTabID,
+        placement: PlacementRecord,
+        iconLayout: PortalIconLayout,
         backgroundStyle: PortalBackgroundStyle = .standard
     ) throws {
         guard !tabs.isEmpty else {
@@ -204,7 +244,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         self.tabs = tabs
         self.selectedTabID = selectedTabID
         self.placement = placement
-        self.iconSize = iconSize
+        self.iconLayout = iconLayout
         self.backgroundStyle = backgroundStyle
     }
 
@@ -263,7 +303,23 @@ public struct Portal: Identifiable, Equatable, Sendable {
 
     /// Replaces the app-owned icon-size preference.
     public mutating func updateIconSize(_ iconSize: IconSize) {
-        self.iconSize = iconSize
+        iconLayout = .fixed(iconSize)
+    }
+
+    /// Replaces the portal's icon-layout preference.
+    public mutating func updateIconLayout(_ iconLayout: PortalIconLayout) {
+        self.iconLayout = iconLayout
+    }
+
+    /// Makes the portal follow the supplied Finder desktop settings.
+    public mutating func followDesktop(_ settings: DesktopIconSettings) {
+        iconLayout = .followDesktop(settings)
+    }
+
+    /// Updates a followed desktop setting without changing a fixed preference.
+    public mutating func refreshDesktopIconSettings(_ settings: DesktopIconSettings) {
+        guard case .followDesktop = iconLayout else { return }
+        iconLayout = .followDesktop(settings)
     }
 
     /// Replaces the app-owned background appearance preference.

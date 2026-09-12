@@ -16,6 +16,12 @@ final class IconSizeTests: XCTestCase {
         XCTAssertNil(IconSize(rawValue: .nan))
     }
 
+    func testFinderRangeIncludesSmallDesktopIcons() {
+        XCTAssertEqual(IconSize.minimum, 16)
+        XCTAssertNotNil(IconSize(rawValue: 16))
+        XCTAssertNil(IconSize(rawValue: 15))
+    }
+
     func testComparisonUsesRawValue() {
         XCTAssertLessThan(IconSize.small, IconSize.medium)
         XCTAssertLessThan(IconSize.medium, IconSize.large)
