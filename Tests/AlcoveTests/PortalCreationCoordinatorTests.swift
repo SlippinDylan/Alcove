@@ -5,10 +5,14 @@ import XCTest
 
 final class PortalCreationCoordinatorTests: XCTestCase {
     @MainActor
-    func testValidTransactionCreatesExactlyOnePortal() async {
+    func testValidTransactionCreatesExactlyOnePortal() async throws {
         let frame = NSRect(x: 10, y: 20, width: 300, height: 240)
         let folder = URL(fileURLWithPath: "/tmp/folder")
-        let frameSelector = FrameSelectorStub(frames: [frame])
+        let settings = try XCTUnwrap(
+            DesktopIconSettings(iconSize: .large, textSize: 14)
+        )
+        let iconLayout = PortalIconLayout.followDesktop(settings)
+        let frameSelector = FrameSelectorStub(frames: [frame], iconLayout: iconLayout)
         let folderPicker = FolderPickerStub(folders: [folder])
         let portalCoordinator = PortalCoordinatorStub()
         let coordinator = PortalCreationCoordinator(
@@ -22,7 +26,12 @@ final class PortalCreationCoordinatorTests: XCTestCase {
         XCTAssertTrue(created)
 
         XCTAssertEqual(portalCoordinator.requests, [
-            PortalRequest(folder: folder, frame: frame, capacity: .minimum),
+            PortalRequest(
+                folder: folder,
+                frame: frame,
+                capacity: .minimum,
+                iconLayout: iconLayout
+            ),
         ])
         XCTAssertEqual(coordinator.state, .idle)
     }
@@ -165,21 +174,43 @@ private struct PortalRequest: Equatable {
     let folder: URL
     let frame: NSRect?
     let capacity: GridCapacity
+    let iconLayout: PortalIconLayout
+
+    init(
+        folder: URL,
+        frame: NSRect?,
+        capacity: GridCapacity,
+        iconLayout: PortalIconLayout = .fixed(.medium)
+    ) {
+        self.folder = folder
+        self.frame = frame
+        self.capacity = capacity
+        self.iconLayout = iconLayout
+    }
 }
 
 @MainActor
 private final class FrameSelectorStub: PortalFrameSelecting {
     private var frames: [NSRect?]
+    private let iconLayout: PortalIconLayout
     private(set) var cancelCount = 0
 
-    init(frames: [NSRect?]) {
+    init(
+        frames: [NSRect?],
+        iconLayout: PortalIconLayout = .fixed(.medium)
+    ) {
         self.frames = frames
+        self.iconLayout = iconLayout
     }
 
     func selectFrame() async -> PortalFrameSelection? {
         guard !frames.isEmpty else { return nil }
         return frames.removeFirst().map {
-            PortalFrameSelection(frame: $0, capacity: .minimum)
+            PortalFrameSelection(
+                frame: $0,
+                capacity: .minimum,
+                iconLayout: iconLayout
+            )
         }
     }
 
@@ -254,10 +285,16 @@ private final class PortalCoordinatorStub: PortalCoordinating {
     func createPortal(
         for folderURL: URL,
         frame: NSRect?,
-        gridCapacity: GridCapacity
+        gridCapacity: GridCapacity,
+        iconLayout: PortalIconLayout
     ) async throws {
         requests.append(
-            PortalRequest(folder: folderURL, frame: frame, capacity: gridCapacity)
+            PortalRequest(
+                folder: folderURL,
+                frame: frame,
+                capacity: gridCapacity,
+                iconLayout: iconLayout
+            )
         )
         if !errors.isEmpty, let error = errors.removeFirst() {
             throw error

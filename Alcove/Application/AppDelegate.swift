@@ -23,6 +23,201 @@ enum FinderDesktopSettingsReaderError: Error, Equatable, Sendable {
     case invalidTextSize(Double)
 }
 
+/// Schedules a repeating refresh while Finder is frontmost. The protocol keeps
+/// Finder activation monitoring independent from a concrete run loop in tests.
+@MainActor
+protocol FinderRefreshTimerScheduling: AnyObject {
+    func scheduleRepeating(
+        every interval: TimeInterval,
+        handler: @escaping @MainActor () -> Void
+    ) -> any FinderRefreshTiming
+}
+
+@MainActor
+protocol FinderRefreshTiming: AnyObject {
+    func invalidate()
+}
+
+@MainActor
+final class RunLoopFinderRefreshTimerScheduler: FinderRefreshTimerScheduling {
+    func scheduleRepeating(
+        every interval: TimeInterval,
+        handler: @escaping @MainActor () -> Void
+    ) -> any FinderRefreshTiming {
+        let timer = Timer(timeInterval: interval, repeats: true) { _ in
+            Task { @MainActor in
+                handler()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        return FinderRefreshTimer(timer: timer)
+    }
+}
+
+@MainActor
+private final class FinderRefreshTimer: FinderRefreshTiming {
+    private let timer: Timer
+
+    init(timer: Timer) {
+        self.timer = timer
+    }
+
+    func invalidate() {
+        timer.invalidate()
+    }
+}
+
+/// Runs a bounded refresh loop only while Finder is frontmost. It does not
+/// perform Apple events itself, so observing Finder never prompts for access.
+@MainActor
+final class FinderActivationMonitor {
+    typealias ApplicationIdentifier = @Sendable (Notification) -> String?
+    typealias FrontmostApplicationIdentifier = @MainActor () -> String?
+
+    private static let finderBundleIdentifier = "com.apple.finder"
+
+    var onRefresh: (@MainActor () -> Void)?
+
+    private let notificationCenter: NotificationCenter
+    private let timerScheduler: any FinderRefreshTimerScheduling
+    private let applicationIdentifier: ApplicationIdentifier
+    private let frontmostApplicationIdentifier: FrontmostApplicationIdentifier
+    private let refreshInterval: TimeInterval
+    private var registration: FinderActivationRegistration?
+    private var timer: (any FinderRefreshTiming)?
+    private var isFinderActive = false
+    private var timerGeneration: UInt64 = 0
+    private var monitorGeneration: UInt64 = 0
+
+    var isMonitoring: Bool {
+        registration != nil
+    }
+
+    var isPolling: Bool {
+        timer != nil
+    }
+
+    init(
+        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
+        timerScheduler: any FinderRefreshTimerScheduling = RunLoopFinderRefreshTimerScheduler(),
+        refreshInterval: TimeInterval = 1,
+        applicationIdentifier: @escaping ApplicationIdentifier = FinderActivationMonitor.bundleIdentifier,
+        frontmostApplicationIdentifier: @escaping FrontmostApplicationIdentifier = {
+            NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        }
+    ) {
+        self.notificationCenter = notificationCenter
+        self.timerScheduler = timerScheduler
+        self.refreshInterval = refreshInterval
+        self.applicationIdentifier = applicationIdentifier
+        self.frontmostApplicationIdentifier = frontmostApplicationIdentifier
+    }
+
+    func start() {
+        guard registration == nil else {
+            return
+        }
+
+        monitorGeneration &+= 1
+        let generation = monitorGeneration
+        let applicationIdentifier = applicationIdentifier
+        let token = notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] notification in
+            let identifier = applicationIdentifier(notification)
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.registration != nil,
+                      self.monitorGeneration == generation else {
+                    return
+                }
+                self.handleApplicationActivation(identifier)
+            }
+        }
+        registration = FinderActivationRegistration(
+            center: notificationCenter,
+            token: token
+        )
+        handleApplicationActivation(frontmostApplicationIdentifier())
+    }
+
+    func stop() {
+        monitorGeneration &+= 1
+        registration = nil
+        isFinderActive = false
+        stopPolling()
+    }
+
+    private func handleApplicationActivation(_ identifier: String?) {
+        guard let identifier else {
+            return
+        }
+
+        if identifier == Self.finderBundleIdentifier {
+            guard !isFinderActive else {
+                return
+            }
+            isFinderActive = true
+            startPolling()
+            return
+        }
+
+        guard isFinderActive else {
+            return
+        }
+        isFinderActive = false
+        stopPolling()
+        onRefresh?()
+    }
+
+    private func startPolling() {
+        guard timer == nil else {
+            return
+        }
+
+        timerGeneration &+= 1
+        let generation = timerGeneration
+        timer = timerScheduler.scheduleRepeating(every: refreshInterval) { [weak self] in
+            guard let self,
+                  self.isFinderActive,
+                  self.timerGeneration == generation else {
+                return
+            }
+            self.onRefresh?()
+        }
+    }
+
+    private func stopPolling() {
+        timerGeneration &+= 1
+        timer?.invalidate()
+        timer = nil
+    }
+
+    nonisolated private static func bundleIdentifier(from notification: Notification) -> String? {
+        guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+            as? NSRunningApplication else {
+            return nil
+        }
+        return application.bundleIdentifier
+    }
+}
+
+private final class FinderActivationRegistration {
+    private let center: NotificationCenter
+    private let token: any NSObjectProtocol
+
+    init(center: NotificationCenter, token: any NSObjectProtocol) {
+        self.center = center
+        self.token = token
+    }
+
+    deinit {
+        center.removeObserver(token)
+    }
+}
+
 struct FinderDesktopSettingsReader: FinderDesktopSettingsReading {
     typealias ScriptExecutor = @Sendable (
         String,
@@ -256,7 +451,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     try await portalCoordinator.createPortal(
                         for: startupFolderURL,
                         frame: nil,
-                        gridCapacity: .minimum
+                        gridCapacity: .minimum,
+                        iconLayout: .fixed(.medium)
                     )
                 }
                 startupError = nil

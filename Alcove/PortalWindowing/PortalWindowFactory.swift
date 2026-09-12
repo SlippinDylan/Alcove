@@ -3,6 +3,7 @@ import AppKit
 
 @MainActor
 protocol PortalWindowPresenting: AnyObject {
+    var isUserPlacementInteractionActive: Bool { get }
     var onUserPlacementCommit: ((NSRect) -> Void)? { get set }
     var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)? { get set }
     var onUserPlacementInteractionCancelled: (() -> Void)? { get set }

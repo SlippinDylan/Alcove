@@ -2,12 +2,41 @@ import AlcoveCore
 import AppKit
 
 @MainActor
+final class PortalCreationGridState {
+    private(set) var grid: CreationGrid
+    private(set) var iconLayout: PortalIconLayout
+
+    init(grid: CreationGrid, iconLayout: PortalIconLayout = .fixed(.medium)) {
+        self.grid = grid
+        self.iconLayout = iconLayout
+    }
+
+    func update(with settings: DesktopIconSettings) {
+        do {
+            grid = try CreationGrid(
+                metrics: GridMetrics(
+                    iconSize: settings.iconSize,
+                    labelFontSize: settings.textSize
+                )
+            )
+            iconLayout = .followDesktop(settings)
+        } catch {
+            preconditionFailure("Validated desktop metrics must form a creation grid: \(error)")
+        }
+    }
+}
+
+@MainActor
 final class PortalFrameSelector: PortalFrameSelecting {
-    private let grid: CreationGrid
+    private let gridState: PortalCreationGridState
     private var activeOverlay: PortalCreationOverlayController?
 
     init(grid: CreationGrid) {
-        self.grid = grid
+        gridState = PortalCreationGridState(grid: grid)
+    }
+
+    init(gridState: PortalCreationGridState) {
+        self.gridState = gridState
     }
 
     func selectFrame() async -> PortalFrameSelection? {
@@ -18,7 +47,11 @@ final class PortalFrameSelector: PortalFrameSelecting {
         }
 
         return await withCheckedContinuation { continuation in
-            let overlay = PortalCreationOverlayController(screen: screen, grid: grid) {
+            let overlay = PortalCreationOverlayController(
+                screen: screen,
+                grid: gridState.grid,
+                iconLayout: gridState.iconLayout
+            ) {
                 [weak self] frame in
                 self?.activeOverlay = nil
                 continuation.resume(returning: frame)
@@ -40,13 +73,15 @@ private final class PortalCreationOverlayController: NSWindowController {
     init(
         screen: NSScreen,
         grid: CreationGrid,
+        iconLayout: PortalIconLayout,
         completion: @escaping (PortalFrameSelection?) -> Void
     ) {
         self.completion = completion
         let overlayView = PortalCreationOverlayView(
             screenFrame: screen.frame,
             visibleFrame: screen.visibleFrame,
-            grid: grid
+            grid: grid,
+            iconLayout: iconLayout
         )
         let window = PortalCreationOverlayWindow(
             contentRect: screen.frame,
@@ -100,16 +135,23 @@ final class PortalCreationOverlayView: NSView {
     private let screenFrame: NSRect
     private let visibleFrame: NSRect
     private let grid: CreationGrid
+    private let iconLayout: PortalIconLayout
     private var mouseDownPoint: NSPoint?
     private(set) var selectedRectangle: CreationRectangle?
     private var didDrag = false
     private var growsPositiveX = true
     private var growsPositiveY = true
 
-    init(screenFrame: NSRect, visibleFrame: NSRect, grid: CreationGrid) {
+    init(
+        screenFrame: NSRect,
+        visibleFrame: NSRect,
+        grid: CreationGrid,
+        iconLayout: PortalIconLayout = .fixed(.medium)
+    ) {
         self.screenFrame = screenFrame
         self.visibleFrame = visibleFrame
         self.grid = grid
+        self.iconLayout = iconLayout
         super.init(frame: NSRect(origin: .zero, size: screenFrame.size))
         wantsLayer = true
         setAccessibilityElement(true)
@@ -345,7 +387,11 @@ final class PortalCreationOverlayView: NSView {
         self.onCompletion = nil
         onCompletion(
             rectangle.map {
-                PortalFrameSelection(frame: $0.frame, capacity: $0.capacity)
+                PortalFrameSelection(
+                    frame: $0.frame,
+                    capacity: $0.capacity,
+                    iconLayout: iconLayout
+                )
             }
         )
     }

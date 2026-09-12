@@ -133,6 +133,23 @@ final class PortalWindowConfigurationTests: XCTestCase {
     }
 
     @MainActor
+    func testZeroDistanceDragCancelsWithoutCommitting() throws {
+        let pointer = PointerLocation(NSPoint(x: 10, y: 10))
+        let window = makeWindow(pointerLocationProvider: { pointer.location })
+        var commits: [NSRect] = []
+        var cancellationCount = 0
+        window.onUserPlacementCommit = { commits.append($0) }
+        window.onUserPlacementInteractionCancelled = { cancellationCount += 1 }
+        window.beginUserDrag(at: pointer.location)
+
+        window.handleUserDragEvent(try event(.leftMouseDragged, at: .zero, in: window))
+        window.handleUserDragEvent(try event(.leftMouseUp, at: .zero, in: window))
+
+        XCTAssertTrue(commits.isEmpty)
+        XCTAssertEqual(cancellationCount, 1)
+    }
+
+    @MainActor
     func testUserResizeCommitsOnceAtLiveResizeEnd() {
         let window = makeWindow()
         var commits: [NSRect] = []
@@ -147,6 +164,21 @@ final class PortalWindowConfigurationTests: XCTestCase {
 
         XCTAssertEqual(commits, [NSRect(x: 80, y: 90, width: 400, height: 300)])
         XCTAssertFalse(window.isUserPlacementInteractionActive)
+    }
+
+    @MainActor
+    func testUnchangedUserResizeCancelsWithoutCommitting() {
+        let window = makeWindow()
+        var commits: [NSRect] = []
+        var cancellationCount = 0
+        window.onUserResizeCommit = { commits.append($0) }
+        window.onUserPlacementInteractionCancelled = { cancellationCount += 1 }
+
+        window.beginUserResize()
+        window.endUserResize()
+
+        XCTAssertTrue(commits.isEmpty)
+        XCTAssertEqual(cancellationCount, 1)
     }
 
     @MainActor
@@ -167,11 +199,11 @@ final class PortalWindowConfigurationTests: XCTestCase {
         )
         let window = try XCTUnwrap(controller.window as? PortalWindow)
         let minimum = PortalViewController.minimumContentSize(for: .medium)
-        window.setContentSize(NSSize(width: minimum.width + 41, height: minimum.height + 73))
         var commits: [(NSRect, GridCapacity)] = []
         controller.onUserResizeCommit = { commits.append(($0, $1)) }
 
         controller.windowWillStartLiveResize(Notification(name: NSWindow.willStartLiveResizeNotification))
+        window.setContentSize(NSSize(width: minimum.width + 41, height: minimum.height + 73))
         controller.windowDidEndLiveResize(Notification(name: NSWindow.didEndLiveResizeNotification))
 
         XCTAssertEqual(
@@ -184,6 +216,33 @@ final class PortalWindowConfigurationTests: XCTestCase {
         XCTAssertEqual(commits.count, 1)
         XCTAssertEqual(commits[0].0, window.frame)
         XCTAssertEqual(commits[0].1, try GridCapacity(columns: 3, rows: 2))
+    }
+
+    @MainActor
+    func testControllerDoesNotSnapOrCommitAnUnchangedLiveResize() throws {
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/portal"),
+            frame: NSRect(x: 20, y: 30, width: 560, height: 480),
+            display: DisplayDescriptor(
+                identity: DisplayIdentity(rawValue: "test-display"),
+                visibleFrame: NSRect(x: 0, y: 0, width: 1440, height: 900)
+            )
+        )
+        let controller = PortalWindowController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(),
+            initialFrame: portal.frame
+        )
+        let window = try XCTUnwrap(controller.window as? PortalWindow)
+        let initialFrame = window.frame
+        var commitCount = 0
+        controller.onUserResizeCommit = { _, _ in commitCount += 1 }
+
+        controller.windowWillStartLiveResize(Notification(name: NSWindow.willStartLiveResizeNotification))
+        controller.windowDidEndLiveResize(Notification(name: NSWindow.didEndLiveResizeNotification))
+
+        XCTAssertEqual(window.frame, initialFrame)
+        XCTAssertEqual(commitCount, 0)
     }
 
     @MainActor

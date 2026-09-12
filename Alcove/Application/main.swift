@@ -11,8 +11,9 @@ do {
     exit(EXIT_FAILURE)
 }
 
-let portalCoordinator = PortalCoordinator()
-let frameSelector = PortalFrameSelector(grid: creationGrid)
+let creationGridState = PortalCreationGridState(grid: creationGrid)
+let portalCoordinator = PortalCoordinator(portalCreationGridState: creationGridState)
+let frameSelector = PortalFrameSelector(gridState: creationGridState)
 let creationCoordinator = PortalCreationCoordinator(
     frameSelector: frameSelector,
     folderPicker: OpenPanelFolderPicker(),

@@ -32,16 +32,19 @@ struct PortalWindowUserPlacementTracker {
     }
 
     mutating func finish() -> NSRect? {
+        let committedFrame: NSRect?
+        if receivedDragEvent, latestFrame != initialFrame {
+            committedFrame = latestFrame
+        } else {
+            committedFrame = nil
+        }
         defer {
             initialPointer = nil
             initialFrame = nil
             latestFrame = nil
             receivedDragEvent = false
         }
-        guard receivedDragEvent else {
-            return nil
-        }
-        return latestFrame
+        return committedFrame
     }
 
     mutating func cancel() {
@@ -58,6 +61,7 @@ final class PortalWindow: NSWindow {
     private let pointerLocationProvider: () -> NSPoint
     private var placementTracker = PortalWindowUserPlacementTracker()
     private var isPerformingLiveResize = false
+    private var initialLiveResizeFrame: NSRect?
 
     var onUserPlacementCommit: ((NSRect) -> Void)?
     var onUserResizeCommit: ((NSRect) -> Void)?
@@ -65,6 +69,11 @@ final class PortalWindow: NSWindow {
 
     var isUserPlacementInteractionActive: Bool {
         placementTracker.isTracking || isPerformingLiveResize
+    }
+
+    var hasLiveResizeGeometryChanged: Bool {
+        guard let initialLiveResizeFrame else { return false }
+        return frame != initialLiveResizeFrame
     }
 
     init(
@@ -131,6 +140,7 @@ final class PortalWindow: NSWindow {
 
     func beginUserResize() {
         isPerformingLiveResize = true
+        initialLiveResizeFrame = frame
     }
 
     func beginUserDrag(at pointer: NSPoint) {
@@ -142,13 +152,20 @@ final class PortalWindow: NSWindow {
             return
         }
         isPerformingLiveResize = false
-        onUserResizeCommit?(frame)
+        let changedFrame = initialLiveResizeFrame != frame
+        initialLiveResizeFrame = nil
+        if changedFrame {
+            onUserResizeCommit?(frame)
+        } else {
+            onUserPlacementInteractionCancelled?()
+        }
     }
 
     func cancelUserPlacementInteraction(notify: Bool = true) {
         let wasActive = isUserPlacementInteractionActive
         placementTracker.cancel()
         isPerformingLiveResize = false
+        initialLiveResizeFrame = nil
         if notify, wasActive {
             onUserPlacementInteractionCancelled?()
         }

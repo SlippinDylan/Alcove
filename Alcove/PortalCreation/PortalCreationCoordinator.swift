@@ -23,6 +23,17 @@ protocol PortalFrameSelecting: AnyObject {
 struct PortalFrameSelection: Equatable {
     let frame: NSRect
     let capacity: GridCapacity
+    let iconLayout: PortalIconLayout
+
+    init(
+        frame: NSRect,
+        capacity: GridCapacity,
+        iconLayout: PortalIconLayout = .fixed(.medium)
+    ) {
+        self.frame = frame
+        self.capacity = capacity
+        self.iconLayout = iconLayout
+    }
 }
 
 @MainActor
@@ -86,7 +97,8 @@ final class PortalCreationCoordinator: PortalCreationRequesting {
                 try await portalCoordinator.createPortal(
                     for: folderURL,
                     frame: selection.frame,
-                    gridCapacity: selection.capacity
+                    gridCapacity: selection.capacity,
+                    iconLayout: selection.iconLayout
                 )
                 return true
             } catch is CancellationError {

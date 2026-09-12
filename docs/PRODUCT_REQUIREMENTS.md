@@ -101,7 +101,7 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 
 1. User activates portal creation from the menu bar (clicks Alcove icon → "New Portal")
 2. A transparent overlay appears on the pointer's current display
-3. A dashed `3×1` portal appears immediately. Its card, title control, and item slots are previewed as dashed outlines.
+3. A dashed `3×1` portal appears immediately. Its card, title control, and item slots are previewed as dashed outlines. Before any successful Follow Desktop action it uses the Medium preset; afterward it uses the last valid Finder snapshot and the created Portal starts in Follow Desktop mode.
 4. Dragging changes columns and rows at half-cell thresholds: partial progress remains a translucent candidate until the next whole capacity is committed.
 5. On mouse-up, a folder chooser (standard `NSOpenPanel`) appears
 6. Alcove validates that the selected folder is on the Mac's internal, fixed local storage; removable, ejectable, and network-volume locations are rejected with an explanation
@@ -161,7 +161,7 @@ Post-MVP.
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
 | FR-17 | Drag-out from portals | Investigate |
-| FR-18 | Each Portal supports a user-invoked Follow Desktop mode that reads Finder's current desktop icon and text sizes through its scripting interface, plus Alcove-owned Small/Medium/Large manual overrides | MVP |
+| FR-18 | Each Portal supports a user-invoked Follow Desktop mode that reads Finder's current desktop icon and text sizes through its scripting interface, plus Alcove-owned Small/Medium/Large manual overrides. While at least one Portal follows Desktop, Alcove checks for changes once per second only while Finder is frontmost and once when Finder leaves the foreground. | MVP |
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 
 ### Non-Functional Requirements
@@ -229,7 +229,7 @@ Post-MVP.
 | PR-05 | No App Groups, Keychain, security-scoped bookmarks, or application-level provisioning-profile dependency in MVP; the non-sandboxed app persists a standardized file URL/path. Spike 0.6 separately inspects whether a signing workflow embeds a profile in the release candidate. |
 | PR-06 | No telemetry, analytics, or network calls in MVP |
 | PR-07 | All state stored locally under `~/Library/Application Support/Alcove/` |
-| PR-08 | Finder Automation permission is requested only after the user explicitly chooses Follow Desktop. Once enabled, Alcove may read the approved icon/text sizes at launch or activation without prompting; denial or revoked access preserves the last valid Portal layout. |
+| PR-08 | Finder Automation permission is requested only after the user explicitly chooses Follow Desktop. Once enabled, Alcove may read the approved icon/text sizes at launch, activation, or bounded Finder-foreground polling without prompting; denial or revoked access preserves the last valid Portal layout. Passive changes preserve `GridCapacity`, recompute pixel frames and future creation previews, and wait for an active user move/resize to finish. |
 
 ---
 

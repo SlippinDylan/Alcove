@@ -33,7 +33,8 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
     func createPortal(
         for folderURL: URL,
         frame: NSRect?,
-        gridCapacity: GridCapacity
+        gridCapacity: GridCapacity,
+        iconLayout: PortalIconLayout
     ) async throws {
         if let error {
             throw error
@@ -51,6 +52,40 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
 
     func prepareForTermination() async {}
 
+}
+
+@MainActor
+private final class FinderRefreshTimerSchedulerSpy: FinderRefreshTimerScheduling {
+    private(set) var requestedIntervals: [TimeInterval] = []
+    private(set) var timers: [FinderRefreshTimerSpy] = []
+
+    func scheduleRepeating(
+        every interval: TimeInterval,
+        handler: @escaping @MainActor () -> Void
+    ) -> any FinderRefreshTiming {
+        requestedIntervals.append(interval)
+        let timer = FinderRefreshTimerSpy(handler: handler)
+        timers.append(timer)
+        return timer
+    }
+}
+
+@MainActor
+private final class FinderRefreshTimerSpy: FinderRefreshTiming {
+    private let handler: @MainActor () -> Void
+    private(set) var invalidationCount = 0
+
+    init(handler: @escaping @MainActor () -> Void) {
+        self.handler = handler
+    }
+
+    func invalidate() {
+        invalidationCount += 1
+    }
+
+    func fire() {
+        handler()
+    }
 }
 
 private enum StartupFixtureError: Error, Equatable {
@@ -128,6 +163,120 @@ final class AppDelegateTests: XCTestCase {
         await activeDelegate.waitForDesktopSettingsRefreshForTesting()
 
         XCTAssertEqual(coordinator.desktopSettingsRefreshCount, 1)
+    }
+
+    @MainActor
+    func testFinderActivationMonitorPollsWhileFinderIsFrontmostAndRefreshesOnExit() async {
+        let center = NotificationCenter()
+        let scheduler = FinderRefreshTimerSchedulerSpy()
+        let monitor = FinderActivationMonitor(
+            notificationCenter: center,
+            timerScheduler: scheduler,
+            applicationIdentifier: { notification in
+                notification.userInfo?["bundleIdentifier"] as? String
+            },
+            frontmostApplicationIdentifier: { nil }
+        )
+        var refreshCount = 0
+        monitor.onRefresh = { refreshCount += 1 }
+
+        monitor.start()
+        monitor.start()
+        postApplicationActivation("com.apple.finder", to: center)
+        await allowMonitorNotificationDelivery()
+
+        XCTAssertTrue(monitor.isMonitoring)
+        XCTAssertTrue(monitor.isPolling)
+        XCTAssertEqual(scheduler.requestedIntervals, [1])
+        XCTAssertEqual(scheduler.timers.count, 1)
+
+        scheduler.timers[0].fire()
+        XCTAssertEqual(refreshCount, 1)
+
+        postApplicationActivation("com.apple.TextEdit", to: center)
+        await allowMonitorNotificationDelivery()
+
+        XCTAssertFalse(monitor.isPolling)
+        XCTAssertEqual(scheduler.timers[0].invalidationCount, 1)
+        XCTAssertEqual(refreshCount, 2)
+
+        scheduler.timers[0].fire()
+        XCTAssertEqual(refreshCount, 2)
+    }
+
+    @MainActor
+    func testFinderActivationMonitorPreventsDuplicateTimersAndDropsCallbacksAfterStop() async {
+        let center = NotificationCenter()
+        let scheduler = FinderRefreshTimerSchedulerSpy()
+        let monitor = FinderActivationMonitor(
+            notificationCenter: center,
+            timerScheduler: scheduler,
+            applicationIdentifier: { notification in
+                notification.userInfo?["bundleIdentifier"] as? String
+            },
+            frontmostApplicationIdentifier: { nil }
+        )
+        var refreshCount = 0
+        monitor.onRefresh = { refreshCount += 1 }
+
+        monitor.start()
+        postApplicationActivation("com.apple.finder", to: center)
+        postApplicationActivation("com.apple.finder", to: center)
+        await allowMonitorNotificationDelivery()
+
+        XCTAssertEqual(scheduler.timers.count, 1)
+
+        monitor.stop()
+        XCTAssertFalse(monitor.isMonitoring)
+        XCTAssertFalse(monitor.isPolling)
+        XCTAssertEqual(scheduler.timers[0].invalidationCount, 1)
+
+        scheduler.timers[0].fire()
+        XCTAssertEqual(refreshCount, 0)
+
+        postApplicationActivation("com.apple.finder", to: center)
+        await allowMonitorNotificationDelivery()
+        XCTAssertEqual(scheduler.timers.count, 1)
+    }
+
+    @MainActor
+    func testFinderActivationMonitorStartsPollingWhenFinderIsAlreadyFrontmost() {
+        let scheduler = FinderRefreshTimerSchedulerSpy()
+        let monitor = FinderActivationMonitor(
+            notificationCenter: NotificationCenter(),
+            timerScheduler: scheduler,
+            applicationIdentifier: { _ in nil },
+            frontmostApplicationIdentifier: { "com.apple.finder" }
+        )
+
+        monitor.start()
+
+        XCTAssertTrue(monitor.isMonitoring)
+        XCTAssertTrue(monitor.isPolling)
+        XCTAssertEqual(scheduler.requestedIntervals, [1])
+    }
+
+    @MainActor
+    func testFinderActivationQueuedBeforeStopCannotRestartPolling() async {
+        let center = NotificationCenter()
+        let scheduler = FinderRefreshTimerSchedulerSpy()
+        let monitor = FinderActivationMonitor(
+            notificationCenter: center,
+            timerScheduler: scheduler,
+            applicationIdentifier: { notification in
+                notification.userInfo?["bundleIdentifier"] as? String
+            },
+            frontmostApplicationIdentifier: { nil }
+        )
+        monitor.start()
+
+        postApplicationActivation("com.apple.finder", to: center)
+        monitor.stop()
+        await allowMonitorNotificationDelivery()
+
+        XCTAssertFalse(monitor.isMonitoring)
+        XCTAssertFalse(monitor.isPolling)
+        XCTAssertTrue(scheduler.timers.isEmpty)
     }
 
     @MainActor
@@ -241,6 +390,24 @@ final class AppDelegateTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error: \(error)", file: file, line: line)
         }
+    }
+
+    @MainActor
+    private func postApplicationActivation(
+        _ bundleIdentifier: String,
+        to center: NotificationCenter
+    ) {
+        center.post(
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            userInfo: ["bundleIdentifier": bundleIdentifier]
+        )
+    }
+
+    @MainActor
+    private func allowMonitorNotificationDelivery() async {
+        await Task.yield()
+        await Task.yield()
     }
 }
 

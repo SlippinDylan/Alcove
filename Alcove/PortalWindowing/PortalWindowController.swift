@@ -3,6 +3,10 @@ import AlcoveCore
 
 @MainActor
 final class PortalWindowController: NSWindowController, PortalWindowPresenting {
+    var isUserPlacementInteractionActive: Bool {
+        (window as? PortalWindow)?.isUserPlacementInteractionActive ?? false
+    }
+
     var onUserPlacementCommit: ((NSRect) -> Void)?
     var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)?
     var onUserPlacementInteractionCancelled: (() -> Void)?
@@ -165,6 +169,12 @@ extension PortalWindowController: NSWindowDelegate {
 
     func windowDidEndLiveResize(_ notification: Notification) {
         guard let portalWindow = window as? PortalWindow else { return }
+        guard portalWindow.hasLiveResizeGeometryChanged else {
+            pendingResizeCapacity = nil
+            portalWindow.endUserResize()
+            portalViewController.hideResizeCapacityPreview()
+            return
+        }
         _ = windowWillResize(portalWindow, toFrameSize: portalWindow.frame.size)
         if let pendingResizeCapacity {
             let snappedSize = PortalViewController.contentSize(

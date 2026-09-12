@@ -7,7 +7,8 @@ protocol PortalCoordinating: AnyObject {
     func createPortal(
         for folderURL: URL,
         frame: NSRect?,
-        gridCapacity: GridCapacity
+        gridCapacity: GridCapacity,
+        iconLayout: PortalIconLayout
     ) async throws
     func refreshFollowedDesktopIconSettings() async
     func stop()
@@ -54,6 +55,8 @@ final class PortalCoordinator: PortalCoordinating {
     private let persistenceErrorPresenter: any PortalPersistenceErrorPresenting
     private let finderSettingsReader: any FinderDesktopSettingsReading
     private let finderSettingsErrorPresenter: any FinderDesktopSettingsErrorPresenting
+    private let finderActivationMonitor: FinderActivationMonitor
+    private let portalCreationGridState: PortalCreationGridState?
     private let lastTabRemovalConfirmer: any LastTabRemovalConfirming
     private let displaySnapshotProvider: DisplayPlacementObserver.SnapshotProvider
     private let displayNotificationCenter: NotificationCenter
@@ -70,6 +73,9 @@ final class PortalCoordinator: PortalCoordinating {
     private var mutationGeneration: UInt64 = 0
     private var folderSelectionTask: Task<Void, Never>?
     private var tabMutationTasks: [UUID: Task<Void, Never>] = [:]
+    private var finderRefreshTask: Task<Void, Never>?
+    private var finderRefreshRequested = false
+    private var finderRefreshGeneration: UInt64 = 0
     private var hasLoadedPersistentState = false
     private(set) var portalStates: [Portal] = []
     private(set) var persistenceError: Error?
@@ -95,6 +101,8 @@ final class PortalCoordinator: PortalCoordinating {
         persistenceErrorPresenter: any PortalPersistenceErrorPresenting = PortalPersistenceErrorPresenter(),
         finderSettingsReader: any FinderDesktopSettingsReading = FinderDesktopSettingsReader(),
         finderSettingsErrorPresenter: any FinderDesktopSettingsErrorPresenting = FinderDesktopSettingsErrorPresenter(),
+        finderActivationMonitor: FinderActivationMonitor = FinderActivationMonitor(),
+        portalCreationGridState: PortalCreationGridState? = nil,
         lastTabRemovalConfirmer: any LastTabRemovalConfirming = LastTabRemovalConfirmer(),
         displayNotificationCenter: NotificationCenter = .default,
         displaySnapshotProvider: @escaping DisplayPlacementObserver.SnapshotProvider = {
@@ -111,9 +119,14 @@ final class PortalCoordinator: PortalCoordinating {
         self.persistenceErrorPresenter = persistenceErrorPresenter
         self.finderSettingsReader = finderSettingsReader
         self.finderSettingsErrorPresenter = finderSettingsErrorPresenter
+        self.finderActivationMonitor = finderActivationMonitor
+        self.portalCreationGridState = portalCreationGridState
         self.lastTabRemovalConfirmer = lastTabRemovalConfirmer
         self.displayNotificationCenter = displayNotificationCenter
         self.displaySnapshotProvider = displaySnapshotProvider
+        finderActivationMonitor.onRefresh = { [weak self] in
+            self?.requestPassiveDesktopSettingsRefresh()
+        }
     }
 
     func restorePortals() async throws {
@@ -131,7 +144,8 @@ final class PortalCoordinator: PortalCoordinating {
     func createPortal(
         for folderURL: URL,
         frame: NSRect? = nil,
-        gridCapacity: GridCapacity = .minimum
+        gridCapacity: GridCapacity = .minimum,
+        iconLayout: PortalIconLayout = .fixed(.medium)
     ) async throws {
         let folderURL = try await locationValidator.validate(folderURL)
         try Task.checkCancellation()
@@ -148,7 +162,7 @@ final class PortalCoordinator: PortalCoordinating {
             )
             let initialFrame = Self.frameFittingCapacity(
                 requestedFrame,
-                iconSize: .medium,
+                iconLayout: iconLayout,
                 visibleFrame: display.visibleFrame,
                 gridCapacity: gridCapacity
             )
@@ -156,6 +170,7 @@ final class PortalCoordinator: PortalCoordinating {
                 folderURL: folderURL,
                 frame: initialFrame,
                 display: display,
+                iconLayout: iconLayout,
                 gridCapacity: gridCapacity
             )
             let updatedPortals = portalStates + [portal]
@@ -174,12 +189,28 @@ final class PortalCoordinator: PortalCoordinating {
         await waitForTabTasks()
     }
 
+    func waitForFinderRefreshForTesting() async {
+        await finderRefreshTask?.value
+    }
+
     func stop() {
         displayObserver.stop()
+        finderActivationMonitor.stop()
+        finderRefreshGeneration &+= 1
+        finderRefreshTask?.cancel()
+        finderRefreshTask = nil
+        finderRefreshRequested = false
     }
 
     func prepareForTermination() async {
         displayObserver.stop()
+        finderActivationMonitor.stop()
+        finderRefreshGeneration &+= 1
+        let activeFinderRefresh = finderRefreshTask
+        activeFinderRefresh?.cancel()
+        await activeFinderRefresh?.value
+        finderRefreshTask = nil
+        finderRefreshRequested = false
         tabFolderPicker.cancel()
         folderSelectionTask?.cancel()
         for task in tabMutationTasks.values {
@@ -237,6 +268,7 @@ final class PortalCoordinator: PortalCoordinating {
             try Task.checkCancellation()
             guard desktopSettingsGenerations[portalID] == generation else { return }
             try await setIconLayout(.followDesktop(settings), for: portalID)
+            portalCreationGridState?.update(with: settings)
             clearDesktopSettingsRequest(for: portalID, generation: generation)
             finderSettingsError = nil
             persistenceError = nil
@@ -255,7 +287,8 @@ final class PortalCoordinator: PortalCoordinating {
     func refreshFollowedDesktopIconSettings() async {
         let portalIDs = portalStates.compactMap { portal -> PortalID? in
             if case .followDesktop = portal.iconLayout,
-               explicitFollowGenerations[portal.id] == nil {
+               explicitFollowGenerations[portal.id] == nil,
+               windows[portal.id]?.isUserPlacementInteractionActive != true {
                 return portal.id
             }
             return nil
@@ -267,6 +300,7 @@ final class PortalCoordinator: PortalCoordinating {
                 promptIfNeeded: false
             )
             try Task.checkCancellation()
+            var acceptedSettings = false
             try await performMutation { [weak self] in
                 guard let self else { return }
                 var updatedPortals = portalStates
@@ -275,9 +309,11 @@ final class PortalCoordinator: PortalCoordinating {
                 for index in updatedPortals.indices {
                     let portalID = updatedPortals[index].id
                     guard desktopSettingsGenerations[portalID] == generation,
-                          case .followDesktop = updatedPortals[index].iconLayout else {
+                          case .followDesktop = updatedPortals[index].iconLayout,
+                          windows[portalID]?.isUserPlacementInteractionActive != true else {
                         continue
                     }
+                    acceptedSettings = true
                     let previousFrame = updatedPortals[index].frame
                     updatedPortals[index].refreshDesktopIconSettings(settings)
                     updatedPortals[index] = try portalSnappingFrame(updatedPortals[index])
@@ -289,6 +325,15 @@ final class PortalCoordinator: PortalCoordinating {
                 }
                 guard !changedPortalIDs.isEmpty else { return }
                 try await store.save(updatedPortals)
+                let refreshIsStillCurrent = changedPortalIDs.allSatisfy { portalID in
+                    desktopSettingsGenerations[portalID] == generation
+                        && windows[portalID]?.isUserPlacementInteractionActive != true
+                }
+                guard refreshIsStillCurrent else {
+                    acceptedSettings = false
+                    try await store.save(portalStates)
+                    return
+                }
                 portalStates = updatedPortals
                 for portal in updatedPortals where changedPortalIDs.contains(portal.id) {
                     windows[portal.id]?.updatePortal(portal)
@@ -300,6 +345,10 @@ final class PortalCoordinator: PortalCoordinating {
                 if !resizedPortalIDs.isEmpty {
                     applyDisplayTopology(displaySnapshotProvider())
                 }
+            }
+            if acceptedSettings,
+               portalIDs.contains(where: { desktopSettingsGenerations[$0] == generation }) {
+                portalCreationGridState?.update(with: settings)
             }
             clearDesktopSettingsRequests(for: portalIDs, generation: generation)
             finderSettingsError = nil
@@ -430,6 +479,7 @@ final class PortalCoordinator: PortalCoordinating {
         }
         window.onUserPlacementInteractionCancelled = { [weak self] in
             self?.retryDeferredTopology(for: portal.id)
+            self?.requestPassiveDesktopSettingsRefresh(ifFollowing: portal.id)
         }
         window.onSelectTab = { [weak self] tabID in
             self?.startTabMutationTask {
@@ -525,6 +575,7 @@ final class PortalCoordinator: PortalCoordinating {
                 placementSessions[portalID] = try placementSession(for: portal)
                 clearPendingUserPlacement(portalID: portalID, generation: pending.generation)
                 displayError = nil
+                requestPassiveDesktopSettingsRefresh(ifFollowing: portalID)
             } catch {
                 clearPendingPlacementAttempt(portalID: portalID, generation: pending.generation)
                 if error is DisplaySnapshotError
@@ -928,7 +979,8 @@ final class PortalCoordinator: PortalCoordinating {
             selectedTabID: portal.selectedTabID,
             placement: portal.placement,
             iconLayout: portal.iconLayout,
-            backgroundStyle: portal.backgroundStyle
+            backgroundStyle: portal.backgroundStyle,
+            gridCapacity: portal.gridCapacity
         )
     }
 
@@ -948,6 +1000,50 @@ final class PortalCoordinator: PortalCoordinating {
             return PortalMenuEntry(id: portal.id, title: title, iconLayout: portal.iconLayout)
         }
         onPortalsChanged?(entries)
+        synchronizeFinderActivationMonitoring()
+    }
+
+    private func synchronizeFinderActivationMonitoring() {
+        let followsDesktop = portalStates.contains { portal in
+            if case .followDesktop = portal.iconLayout { return true }
+            return false
+        }
+        if followsDesktop {
+            finderActivationMonitor.start()
+        } else {
+            finderActivationMonitor.stop()
+            finderRefreshGeneration &+= 1
+            finderRefreshTask?.cancel()
+            finderRefreshTask = nil
+            finderRefreshRequested = false
+        }
+    }
+
+    private func requestPassiveDesktopSettingsRefresh(ifFollowing portalID: PortalID) {
+        guard let portal = portalStates.first(where: { $0.id == portalID }),
+              case .followDesktop = portal.iconLayout else {
+            return
+        }
+        requestPassiveDesktopSettingsRefresh()
+    }
+
+    private func requestPassiveDesktopSettingsRefresh() {
+        if finderRefreshTask != nil {
+            finderRefreshRequested = true
+            return
+        }
+        finderRefreshGeneration &+= 1
+        let generation = finderRefreshGeneration
+        finderRefreshTask = Task { [weak self] in
+            guard let self else { return }
+            repeat {
+                finderRefreshRequested = false
+                await refreshFollowedDesktopIconSettings()
+            } while finderRefreshRequested && !Task.isCancelled
+            if finderRefreshGeneration == generation {
+                finderRefreshTask = nil
+            }
+        }
     }
 
     private static func defaultFrame(on display: DisplayDescriptor) -> NSRect {
@@ -958,20 +1054,6 @@ final class PortalCoordinator: PortalCoordinating {
             y: visibleFrame.midY - size.height / 2,
             width: size.width,
             height: size.height
-        )
-    }
-
-    private static func frameFittingCapacity(
-        _ frame: NSRect,
-        iconSize: IconSize,
-        visibleFrame: NSRect,
-        gridCapacity: GridCapacity = .minimum
-    ) -> NSRect {
-        frameFittingCapacity(
-            frame,
-            iconLayout: .fixed(iconSize),
-            visibleFrame: visibleFrame,
-            gridCapacity: gridCapacity
         )
     }
 
