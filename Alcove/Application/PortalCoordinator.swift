@@ -733,7 +733,7 @@ final class PortalCoordinator: PortalCoordinating {
         )
         return NSWindow.frameRect(
             forContentRect: contentRect,
-            styleMask: [.titled, .closable, .miniaturizable, .resizable]
+            styleMask: [.resizable]
         ).size
     }
 
@@ -742,7 +742,7 @@ final class PortalCoordinator: PortalCoordinating {
         iconSize: IconSize,
         visibleFrame: NSRect
     ) -> NSRect {
-        let styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
+        let styleMask: NSWindow.StyleMask = [.resizable]
         let requestedContentSize = NSWindow.contentRect(
             forFrameRect: NSRect(origin: .zero, size: frame.size),
             styleMask: styleMask

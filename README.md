@@ -38,7 +38,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 ## Key Design Decisions
 
 - **Native AppKit**, not WidgetKit
-- **Liquid Glass on macOS 26** via `NSGlassEffectView` / `NSGlassEffectContainerView` for portal chrome, navigation, and control grouping; `NSVisualEffectView` fallback on macOS 15–25
+- **Liquid Glass on macOS 26** via a root `NSGlassEffectView` and system glass button styling for the complete portal surface and capsule controls; `NSVisualEffectView` fallback on macOS 15–25
 - **Finder-consistent interaction**: click selects, Command-click toggles, Shift-click ranges, arrow keys navigate, Command-A selects all, Space for Quick Look, Command-Down or Command-O opens selection
 - **Internal local folders only**: folder selection rejects removable, ejectable, and network-volume locations
 - **Eviction-safe placement design**: persists display UUID plus absolute and normalized placement, while preserving remembered home placement during system-driven moves; UUID stability and transition behavior are Phase 0 spike gates

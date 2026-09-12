@@ -70,6 +70,8 @@ final class PortalChromeMaterialView: NSView {
         )
         super.init(frame: .zero)
         wantsLayer = true
+        layer?.cornerRadius = 24
+        layer?.masksToBounds = true
         rebuildMaterial()
         startObserving()
     }
@@ -149,7 +151,7 @@ final class PortalChromeMaterialView: NSView {
         case .glass:
             if #available(macOS 26.0, *) {
                 let glass = NSGlassEffectView()
-                glass.cornerRadius = 10
+                glass.cornerRadius = 24
                 glass.style = .regular
                 glass.contentView = chromeContentView
                 return glass
@@ -166,9 +168,12 @@ final class PortalChromeMaterialView: NSView {
 
     private func makeVisualEffectView() -> NSVisualEffectView {
         let effect = NSVisualEffectView()
-        effect.material = .headerView
+        effect.material = .underWindowBackground
         effect.blendingMode = .behindWindow
         effect.state = .followsWindowActiveState
+        effect.wantsLayer = true
+        effect.layer?.cornerRadius = 24
+        effect.layer?.masksToBounds = true
         installChromeContent(in: effect)
         return effect
     }

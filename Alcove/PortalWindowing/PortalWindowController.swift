@@ -37,7 +37,8 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         let window = PortalWindow(
             contentRect: initialFrame ?? NSRect(x: 0, y: 0, width: 560, height: 480),
             strategy: strategy,
-            contentViewController: portalViewController
+            contentViewController: portalViewController,
+            dragRegionHeight: PortalViewController.tabBarHeight
         )
         window.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconSize)
         let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })

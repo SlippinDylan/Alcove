@@ -54,6 +54,7 @@ struct PortalWindowUserPlacementTracker {
 
 final class PortalWindow: NSWindow {
     private let keyEligibility: Bool
+    private let dragRegionHeight: CGFloat
     private let pointerLocationProvider: () -> NSPoint
     private var placementTracker = PortalWindowUserPlacementTracker()
     private var isPerformingLiveResize = false
@@ -69,20 +70,23 @@ final class PortalWindow: NSWindow {
         contentRect: NSRect,
         strategy: PortalWindowStrategy,
         contentViewController: NSViewController,
+        dragRegionHeight: CGFloat = 40,
         pointerLocationProvider: @escaping () -> NSPoint = { NSEvent.mouseLocation }
     ) {
         keyEligibility = strategy.canBecomeKey
+        self.dragRegionHeight = dragRegionHeight
         self.pointerLocationProvider = pointerLocationProvider
         super.init(
             contentRect: contentRect,
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.resizable],
             backing: .buffered,
             defer: false
         )
         level = strategy.level
         collectionBehavior = strategy.collectionBehavior
-        titleVisibility = .hidden
-        titlebarAppearsTransparent = true
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = true
         isMovableByWindowBackground = false
         isReleasedWhenClosed = false
         minSize = NSSize(width: 240, height: 240)
@@ -150,21 +154,27 @@ final class PortalWindow: NSWindow {
     }
 
     func isPortalDragRegion(at location: NSPoint) -> Bool {
-        let titlebarRect = NSRect(
-            x: 0,
-            y: contentLayoutRect.maxY,
-            width: frame.width,
-            height: frame.height - contentLayoutRect.maxY
+        let resizeBorderWidth: CGFloat = 8
+        let dragRect = NSRect(
+            x: contentLayoutRect.minX + resizeBorderWidth,
+            y: contentLayoutRect.maxY - dragRegionHeight,
+            width: contentLayoutRect.width - resizeBorderWidth * 2,
+            height: dragRegionHeight - resizeBorderWidth
         )
-        guard titlebarRect.contains(location) else {
+        guard dragRect.contains(location) else {
             return false
         }
-        return !standardWindowButtons.contains { buttonType in
-            guard let button = standardWindowButton(buttonType), !button.isHidden else {
+        guard let contentView else { return true }
+        let contentPoint = contentView.convert(location, from: nil)
+        var hitView = contentView.hitTest(contentPoint)
+        while let current = hitView {
+            if current is NSControl {
                 return false
             }
-            return button.convert(button.bounds, to: nil).contains(location)
+            guard current !== contentView else { break }
+            hitView = current.superview
         }
+        return true
     }
 
     func handleUserDragEvent(_ event: NSEvent?) {
@@ -190,9 +200,5 @@ final class PortalWindow: NSWindow {
         default:
             return
         }
-    }
-
-    private var standardWindowButtons: [NSWindow.ButtonType] {
-        [.closeButton, .miniaturizeButton, .zoomButton]
     }
 }

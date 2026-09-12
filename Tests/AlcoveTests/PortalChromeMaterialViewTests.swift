@@ -42,7 +42,7 @@ final class PortalChromeMaterialViewTests: XCTestCase {
 
         let effect = try XCTUnwrap(host.materialView as? NSVisualEffectView)
         let initialConstraintCount = host.constraints.count
-        XCTAssertEqual(effect.material, .headerView)
+        XCTAssertEqual(effect.material, .underWindowBackground)
         XCTAssertEqual(effect.blendingMode, .behindWindow)
         XCTAssertEqual(effect.state, .followsWindowActiveState)
         XCTAssertTrue(content.isDescendant(of: effect))
@@ -103,7 +103,7 @@ final class PortalChromeMaterialViewTests: XCTestCase {
 
         let glass = try XCTUnwrap(host.materialView as? NSGlassEffectView)
         XCTAssertTrue(content.isDescendant(of: glass))
-        XCTAssertEqual(glass.cornerRadius, 10)
+        XCTAssertEqual(glass.cornerRadius, 24)
         XCTAssertEqual(glass.style, .regular)
     }
 }

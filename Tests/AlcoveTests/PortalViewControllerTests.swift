@@ -4,18 +4,26 @@ import XCTest
 
 final class PortalViewControllerTests: XCTestCase {
     @MainActor
-    func testCanvasResolvesBackgroundForEffectiveAppearance() throws {
-        let canvas = PortalCanvasView()
-        canvas.appearance = try XCTUnwrap(NSAppearance(named: .aqua))
-        canvas.updateLayer()
-        let lightColor = canvas.layer?.backgroundColor
+    func testPortalMaterialOwnsTheFullViewSurface() throws {
+        let controller = PortalViewController(
+            portal: try Portal(
+                folderURL: URL(fileURLWithPath: "/tmp/portal"),
+                frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+                display: testDisplay
+            ),
+            loadingCoordinator: FolderLoadingCoordinator()
+        )
 
-        canvas.appearance = try XCTUnwrap(NSAppearance(named: .darkAqua))
-        canvas.updateLayer()
-        let darkColor = canvas.layer?.backgroundColor
+        controller.loadView()
 
-        XCTAssertNotEqual(lightColor, darkColor)
-        XCTAssertTrue(canvas.isOpaque)
+        let material = try XCTUnwrap(controller.view as? PortalChromeMaterialView)
+        XCTAssertNotNil(material.materialView)
+        if #available(macOS 26.0, *) {
+            XCTAssertEqual(material.materialPath, .glass)
+        } else {
+            XCTAssertEqual(material.materialPath, .visualEffect)
+        }
+        XCTAssertTrue(material.materialView?.subviews.isEmpty == false)
     }
 
     @MainActor

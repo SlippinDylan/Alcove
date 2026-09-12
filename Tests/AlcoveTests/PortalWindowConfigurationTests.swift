@@ -21,6 +21,12 @@ final class PortalWindowConfigurationTests: XCTestCase {
         XCTAssertTrue(window.canBecomeKey)
         XCTAssertFalse(window.isMovableByWindowBackground)
         XCTAssertTrue(window.styleMask.contains(.resizable))
+        XCTAssertFalse(window.styleMask.contains(.titled))
+        XCTAssertFalse(window.isOpaque)
+        XCTAssertEqual(window.backgroundColor, .clear)
+        XCTAssertNil(window.standardWindowButton(.closeButton))
+        XCTAssertNil(window.standardWindowButton(.miniaturizeButton))
+        XCTAssertNil(window.standardWindowButton(.zoomButton))
         XCTAssertEqual(window.minSize, NSSize(width: 240, height: 240))
     }
 
@@ -46,7 +52,7 @@ final class PortalWindowConfigurationTests: XCTestCase {
     }
 
     @MainActor
-    func testOnlyTitlebarBackgroundIsADragRegion() {
+    func testOnlyTopControlRowBackgroundIsADragRegion() {
         let window = makeWindow()
         let contentPoint = NSPoint(
             x: window.contentLayoutRect.midX,
@@ -55,16 +61,29 @@ final class PortalWindowConfigurationTests: XCTestCase {
         XCTAssertFalse(window.isPortalDragRegion(at: contentPoint))
         XCTAssertTrue(
             window.isPortalDragRegion(
-                at: NSPoint(x: window.frame.width - 20, y: window.frame.height - 10)
+                at: NSPoint(x: window.frame.width - 20, y: window.frame.height - 20)
+            )
+        )
+        XCTAssertFalse(
+            window.isPortalDragRegion(
+                at: NSPoint(x: window.frame.width / 2, y: window.frame.height - 2)
+            )
+        )
+        XCTAssertFalse(
+            window.isPortalDragRegion(
+                at: NSPoint(x: 2, y: window.frame.height - 2)
+            )
+        )
+        XCTAssertFalse(
+            window.isPortalDragRegion(
+                at: NSPoint(x: window.frame.width - 2, y: window.frame.height - 2)
             )
         )
 
-        guard let closeButton = window.standardWindowButton(.closeButton) else {
-            return XCTFail("Expected a standard close button")
-        }
-        let closeButtonFrame = closeButton.convert(closeButton.bounds, to: nil)
-        let closeButtonPoint = NSPoint(x: closeButtonFrame.midX, y: closeButtonFrame.midY)
-        XCTAssertFalse(window.isPortalDragRegion(at: closeButtonPoint))
+        let button = NSButton(frame: NSRect(x: 20, y: window.frame.height - 34, width: 80, height: 24))
+        window.contentView?.addSubview(button)
+        let buttonPoint = button.convert(NSPoint(x: button.bounds.midX, y: button.bounds.midY), to: nil)
+        XCTAssertFalse(window.isPortalDragRegion(at: buttonPoint))
     }
 
     func testPlacementTrackerCommitsOnlyAfterADragEvent() {

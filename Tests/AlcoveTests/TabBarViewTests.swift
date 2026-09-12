@@ -21,6 +21,25 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertEqual(tabBar.tabButtons[tabs[0].id]?.title, "First")
         XCTAssertEqual(tabBar.tabButtons[tabs[1].id]?.state, .on)
         XCTAssertEqual(tabBar.tabButtons[tabs[2].id]?.state, .off)
+        if #available(macOS 26.0, *) {
+            XCTAssertEqual(tabBar.tabButtons[tabs[1].id]?.bezelStyle, .glass)
+            XCTAssertEqual(tabBar.tabButtons[tabs[1].id]?.borderShape, .capsule)
+            XCTAssertEqual(tabBar.managementButton.borderShape, .circle)
+        }
+    }
+
+    @MainActor
+    func testSingleTabShowsOnlyOneCapsuleAndFixedManagementButton() throws {
+        let tab = makeTab(name: "Only")
+        let tabBar = TabBarView(frame: NSRect(x: 0, y: 0, width: 300, height: 40))
+
+        tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
+        tabBar.layoutSubtreeIfNeeded()
+
+        XCTAssertEqual(tabBar.tabButtons.count, 1)
+        XCTAssertEqual(tabBar.scrollView.documentView?.subviews.count, 1)
+        XCTAssertEqual(tabBar.tabButtons[tab.id]?.title, "Only")
+        XCTAssertTrue(tabBar.bounds.contains(managementButtonFrame(in: tabBar)))
     }
 
     @MainActor
@@ -36,7 +55,7 @@ final class TabBarViewTests: XCTestCase {
         tabBar.configure(with: portal)
 
         tabBar.tabButtons[second.id]?.performClick(nil)
-        tabBar.closeButtons[first.id]?.performClick(nil)
+        tabBar.managementMenu.performActionForItem(at: 2)
 
         XCTAssertEqual(selectedID, second.id)
         XCTAssertEqual(closedID, first.id)
@@ -44,20 +63,26 @@ final class TabBarViewTests: XCTestCase {
 
         tabBar.update(with: try makePortal(tabs: [first, second], selected: second.id))
         XCTAssertEqual(tabBar.selectedTabID, second.id)
+        XCTAssertEqual(tabBar.managementMenu.item(at: 2)?.title, "Close Second")
     }
 
     @MainActor
-    func testAddButtonInvokesCallbackAndExposesAccessibilityLabel() throws {
+    func testManagementMenuInvokesCallbacksAndExposesAccessibilityLabel() throws {
         let tabBar = TabBarView(frame: .zero)
         let tab = makeTab(name: "First")
         tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
         var addCount = 0
+        var closedID: FolderTabID?
         tabBar.onAdd = { addCount += 1 }
+        tabBar.onClose = { closedID = $0 }
 
-        tabBar.addButton?.performClick(nil)
+        tabBar.managementMenu.performActionForItem(at: 0)
+        tabBar.managementMenu.performActionForItem(at: 2)
 
         XCTAssertEqual(addCount, 1)
-        XCTAssertEqual(tabBar.addButton?.accessibilityLabel(), "Add tab")
+        XCTAssertEqual(closedID, tab.id)
+        XCTAssertEqual(tabBar.managementButton.accessibilityLabel(), "Portal options")
+        XCTAssertEqual(tabBar.managementMenu.items.map(\.title), ["Add Folder…", "", "Close First"])
     }
 
     @MainActor
@@ -72,8 +97,7 @@ final class TabBarViewTests: XCTestCase {
 
         XCTAssertEqual(tabBar.tabOrder, [first.id, second.id])
         XCTAssertEqual(tabBar.tabButtons.count, 2)
-        XCTAssertEqual(tabBar.closeButtons.count, 2)
-        XCTAssertEqual(tabBar.scrollView.documentView?.subviews.count, 3)
+        XCTAssertEqual(tabBar.scrollView.documentView?.subviews.count, 2)
     }
 
     @MainActor
@@ -99,9 +123,15 @@ final class TabBarViewTests: XCTestCase {
         let maximumOriginX = documentView.frame.width - tabBar.scrollView.contentSize.width
         tabBar.scrollView.contentView.scroll(to: NSPoint(x: maximumOriginX, y: 0))
         tabBar.scrollView.reflectScrolledClipView(tabBar.scrollView.contentView)
-        let addButton = try XCTUnwrap(tabBar.addButton)
-        let addFrame = addButton.convert(addButton.bounds, to: tabBar.scrollView.contentView)
-        XCTAssertTrue(tabBar.scrollView.contentView.bounds.contains(addFrame))
+        let lastButton = try XCTUnwrap(tabBar.tabButtons[tabs[11].id])
+        let lastFrame = lastButton.convert(lastButton.bounds, to: tabBar.scrollView.contentView)
+        XCTAssertTrue(tabBar.scrollView.contentView.bounds.contains(lastFrame))
+        XCTAssertTrue(tabBar.bounds.contains(managementButtonFrame(in: tabBar)))
+    }
+
+    @MainActor
+    private func managementButtonFrame(in tabBar: TabBarView) -> NSRect {
+        tabBar.managementButton.convert(tabBar.managementButton.bounds, to: tabBar)
     }
 
     private func makeTab(name: String) -> FolderTab {

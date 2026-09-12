@@ -57,7 +57,8 @@ final class PortalViewController: NSViewController {
     private var portal: Portal
     private let loadingCoordinator: FolderLoadingCoordinator
     private let tabBarView: TabBarView
-    private let chromeMaterialView: PortalChromeMaterialView
+    private let portalContentView: NSView
+    private let portalMaterialView: PortalChromeMaterialView
     private let gridViewController: FileGridViewController
     private let stateLabel = NSTextField(labelWithString: "")
     private let recoveryButton = NSButton()
@@ -89,7 +90,9 @@ final class PortalViewController: NSViewController {
         self.loadingCoordinator = loadingCoordinator
         let tabBarView = TabBarView()
         self.tabBarView = tabBarView
-        chromeMaterialView = PortalChromeMaterialView(contentView: tabBarView)
+        let portalContentView = NSView()
+        self.portalContentView = portalContentView
+        portalMaterialView = PortalChromeMaterialView(contentView: portalContentView)
         self.gridViewController = gridViewController
             ?? FileGridViewController(iconSize: portal.iconSize)
         super.init(nibName: nil, bundle: nil)
@@ -106,14 +109,14 @@ final class PortalViewController: NSViewController {
     }
 
     override func loadView() {
-        let rootView = PortalCanvasView()
+        let rootView = portalContentView
 
-        chromeMaterialView.translatesAutoresizingMaskIntoConstraints = false
+        tabBarView.translatesAutoresizingMaskIntoConstraints = false
         tabBarView.onSelect = { [weak self] id in self?.onSelectTab?(id) }
         tabBarView.onAdd = { [weak self] in self?.onAddTab?() }
         tabBarView.onClose = { [weak self] id in self?.onCloseTab?(id) }
         tabBarView.configure(with: portal)
-        rootView.addSubview(chromeMaterialView)
+        rootView.addSubview(tabBarView)
 
         addChild(gridViewController)
         gridViewController.onQuickLookRequested = { [weak self] urls in
@@ -148,11 +151,11 @@ final class PortalViewController: NSViewController {
         NSLayoutConstraint.activate([
             gridView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            chromeMaterialView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
-            chromeMaterialView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
-            chromeMaterialView.topAnchor.constraint(equalTo: rootView.topAnchor),
-            chromeMaterialView.heightAnchor.constraint(equalToConstant: Self.tabBarHeight),
-            gridView.topAnchor.constraint(equalTo: chromeMaterialView.bottomAnchor),
+            tabBarView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            tabBarView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            tabBarView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            tabBarView.heightAnchor.constraint(equalToConstant: Self.tabBarHeight),
+            gridView.topAnchor.constraint(equalTo: tabBarView.bottomAnchor),
             gridView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
             stateLabel.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             stateLabel.centerYAnchor.constraint(equalTo: rootView.centerYAnchor),
@@ -163,7 +166,7 @@ final class PortalViewController: NSViewController {
             progressIndicator.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             progressIndicator.bottomAnchor.constraint(equalTo: stateLabel.topAnchor, constant: -12),
         ])
-        view = rootView
+        view = portalMaterialView
     }
 
     override func viewDidAppear() {
@@ -417,27 +420,5 @@ final class PortalViewController: NSViewController {
             preconditionFailure("Portal selected-tab invariant violated")
         }
         return tab.folderURL
-    }
-}
-
-@MainActor
-final class PortalCanvasView: NSView {
-    override var isOpaque: Bool { true }
-    override var wantsUpdateLayer: Bool { true }
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        nil
-    }
-
-    override func updateLayer() {
-        effectiveAppearance.performAsCurrentDrawingAppearance {
-            layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        }
     }
 }

@@ -102,7 +102,8 @@ App entry point and global coordination.
 - Final window level, collection behaviors, window class, and key-window policy are provisional until Spike 0.1 is resolved.
 - Production development uses the replaceable Phase 0.1D default: key-eligible `NSWindow`, `desktopIconWindow + 1`, and `[.canJoinAllSpaces, .stationary, .ignoresCycle]`. This is an implementation starting point, not a claim that the manual WindowServer matrix passed.
 - Regardless of the selected strategy, the portal must provide:
-  - Application-tracked dragging from the non-control titlebar region
+  - Application-tracked dragging from non-control space in the top control row,
+    while preserving the system resize hit regions along the window edges
   - Standard resize from edges/corners
   - Frame snap to grid metrics on move/resize end
 - `PortalWindowController` — emits placement commits only after tracked drag mouse-up or live-resize end; generic frame notifications never imply user intent
@@ -112,8 +113,8 @@ App entry point and global coordination.
 Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
-- `TabBarView` — horizontal tab strip with add (+), switch, close, and provisional glass-effect styling; tabs remain in creation order in MVP and drag-to-reorder is Post-MVP
-- `GlassMaterialProvider` — candidate compatibility boundary for `NSGlassEffectView` on macOS 26+ and `NSVisualEffectView` on 15–25, subject to Spike 0.4
+- `TabBarView` — horizontally scrollable folder-name capsules plus a fixed trailing More menu for add/close actions; tabs remain in creation order in MVP and drag-to-reorder is Post-MVP
+- `PortalChromeMaterialView` — compatibility boundary for the complete portal surface using `NSGlassEffectView` on macOS 26+ and `NSVisualEffectView` on 15–25, subject to Spike 0.4
 - Layout: tab bar at top, icon grid fills remaining area
 
 ### 3.5 FileGrid
@@ -396,7 +397,7 @@ write-once; a different existing backup stops migration instead of overwriting e
 The display placement state machine writes only at the end of explicitly tracked user drag and live-resize sessions. Both the drag handle and window resize edges are tracked. Window frame notifications alone are not proof of user origin — this remains spike-validated.
 
 `PortalWindow` disables server-side background dragging and intercepts mouse-down only in
-the non-control titlebar region. It tracks global pointer drag events to mouse-up and emits
+non-control space inside the top control row, excluding the resize edges. It tracks global pointer drag events to mouse-up and emits
 one user placement commit only after an actual drag. Live resize uses
 `windowWillStartLiveResize`/`windowDidEndLiveResize`. `windowDidMove`, `windowDidResize`,
 Spaces, Stage Manager, and topology-driven `setFrame` calls never write placement state.
@@ -597,15 +598,15 @@ PortalWindowController / NSApplication
 
 | macOS Version | Material API | Scope |
 |---------------|-------------|-------|
-| 26+ | `NSGlassEffectView` / `NSGlassEffectContainerView` | Portal chrome: tab bar, navigation, control grouping |
-| 15–25 | `NSVisualEffectView` (material selected by spike) | Same scope as above, visual approximation |
+| 26+ | Root `NSGlassEffectView` plus system glass button styling | Complete portal surface and capsule controls |
+| 15–25 | `NSVisualEffectView` (material selected by spike) | Same layout and translucency role, visual approximation |
 
-`NSGlassEffectView` exposes `contentView`, `cornerRadius`, `tintColor`, and `style`. `NSGlassEffectContainerView` exposes `contentView` and `spacing`. Standard controls supply interaction; `NSGlassEffectView` does not have `isInteractive` or `state` properties.
+`NSGlassEffectView` exposes `contentView`, `cornerRadius`, `tintColor`, and `style`. Standard controls supply interaction; `NSGlassEffectView` does not have `isInteractive` or `state` properties. Alcove uses one root glass effect rather than a separate `NSGlassEffectContainerView`; capsule and More controls use the system glass button style.
 
-**Not applied to:**
-
-- The file content canvas (the `NSCollectionView` area itself) — icons and file names sit on the portal's background material, not on separate glass layers.
-- `FileItemCell` contents or selection highlights — icons are standard `NSImage` from `NSWorkspace`, not glass-rendered.
+The file grid is embedded as content inside one portal-level glass surface. File
+cells and selection highlights do not create additional glass layers: icons stay
+as standard `NSImage` values from `NSWorkspace`, preserving readability and
+avoiding per-item rendering cost.
 
 **Availability check pattern:**
 
@@ -848,13 +849,14 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 ### 16.4 Liquid Glass and Compatibility Material — Spike 0.4
 
-**Provisional claim:** `NSGlassEffectView`/`NSGlassEffectContainerView` can render appropriate portal chrome on macOS 26, while `NSVisualEffectView` can preserve layout and usable contrast on macOS 15–25.
+**Provisional claim:** A root `NSGlassEffectView` plus system glass button styling can render the complete portal surface and controls on macOS 26, while `NSVisualEffectView` can preserve layout and usable contrast on macOS 15–25.
 
 **Gate criteria:**
 
 - Verify both material paths at the selected desktop window level.
 - Verify Reduce Transparency, Increase Contrast, readability, and equivalent control layout.
-- Keep glass off the file-content canvas and individual file cells.
+- Verify the portal-level glass surface keeps the file grid readable, while
+  individual file cells remain ordinary AppKit content without nested glass.
 
 **If gate fails:** Revise the material boundary or visual scope explicitly; do not describe an untested fallback as validated compatibility.
 

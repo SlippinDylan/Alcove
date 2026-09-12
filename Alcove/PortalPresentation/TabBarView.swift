@@ -9,13 +9,13 @@ final class TabBarView: NSView {
 
     private(set) var scrollView = NSScrollView()
     private let stackView = NSStackView()
+    private(set) var managementButton = NSButton()
+    private(set) var managementMenu = NSMenu()
     private var actionTargets: [TabActionTarget] = []
 
     private(set) var tabOrder: [FolderTabID] = []
     private(set) var selectedTabID: FolderTabID?
     private(set) var tabButtons: [FolderTabID: NSButton] = [:]
-    private(set) var closeButtons: [FolderTabID: NSButton] = [:]
-    private(set) var addButton: NSButton?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -48,8 +48,6 @@ final class TabBarView: NSView {
         tabOrder = portal.tabs.map(\.id)
         selectedTabID = portal.selectedTabID
         tabButtons.removeAll(keepingCapacity: true)
-        closeButtons.removeAll(keepingCapacity: true)
-        addButton = nil
         actionTargets.removeAll(keepingCapacity: true)
 
         stackView.arrangedSubviews.forEach { view in
@@ -58,13 +56,11 @@ final class TabBarView: NSView {
         }
 
         for tab in portal.tabs {
-            let tabItem = makeTabItem(for: tab, selected: tab.id == portal.selectedTabID)
-            stackView.addArrangedSubview(tabItem)
+            stackView.addArrangedSubview(
+                makeTabButton(for: tab, selected: tab.id == portal.selectedTabID)
+            )
         }
-
-        let addButton = makeAddButton()
-        self.addButton = addButton
-        stackView.addArrangedSubview(addButton)
+        configureManagementMenu(for: portal)
         needsLayout = true
     }
 
@@ -85,72 +81,102 @@ final class TabBarView: NSView {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(scrollView)
 
+        managementButton.image = NSImage(
+            systemSymbolName: "ellipsis",
+            accessibilityDescription: "Portal options"
+        )
+        managementButton.imagePosition = .imageOnly
+        applyManagementButtonStyle()
+        managementButton.target = self
+        managementButton.action = #selector(showManagementMenu)
+        managementButton.setAccessibilityLabel("Portal options")
+        managementButton.setAccessibilityHelp("Add or close folder tabs")
+        managementButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(managementButton)
+
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: managementButton.leadingAnchor, constant: -8),
             scrollView.topAnchor.constraint(equalTo: topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            managementButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            managementButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            managementButton.widthAnchor.constraint(equalToConstant: 30),
         ])
     }
 
-    private func makeTabItem(for tab: FolderTab, selected: Bool) -> NSView {
-        let container = NSView()
-        let selectionButton = NSButton(title: tab.folderURL.lastPathComponent, target: nil, action: nil)
-        selectionButton.setButtonType(.toggle)
-        selectionButton.bezelStyle = .texturedRounded
-        selectionButton.state = selected ? .on : .off
-        selectionButton.setAccessibilityLabel("Select \(tab.folderURL.lastPathComponent)")
-        selectionButton.setAccessibilityHelp("Switch to this folder tab")
-        selectionButton.translatesAutoresizingMaskIntoConstraints = false
+    private func makeTabButton(for tab: FolderTab, selected: Bool) -> NSButton {
+        let button = NSButton(title: tab.folderURL.lastPathComponent, target: nil, action: nil)
+        button.setButtonType(.toggle)
+        applyCapsuleStyle(to: button)
+        button.state = selected ? .on : .off
+        button.setAccessibilityLabel("Select \(tab.folderURL.lastPathComponent)")
+        button.setAccessibilityHelp("Switch to this folder tab")
 
-        let closeButton = NSButton(title: "×", target: nil, action: nil)
-        closeButton.bezelStyle = .inline
-        closeButton.setAccessibilityLabel("Close \(tab.folderURL.lastPathComponent)")
-        closeButton.setAccessibilityHelp("Close this folder tab")
-        closeButton.translatesAutoresizingMaskIntoConstraints = false
-
-        let selectTarget = TabActionTarget(action: .select(tab.id), owner: self)
-        selectionButton.target = selectTarget
-        selectionButton.action = #selector(TabActionTarget.performAction(_:))
-
-        let closeTarget = TabActionTarget(action: .close(tab.id), owner: self)
-        closeButton.target = closeTarget
-        closeButton.action = #selector(TabActionTarget.performAction(_:))
-        actionTargets.append(contentsOf: [selectTarget, closeTarget])
-
-        container.addSubview(selectionButton)
-        container.addSubview(closeButton)
-        NSLayoutConstraint.activate([
-            selectionButton.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            selectionButton.topAnchor.constraint(equalTo: container.topAnchor),
-            selectionButton.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            closeButton.leadingAnchor.constraint(equalTo: selectionButton.trailingAnchor, constant: 2),
-            closeButton.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            closeButton.centerYAnchor.constraint(equalTo: selectionButton.centerYAnchor),
-        ])
-
-        tabButtons[tab.id] = selectionButton
-        closeButtons[tab.id] = closeButton
-        return container
+        let target = TabActionTarget(action: .select(tab.id), owner: self)
+        button.target = target
+        button.action = #selector(TabActionTarget.performAction(_:))
+        actionTargets.append(target)
+        tabButtons[tab.id] = button
+        return button
     }
 
-    private func makeAddButton() -> NSButton {
-        let addButton = NSButton(title: "+", target: nil, action: nil)
-        addButton.bezelStyle = .texturedRounded
-        addButton.setAccessibilityLabel("Add tab")
-        addButton.setAccessibilityHelp("Choose another folder for this portal")
+    private func configureManagementMenu(for portal: Portal) {
+        managementMenu.removeAllItems()
 
         let addTarget = TabActionTarget(action: .add, owner: self)
-        addButton.target = addTarget
-        addButton.action = #selector(TabActionTarget.performAction(_:))
         actionTargets.append(addTarget)
-        return addButton
+        let addItem = NSMenuItem(
+            title: "Add Folder…",
+            action: #selector(TabActionTarget.performAction(_:)),
+            keyEquivalent: ""
+        )
+        addItem.target = addTarget
+        managementMenu.addItem(addItem)
+        managementMenu.addItem(.separator())
+
+        guard let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID }) else {
+            return
+        }
+        let closeTarget = TabActionTarget(action: .close(selectedTab.id), owner: self)
+        actionTargets.append(closeTarget)
+        let closeItem = NSMenuItem(
+            title: "Close \(selectedTab.folderURL.lastPathComponent)",
+            action: #selector(TabActionTarget.performAction(_:)),
+            keyEquivalent: ""
+        )
+        closeItem.target = closeTarget
+        managementMenu.addItem(closeItem)
+    }
+
+    private func applyCapsuleStyle(to button: NSButton) {
+        if #available(macOS 26.0, *) {
+            button.bezelStyle = .glass
+            button.borderShape = .capsule
+        } else {
+            button.bezelStyle = .accessoryBar
+        }
+    }
+
+    private func applyManagementButtonStyle() {
+        if #available(macOS 26.0, *) {
+            managementButton.bezelStyle = .glass
+            managementButton.borderShape = .circle
+        } else {
+            managementButton.bezelStyle = .accessoryBarAction
+        }
+    }
+
+    @objc private func showManagementMenu() {
+        managementMenu.popUp(
+            positioning: nil,
+            at: NSPoint(x: managementButton.bounds.minX, y: managementButton.bounds.minY),
+            in: managementButton
+        )
     }
 
     fileprivate func selectTab(_ id: FolderTabID) {
-        guard tabButtons[id] != nil else {
-            return
-        }
+        guard tabButtons[id] != nil else { return }
         onSelect?(id)
     }
 
@@ -179,7 +205,7 @@ private final class TabActionTarget: NSObject {
         self.owner = owner
     }
 
-    @objc func performAction(_ sender: NSButton) {
+    @objc func performAction(_ sender: Any?) {
         switch action {
         case .select(let id):
             owner?.selectTab(id)

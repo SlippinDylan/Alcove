@@ -87,7 +87,7 @@ final class PortalCoordinatorTests: XCTestCase {
             XCTAssertGreaterThan(createdFrame.height, frame.height)
             let contentSize = NSWindow.contentRect(
                 forFrameRect: createdFrame,
-                styleMask: [.titled, .closable, .miniaturizable, .resizable]
+                styleMask: [.resizable]
             ).size
             XCTAssertEqual(
                 contentSize,

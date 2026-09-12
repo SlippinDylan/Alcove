@@ -278,7 +278,8 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Entry Gate:** Slice 5 exit gate passed.
 
 **Deliverables:**
-- Tab bar with folder titles, add button, switching, and close controls.
+- Scrollable folder-title capsules with direct switching and a fixed trailing
+  More menu for add and close actions.
 - Closing the last tab prompts to remove the portal; it never silently destroys it.
 - One reusable grid controller per portal; tab switches replace its model.
 - Per-tab runtime selection and scroll state.
