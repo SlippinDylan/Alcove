@@ -785,6 +785,39 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testInPortalSettingsCanChangeIconModeAndRemovePortal() async throws {
+        let portal = try makePortal(path: "/tmp/first", x: 10)
+        let desktopSettings = try XCTUnwrap(
+            DesktopIconSettings(iconSize: .large, textSize: 14)
+        )
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(
+            store: PortalStoreSpy(portals: [portal]),
+            windowFactory: factory,
+            finderSettingsReader: FinderDesktopSettingsReaderStub(
+                results: [.success(desktopSettings)]
+            )
+        )
+        try await coordinator.restorePortals()
+
+        factory.windows[0].onSetIconSize?(.small)
+        await coordinator.waitForTabMutationForTesting()
+        XCTAssertEqual(coordinator.portalStates[0].iconLayout, .fixed(.small))
+
+        factory.windows[0].onFollowDesktopIconSettings?()
+        await coordinator.waitForTabMutationForTesting()
+        XCTAssertEqual(
+            coordinator.portalStates[0].iconLayout,
+            .followDesktop(desktopSettings)
+        )
+
+        factory.windows[0].onRemovePortal?()
+        await coordinator.waitForTabMutationForTesting()
+        XCTAssertTrue(coordinator.portalStates.isEmpty)
+        XCTAssertEqual(factory.windows[0].closeCount, 1)
+    }
+
+    @MainActor
     func testBackgroundStyleUpdatesOnlyRequestedPortalAfterPersistence() async throws {
         let first = try makePortal(path: "/tmp/first", x: 10)
         let second = try makePortal(path: "/tmp/second", x: 400)
@@ -1668,6 +1701,9 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var onCloseTab: ((FolderTabID) -> Void)?
     var onLocateFolder: ((FolderTabID) -> Void)?
     var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)?
+    var onSetIconSize: ((IconSize) -> Void)?
+    var onFollowDesktopIconSettings: (() -> Void)?
+    var onRemovePortal: (() -> Void)?
     private(set) var presentCount = 0
     private(set) var updateCount = 0
     private(set) var closeCount = 0

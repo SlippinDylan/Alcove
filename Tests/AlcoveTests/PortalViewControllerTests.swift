@@ -95,7 +95,7 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testBackgroundMenuRequestForwardsFromTabBar() throws {
+    func testBackgroundSettingRequestForwardsFromTabBar() throws {
         let portal = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/portal"),
             frame: CGRect(x: 0, y: 0, width: 420, height: 360),
@@ -111,14 +111,27 @@ final class PortalViewControllerTests: XCTestCase {
         let tabBar = try XCTUnwrap(
             descendants(of: controller.view).compactMap { $0 as? TabBarView }.first
         )
-        let submenu = try XCTUnwrap(
-            tabBar.managementMenu.item(withTitle: "Background")?.submenu
+        let settingsRoot = try XCTUnwrap(
+            tabBar.settingsPopover.contentViewController?.view
         )
-        let index = try XCTUnwrap(
-            submenu.items.firstIndex { $0.title == "High Transparency" }
+        let styleButton = try XCTUnwrap(
+            descendants(of: settingsRoot)
+                .compactMap { $0 as? NSButton }
+                .first { $0.accessibilityLabel() == "Style" }
+        )
+        styleButton.performClick(nil)
+        let background = try XCTUnwrap(
+            descendants(of: settingsRoot)
+                .compactMap { $0 as? NSPopUpButton }
+                .first { $0.identifier?.rawValue == "portal-settings.background" }
         )
 
-        submenu.performActionForItem(at: index)
+        background.selectItem(withTitle: "High Transparency")
+        NSApplication.shared.sendAction(
+            try XCTUnwrap(background.action),
+            to: background.target,
+            from: background
+        )
 
         XCTAssertEqual(requestedStyle, .highTransparency)
     }

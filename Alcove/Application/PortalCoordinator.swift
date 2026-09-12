@@ -521,6 +521,21 @@ final class PortalCoordinator: PortalCoordinating {
                 await self?.setBackgroundStyle(backgroundStyle, for: portal.id)
             }
         }
+        window.onSetIconSize = { [weak self] iconSize in
+            self?.startTabMutationTask {
+                await self?.setIconSize(iconSize, for: portal.id)
+            }
+        }
+        window.onFollowDesktopIconSettings = { [weak self] in
+            self?.startTabMutationTask {
+                await self?.followDesktopIconSettings(for: portal.id)
+            }
+        }
+        window.onRemovePortal = { [weak self] in
+            self?.startTabMutationTask {
+                await self?.removePortal(portal.id)
+            }
+        }
         windows[portal.id] = window
         if let directive = transition.directive,
            !window.applySystemPlacement(frame: directive.frame) {

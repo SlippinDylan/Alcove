@@ -345,14 +345,27 @@ final class PortalWindowConfigurationTests: XCTestCase {
         let tabBar = try XCTUnwrap(
             allDescendants(of: contentView).compactMap { $0 as? TabBarView }.first
         )
-        let submenu = try XCTUnwrap(
-            tabBar.managementMenu.item(withTitle: "Background")?.submenu
+        let settingsRoot = try XCTUnwrap(
+            tabBar.settingsPopover.contentViewController?.view
         )
-        let index = try XCTUnwrap(
-            submenu.items.firstIndex { $0.title == "Low Transparency" }
+        let styleButton = try XCTUnwrap(
+            allDescendants(of: settingsRoot)
+                .compactMap { $0 as? NSButton }
+                .first { $0.accessibilityLabel() == "Style" }
+        )
+        styleButton.performClick(nil)
+        let background = try XCTUnwrap(
+            allDescendants(of: settingsRoot)
+                .compactMap { $0 as? NSPopUpButton }
+                .first { $0.identifier?.rawValue == "portal-settings.background" }
         )
 
-        submenu.performActionForItem(at: index)
+        background.selectItem(withTitle: "Low Transparency")
+        NSApplication.shared.sendAction(
+            try XCTUnwrap(background.action),
+            to: background.target,
+            from: background
+        )
 
         XCTAssertEqual(requestedStyle, .lowTransparency)
     }

@@ -114,14 +114,18 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 | Action | Behavior |
 |--------|----------|
 | Click tab | Switch to that tab's folder |
-| More menu → Add Folder… | Add a new tab (opens folder chooser) |
-| More menu → Close current folder | Remove the selected tab; if last tab, prompt to remove the portal (never silently destroy it) |
+| Settings → Folders → Add Folder… | Add a new tab (opens folder chooser) |
+| Settings → Folders → Remove current folder | Remove the selected tab; if last tab, prompt to remove the portal (never silently destroy it) |
+| Settings → Style | Choose Follow Desktop or an icon-size preset, and choose the background transparency |
+| Settings → Other → Remove Portal | Remove the complete Portal |
 | Tab title | Defaults to the mapped folder name |
 
 Tabs appear as small folder-name capsules inside one larger, horizontally
 centered capsule without dividers. The selected folder receives the inner
 capsule emphasis. Per-tab close and add buttons are intentionally omitted;
-editing actions live in the fixed trailing More menu. Drag-to-reorder is
+editing actions live in a fixed trailing settings popover. Its Folders, Style,
+and Other categories remain fixed across the top while the lower content switches
+to the selected category. Drag-to-reorder is
 Post-MVP.
 
 ### 5.6 Portal Window Behavior

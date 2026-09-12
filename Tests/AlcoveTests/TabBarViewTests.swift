@@ -94,7 +94,7 @@ final class TabBarViewTests: XCTestCase {
         tabBar.configure(with: portal)
 
         tabBar.tabButtons[second.id]?.performClick(nil)
-        performItem(titled: "Close First", in: tabBar.managementMenu)
+        try settingsButton(titled: "Remove First", in: tabBar).performClick(nil)
 
         XCTAssertEqual(selectedID, second.id)
         XCTAssertEqual(closedID, first.id)
@@ -102,11 +102,11 @@ final class TabBarViewTests: XCTestCase {
 
         tabBar.update(with: try makePortal(tabs: [first, second], selected: second.id))
         XCTAssertEqual(tabBar.selectedTabID, second.id)
-        XCTAssertNotNil(tabBar.managementMenu.item(withTitle: "Close Second"))
+        XCTAssertNotNil(try? settingsButton(titled: "Remove Second", in: tabBar))
     }
 
     @MainActor
-    func testManagementMenuInvokesCallbacksAndExposesAccessibilityLabel() throws {
+    func testFolderSettingsInvokeCallbacksAndExposeSettingsIcon() throws {
         let tabBar = TabBarView(frame: .zero)
         let tab = makeTab(name: "First")
         tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
@@ -115,20 +115,21 @@ final class TabBarViewTests: XCTestCase {
         tabBar.onAdd = { addCount += 1 }
         tabBar.onClose = { closedID = $0 }
 
-        tabBar.managementMenu.performActionForItem(at: 0)
-        performItem(titled: "Close First", in: tabBar.managementMenu)
+        try settingsButton(titled: "Add Folder…", in: tabBar).performClick(nil)
+        try settingsButton(titled: "Remove First", in: tabBar).performClick(nil)
 
         XCTAssertEqual(addCount, 1)
         XCTAssertEqual(closedID, tab.id)
-        XCTAssertEqual(tabBar.managementButton.accessibilityLabel(), "Portal options")
+        XCTAssertEqual(tabBar.managementButton.accessibilityLabel(), "Portal settings")
+        XCTAssertNotNil(tabBar.managementButton.image)
         XCTAssertEqual(
-            tabBar.managementMenu.items.map(\.title),
-            ["Add Folder…", "Background", "", "Close First"]
+            categoryButtons(in: tabBar).map { $0.accessibilityLabel() },
+            ["Folders", "Style", "Other"]
         )
     }
 
     @MainActor
-    func testBackgroundSubmenuChecksCurrentStyleAndInvokesCallback() throws {
+    func testStyleCategoryShowsCurrentChoicesAndInvokesCallback() throws {
         let tab = makeTab(name: "First")
         var portal = try makePortal(tabs: [tab], selected: tab.id)
         portal.updateBackgroundStyle(.lowTransparency)
@@ -138,27 +139,66 @@ final class TabBarViewTests: XCTestCase {
 
         tabBar.configure(with: portal)
 
-        let submenu = try XCTUnwrap(
-            tabBar.managementMenu.item(withTitle: "Background")?.submenu
+        try categoryButton(named: "Style", in: tabBar).performClick(nil)
+        let background = try popup(
+            identifier: "portal-settings.background",
+            in: tabBar
         )
-        XCTAssertEqual(
-            submenu.items.map(\.title),
-            ["High Transparency", "Standard", "Low Transparency"]
-        )
-        XCTAssertEqual(submenu.item(withTitle: "High Transparency")?.state, .off)
-        XCTAssertEqual(submenu.item(withTitle: "Standard")?.state, .off)
-        XCTAssertEqual(submenu.item(withTitle: "Low Transparency")?.state, .on)
+        XCTAssertEqual(background.itemTitles, [
+            "High Transparency", "Standard", "Low Transparency",
+        ])
+        XCTAssertEqual(background.titleOfSelectedItem, "Low Transparency")
 
-        performItem(titled: "High Transparency", in: submenu)
+        background.selectItem(at: 0)
+        NSApplication.shared.sendAction(
+            try XCTUnwrap(background.action),
+            to: background.target,
+            from: background
+        )
         XCTAssertEqual(requestedStyle, .highTransparency)
 
         portal.updateBackgroundStyle(.highTransparency)
         tabBar.update(with: portal)
-        let updatedSubmenu = try XCTUnwrap(
-            tabBar.managementMenu.item(withTitle: "Background")?.submenu
+        try categoryButton(named: "Style", in: tabBar).performClick(nil)
+        XCTAssertEqual(
+            try popup(identifier: "portal-settings.background", in: tabBar).titleOfSelectedItem,
+            "High Transparency"
         )
-        XCTAssertEqual(updatedSubmenu.item(withTitle: "High Transparency")?.state, .on)
-        XCTAssertEqual(updatedSubmenu.item(withTitle: "Low Transparency")?.state, .off)
+    }
+
+    @MainActor
+    func testStyleAndOtherCategoriesForwardIconAndPortalActions() throws {
+        let tab = makeTab(name: "First")
+        let tabBar = TabBarView(frame: .zero)
+        var iconSize: IconSize?
+        var followCount = 0
+        var removeCount = 0
+        tabBar.onSetIconSize = { iconSize = $0 }
+        tabBar.onFollowDesktopIconSettings = { followCount += 1 }
+        tabBar.onRemovePortal = { removeCount += 1 }
+        tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
+
+        try categoryButton(named: "Style", in: tabBar).performClick(nil)
+        let iconPopup = try popup(identifier: "portal-settings.icon-size", in: tabBar)
+        iconPopup.selectItem(withTitle: "Small")
+        NSApplication.shared.sendAction(
+            try XCTUnwrap(iconPopup.action),
+            to: iconPopup.target,
+            from: iconPopup
+        )
+        XCTAssertEqual(iconSize, .small)
+
+        iconPopup.selectItem(withTitle: "Follow Desktop")
+        NSApplication.shared.sendAction(
+            try XCTUnwrap(iconPopup.action),
+            to: iconPopup.target,
+            from: iconPopup
+        )
+        XCTAssertEqual(followCount, 1)
+
+        try categoryButton(named: "Other", in: tabBar).performClick(nil)
+        try settingsButton(titled: "Remove Portal", in: tabBar).performClick(nil)
+        XCTAssertEqual(removeCount, 1)
     }
 
     @MainActor
@@ -255,13 +295,7 @@ final class TabBarViewTests: XCTestCase {
                 effectiveRange: nil
             ) as? NSColor
         )
-        let menuColor = try XCTUnwrap(
-            tabBar.managementButton.attributedTitle.attribute(
-                .foregroundColor,
-                at: 0,
-                effectiveRange: nil
-            ) as? NSColor
-        )
+        let menuColor = try XCTUnwrap(tabBar.managementButton.contentTintColor)
         XCTAssertEqual(tabColor.alphaComponent, 1, accuracy: 0.01)
         XCTAssertEqual(menuColor.alphaComponent, 1, accuracy: 0.01)
         XCTAssertGreaterThan(tabButton.layer?.backgroundColor?.alpha ?? 0, 0)
@@ -273,11 +307,45 @@ final class TabBarViewTests: XCTestCase {
     }
 
     @MainActor
-    private func performItem(titled title: String, in menu: NSMenu) {
-        guard let index = menu.items.firstIndex(where: { $0.title == title }) else {
-            return XCTFail("Missing menu item \(title)")
-        }
-        menu.performActionForItem(at: index)
+    private func settingsRoot(in tabBar: TabBarView) throws -> NSView {
+        try XCTUnwrap(tabBar.settingsPopover.contentViewController?.view)
+    }
+
+    @MainActor
+    private func settingsButton(titled title: String, in tabBar: TabBarView) throws -> NSButton {
+        try XCTUnwrap(
+            descendants(of: try settingsRoot(in: tabBar))
+                .compactMap { $0 as? NSButton }
+                .first { $0.title == title }
+        )
+    }
+
+    @MainActor
+    private func categoryButtons(in tabBar: TabBarView) -> [NSButton] {
+        guard let root = try? settingsRoot(in: tabBar) else { return [] }
+        return descendants(of: root)
+            .compactMap { $0 as? NSButton }
+            .filter { $0.identifier?.rawValue.hasPrefix("portal-settings.category.") == true }
+            .sorted { $0.tag < $1.tag }
+    }
+
+    @MainActor
+    private func categoryButton(named name: String, in tabBar: TabBarView) throws -> NSButton {
+        try XCTUnwrap(categoryButtons(in: tabBar).first { $0.accessibilityLabel() == name })
+    }
+
+    @MainActor
+    private func popup(identifier: String, in tabBar: TabBarView) throws -> NSPopUpButton {
+        try XCTUnwrap(
+            descendants(of: try settingsRoot(in: tabBar))
+                .compactMap { $0 as? NSPopUpButton }
+                .first { $0.identifier?.rawValue == identifier }
+        )
+    }
+
+    @MainActor
+    private func descendants(of view: NSView) -> [NSView] {
+        view.subviews + view.subviews.flatMap(descendants)
     }
 
     private func makeTab(name: String) -> FolderTab {

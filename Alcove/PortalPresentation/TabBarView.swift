@@ -7,14 +7,18 @@ final class TabBarView: NSView {
     var onClose: ((FolderTabID) -> Void)?
     var onAdd: (() -> Void)?
     var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)?
+    var onSetIconSize: ((IconSize) -> Void)?
+    var onFollowDesktopIconSettings: (() -> Void)?
+    var onRemovePortal: (() -> Void)?
 
     private(set) var groupBackdropView = PortalTabGroupBackdropView()
     let groupMaterialView: PortalChromeMaterialView
     private(set) var scrollView = NSScrollView()
     private let stackView = NSStackView()
     private(set) var managementButton = NSButton()
-    private(set) var managementMenu = NSMenu()
+    private(set) var settingsPopover = NSPopover()
     private var actionTargets: [TabActionTarget] = []
+    private var portal: Portal?
 
     private(set) var tabOrder: [FolderTabID] = []
     private(set) var selectedTabID: FolderTabID?
@@ -72,6 +76,7 @@ final class TabBarView: NSView {
     }
 
     func update(with portal: Portal) {
+        self.portal = portal
         tabOrder = portal.tabs.map(\.id)
         selectedTabID = portal.selectedTabID
         tabButtons.removeAll(keepingCapacity: true)
@@ -88,7 +93,7 @@ final class TabBarView: NSView {
             )
         }
         stackView.frame = NSRect(origin: .zero, size: stackView.fittingSize)
-        configureManagementMenu(for: portal)
+        settingsPopover.contentViewController = makeSettingsViewController(for: portal)
         needsLayout = true
     }
 
@@ -110,14 +115,21 @@ final class TabBarView: NSView {
         addSubview(groupBackdropView)
         addSubview(scrollView)
 
-        managementButton.title = "•••"
+        managementButton.image = NSImage(
+            systemSymbolName: "slider.horizontal.3",
+            accessibilityDescription: nil
+        )
+        managementButton.imageScaling = .scaleProportionallyDown
+        managementButton.imagePosition = .imageOnly
         managementButton.isBordered = false
         managementButton.target = self
-        managementButton.action = #selector(showManagementMenu)
-        managementButton.setAccessibilityLabel("Portal options")
-        managementButton.setAccessibilityHelp("Add or close folder tabs")
+        managementButton.action = #selector(showSettingsPopover)
+        managementButton.setAccessibilityLabel("Portal settings")
+        managementButton.setAccessibilityHelp("Configure folders, style, and portal actions")
         managementButton.translatesAutoresizingMaskIntoConstraints = false
         addSubview(managementButton)
+        settingsPopover.behavior = .transient
+        settingsPopover.animates = true
         updateManagementButtonAppearance()
 
         NSLayoutConstraint.activate([
@@ -143,62 +155,9 @@ final class TabBarView: NSView {
         return button
     }
 
-    private func configureManagementMenu(for portal: Portal) {
-        managementMenu.removeAllItems()
-
-        let addTarget = TabActionTarget(action: .add, owner: self)
-        actionTargets.append(addTarget)
-        let addItem = NSMenuItem(
-            title: "Add Folder…",
-            action: #selector(TabActionTarget.performAction(_:)),
-            keyEquivalent: ""
-        )
-        addItem.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
-        addItem.target = addTarget
-        managementMenu.addItem(addItem)
-
-        let backgroundMenu = NSMenu(title: "Background")
-        for style in PortalBackgroundStyle.allCases {
-            let target = TabActionTarget(action: .setBackgroundStyle(style), owner: self)
-            actionTargets.append(target)
-            let item = NSMenuItem(
-                title: style.menuTitle,
-                action: #selector(TabActionTarget.performAction(_:)),
-                keyEquivalent: ""
-            )
-            item.target = target
-            item.state = style == portal.backgroundStyle ? .on : .off
-            backgroundMenu.addItem(item)
-        }
-        let backgroundItem = NSMenuItem(title: "Background", action: nil, keyEquivalent: "")
-        backgroundItem.submenu = backgroundMenu
-        managementMenu.addItem(backgroundItem)
-        managementMenu.addItem(.separator())
-
-        guard let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID }) else {
-            return
-        }
-        let closeTarget = TabActionTarget(action: .close(selectedTab.id), owner: self)
-        actionTargets.append(closeTarget)
-        let closeItem = NSMenuItem(
-            title: "Close \(selectedTab.folderURL.lastPathComponent)",
-            action: #selector(TabActionTarget.performAction(_:)),
-            keyEquivalent: ""
-        )
-        closeItem.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
-        closeItem.target = closeTarget
-        managementMenu.addItem(closeItem)
-    }
-
     private func updateManagementButtonAppearance() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            managementButton.attributedTitle = NSAttributedString(
-                string: "•••",
-                attributes: [
-                    .font: NSFont.systemFont(ofSize: 14, weight: .bold),
-                    .foregroundColor: activeLabelColor,
-                ]
-            )
+            managementButton.contentTintColor = activeLabelColor
         }
     }
 
@@ -208,11 +167,28 @@ final class TabBarView: NSView {
             : .black
     }
 
-    @objc private func showManagementMenu() {
-        managementMenu.popUp(
-            positioning: nil,
-            at: NSPoint(x: managementButton.bounds.minX, y: managementButton.bounds.minY),
-            in: managementButton
+    @objc private func showSettingsPopover() {
+        guard let portal else { return }
+        settingsPopover.contentViewController = makeSettingsViewController(for: portal)
+        settingsPopover.show(
+            relativeTo: managementButton.bounds,
+            of: managementButton,
+            preferredEdge: .minY
+        )
+    }
+
+    private func makeSettingsViewController(for portal: Portal) -> PortalSettingsViewController {
+        PortalSettingsViewController(
+            portal: portal,
+            onAddFolder: { [weak self] in self?.onAdd?() },
+            onCloseFolder: { [weak self] id in self?.onClose?(id) },
+            onSetIconSize: { [weak self] size in self?.onSetIconSize?(size) },
+            onFollowDesktop: { [weak self] in self?.onFollowDesktopIconSettings?() },
+            onSetBackgroundStyle: { [weak self] style in
+                self?.onSetBackgroundStyle?(style)
+            },
+            onRemovePortal: { [weak self] in self?.onRemovePortal?() },
+            onDismiss: { [weak settingsPopover] in settingsPopover?.performClose(nil) }
         )
     }
 
@@ -221,17 +197,6 @@ final class TabBarView: NSView {
         onSelect?(id)
     }
 
-    fileprivate func closeTab(_ id: FolderTabID) {
-        onClose?(id)
-    }
-
-    fileprivate func addTab() {
-        onAdd?()
-    }
-
-    fileprivate func setBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) {
-        onSetBackgroundStyle?(backgroundStyle)
-    }
 }
 
 private extension PortalBackgroundStyle {
@@ -241,6 +206,287 @@ private extension PortalBackgroundStyle {
         case .standard: "Standard"
         case .lowTransparency: "Low Transparency"
         }
+    }
+}
+
+@MainActor
+final class PortalSettingsViewController: NSViewController {
+    private enum Category: Int, CaseIterable {
+        case folders
+        case style
+        case other
+
+        var title: String {
+            switch self {
+            case .folders: "Folders"
+            case .style: "Style"
+            case .other: "Other"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .folders: "folder"
+            case .style: "paintpalette"
+            case .other: "ellipsis.circle"
+            }
+        }
+    }
+
+    private let portal: Portal
+    private let onAddFolder: () -> Void
+    private let onCloseFolder: (FolderTabID) -> Void
+    private let onSetIconSize: (IconSize) -> Void
+    private let onFollowDesktop: () -> Void
+    private let onSetBackgroundStyle: (PortalBackgroundStyle) -> Void
+    private let onRemovePortal: () -> Void
+    private let onDismiss: () -> Void
+    private let contentContainer = NSView()
+    private var categoryButtons: [PortalSettingsCategoryButton] = []
+
+    init(
+        portal: Portal,
+        onAddFolder: @escaping () -> Void,
+        onCloseFolder: @escaping (FolderTabID) -> Void,
+        onSetIconSize: @escaping (IconSize) -> Void,
+        onFollowDesktop: @escaping () -> Void,
+        onSetBackgroundStyle: @escaping (PortalBackgroundStyle) -> Void,
+        onRemovePortal: @escaping () -> Void,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.portal = portal
+        self.onAddFolder = onAddFolder
+        self.onCloseFolder = onCloseFolder
+        self.onSetIconSize = onSetIconSize
+        self.onFollowDesktop = onFollowDesktop
+        self.onSetBackgroundStyle = onSetBackgroundStyle
+        self.onRemovePortal = onRemovePortal
+        self.onDismiss = onDismiss
+        super.init(nibName: nil, bundle: nil)
+        preferredContentSize = NSSize(width: 340, height: 260)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func loadView() {
+        let root = NSView()
+        let categoryBar = NSStackView()
+        categoryBar.orientation = .horizontal
+        categoryBar.distribution = .fillEqually
+        categoryBar.alignment = .centerY
+        categoryBar.spacing = 4
+        categoryBar.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(categoryBar)
+
+        categoryButtons = Category.allCases.map { category in
+            let button = PortalSettingsCategoryButton(
+                title: category.title,
+                symbol: category.symbol
+            )
+            button.tag = category.rawValue
+            button.target = self
+            button.action = #selector(selectCategory)
+            button.identifier = NSUserInterfaceItemIdentifier(
+                "portal-settings.category.\(category.title.lowercased())"
+            )
+            categoryBar.addArrangedSubview(button)
+            return button
+        }
+
+        let separator = NSBox()
+        separator.boxType = .separator
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(separator)
+
+        contentContainer.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(contentContainer)
+
+        NSLayoutConstraint.activate([
+            categoryBar.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
+            categoryBar.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            categoryBar.topAnchor.constraint(equalTo: root.topAnchor, constant: 10),
+            categoryBar.heightAnchor.constraint(equalToConstant: 58),
+            separator.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            separator.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            separator.topAnchor.constraint(equalTo: categoryBar.bottomAnchor, constant: 8),
+            contentContainer.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 18),
+            contentContainer.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -18),
+            contentContainer.topAnchor.constraint(equalTo: separator.bottomAnchor, constant: 14),
+            contentContainer.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -16),
+        ])
+        view = root
+        showCategory(.folders)
+    }
+
+    private func sectionLabel(_ title: String) -> NSTextField {
+        let label = NSTextField(labelWithString: title)
+        label.font = .systemFont(ofSize: 11, weight: .semibold)
+        label.textColor = .secondaryLabelColor
+        return label
+    }
+
+    private func actionButton(title: String, symbol: String, action: Selector) -> NSButton {
+        let button = NSButton(title: title, target: self, action: action)
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        button.imagePosition = .imageLeading
+        button.bezelStyle = .accessoryBarAction
+        button.alignment = .left
+        return button
+    }
+
+    private func styleRow(title: String, control: NSView) -> NSStackView {
+        let label = NSTextField(labelWithString: title)
+        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let row = NSStackView(views: [label, control])
+        row.orientation = .horizontal
+        row.distribution = .fill
+        row.alignment = .centerY
+        row.spacing = 12
+        row.widthAnchor.constraint(equalToConstant: 248).isActive = true
+        return row
+    }
+
+    @objc private func selectCategory(_ sender: NSButton) {
+        guard let category = Category(rawValue: sender.tag) else { return }
+        showCategory(category)
+    }
+
+    private func showCategory(_ category: Category) {
+        for button in categoryButtons {
+            button.setSelected(button.tag == category.rawValue)
+        }
+        contentContainer.subviews.forEach { $0.removeFromSuperview() }
+
+        let content = NSStackView()
+        content.orientation = .vertical
+        content.alignment = .leading
+        content.spacing = 12
+        content.translatesAutoresizingMaskIntoConstraints = false
+        contentContainer.addSubview(content)
+
+        switch category {
+        case .folders:
+            content.addArrangedSubview(sectionLabel("Folders"))
+            content.addArrangedSubview(actionButton(
+                title: "Add Folder…",
+                symbol: "folder.badge.plus",
+                action: #selector(addFolder)
+            ))
+            if let selectedTab = portal.selectedTab {
+                content.addArrangedSubview(actionButton(
+                    title: "Remove \(selectedTab.folderURL.lastPathComponent)",
+                    symbol: "xmark",
+                    action: #selector(closeFolder)
+                ))
+            }
+        case .style:
+            content.addArrangedSubview(sectionLabel("Style"))
+            content.addArrangedSubview(styleRow(title: "Icon size", control: iconSizePopup()))
+            content.addArrangedSubview(styleRow(title: "Background", control: backgroundPopup()))
+        case .other:
+            content.addArrangedSubview(sectionLabel("Other"))
+            let removeButton = actionButton(
+                title: "Remove Portal",
+                symbol: "trash",
+                action: #selector(removePortal)
+            )
+            removeButton.contentTintColor = .systemRed
+            content.addArrangedSubview(removeButton)
+        }
+
+        NSLayoutConstraint.activate([
+            content.leadingAnchor.constraint(equalTo: contentContainer.leadingAnchor),
+            content.trailingAnchor.constraint(equalTo: contentContainer.trailingAnchor),
+            content.topAnchor.constraint(equalTo: contentContainer.topAnchor),
+        ])
+    }
+
+    private func iconSizePopup() -> NSPopUpButton {
+        let popup = NSPopUpButton()
+        popup.identifier = NSUserInterfaceItemIdentifier("portal-settings.icon-size")
+        popup.addItems(withTitles: ["Follow Desktop", "Small", "Medium", "Large"])
+        switch portal.iconLayout {
+        case .followDesktop:
+            popup.selectItem(at: 0)
+        case .fixed(let size):
+            popup.selectItem(at: size == .small ? 1 : size == .large ? 3 : 2)
+        }
+        popup.target = self
+        popup.action = #selector(changeIconSize)
+        return popup
+    }
+
+    private func backgroundPopup() -> NSPopUpButton {
+        let popup = NSPopUpButton()
+        popup.identifier = NSUserInterfaceItemIdentifier("portal-settings.background")
+        popup.addItems(withTitles: PortalBackgroundStyle.allCases.map(\.menuTitle))
+        popup.selectItem(at: PortalBackgroundStyle.allCases.firstIndex(of: portal.backgroundStyle) ?? 0)
+        popup.target = self
+        popup.action = #selector(changeBackground)
+        return popup
+    }
+
+    @objc private func addFolder() {
+        onAddFolder()
+        onDismiss()
+    }
+
+    @objc private func closeFolder() {
+        guard let selectedTabID = portal.selectedTabID else { return }
+        onCloseFolder(selectedTabID)
+        onDismiss()
+    }
+
+    @objc private func changeIconSize(_ sender: NSPopUpButton) {
+        switch sender.indexOfSelectedItem {
+        case 0: onFollowDesktop()
+        case 1: onSetIconSize(.small)
+        case 2: onSetIconSize(.medium)
+        case 3: onSetIconSize(.large)
+        default: return
+        }
+        onDismiss()
+    }
+
+    @objc private func changeBackground(_ sender: NSPopUpButton) {
+        let styles = PortalBackgroundStyle.allCases
+        guard styles.indices.contains(sender.indexOfSelectedItem) else { return }
+        onSetBackgroundStyle(styles[sender.indexOfSelectedItem])
+        onDismiss()
+    }
+
+    @objc private func removePortal() {
+        onRemovePortal()
+        onDismiss()
+    }
+}
+
+@MainActor
+private final class PortalSettingsCategoryButton: NSButton {
+    init(title: String, symbol: String) {
+        super.init(frame: .zero)
+        self.title = title
+        image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        imagePosition = .imageAbove
+        imageScaling = .scaleProportionallyDown
+        setButtonType(.toggle)
+        isBordered = false
+        font = .systemFont(ofSize: 11, weight: .medium)
+        setAccessibilityLabel(title)
+        setSelected(false)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    func setSelected(_ selected: Bool) {
+        state = selected ? .on : .off
+        contentTintColor = selected ? .controlAccentColor : .secondaryLabelColor
     }
 }
 
@@ -343,9 +589,6 @@ final class PortalTabButton: NSButton {
 private final class TabActionTarget: NSObject {
     enum Action {
         case select(FolderTabID)
-        case close(FolderTabID)
-        case add
-        case setBackgroundStyle(PortalBackgroundStyle)
     }
 
     private let action: Action
@@ -360,12 +603,6 @@ private final class TabActionTarget: NSObject {
         switch action {
         case .select(let id):
             owner?.selectTab(id)
-        case .close(let id):
-            owner?.closeTab(id)
-        case .add:
-            owner?.addTab()
-        case .setBackgroundStyle(let backgroundStyle):
-            owner?.setBackgroundStyle(backgroundStyle)
         }
     }
 }

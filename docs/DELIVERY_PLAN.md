@@ -283,8 +283,9 @@ Each slice produces a runnable, observable increment and adds only the domain or
 
 **Deliverables:**
 - A centered scrollable outer capsule containing divider-free folder-title
-  capsules, with direct switching and a fixed trailing More menu for add and
-  close actions.
+  capsules, with direct switching and a fixed trailing settings popover. The
+  popover keeps Folders, Style, and Other categories at the top and switches the
+  settings content below.
 - Closing the last tab prompts to remove the portal; it never silently destroys it.
 - One reusable grid controller per portal; tab switches replace its model.
 - Per-tab runtime selection and scroll state.

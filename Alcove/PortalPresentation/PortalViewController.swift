@@ -100,9 +100,22 @@ final class PortalViewController: NSViewController {
     private var presentedTabID: FolderTabID?
     private(set) var presentationState: PortalPresentationState = .loading
     var onSelectTab: ((FolderTabID) -> Void)?
-    var onAddTab: (() -> Void)?
+    var onAddTab: (() -> Void)? {
+        didSet { tabBarView.onAdd = onAddTab }
+    }
     var onCloseTab: ((FolderTabID) -> Void)?
-    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)?
+    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? {
+        didSet { tabBarView.onSetBackgroundStyle = onSetBackgroundStyle }
+    }
+    var onSetIconSize: ((IconSize) -> Void)? {
+        didSet { tabBarView.onSetIconSize = onSetIconSize }
+    }
+    var onFollowDesktopIconSettings: (() -> Void)? {
+        didSet { tabBarView.onFollowDesktopIconSettings = onFollowDesktopIconSettings }
+    }
+    var onRemovePortal: (() -> Void)? {
+        didSet { tabBarView.onRemovePortal = onRemovePortal }
+    }
     var onQuickLookRequested: (([URL]) -> Void)?
     var onQuickLookSelectionChanged: (([URL]) -> Void)?
     var onSelectionInvalidated: (() -> Void)?

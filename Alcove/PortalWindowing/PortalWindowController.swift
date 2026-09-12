@@ -25,6 +25,17 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? {
         didSet { portalViewController.onSetBackgroundStyle = onSetBackgroundStyle }
     }
+    var onSetIconSize: ((IconSize) -> Void)? {
+        didSet { portalViewController.onSetIconSize = onSetIconSize }
+    }
+    var onFollowDesktopIconSettings: (() -> Void)? {
+        didSet {
+            portalViewController.onFollowDesktopIconSettings = onFollowDesktopIconSettings
+        }
+    }
+    var onRemovePortal: (() -> Void)? {
+        didSet { portalViewController.onRemovePortal = onRemovePortal }
+    }
     private let portalViewController: PortalViewController
     private let quickLookIntegration: QuickLookIntegration
     private var iconLayout: PortalIconLayout
