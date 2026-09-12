@@ -77,7 +77,12 @@ actor PortalStore: PortalStoring {
             try writeCurrentVersion(portals)
             return portals
         case PortalEnvelopeV4DTO.currentVersion:
-            return try loadV4(from: data)
+            try preserveLegacyBackup(data, version: 4)
+            let portals = try loadV4(from: data)
+            try writeCurrentVersion(portals)
+            return portals
+        case PortalEnvelopeV5DTO.currentVersion:
+            return try loadV5(from: data)
         default:
             throw PortalStoreError.unsupportedVersion(version)
         }
@@ -95,6 +100,11 @@ actor PortalStore: PortalStoring {
 
     private func loadV4(from data: Data) throws -> [Portal] {
         let envelope: PortalEnvelopeV4DTO = try decodeEnvelope(from: data)
+        return try mapPortals(envelope.portals) { try $0.domainValue() }
+    }
+
+    private func loadV5(from data: Data) throws -> [Portal] {
+        let envelope: PortalEnvelopeV5DTO = try decodeEnvelope(from: data)
         return try mapPortals(envelope.portals) { try $0.domainValue() }
     }
 
@@ -198,7 +208,7 @@ actor PortalStore: PortalStoring {
     private func writeCurrentVersion(_ portals: [Portal]) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        var data = try encoder.encode(PortalEnvelopeV4DTO(portals: portals))
+        var data = try encoder.encode(PortalEnvelopeV5DTO(portals: portals))
         data.append(0x0a)
         try writeAtomically(data, to: url)
     }

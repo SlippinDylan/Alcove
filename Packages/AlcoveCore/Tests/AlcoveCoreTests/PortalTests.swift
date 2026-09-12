@@ -255,6 +255,18 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(portal.iconLayout, .followDesktop(followed))
     }
 
+    func testGridCapacityDefaultsAndUpdatesIndependentlyOfPlacement() throws {
+        var portal = try makePortal(path: "/tmp/folder")
+        let capacity = try GridCapacity(columns: 5, rows: 2)
+
+        XCTAssertEqual(portal.gridCapacity, .minimum)
+
+        portal.updateGridCapacity(capacity)
+
+        XCTAssertEqual(portal.gridCapacity, capacity)
+        XCTAssertEqual(portal.frame, frame)
+    }
+
     private func makePlacement() throws -> PlacementRecord {
         try PlacementRecord(frame: frame, display: display)
     }

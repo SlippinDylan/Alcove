@@ -13,11 +13,11 @@ final class CreationGeometryTests: XCTestCase {
         contentInsets: GridInsets(top: 8, leading: 6, bottom: 4, trailing: 14)
     )
 
-    func testMinimumPortalSizeDisplaysTwoColumnsAndRows() {
-        XCTAssertEqual(metrics.minimumPortalSize, CGSize(width: 126, height: 160))
+    func testMinimumPortalSizeDisplaysThreeColumnsAndOneRow() {
+        XCTAssertEqual(metrics.minimumPortalSize, CGSize(width: 184, height: 80))
     }
 
-    func testRectangleGrowsToTwoByTwoMinimum() throws {
+    func testRectangleGrowsToThreeByOneMinimum() throws {
         let rectangle = try CreationGeometry.rectangle(
             mouseDown: CGPoint(x: 100, y: 100),
             currentPoint: CGPoint(x: 110, y: 110),
@@ -25,7 +25,7 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, CGRect(x: 58, y: 80, width: 126, height: 160))
+        XCTAssertEqual(rectangle.frame, CGRect(x: 58, y: 80, width: 184, height: 80))
         assert(rectangle.frame, contains: CGPoint(x: 100, y: 100))
         assert(rectangle.frame, contains: CGPoint(x: 110, y: 110))
     }
@@ -99,7 +99,7 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, visibleFrame)
+        XCTAssertEqual(rectangle.frame, CGRect(x: -40, y: 30, width: 100, height: 80))
     }
 
     func testRectangleRejectsNonFiniteGestureAndDisplayValues() throws {

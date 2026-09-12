@@ -79,7 +79,7 @@ Domain models and pure layout math. Zero AppKit imports.
 - `DesktopIconSettings` — validated Finder desktop icon and text sizes captured through the scripting boundary
 - `PortalIconLayout` — either a fixed Alcove icon size or Follow Desktop with the last valid Finder settings
 - `PortalBackgroundStyle` — per-portal High Transparency, Standard, or Low Transparency preference
-- `ColumnCount` — validated column count value type
+- `GridCapacity` — validated visible grid columns and rows; it is the durable size intent for a portal
 - `GridLayout` — computes item frames from container size, icon size, column count, and spacing
 - `PlacementGeometry` — captures and restores per-display frames with normalized movable-range anchors
 - `PlacementStateMachine` — preserves user-confirmed home placement while emitting transient topology directives
@@ -336,7 +336,7 @@ struct NormalizedAnchor: Sendable {
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "portals": [ ... ]
 }
 ```
@@ -357,8 +357,10 @@ All JSON keys are `snake_case`. Dates are ISO 8601.
 The concrete v1 migration maps each legacy frame to the display with the largest positive
 visible-frame intersection, falling back to the explicit primary display. Versions 1–3
 default the icon layout to the stored fixed icon size; v1 and v2 also default the newer
-per-portal background preference to Standard. All legacy versions are atomically rewritten
-as v4. Before conversion the store writes the matching `portals.vN.json.bak` once and never
+per-portal background preference to Standard. Versions 1–4 derive `GridCapacity` from the
+saved frame's grid-content size (after removing the tab bar) and their saved icon/text metrics.
+All legacy versions are atomically rewritten as v5. Before conversion the store writes the
+matching `portals.vN.json.bak` once and never
 replaces a different existing backup. Migrations remain explicit rather than using a
 speculative generic framework.
 
@@ -374,7 +376,7 @@ speculative generic framework.
 
 ### 5.5 Backup
 
-The v1/v2/v3→v4 migrations preserve the original as the matching
+The v1/v2/v3/v4→v5 migrations preserve the original as the matching
 `portals.vN.json.bak`. The first backup is write-once; a different existing backup stops
 migration instead of overwriting evidence.
 
@@ -812,7 +814,7 @@ When `FileManager.contentsOfDirectory` throws `NSCocoaErrorDomain` code 257 (per
 
 | Module | Test Strategy | Key Seams |
 |--------|--------------|-----------|
-| AlcoveCore | Unit tests only; no host app | `GridLayout` output for known inputs; `IconSize`/`ColumnCount` validation; `SelectionState` transitions |
+| AlcoveCore | Unit tests only; no host app | `GridLayout` output for known inputs; `IconSize`/`GridCapacity` validation; `SelectionState` transitions |
 | Persistence | Unit tests with temp directory | `PortalStore.save`/`load` round-trip; version rejection; corrupted file handling; atomic write verification; real migrations added only when a second schema exists |
 | DisplayPlacement | Unit tests with screen geometry value descriptors | `DisplayPlacementEntry` save/restore round-trip; zero and nonzero movable ranges; size-before-anchor ordering; grid-snap/clamp ordering; eviction logic; geometry-change recomputation |
 | FolderAccess | Unit tests with temp directories | `FolderEnumerator` returns correct items; hidden file filter; directories-first ordering; stale results are suppressed; incremental cancellation is tested only if implemented; selected `FolderObserver` strategy fires on file creation and handles teardown errors |

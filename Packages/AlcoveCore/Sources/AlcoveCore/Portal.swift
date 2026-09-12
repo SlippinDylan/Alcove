@@ -147,6 +147,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
     public private(set) var placement: PlacementRecord
     public private(set) var iconLayout: PortalIconLayout
     public private(set) var backgroundStyle: PortalBackgroundStyle
+    public private(set) var gridCapacity: GridCapacity
 
     public var frame: CGRect { placement.homeEntry.absoluteFrame }
     public var iconSize: IconSize { iconLayout.iconSize }
@@ -159,7 +160,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         frame: CGRect,
         display: DisplayDescriptor,
         iconSize: IconSize = .medium,
-        backgroundStyle: PortalBackgroundStyle = .standard
+        backgroundStyle: PortalBackgroundStyle = .standard,
+        gridCapacity: GridCapacity = .minimum
     ) throws {
         try self.init(
             id: id,
@@ -167,7 +169,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
             frame: frame,
             display: display,
             iconLayout: .fixed(iconSize),
-            backgroundStyle: backgroundStyle
+            backgroundStyle: backgroundStyle,
+            gridCapacity: gridCapacity
         )
     }
 
@@ -178,7 +181,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         frame: CGRect,
         display: DisplayDescriptor,
         iconLayout: PortalIconLayout,
-        backgroundStyle: PortalBackgroundStyle = .standard
+        backgroundStyle: PortalBackgroundStyle = .standard,
+        gridCapacity: GridCapacity = .minimum
     ) throws {
         let tab = FolderTab(folderURL: folderURL)
         let placement: PlacementRecord
@@ -193,7 +197,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
             selectedTabID: tab.id,
             placement: placement,
             iconLayout: iconLayout,
-            backgroundStyle: backgroundStyle
+            backgroundStyle: backgroundStyle,
+            gridCapacity: gridCapacity
         )
     }
 
@@ -204,7 +209,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         selectedTabID: FolderTabID,
         placement: PlacementRecord,
         iconSize: IconSize = .medium,
-        backgroundStyle: PortalBackgroundStyle = .standard
+        backgroundStyle: PortalBackgroundStyle = .standard,
+        gridCapacity: GridCapacity = .minimum
     ) throws {
         try self.init(
             id: id,
@@ -212,7 +218,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
             selectedTabID: selectedTabID,
             placement: placement,
             iconLayout: .fixed(iconSize),
-            backgroundStyle: backgroundStyle
+            backgroundStyle: backgroundStyle,
+            gridCapacity: gridCapacity
         )
     }
 
@@ -223,7 +230,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         selectedTabID: FolderTabID,
         placement: PlacementRecord,
         iconLayout: PortalIconLayout,
-        backgroundStyle: PortalBackgroundStyle = .standard
+        backgroundStyle: PortalBackgroundStyle = .standard,
+        gridCapacity: GridCapacity = .minimum
     ) throws {
         guard !tabs.isEmpty else {
             throw PortalError.emptyTabs
@@ -246,6 +254,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         self.placement = placement
         self.iconLayout = iconLayout
         self.backgroundStyle = backgroundStyle
+        self.gridCapacity = gridCapacity
     }
 
     /// Appends a tab without changing the active tab.
@@ -325,5 +334,10 @@ public struct Portal: Identifiable, Equatable, Sendable {
     /// Replaces the app-owned background appearance preference.
     public mutating func updateBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) {
         self.backgroundStyle = backgroundStyle
+    }
+
+    /// Replaces the visible grid capacity while preserving its current placement.
+    public mutating func updateGridCapacity(_ gridCapacity: GridCapacity) {
+        self.gridCapacity = gridCapacity
     }
 }

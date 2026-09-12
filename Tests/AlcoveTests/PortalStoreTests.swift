@@ -3,7 +3,7 @@ import XCTest
 @testable import Alcove
 
 final class PortalStoreTests: XCTestCase {
-    func testMissingStoreLoadsEmptyAndV4SaveRoundTrips() async throws {
+    func testMissingStoreLoadsEmptyAndV5SaveRoundTrips() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let store = PortalStore(url: storeURL)
@@ -12,15 +12,18 @@ final class PortalStoreTests: XCTestCase {
 
             var portal = try makePortal(path: "/tmp/first", x: 10)
             portal.updateBackgroundStyle(.highTransparency)
+            portal.updateGridCapacity(try GridCapacity(columns: 5, rows: 2))
             try await store.save([portal])
             let restored = try await store.load()
             XCTAssertEqual(restored, [portal])
 
             let json = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(json.contains("\"version\" : 4"))
+            XCTAssertTrue(json.contains("\"version\" : 5"))
             XCTAssertTrue(json.contains("\"icon_layout_mode\" : \"fixed\""))
             XCTAssertTrue(json.contains("\"text_size\" : 12"))
             XCTAssertTrue(json.contains("\"background_style\" : \"high_transparency\""))
+            XCTAssertTrue(json.contains("\"columns\" : 5"))
+            XCTAssertTrue(json.contains("\"rows\" : 2"))
             XCTAssertTrue(json.contains("\"selected_tab_id\""))
             XCTAssertTrue(json.contains("\"folder_path\""))
             XCTAssertTrue(json.contains("\"home_display\""))
@@ -122,9 +125,11 @@ final class PortalStoreTests: XCTestCase {
             let backupURL = directory.appendingPathComponent("portals.v1.json.bak")
             XCTAssertEqual(try String(contentsOf: backupURL, encoding: .utf8), legacy)
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 4"))
+            XCTAssertTrue(migrated.contains("\"version\" : 5"))
             XCTAssertTrue(loaded.allSatisfy { $0.backgroundStyle == .standard })
             XCTAssertTrue(loaded.allSatisfy { $0.iconLayout == .fixed(.medium) })
+            XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 4, rows: 2))
+            XCTAssertEqual(loaded[1].gridCapacity, try GridCapacity(columns: 4, rows: 2))
             let reloaded = try await PortalStore(url: storeURL).load()
             XCTAssertEqual(reloaded, loaded)
         }
@@ -144,12 +149,12 @@ final class PortalStoreTests: XCTestCase {
                 XCTAssertEqual(url, storeURL)
             }
 
-            try Data("{\"version\":5,\"portals\":[]}".utf8).write(to: storeURL)
+            try Data("{\"version\":6,\"portals\":[]}".utf8).write(to: storeURL)
             do {
                 _ = try await PortalStore(url: storeURL).load()
                 XCTFail("Future version must fail")
             } catch let error as PortalStoreError {
-                XCTAssertEqual(error, .unsupportedVersion(5))
+                XCTAssertEqual(error, .unsupportedVersion(6))
             }
         }
     }
@@ -175,13 +180,14 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 4"))
+            XCTAssertTrue(migrated.contains("\"version\" : 5"))
             XCTAssertTrue(migrated.contains("\"background_style\" : \"standard\""))
             XCTAssertTrue(migrated.contains("\"icon_layout_mode\" : \"fixed\""))
+            XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 3, rows: 2))
         }
     }
 
-    func testInvalidV4BackgroundStyleFailsDomainMapping() async throws {
+    func testInvalidV5BackgroundStyleFailsDomainMapping() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let store = PortalStore(url: storeURL)
@@ -206,7 +212,7 @@ final class PortalStoreTests: XCTestCase {
         }
     }
 
-    func testInvalidV4IconLayoutValuesFailDomainMapping() async throws {
+    func testInvalidV5IconLayoutValuesFailDomainMapping() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let store = PortalStore(url: storeURL)
@@ -236,7 +242,7 @@ final class PortalStoreTests: XCTestCase {
                 try Data(invalid.utf8).write(to: storeURL)
                 do {
                     _ = try await store.load()
-                    XCTFail("Invalid v4 icon layout must not restore")
+                    XCTFail("Invalid v5 icon layout must not restore")
                 } catch let error as PortalStoreError {
                     guard case .invalidPortal(let index, _) = error else {
                         return XCTFail("Expected invalidPortal, got \(error)")
@@ -265,13 +271,14 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 4"))
+            XCTAssertTrue(migrated.contains("\"version\" : 5"))
             XCTAssertTrue(migrated.contains("\"icon_layout_mode\" : \"fixed\""))
             XCTAssertTrue(migrated.contains("\"text_size\" : 12"))
+            XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 3, rows: 2))
         }
     }
 
-    func testV3ToV4RewriteFailurePreservesSourceAndBackup() async throws {
+    func testV3ToV5RewriteFailurePreservesSourceAndBackup() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let legacy = v3JSON(backgroundStyle: "standard")
@@ -283,7 +290,7 @@ final class PortalStoreTests: XCTestCase {
 
             do {
                 _ = try await store.load()
-                XCTFail("A failed v4 replacement must fail migration")
+                XCTFail("A failed v5 replacement must fail migration")
             } catch let error as PortalStoreError {
                 guard case .writeFailed(let url, _) = error else {
                     return XCTFail("Expected writeFailed, got \(error)")
@@ -299,6 +306,108 @@ final class PortalStoreTests: XCTestCase {
                 ),
                 legacy
             )
+        }
+    }
+
+    func testV4MigrationDerivesCapacityAndPreservesBackup() async throws {
+        try await withStoreDirectory { directory in
+            let storeURL = directory.appendingPathComponent("portals.json")
+            let legacyPortal = try makePortal(path: "/tmp/first", x: 10)
+            let legacy = try v4JSON(portal: legacyPortal)
+            try Data(legacy.utf8).write(to: storeURL)
+
+            let loaded = try await PortalStore(url: storeURL).load()
+
+            XCTAssertEqual(loaded.count, 1)
+            XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 3, rows: 2))
+            XCTAssertEqual(
+                try String(
+                    contentsOf: directory.appendingPathComponent("portals.v4.json.bak"),
+                    encoding: .utf8
+                ),
+                legacy
+            )
+            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
+            XCTAssertTrue(migrated.contains("\"version\" : 5"))
+            XCTAssertTrue(migrated.contains("\"columns\" : 3"))
+            XCTAssertTrue(migrated.contains("\"rows\" : 2"))
+        }
+    }
+
+    func testV4ToV5RewriteFailurePreservesSourceAndBackup() async throws {
+        try await withStoreDirectory { directory in
+            let storeURL = directory.appendingPathComponent("portals.json")
+            let legacy = try v4JSON(portal: makePortal(path: "/tmp/first", x: 10))
+            try Data(legacy.utf8).write(to: storeURL)
+            let store = PortalStore(
+                url: storeURL,
+                fileSystem: ReplaceFailingFileSystem()
+            )
+
+            do {
+                _ = try await store.load()
+                XCTFail("A failed v5 replacement must fail migration")
+            } catch let error as PortalStoreError {
+                guard case .writeFailed(let url, _) = error else {
+                    return XCTFail("Expected writeFailed, got \(error)")
+                }
+                XCTAssertEqual(url, storeURL)
+            }
+
+            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), legacy)
+            XCTAssertEqual(
+                try String(
+                    contentsOf: directory.appendingPathComponent("portals.v4.json.bak"),
+                    encoding: .utf8
+                ),
+                legacy
+            )
+        }
+    }
+
+    func testV4MigrationNeverOverwritesAnExistingDifferentBackup() async throws {
+        try await withStoreDirectory { directory in
+            let storeURL = directory.appendingPathComponent("portals.json")
+            let backupURL = directory.appendingPathComponent("portals.v4.json.bak")
+            let legacy = try v4JSON(portal: makePortal(path: "/tmp/first", x: 10))
+            let originalBackup = Data("first preserved v4".utf8)
+            try Data(legacy.utf8).write(to: storeURL)
+            try originalBackup.write(to: backupURL)
+
+            do {
+                _ = try await PortalStore(url: storeURL).load()
+                XCTFail("Migration must not replace the first preserved backup")
+            } catch let error as PortalStoreError {
+                XCTAssertEqual(error, .migrationBackupConflict(url: backupURL))
+            }
+
+            XCTAssertEqual(try Data(contentsOf: backupURL), originalBackup)
+            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), legacy)
+        }
+    }
+
+    func testInvalidV5CapacityFailsDomainMapping() async throws {
+        try await withStoreDirectory { directory in
+            let storeURL = directory.appendingPathComponent("portals.json")
+            let store = PortalStore(url: storeURL)
+            try await store.save([try makePortal(path: "/tmp/first", x: 10)])
+            let valid = try String(contentsOf: storeURL, encoding: .utf8)
+            let invalid = valid.replacingOccurrences(
+                of: "\"columns\" : 3",
+                with: "\"columns\" : 2"
+            )
+            try Data(invalid.utf8).write(to: storeURL)
+
+            do {
+                _ = try await store.load()
+                XCTFail("Invalid capacity must not restore")
+            } catch let error as PortalStoreError {
+                guard case .invalidPortal(let index, let reason) = error else {
+                    return XCTFail("Expected invalidPortal, got \(error)")
+                }
+                XCTAssertEqual(index, 0)
+                XCTAssertTrue(reason.contains("invalidGridCapacity"))
+            }
         }
     }
 
@@ -648,6 +757,15 @@ private let validV1JSON = """
 
 private let primaryDisplayUUID = "10000000-0000-0000-0000-000000000001"
 private let secondaryDisplayUUID = "20000000-0000-0000-0000-000000000002"
+
+private func v4JSON(portal: Portal) throws -> String {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    return try String(
+        decoding: encoder.encode(PortalEnvelopeV4DTO(portals: [portal])),
+        as: UTF8.self
+    )
+}
 
 private func v2JSON(
     homeDisplay: String,
