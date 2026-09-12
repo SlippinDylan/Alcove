@@ -146,7 +146,7 @@ Post-MVP.
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | FR-01 | Create portals via menu-bar → overlay → drag-rect → folder-choose flow | MVP |
-| FR-02 | Display folder contents as Finder-style icon tiles with one object space containing padded icon and title regions, separate icon/title selection treatments, and a title that wraps to at most two lines; default ordering is directories first, then localized standard name | MVP |
+| FR-02 | Display folder contents as Finder-style icon tiles with one object space containing padded icon and title regions, separate icon/title selection treatments, and a title that wraps to at most two lines; default ordering is directories first, then localized standard name. Layout is continuous row-major order: widening pulls the next lower-row items into the preceding row, and narrowing pushes trailing items into following rows. | MVP |
 | FR-03 | Support adding, switching, and closing tabs per portal; persist creation order and the currently selected tab. Closing the last tab prompts to remove the portal. Tab reordering is Post-MVP. | MVP |
 | FR-04 | Finder-consistent selection (single, Command, Shift, keyboard) | MVP |
 | FR-05 | Double-click file opens with default app; double-click folder opens in Finder via NSWorkspace.open(folderURL) | MVP |

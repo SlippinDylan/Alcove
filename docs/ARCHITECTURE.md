@@ -138,6 +138,7 @@ Visual chrome inside each portal window.
 `NSCollectionView`-based icon grid.
 
 - `FileGridViewController` — owns `NSScrollView` + `NSCollectionView`
+- The controller explicitly keeps the document collection width equal to the scroll viewport width during layout. The pure row-major `GridLayout` is invalidated whenever that width changes, so items reflow in sequence in both resize directions.
 - `FileItemCell` — one accessible tile containing a padded system icon, a two-line title, and separate Finder-style icon/title selection regions
 - `FileGridDataSource` — bridges `FolderAccess` enumeration results to collection view items
 - `FileGridDelegate` — handles selection, double-click, keyboard events, and forwards to `QuickLookIntegration`

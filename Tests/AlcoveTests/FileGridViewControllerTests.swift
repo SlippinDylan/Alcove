@@ -240,6 +240,56 @@ final class FileGridViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testViewportResizeReflowsItemsFromThreeToFourColumnsAndBack() throws {
+        let controller = FileGridViewController(iconSize: .medium)
+        controller.loadView()
+        controller.setItems(makeItems(count: 8))
+        let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
+        let collectionView = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
+        let layout = try XCTUnwrap(
+            collectionView.collectionViewLayout as? PortalGridCollectionViewLayout
+        )
+
+        scrollView.frame = NSRect(x: 0, y: 0, width: 344, height: 300)
+        scrollView.layoutSubtreeIfNeeded()
+        controller.viewDidLayout()
+        layout.prepare()
+        let threeColumnFirst = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))
+        )
+        let threeColumnFourth = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 3, section: 0))
+        )
+        XCTAssertGreaterThan(threeColumnFourth.frame.minY, threeColumnFirst.frame.minY)
+
+        scrollView.frame.size.width = 452
+        scrollView.layoutSubtreeIfNeeded()
+        controller.viewDidLayout()
+        layout.prepare()
+        let fourColumnFirst = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))
+        )
+        let fourColumnFourth = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 3, section: 0))
+        )
+        XCTAssertEqual(fourColumnFourth.frame.minY, fourColumnFirst.frame.minY)
+        XCTAssertGreaterThan(fourColumnFourth.frame.minX, fourColumnFirst.frame.minX)
+
+        scrollView.frame.size.width = 344
+        scrollView.layoutSubtreeIfNeeded()
+        controller.viewDidLayout()
+        layout.prepare()
+        let narrowedFirst = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))
+        )
+        let narrowedFourth = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 3, section: 0))
+        )
+        XCTAssertGreaterThan(narrowedFourth.frame.minY, narrowedFirst.frame.minY)
+        XCTAssertEqual(collectionView.bounds.width, scrollView.contentView.bounds.width)
+    }
+
+    @MainActor
     func testCellUsesSeparateSelectionRegionsAndTwoLineCharacterWrapping() throws {
         let item = FileItem(
             url: URL(fileURLWithPath: "/tmp/Sunrise_会员维护模型业务规则_v1.2.md"),

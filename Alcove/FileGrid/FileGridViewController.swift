@@ -130,6 +130,16 @@ final class FileGridViewController: NSViewController {
         view = scrollView
     }
 
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        guard let scrollView = view as? NSScrollView else { return }
+        let viewportWidth = scrollView.contentView.bounds.width
+        guard viewportWidth > 0, collectionView.frame.width != viewportWidth else { return }
+
+        collectionView.frame.size.width = viewportWidth
+        collectionView.collectionViewLayout?.invalidateLayout()
+    }
+
     func setItems(_ items: [FileItem]) {
         self.items = items
         selectionState.reconcile(with: orderedIDs)
