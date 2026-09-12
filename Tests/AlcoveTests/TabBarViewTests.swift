@@ -136,16 +136,24 @@ final class TabBarViewTests: XCTestCase {
     }
 
     @MainActor
-    func testControlGroupUsesOneOuterGlassCapsuleOnMacOS26() throws {
-        guard #available(macOS 26.0, *) else { return }
+    func testControlGroupUsesOneOuterCapsuleWithTheResolvedMaterial() throws {
         let tab = makeTab(name: "Only")
         let tabBar = TabBarView(frame: NSRect(x: 0, y: 0, width: 300, height: 40))
 
         tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
 
-        let glass = try XCTUnwrap(tabBar.groupMaterialView.materialView as? NSGlassEffectView)
-        XCTAssertEqual(glass.cornerRadius, 999)
-        XCTAssertTrue(try XCTUnwrap(tabBar.tabButtons[tab.id]).isDescendant(of: glass))
+        let material = try XCTUnwrap(tabBar.groupMaterialView.materialView)
+        let expectedPath = PortalChromeMaterialResolver.resolve(
+            role: .controlGroup,
+            supportsGlass: {
+                if #available(macOS 26.0, *) { return true }
+                return false
+            }(),
+            accessibility: PortalAccessibilityOptions.current()
+        )
+        XCTAssertEqual(tabBar.groupMaterialView.materialPath, expectedPath)
+        XCTAssertEqual(tabBar.groupMaterialView.layer?.cornerRadius, 999)
+        XCTAssertTrue(try XCTUnwrap(tabBar.tabButtons[tab.id]).isDescendant(of: material))
     }
 
     @MainActor
