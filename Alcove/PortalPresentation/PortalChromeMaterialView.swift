@@ -205,11 +205,11 @@ final class PortalChromeMaterialView: NSView {
     private func applyContrastStyle() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
             if role == .controlGroup {
-                layer?.backgroundColor = NSColor.windowBackgroundColor
-                    .withAlphaComponent(0.72)
-                    .cgColor
-                layer?.borderWidth = accessibility.increaseContrast ? 2 : 0.5
-                layer?.borderColor = NSColor.separatorColor.cgColor
+                layer?.backgroundColor = NSColor.clear.cgColor
+                layer?.borderWidth = accessibility.increaseContrast ? 2 : 0
+                layer?.borderColor = accessibility.increaseContrast
+                    ? NSColor.separatorColor.cgColor
+                    : nil
             } else {
                 layer?.backgroundColor = NSColor.clear.cgColor
                 layer?.borderWidth = accessibility.increaseContrast ? 2 : 0

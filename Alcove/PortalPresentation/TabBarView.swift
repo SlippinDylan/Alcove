@@ -7,6 +7,7 @@ final class TabBarView: NSView {
     var onClose: ((FolderTabID) -> Void)?
     var onAdd: (() -> Void)?
 
+    private(set) var groupBackdropView = PortalTabGroupBackdropView()
     let groupMaterialView: PortalChromeMaterialView
     private(set) var scrollView = NSScrollView()
     private let stackView = NSStackView()
@@ -32,14 +33,16 @@ final class TabBarView: NSView {
         let reservedSideWidth: CGFloat = 52
         let maximumGroupWidth = max(1, bounds.width - reservedSideWidth * 2)
         let groupWidth = min(stackView.fittingSize.width + 16, maximumGroupWidth)
-        groupMaterialView.frame = NSRect(
+        let groupFrame = NSRect(
             x: bounds.midX - groupWidth / 2,
             y: 2,
             width: groupWidth,
             height: max(1, bounds.height - 4)
         )
+        groupBackdropView.frame = groupFrame
+        groupMaterialView.frame = groupFrame
         groupMaterialView.materialView?.frame = groupMaterialView.bounds
-        scrollView.frame = groupMaterialView.bounds.insetBy(dx: 8, dy: 3)
+        scrollView.frame = groupFrame.insetBy(dx: 8, dy: 3)
 
         let viewportSize = scrollView.contentSize
         let fittingSize = stackView.fittingSize
@@ -103,7 +106,8 @@ final class TabBarView: NSView {
         scrollView.documentView = stackView
 
         addSubview(groupMaterialView)
-        groupMaterialView.addSubview(scrollView)
+        addSubview(groupBackdropView)
+        addSubview(scrollView)
 
         managementButton.title = "•••"
         managementButton.isBordered = false
@@ -205,6 +209,33 @@ final class TabBarView: NSView {
 
     fileprivate func addTab() {
         onAdd?()
+    }
+}
+
+@MainActor
+final class PortalTabGroupBackdropView: NSView {
+    override var wantsUpdateLayer: Bool { true }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.cornerRadius = 999
+        layer?.masksToBounds = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func updateLayer() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = NSColor.windowBackgroundColor
+                .withAlphaComponent(0.55)
+                .cgColor
+            layer?.borderWidth = 0.5
+            layer?.borderColor = NSColor.separatorColor.cgColor
+        }
     }
 }
 

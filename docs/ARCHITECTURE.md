@@ -121,8 +121,10 @@ Visual chrome inside each portal window.
   `NSGlassEffectView` must not be nested inside the background
   `NSVisualEffectView`. At the selected desktop window level, controls installed
   in the small Glass `contentView` were hit-testable but rendered fully
-  transparent, so the control-group host keeps the Glass as its backing and
-  draws explicitly styled folder controls in a foreground overlay.
+  transparent, so the TabBar keeps the Glass backing, a guaranteed visible
+  capsule backdrop, and the scrollable folder controls as ordered sibling
+  layers. The controls use the same direct TabBar hierarchy that previously
+  rendered successfully.
 
 ### 3.5 FileGrid
 
@@ -615,9 +617,10 @@ material prevents the nested Glass from rendering correctly.
 
 Apple normally requires custom Glass content to use `NSGlassEffectView.contentView`.
 Alcove has a verified exception at `desktopIconWindow + 1`: a small Glass view's
-content remained interactive but was completely transparent. The control group
-therefore uses an empty Glass backing plus a nontransparent host fill and a
-foreground control overlay with explicit adaptive text and selection colors.
+content remained interactive but was completely transparent. The TabBar
+therefore places an empty Glass backing at the bottom, a nontransparent capsule
+backdrop above it, and the scrollable controls above both as direct siblings.
+The controls use explicit adaptive text and selection colors.
 This fallback must remain until a future window strategy proves the standard
 `contentView` path visibly renders on the supported system matrix.
 
