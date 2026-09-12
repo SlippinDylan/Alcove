@@ -5,6 +5,62 @@ struct PortalEnvelopeVersionDTO: Decodable {
     let version: Int
 }
 
+struct PortalEnvelopeV3DTO: Codable, Equatable {
+    static let currentVersion = 3
+
+    let version: Int
+    let portals: [PortalV3DTO]
+
+    init(portals: [Portal]) {
+        version = Self.currentVersion
+        self.portals = portals.map(PortalV3DTO.init)
+    }
+}
+
+struct PortalV3DTO: Codable, Equatable {
+    let id: UUID
+    let tabs: [FolderTabDTO]
+    let selectedTabID: UUID
+    let placement: PlacementRecordDTO
+    let iconSize: Double
+    let backgroundStyle: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tabs
+        case selectedTabID = "selected_tab_id"
+        case placement
+        case iconSize = "icon_size"
+        case backgroundStyle = "background_style"
+    }
+
+    init(_ portal: Portal) {
+        id = portal.id.rawValue
+        tabs = portal.tabs.map(FolderTabDTO.init)
+        selectedTabID = portal.selectedTabID.rawValue
+        placement = PlacementRecordDTO(portal.placement)
+        iconSize = Double(portal.iconSize.rawValue)
+        backgroundStyle = portal.backgroundStyle.rawValue
+    }
+
+    func domainValue() throws -> Portal {
+        guard let iconSize = IconSize(rawValue: CGFloat(iconSize)) else {
+            throw PortalStoreMappingError.invalidIconSize(self.iconSize)
+        }
+        guard let backgroundStyle = PortalBackgroundStyle(rawValue: backgroundStyle) else {
+            throw PortalStoreMappingError.invalidBackgroundStyle(self.backgroundStyle)
+        }
+        return try Portal(
+            id: PortalID(rawValue: id),
+            tabs: try tabs.map { try $0.domainValue() },
+            selectedTabID: FolderTabID(rawValue: selectedTabID),
+            placement: try placement.domainValue(),
+            iconSize: iconSize,
+            backgroundStyle: backgroundStyle
+        )
+    }
+}
+
 struct PortalEnvelopeV2DTO: Codable, Equatable {
     static let currentVersion = 2
 
@@ -248,6 +304,7 @@ struct FrameDTO: Codable, Equatable {
 
 enum PortalStoreMappingError: Error, Equatable {
     case invalidIconSize(Double)
+    case invalidBackgroundStyle(String)
     case invalidFolderPath(String)
     case invalidDisplayIdentity(String)
     case duplicateDisplayIdentity(String)

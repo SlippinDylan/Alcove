@@ -9,6 +9,7 @@ protocol PortalWindowPresenting: AnyObject {
     var onAddTab: (() -> Void)? { get set }
     var onCloseTab: ((FolderTabID) -> Void)? { get set }
     var onLocateFolder: ((FolderTabID) -> Void)? { get set }
+    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? { get set }
     func present()
     func updatePortal(_ portal: Portal)
     func reloadSelectedFolder()

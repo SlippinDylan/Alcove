@@ -1,3 +1,4 @@
+import AlcoveCore
 import AppKit
 import XCTest
 @testable import Alcove
@@ -85,11 +86,14 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         let options = AccessibilityOptionsBox(.standard)
         let host = PortalChromeMaterialView(
             contentView: NSView(),
+            role: .surface,
+            backgroundStyle: .lowTransparency,
             accessibilityProvider: { options.value },
             supportsGlass: false,
             notificationCenter: center
         )
         let initialCount = host.rebuildCount
+        XCTAssertEqual(host.alphaValue, 0.78, accuracy: 0.001)
         options.value = .reduced
 
         center.post(
@@ -100,6 +104,7 @@ final class PortalChromeMaterialViewTests: XCTestCase {
 
         XCTAssertEqual(host.rebuildCount, initialCount + 1)
         XCTAssertEqual(host.materialPath, .opaque)
+        XCTAssertEqual(host.alphaValue, 1, accuracy: 0.001)
 
         center.post(
             name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
@@ -142,6 +147,76 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         XCTAssertEqual(effect.material, .underWindowBackground)
         XCTAssertEqual(effect.state, .active)
         XCTAssertEqual(effect.layer?.cornerRadius, 24)
+        XCTAssertEqual(host.alphaValue, 0.55, accuracy: 0.001)
+    }
+
+    @MainActor
+    func testPortalSurfaceMapsEveryBackgroundStyleWithoutDimmingControls() throws {
+        let surface = PortalChromeMaterialView(
+            contentView: NSView(),
+            role: .surface,
+            backgroundStyle: .highTransparency,
+            accessibilityProvider: { .standard },
+            supportsGlass: false,
+            notificationCenter: NotificationCenter()
+        )
+        let controls = PortalChromeMaterialView(
+            contentView: NSView(),
+            role: .controlGroup,
+            backgroundStyle: .highTransparency,
+            accessibilityProvider: { .standard },
+            supportsGlass: false,
+            notificationCenter: NotificationCenter()
+        )
+        let effect = try XCTUnwrap(surface.materialView as? NSVisualEffectView)
+
+        XCTAssertEqual(effect.material, .underWindowBackground)
+        XCTAssertEqual(surface.alphaValue, 0.35, accuracy: 0.001)
+        surface.updateBackgroundStyle(.standard)
+        XCTAssertEqual(effect.material, .underWindowBackground)
+        XCTAssertEqual(surface.alphaValue, 0.55, accuracy: 0.001)
+        surface.updateBackgroundStyle(.lowTransparency)
+        XCTAssertEqual(effect.material, .underWindowBackground)
+        XCTAssertEqual(surface.alphaValue, 0.78, accuracy: 0.001)
+        XCTAssertEqual(controls.alphaValue, 1, accuracy: 0.001)
+    }
+
+    @MainActor
+    func testReduceTransparencyMakesEverySurfaceStyleOpaque() {
+        for backgroundStyle in PortalBackgroundStyle.allCases {
+            let surface = PortalChromeMaterialView(
+                contentView: NSView(),
+                role: .surface,
+                backgroundStyle: backgroundStyle,
+                accessibilityProvider: { .reduced },
+                supportsGlass: false,
+                notificationCenter: NotificationCenter()
+            )
+
+            XCTAssertEqual(surface.materialPath, .opaque)
+            XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
+        }
+    }
+
+    @MainActor
+    func testSavedSurfaceStyleResumesAfterReduceTransparencyTurnsOff() throws {
+        let options = AccessibilityOptionsBox(.reduced)
+        let surface = PortalChromeMaterialView(
+            contentView: NSView(),
+            role: .surface,
+            backgroundStyle: .lowTransparency,
+            accessibilityProvider: { options.value },
+            supportsGlass: false,
+            notificationCenter: NotificationCenter()
+        )
+        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
+
+        options.value = .standard
+        surface.rebuildMaterial()
+
+        let effect = try XCTUnwrap(surface.materialView as? NSVisualEffectView)
+        XCTAssertEqual(effect.material, .underWindowBackground)
+        XCTAssertEqual(surface.alphaValue, 0.78, accuracy: 0.001)
     }
 }
 

@@ -213,6 +213,39 @@ final class PortalWindowConfigurationTests: XCTestCase {
     }
 
     @MainActor
+    func testControllerForwardsBackgroundStyleRequestFromPortalView() throws {
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/portal"),
+            frame: NSRect(x: 20, y: 30, width: 560, height: 480),
+            display: DisplayDescriptor(
+                identity: DisplayIdentity(rawValue: "test-display"),
+                visibleFrame: NSRect(x: 0, y: 0, width: 1440, height: 900)
+            )
+        )
+        let controller = PortalWindowController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(),
+            initialFrame: portal.frame
+        )
+        var requestedStyle: PortalBackgroundStyle?
+        controller.onSetBackgroundStyle = { requestedStyle = $0 }
+        let contentView = try XCTUnwrap(controller.window?.contentView)
+        let tabBar = try XCTUnwrap(
+            allDescendants(of: contentView).compactMap { $0 as? TabBarView }.first
+        )
+        let submenu = try XCTUnwrap(
+            tabBar.managementMenu.item(withTitle: "Background")?.submenu
+        )
+        let index = try XCTUnwrap(
+            submenu.items.firstIndex { $0.title == "Low Transparency" }
+        )
+
+        submenu.performActionForItem(at: index)
+
+        XCTAssertEqual(requestedStyle, .lowTransparency)
+    }
+
+    @MainActor
     func testCancelledDragClearsInteractionWithoutCommitting() {
         let window = makeWindow()
         var commits: [NSRect] = []
@@ -257,6 +290,11 @@ final class PortalWindowConfigurationTests: XCTestCase {
             contentViewController: contentController,
             pointerLocationProvider: pointerLocationProvider
         )
+    }
+
+    @MainActor
+    private func allDescendants(of view: NSView) -> [NSView] {
+        view.subviews + view.subviews.flatMap(allDescendants)
     }
 
     @MainActor

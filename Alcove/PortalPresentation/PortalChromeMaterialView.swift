@@ -1,3 +1,4 @@
+import AlcoveCore
 import AppKit
 
 enum PortalChromeMaterialPath: Equatable {
@@ -49,6 +50,7 @@ final class PortalChromeMaterialView: NSView {
     private let accessibilityProvider: AccessibilityProvider
     private let supportsGlass: Bool
     private let notificationCenter: NotificationCenter
+    private var backgroundStyle: PortalBackgroundStyle
     private var observation: PortalMaterialObservation?
     private var observationGeneration: UInt64 = 0
     private var materialConstraints: [NSLayoutConstraint] = []
@@ -61,6 +63,7 @@ final class PortalChromeMaterialView: NSView {
     init(
         contentView: NSView,
         role: PortalChromeMaterialRole = .controlGroup,
+        backgroundStyle: PortalBackgroundStyle = .standard,
         accessibilityProvider: @escaping AccessibilityProvider = {
             PortalAccessibilityOptions.current()
         },
@@ -72,6 +75,7 @@ final class PortalChromeMaterialView: NSView {
         self.accessibilityProvider = accessibilityProvider
         self.supportsGlass = supportsGlass
         self.notificationCenter = notificationCenter
+        self.backgroundStyle = backgroundStyle
         accessibility = accessibilityProvider()
         materialPath = PortalChromeMaterialResolver.resolve(
             role: role,
@@ -122,6 +126,13 @@ final class PortalChromeMaterialView: NSView {
         materialView = material
         rebuildCount += 1
         applyContrastStyle()
+        applySurfaceStyle()
+    }
+
+    func updateBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) {
+        guard role == .surface else { return }
+        self.backgroundStyle = backgroundStyle
+        applySurfaceStyle()
     }
 
     func startObserving() {
@@ -181,7 +192,7 @@ final class PortalChromeMaterialView: NSView {
 
     private func makeVisualEffectView() -> NSVisualEffectView {
         let effect = NSVisualEffectView()
-        effect.material = role == .surface ? .underWindowBackground : .popover
+        effect.material = visualEffectMaterial
         effect.blendingMode = .behindWindow
         effect.state = .active
         effect.wantsLayer = true
@@ -222,6 +233,28 @@ final class PortalChromeMaterialView: NSView {
 
     private var cornerRadius: CGFloat {
         role == .surface ? 24 : 999
+    }
+
+    private var visualEffectMaterial: NSVisualEffectView.Material {
+        guard role == .surface else { return .popover }
+        return .underWindowBackground
+    }
+
+    private func applySurfaceStyle() {
+        guard role == .surface else {
+            alphaValue = 1
+            return
+        }
+        guard materialPath != .opaque else {
+            alphaValue = 1
+            return
+        }
+        alphaValue = switch backgroundStyle {
+        case .highTransparency: 0.35
+        case .standard: 0.55
+        case .lowTransparency: 0.78
+        }
+        (materialView as? NSVisualEffectView)?.material = visualEffectMaterial
     }
 }
 

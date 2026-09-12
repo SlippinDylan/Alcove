@@ -3,20 +3,22 @@ import XCTest
 @testable import Alcove
 
 final class PortalStoreTests: XCTestCase {
-    func testMissingStoreLoadsEmptyAndV2SaveRoundTrips() async throws {
+    func testMissingStoreLoadsEmptyAndV3SaveRoundTrips() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let store = PortalStore(url: storeURL)
             let initial = try await store.load()
             XCTAssertEqual(initial, [])
 
-            let portal = try makePortal(path: "/tmp/first", x: 10)
+            var portal = try makePortal(path: "/tmp/first", x: 10)
+            portal.updateBackgroundStyle(.highTransparency)
             try await store.save([portal])
             let restored = try await store.load()
             XCTAssertEqual(restored, [portal])
 
             let json = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(json.contains("\"version\" : 2"))
+            XCTAssertTrue(json.contains("\"version\" : 3"))
+            XCTAssertTrue(json.contains("\"background_style\" : \"high_transparency\""))
             XCTAssertTrue(json.contains("\"selected_tab_id\""))
             XCTAssertTrue(json.contains("\"folder_path\""))
             XCTAssertTrue(json.contains("\"home_display\""))
@@ -40,7 +42,9 @@ final class PortalStoreTests: XCTestCase {
                 frame: CGRect(x: -1100, y: 30, width: 360, height: 260),
                 display: secondaryDisplay
             )
-            let second = try makePortal(path: "/tmp/second", x: 400)
+            first.updateBackgroundStyle(.highTransparency)
+            var second = try makePortal(path: "/tmp/second", x: 400)
+            second.updateBackgroundStyle(.lowTransparency)
             let store = PortalStore(url: directory.appendingPathComponent("portals.json"))
 
             try await store.save([first, second])
@@ -51,6 +55,10 @@ final class PortalStoreTests: XCTestCase {
             XCTAssertEqual(loaded[0].selectedTabID, secondTab)
             XCTAssertEqual(loaded[0].placement.framesByDisplay.count, 2)
             XCTAssertEqual(loaded[0].placement.homeDisplay, secondaryDisplay.identity)
+            XCTAssertEqual(
+                loaded.map(\.backgroundStyle),
+                [.highTransparency, .lowTransparency]
+            )
         }
     }
 
@@ -106,7 +114,8 @@ final class PortalStoreTests: XCTestCase {
             let backupURL = directory.appendingPathComponent("portals.v1.json.bak")
             XCTAssertEqual(try String(contentsOf: backupURL, encoding: .utf8), legacy)
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 2"))
+            XCTAssertTrue(migrated.contains("\"version\" : 3"))
+            XCTAssertTrue(loaded.allSatisfy { $0.backgroundStyle == .standard })
             let reloaded = try await PortalStore(url: storeURL).load()
             XCTAssertEqual(reloaded, loaded)
         }
@@ -126,12 +135,63 @@ final class PortalStoreTests: XCTestCase {
                 XCTAssertEqual(url, storeURL)
             }
 
-            try Data("{\"version\":3,\"portals\":[]}".utf8).write(to: storeURL)
+            try Data("{\"version\":4,\"portals\":[]}".utf8).write(to: storeURL)
             do {
                 _ = try await PortalStore(url: storeURL).load()
                 XCTFail("Future version must fail")
             } catch let error as PortalStoreError {
-                XCTAssertEqual(error, .unsupportedVersion(3))
+                XCTAssertEqual(error, .unsupportedVersion(4))
+            }
+        }
+    }
+
+    func testV2MigrationDefaultsBackgroundAndPreservesBackup() async throws {
+        try await withStoreDirectory { directory in
+            let storeURL = directory.appendingPathComponent("portals.json")
+            let legacy = v2JSON(
+                homeDisplay: primaryDisplayUUID,
+                anchorX: 0.5,
+                preferredWidth: 300
+            )
+            try Data(legacy.utf8).write(to: storeURL)
+
+            let loaded = try await PortalStore(url: storeURL).load()
+
+            XCTAssertEqual(loaded.map(\.backgroundStyle), [.standard])
+            XCTAssertEqual(
+                try String(
+                    contentsOf: directory.appendingPathComponent("portals.v2.json.bak"),
+                    encoding: .utf8
+                ),
+                legacy
+            )
+            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
+            XCTAssertTrue(migrated.contains("\"version\" : 3"))
+            XCTAssertTrue(migrated.contains("\"background_style\" : \"standard\""))
+        }
+    }
+
+    func testInvalidV3BackgroundStyleFailsDomainMapping() async throws {
+        try await withStoreDirectory { directory in
+            let storeURL = directory.appendingPathComponent("portals.json")
+            let store = PortalStore(url: storeURL)
+            try await store.save([try makePortal(path: "/tmp/first", x: 10)])
+            let valid = try String(contentsOf: storeURL, encoding: .utf8)
+            let invalid = valid.replacingOccurrences(
+                of: "\"background_style\" : \"standard\"",
+                with: "\"background_style\" : \"unknown\""
+            )
+            try Data(invalid.utf8).write(to: storeURL)
+
+            do {
+                _ = try await store.load()
+                XCTFail("Unknown background style must not restore")
+            } catch let error as PortalStoreError {
+                guard case .invalidPortal(let index, let reason) = error else {
+                    return XCTFail("Expected invalidPortal, got \(error)")
+                }
+                XCTAssertEqual(index, 0)
+                XCTAssertTrue(reason.contains("invalidBackgroundStyle"))
             }
         }
     }
@@ -164,14 +224,20 @@ final class PortalStoreTests: XCTestCase {
 
     func testInvalidV2PlacementValuesFailDomainMapping() async throws {
         try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
             let invalidCases = [
                 v2JSON(homeDisplay: "missing", anchorX: 0.5, preferredWidth: 300),
                 v2JSON(homeDisplay: primaryDisplayUUID, anchorX: 1.5, preferredWidth: 300),
                 v2JSON(homeDisplay: primaryDisplayUUID, anchorX: 0.5, preferredWidth: -1)
             ]
 
-            for invalid in invalidCases {
+            for (caseIndex, invalid) in invalidCases.enumerated() {
+                let storeURL = directory
+                    .appendingPathComponent("case-\(caseIndex)")
+                    .appendingPathComponent("portals.json")
+                try FileManager.default.createDirectory(
+                    at: storeURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
                 try Data(invalid.utf8).write(to: storeURL)
                 do {
                     _ = try await PortalStore(url: storeURL).load()
@@ -183,6 +249,66 @@ final class PortalStoreTests: XCTestCase {
                     XCTAssertEqual(index, 0)
                 }
             }
+        }
+    }
+
+    func testV2ToV3RewriteFailurePreservesSourceAndBackup() async throws {
+        try await withStoreDirectory { directory in
+            let storeURL = directory.appendingPathComponent("portals.json")
+            let legacy = v2JSON(
+                homeDisplay: primaryDisplayUUID,
+                anchorX: 0.5,
+                preferredWidth: 300
+            )
+            try Data(legacy.utf8).write(to: storeURL)
+            let store = PortalStore(
+                url: storeURL,
+                fileSystem: ReplaceFailingFileSystem()
+            )
+
+            do {
+                _ = try await store.load()
+                XCTFail("A failed v3 replacement must fail migration")
+            } catch let error as PortalStoreError {
+                guard case .writeFailed(let url, _) = error else {
+                    return XCTFail("Expected writeFailed, got \(error)")
+                }
+                XCTAssertEqual(url, storeURL)
+            }
+
+            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), legacy)
+            XCTAssertEqual(
+                try String(
+                    contentsOf: directory.appendingPathComponent("portals.v2.json.bak"),
+                    encoding: .utf8
+                ),
+                legacy
+            )
+        }
+    }
+
+    func testV2MigrationNeverOverwritesAnExistingDifferentBackup() async throws {
+        try await withStoreDirectory { directory in
+            let storeURL = directory.appendingPathComponent("portals.json")
+            let backupURL = directory.appendingPathComponent("portals.v2.json.bak")
+            let legacy = v2JSON(
+                homeDisplay: primaryDisplayUUID,
+                anchorX: 0.5,
+                preferredWidth: 300
+            )
+            let originalBackup = Data("first preserved v2".utf8)
+            try Data(legacy.utf8).write(to: storeURL)
+            try originalBackup.write(to: backupURL)
+
+            do {
+                _ = try await PortalStore(url: storeURL).load()
+                XCTFail("Migration must not replace the first preserved backup")
+            } catch let error as PortalStoreError {
+                XCTAssertEqual(error, .migrationBackupConflict(url: backupURL))
+            }
+
+            XCTAssertEqual(try Data(contentsOf: backupURL), originalBackup)
+            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), legacy)
         }
     }
 

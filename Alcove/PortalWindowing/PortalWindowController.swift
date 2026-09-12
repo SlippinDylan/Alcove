@@ -17,6 +17,9 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     var onLocateFolder: ((FolderTabID) -> Void)? {
         didSet { portalViewController.onLocateFolderRequested = onLocateFolder }
     }
+    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? {
+        didSet { portalViewController.onSetBackgroundStyle = onSetBackgroundStyle }
+    }
     private let portalViewController: PortalViewController
     private let quickLookIntegration: QuickLookIntegration
     private var iconSize: IconSize

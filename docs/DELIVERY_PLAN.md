@@ -405,6 +405,7 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - Menu-bar portal list and portal removal management.
 - Final loading, empty, missing-folder, and permission states plus unsupported-folder-location selection feedback.
 - Alcove-owned Small/Medium/Large icon presets; resize snap and 2×2 minimum.
+- Per-portal High Transparency/Standard/Low Transparency frosted-background presets, persisted independently with an accessibility-driven opaque override.
 - Evidence-backed Liquid Glass chrome on macOS 26 and `NSVisualEffectView` fallback on macOS 15–25.
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
 - Performance validation for defined NFR directory sizes.

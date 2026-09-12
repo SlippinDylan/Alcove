@@ -76,6 +76,7 @@ Domain models and pure layout math. Zero AppKit imports.
 - `FileItem` — enumerated file/folder entry
 - `SelectionState` — per-tab selection model
 - `IconSize` — validated icon dimension value type
+- `PortalBackgroundStyle` — per-portal High Transparency, Standard, or Low Transparency preference
 - `ColumnCount` — validated column count value type
 - `GridLayout` — computes item frames from container size, icon size, column count, and spacing
 - `PlacementGeometry` — captures and restores per-display frames with normalized movable-range anchors
@@ -113,8 +114,8 @@ App entry point and global coordination.
 Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
-- `TabBarView` — one centered, horizontally scrollable outer capsule containing divider-free folder-name capsules, plus a fixed trailing More menu for add/close actions; tabs remain in creation order in MVP and drag-to-reorder is Post-MVP
-- `PortalChromeMaterialView` — role-aware compatibility boundary: the content surface uses an always-active `NSVisualEffectView`, while the centered control group uses `NSGlassEffectView` on macOS 26+ and an always-active `NSVisualEffectView` on 15–25
+- `TabBarView` — one centered, horizontally scrollable outer capsule containing divider-free folder-name capsules, plus a fixed trailing More menu for add/close and per-portal background-transparency actions; tabs remain in creation order in MVP and drag-to-reorder is Post-MVP
+- `PortalChromeMaterialView` — role-aware compatibility boundary: the content surface uses an always-active `NSVisualEffectView` with per-portal alpha, while the centered control group uses `NSGlassEffectView` on macOS 26+ and an always-active `NSVisualEffectView` on 15–25
 - Layout: tab bar at top, icon grid fills remaining area
 - Rendering hierarchy: the background material, file grid, and top control row
   are sibling layers in a plain root container. The control-group
@@ -332,7 +333,7 @@ struct NormalizedAnchor: Sendable {
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "portals": [ ... ]
 }
 ```
@@ -344,17 +345,18 @@ All JSON keys are `snake_case`. Dates are ISO 8601.
 | `version` value | Behavior |
 |-----------------|----------|
 | Matches current decoder | Decode directly |
-| Lower than current | When a second schema version exists, run the explicit migration path from the stored version to current |
+| Lower than current | Run the explicit migration path from the stored version to current |
 | Higher than current | Fail with `.unsupportedVersion(Int)`; do not attempt partial read |
 | Missing or malformed | Fail with `.corruptedFile` |
 
 ### 5.3 Migration Strategy
 
-The concrete v1→v2 migration maps each legacy frame to the display with the largest
-positive visible-frame intersection, falling back to the explicit primary display.
-Before conversion it writes `portals.v1.json.bak` once and never replaces a different
-existing backup. Only successful mapping is atomically rewritten as v2. Later migrations
-remain explicit and sequential rather than using a speculative generic framework.
+The concrete v1 migration maps each legacy frame to the display with the largest positive
+visible-frame intersection, falling back to the explicit primary display. Both v1 and v2
+default the new per-portal background preference to Standard and are atomically rewritten
+as v3. Before conversion the store writes `portals.v1.json.bak` or `portals.v2.json.bak`
+once and never replaces a different existing backup. Migrations remain explicit rather
+than using a speculative generic framework.
 
 ### 5.4 Failure Policy
 
@@ -368,8 +370,9 @@ remain explicit and sequential rather than using a speculative generic framework
 
 ### 5.5 Backup
 
-The v1→v2 migration preserves the original as `portals.v1.json.bak`. The first backup is
-write-once; a different existing backup stops migration instead of overwriting evidence.
+The v1→v3 and v2→v3 migrations preserve the original as `portals.v1.json.bak` or
+`portals.v2.json.bak`. The first backup is write-once; a different existing backup stops
+migration instead of overwriting evidence.
 
 ---
 
@@ -626,8 +629,11 @@ This fallback must remain until a future window strategy proves the standard
 
 `NSGlassEffectView` exposes `contentView`, `cornerRadius`, `tintColor`, and `style`, but no public active-state override. Alcove therefore does not falsify `NSWindow.isKeyWindow`. The content background uses `NSVisualEffectView.state = .active`; the folder labels and selected inner capsule use explicit appearance-aware drawing that does not dim when another app becomes active.
 
-The file grid remains ordinary content on the portal's active translucent
-surface. File cells and selection highlights do not create glass layers: icons
+The file grid remains ordinary content on the portal's active frosted surface. Each Portal
+persists one of three alpha levels on the same `.underWindowBackground` material: High
+Transparency (0.35), Standard (0.55), or Low Transparency (0.78). Reduce Transparency
+overrides the rendered alpha to 1 without changing the saved preference. File cells and
+selection highlights do not create glass layers: icons
 stay as standard `NSImage` values from `NSWorkspace`, preserving readability and
 avoiding per-item rendering cost.
 

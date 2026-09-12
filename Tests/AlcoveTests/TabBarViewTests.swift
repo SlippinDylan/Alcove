@@ -94,7 +94,7 @@ final class TabBarViewTests: XCTestCase {
         tabBar.configure(with: portal)
 
         tabBar.tabButtons[second.id]?.performClick(nil)
-        tabBar.managementMenu.performActionForItem(at: 2)
+        performItem(titled: "Close First", in: tabBar.managementMenu)
 
         XCTAssertEqual(selectedID, second.id)
         XCTAssertEqual(closedID, first.id)
@@ -102,7 +102,7 @@ final class TabBarViewTests: XCTestCase {
 
         tabBar.update(with: try makePortal(tabs: [first, second], selected: second.id))
         XCTAssertEqual(tabBar.selectedTabID, second.id)
-        XCTAssertEqual(tabBar.managementMenu.item(at: 2)?.title, "Close Second")
+        XCTAssertNotNil(tabBar.managementMenu.item(withTitle: "Close Second"))
     }
 
     @MainActor
@@ -116,12 +116,49 @@ final class TabBarViewTests: XCTestCase {
         tabBar.onClose = { closedID = $0 }
 
         tabBar.managementMenu.performActionForItem(at: 0)
-        tabBar.managementMenu.performActionForItem(at: 2)
+        performItem(titled: "Close First", in: tabBar.managementMenu)
 
         XCTAssertEqual(addCount, 1)
         XCTAssertEqual(closedID, tab.id)
         XCTAssertEqual(tabBar.managementButton.accessibilityLabel(), "Portal options")
-        XCTAssertEqual(tabBar.managementMenu.items.map(\.title), ["Add Folder…", "", "Close First"])
+        XCTAssertEqual(
+            tabBar.managementMenu.items.map(\.title),
+            ["Add Folder…", "Background", "", "Close First"]
+        )
+    }
+
+    @MainActor
+    func testBackgroundSubmenuChecksCurrentStyleAndInvokesCallback() throws {
+        let tab = makeTab(name: "First")
+        var portal = try makePortal(tabs: [tab], selected: tab.id)
+        portal.updateBackgroundStyle(.lowTransparency)
+        let tabBar = TabBarView(frame: .zero)
+        var requestedStyle: PortalBackgroundStyle?
+        tabBar.onSetBackgroundStyle = { requestedStyle = $0 }
+
+        tabBar.configure(with: portal)
+
+        let submenu = try XCTUnwrap(
+            tabBar.managementMenu.item(withTitle: "Background")?.submenu
+        )
+        XCTAssertEqual(
+            submenu.items.map(\.title),
+            ["High Transparency", "Standard", "Low Transparency"]
+        )
+        XCTAssertEqual(submenu.item(withTitle: "High Transparency")?.state, .off)
+        XCTAssertEqual(submenu.item(withTitle: "Standard")?.state, .off)
+        XCTAssertEqual(submenu.item(withTitle: "Low Transparency")?.state, .on)
+
+        performItem(titled: "High Transparency", in: submenu)
+        XCTAssertEqual(requestedStyle, .highTransparency)
+
+        portal.updateBackgroundStyle(.highTransparency)
+        tabBar.update(with: portal)
+        let updatedSubmenu = try XCTUnwrap(
+            tabBar.managementMenu.item(withTitle: "Background")?.submenu
+        )
+        XCTAssertEqual(updatedSubmenu.item(withTitle: "High Transparency")?.state, .on)
+        XCTAssertEqual(updatedSubmenu.item(withTitle: "Low Transparency")?.state, .off)
     }
 
     @MainActor
@@ -233,6 +270,14 @@ final class TabBarViewTests: XCTestCase {
     @MainActor
     private func managementButtonFrame(in tabBar: TabBarView) -> NSRect {
         tabBar.managementButton.convert(tabBar.managementButton.bounds, to: tabBar)
+    }
+
+    @MainActor
+    private func performItem(titled title: String, in menu: NSMenu) {
+        guard let index = menu.items.firstIndex(where: { $0.title == title }) else {
+            return XCTFail("Missing menu item \(title)")
+        }
+        menu.performActionForItem(at: index)
     }
 
     private func makeTab(name: String) -> FolderTab {

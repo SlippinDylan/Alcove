@@ -17,10 +17,11 @@ final class PortalCoordinatorTests: XCTestCase {
 
     @MainActor
     func testRestorePresentsPortalsInStoredOrder() async throws {
-        let portals = [
-            try makePortal(path: "/tmp/first", x: 10),
-            try makePortal(path: "/tmp/second", x: 400),
-        ]
+        var first = try makePortal(path: "/tmp/first", x: 10)
+        first.updateBackgroundStyle(.highTransparency)
+        var second = try makePortal(path: "/tmp/second", x: 400)
+        second.updateBackgroundStyle(.lowTransparency)
+        let portals = [first, second]
         let store = PortalStoreSpy(portals: portals)
         let factory = PortalWindowFactorySpy()
         let coordinator = PortalCoordinator(store: store, windowFactory: factory)
@@ -29,6 +30,10 @@ final class PortalCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(coordinator.portalStates, portals)
         XCTAssertEqual(factory.createdPortalIDs, portals.map(\.id))
+        XCTAssertEqual(factory.createdPortals.map(\.backgroundStyle), [
+            .highTransparency,
+            .lowTransparency,
+        ])
         XCTAssertEqual(factory.windows.map(\.presentCount), [1, 1])
     }
 
@@ -695,6 +700,51 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testBackgroundStyleUpdatesOnlyRequestedPortalAfterPersistence() async throws {
+        let first = try makePortal(path: "/tmp/first", x: 10)
+        let second = try makePortal(path: "/tmp/second", x: 400)
+        let store = PortalStoreSpy(portals: [first, second])
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(store: store, windowFactory: factory)
+        try await coordinator.restorePortals()
+
+        factory.windows[1].onSetBackgroundStyle?(.lowTransparency)
+        await coordinator.waitForTabMutationForTesting()
+
+        XCTAssertEqual(coordinator.portalStates[0].backgroundStyle, .standard)
+        XCTAssertEqual(coordinator.portalStates[1].backgroundStyle, .lowTransparency)
+        XCTAssertEqual(factory.windows[0].updateCount, 0)
+        XCTAssertEqual(
+            factory.windows[1].updatedPortals.last?.backgroundStyle,
+            .lowTransparency
+        )
+        let saves = await store.savedSnapshots()
+        XCTAssertEqual(saves.last?.map(\.backgroundStyle), [.standard, .lowTransparency])
+    }
+
+    @MainActor
+    func testBackgroundStyleSaveFailureLeavesPortalAndWindowUntouched() async throws {
+        let portal = try makePortal(path: "/tmp/first", x: 10)
+        let store = PortalStoreSpy(portals: [portal], saveError: .rejected)
+        let factory = PortalWindowFactorySpy()
+        let persistenceErrors = PersistenceErrorPresenterSpy()
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            persistenceErrorPresenter: persistenceErrors
+        )
+        try await coordinator.restorePortals()
+
+        factory.windows[0].onSetBackgroundStyle?(.highTransparency)
+        await coordinator.waitForTabMutationForTesting()
+
+        XCTAssertEqual(coordinator.portalStates, [portal])
+        XCTAssertEqual(factory.windows[0].updateCount, 0)
+        XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
+        XCTAssertEqual(persistenceErrors.errors.count, 1)
+    }
+
+    @MainActor
     func testLargeIconPresetPersistsAndAppliesMinimumPlacement() async throws {
         let portal = try makePortal(path: "/tmp/first", x: 10)
         let store = PortalStoreSpy(portals: [portal])
@@ -776,7 +826,8 @@ final class PortalCoordinatorTests: XCTestCase {
     @MainActor
     func testLocatingFolderPreservesTabIdentityAndPersistsBeforeWindowUpdate() async throws {
         try await withPortalDirectory { replacement in
-            let portal = try makePortal(path: "/tmp/missing", x: 10)
+            var portal = try makePortal(path: "/tmp/missing", x: 10)
+            portal.updateBackgroundStyle(.lowTransparency)
             let store = PortalStoreSpy(portals: [portal])
             let factory = PortalWindowFactorySpy()
             let coordinator = PortalCoordinator(
@@ -792,6 +843,7 @@ final class PortalCoordinatorTests: XCTestCase {
             let updated = coordinator.portalStates[0]
             XCTAssertEqual(updated.tabs[0].id, portal.selectedTabID)
             XCTAssertEqual(updated.tabs[0].folderURL, replacement.standardizedFileURL)
+            XCTAssertEqual(updated.backgroundStyle, .lowTransparency)
             XCTAssertEqual(factory.windows[0].updatedPortals.last, updated)
             let saves = await store.savedSnapshots()
             XCTAssertEqual(saves.last, [updated])
@@ -995,10 +1047,12 @@ private enum PortalStoreFixtureError: Error, Equatable {
 @MainActor
 private final class PortalWindowFactorySpy: PortalWindowBuilding {
     private(set) var createdPortalIDs: [PortalID] = []
+    private(set) var createdPortals: [Portal] = []
     private(set) var windows: [PortalWindowPresenterSpy] = []
 
     func makeWindow(for portal: Portal) -> any PortalWindowPresenting {
         createdPortalIDs.append(portal.id)
+        createdPortals.append(portal)
         let window = PortalWindowPresenterSpy()
         windows.append(window)
         return window
@@ -1013,6 +1067,7 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var onAddTab: (() -> Void)?
     var onCloseTab: ((FolderTabID) -> Void)?
     var onLocateFolder: ((FolderTabID) -> Void)?
+    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)?
     private(set) var presentCount = 0
     private(set) var updateCount = 0
     private(set) var closeCount = 0

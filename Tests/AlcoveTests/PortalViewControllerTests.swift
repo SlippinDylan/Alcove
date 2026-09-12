@@ -26,6 +26,73 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testBackgroundStyleUpdateChangesOnlySurfaceWithoutInvalidatingSelection() async throws {
+        let root = URL(fileURLWithPath: "/tmp/portal")
+        let item = FileItem(
+            url: root.appendingPathComponent("one"),
+            name: "one",
+            isDirectory: false,
+            isHidden: false
+        )
+        var portal = try Portal(
+            folderURL: root,
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(
+                enumerator: FixedFolderEnumerator(root: root, items: [item])
+            )
+        )
+        var invalidationCount = 0
+        controller.onSelectionInvalidated = { invalidationCount += 1 }
+        controller.loadView()
+        await controller.reload()
+        let surface = try XCTUnwrap(
+            descendants(of: controller.view)
+                .compactMap { $0 as? PortalChromeMaterialView }
+                .first { $0.role == .surface }
+        )
+
+        portal.updateBackgroundStyle(.lowTransparency)
+        controller.updatePortal(portal)
+
+        XCTAssertEqual(surface.alphaValue, 0.78, accuracy: 0.001)
+        XCTAssertEqual(controller.presentationState, .items(1))
+        XCTAssertEqual(invalidationCount, 0)
+    }
+
+    @MainActor
+    func testBackgroundMenuRequestForwardsFromTabBar() throws {
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/portal"),
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator()
+        )
+        var requestedStyle: PortalBackgroundStyle?
+        controller.onSetBackgroundStyle = { requestedStyle = $0 }
+        controller.loadView()
+        let tabBar = try XCTUnwrap(
+            descendants(of: controller.view).compactMap { $0 as? TabBarView }.first
+        )
+        let submenu = try XCTUnwrap(
+            tabBar.managementMenu.item(withTitle: "Background")?.submenu
+        )
+        let index = try XCTUnwrap(
+            submenu.items.firstIndex { $0.title == "High Transparency" }
+        )
+
+        submenu.performActionForItem(at: index)
+
+        XCTAssertEqual(requestedStyle, .highTransparency)
+    }
+
+    @MainActor
     func testFolderCapsulesAreVisibleOnTheFirstPortalWindowLayout() throws {
         var portal = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/first"),

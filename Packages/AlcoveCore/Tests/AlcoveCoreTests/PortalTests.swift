@@ -213,6 +213,19 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(portal.iconSize, .large)
     }
 
+    func testBackgroundStyleDefaultsAndUpdatesPerPortal() throws {
+        var portal = try makePortal(path: "/tmp/folder")
+        XCTAssertEqual(portal.backgroundStyle, .standard)
+
+        portal.updateBackgroundStyle(.highTransparency)
+
+        XCTAssertEqual(portal.backgroundStyle, .highTransparency)
+        XCTAssertEqual(
+            PortalBackgroundStyle.allCases,
+            [.highTransparency, .standard, .lowTransparency]
+        )
+    }
+
     private func makePlacement() throws -> PlacementRecord {
         try PlacementRecord(frame: frame, display: display)
     }

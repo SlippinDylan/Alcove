@@ -71,6 +71,7 @@ final class PortalViewController: NSViewController {
     var onSelectTab: ((FolderTabID) -> Void)?
     var onAddTab: (() -> Void)?
     var onCloseTab: ((FolderTabID) -> Void)?
+    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)?
     var onQuickLookRequested: (([URL]) -> Void)?
     var onQuickLookSelectionChanged: (([URL]) -> Void)?
     var onSelectionInvalidated: (() -> Void)?
@@ -94,7 +95,8 @@ final class PortalViewController: NSViewController {
         self.portalContentView = portalContentView
         portalMaterialView = PortalChromeMaterialView(
             contentView: NSView(),
-            role: .surface
+            role: .surface,
+            backgroundStyle: portal.backgroundStyle
         )
         self.gridViewController = gridViewController
             ?? FileGridViewController(iconSize: portal.iconSize)
@@ -121,6 +123,9 @@ final class PortalViewController: NSViewController {
         tabBarView.onSelect = { [weak self] id in self?.onSelectTab?(id) }
         tabBarView.onAdd = { [weak self] in self?.onAddTab?() }
         tabBarView.onClose = { [weak self] id in self?.onCloseTab?(id) }
+        tabBarView.onSetBackgroundStyle = { [weak self] style in
+            self?.onSetBackgroundStyle?(style)
+        }
         tabBarView.configure(with: portal)
         rootView.addSubview(tabBarView)
 
@@ -196,6 +201,7 @@ final class PortalViewController: NSViewController {
     func updatePortal(_ portal: Portal) {
         let previousTabID = self.portal.selectedTabID
         let previousIconSize = self.portal.iconSize
+        let previousBackgroundStyle = self.portal.backgroundStyle
         let previousFolderURL = folderURL
         if isViewLoaded,
            portal.selectedTabID != previousTabID,
@@ -205,6 +211,9 @@ final class PortalViewController: NSViewController {
         self.portal = portal
         if portal.iconSize != previousIconSize {
             gridViewController.updateIconSize(portal.iconSize)
+        }
+        if portal.backgroundStyle != previousBackgroundStyle {
+            portalMaterialView.updateBackgroundStyle(portal.backgroundStyle)
         }
         runtimeStates = runtimeStates.filter { id, _ in
             portal.tabs.contains(where: { $0.id == id })

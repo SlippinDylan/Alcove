@@ -203,6 +203,26 @@ final class PortalCoordinator: PortalCoordinating {
         }
     }
 
+    func setBackgroundStyle(
+        _ backgroundStyle: PortalBackgroundStyle,
+        for portalID: PortalID
+    ) async {
+        do {
+            try await performMutation { [weak self] in
+                guard let self,
+                      let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
+                    return
+                }
+                var portal = portalStates[index]
+                portal.updateBackgroundStyle(backgroundStyle)
+                try await commit(portal, at: index)
+            }
+            persistenceError = nil
+        } catch {
+            presentPersistenceError(error)
+        }
+    }
+
     private func present(_ portal: Portal, transition: PlacementTransition) {
         placementSessions[portal.id] = transition.session
         let window = windowFactory.makeWindow(for: portal)
@@ -230,6 +250,11 @@ final class PortalCoordinator: PortalCoordinating {
         window.onLocateFolder = { [weak self] tabID in
             self?.startFolderSelectionTask {
                 await self?.relocateTab(tabID, in: portal.id)
+            }
+        }
+        window.onSetBackgroundStyle = { [weak self] backgroundStyle in
+            self?.startTabMutationTask {
+                await self?.setBackgroundStyle(backgroundStyle, for: portal.id)
             }
         }
         windows[portal.id] = window
@@ -695,7 +720,8 @@ final class PortalCoordinator: PortalCoordinating {
             tabs: tabs,
             selectedTabID: portal.selectedTabID,
             placement: portal.placement,
-            iconSize: portal.iconSize
+            iconSize: portal.iconSize,
+            backgroundStyle: portal.backgroundStyle
         )
     }
 

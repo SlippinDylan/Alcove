@@ -146,6 +146,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
     public private(set) var selectedTabID: FolderTabID
     public private(set) var placement: PlacementRecord
     public private(set) var iconSize: IconSize
+    public private(set) var backgroundStyle: PortalBackgroundStyle
 
     public var frame: CGRect { placement.homeEntry.absoluteFrame }
 
@@ -155,7 +156,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         folderURL: URL,
         frame: CGRect,
         display: DisplayDescriptor,
-        iconSize: IconSize = .medium
+        iconSize: IconSize = .medium,
+        backgroundStyle: PortalBackgroundStyle = .standard
     ) throws {
         let tab = FolderTab(folderURL: folderURL)
         let placement: PlacementRecord
@@ -169,7 +171,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
             tabs: [tab],
             selectedTabID: tab.id,
             placement: placement,
-            iconSize: iconSize
+            iconSize: iconSize,
+            backgroundStyle: backgroundStyle
         )
     }
 
@@ -179,7 +182,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         tabs: [FolderTab],
         selectedTabID: FolderTabID,
         placement: PlacementRecord,
-        iconSize: IconSize = .medium
+        iconSize: IconSize = .medium,
+        backgroundStyle: PortalBackgroundStyle = .standard
     ) throws {
         guard !tabs.isEmpty else {
             throw PortalError.emptyTabs
@@ -201,6 +205,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         self.selectedTabID = selectedTabID
         self.placement = placement
         self.iconSize = iconSize
+        self.backgroundStyle = backgroundStyle
     }
 
     /// Appends a tab without changing the active tab.
@@ -259,5 +264,10 @@ public struct Portal: Identifiable, Equatable, Sendable {
     /// Replaces the app-owned icon-size preference.
     public mutating func updateIconSize(_ iconSize: IconSize) {
         self.iconSize = iconSize
+    }
+
+    /// Replaces the app-owned background appearance preference.
+    public mutating func updateBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) {
+        self.backgroundStyle = backgroundStyle
     }
 }

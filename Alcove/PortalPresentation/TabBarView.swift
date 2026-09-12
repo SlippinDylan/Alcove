@@ -6,6 +6,7 @@ final class TabBarView: NSView {
     var onSelect: ((FolderTabID) -> Void)?
     var onClose: ((FolderTabID) -> Void)?
     var onAdd: (() -> Void)?
+    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)?
 
     private(set) var groupBackdropView = PortalTabGroupBackdropView()
     let groupMaterialView: PortalChromeMaterialView
@@ -155,6 +156,23 @@ final class TabBarView: NSView {
         addItem.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
         addItem.target = addTarget
         managementMenu.addItem(addItem)
+
+        let backgroundMenu = NSMenu(title: "Background")
+        for style in PortalBackgroundStyle.allCases {
+            let target = TabActionTarget(action: .setBackgroundStyle(style), owner: self)
+            actionTargets.append(target)
+            let item = NSMenuItem(
+                title: style.menuTitle,
+                action: #selector(TabActionTarget.performAction(_:)),
+                keyEquivalent: ""
+            )
+            item.target = target
+            item.state = style == portal.backgroundStyle ? .on : .off
+            backgroundMenu.addItem(item)
+        }
+        let backgroundItem = NSMenuItem(title: "Background", action: nil, keyEquivalent: "")
+        backgroundItem.submenu = backgroundMenu
+        managementMenu.addItem(backgroundItem)
         managementMenu.addItem(.separator())
 
         guard let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID }) else {
@@ -209,6 +227,20 @@ final class TabBarView: NSView {
 
     fileprivate func addTab() {
         onAdd?()
+    }
+
+    fileprivate func setBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) {
+        onSetBackgroundStyle?(backgroundStyle)
+    }
+}
+
+private extension PortalBackgroundStyle {
+    var menuTitle: String {
+        switch self {
+        case .highTransparency: "High Transparency"
+        case .standard: "Standard"
+        case .lowTransparency: "Low Transparency"
+        }
     }
 }
 
@@ -313,6 +345,7 @@ private final class TabActionTarget: NSObject {
         case select(FolderTabID)
         case close(FolderTabID)
         case add
+        case setBackgroundStyle(PortalBackgroundStyle)
     }
 
     private let action: Action
@@ -331,6 +364,8 @@ private final class TabActionTarget: NSObject {
             owner?.closeTab(id)
         case .add:
             owner?.addTab()
+        case .setBackgroundStyle(let backgroundStyle):
+            owner?.setBackgroundStyle(backgroundStyle)
         }
     }
 }
