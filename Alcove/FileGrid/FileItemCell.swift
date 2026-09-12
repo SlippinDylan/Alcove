@@ -54,7 +54,7 @@ final class FileItemCell: NSCollectionViewItem {
             equalToConstant: 72
         )
         let labelMaximumWidthConstraint = labelSelectionView.widthAnchor.constraint(
-            lessThanOrEqualToConstant: 112
+            lessThanOrEqualToConstant: GridMetrics(iconSize: .medium).itemSize.width
         )
         self.iconWidthConstraint = iconWidthConstraint
         self.iconHeightConstraint = iconHeightConstraint

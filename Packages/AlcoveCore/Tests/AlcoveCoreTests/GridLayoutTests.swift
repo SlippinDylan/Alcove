@@ -17,10 +17,12 @@ final class GridLayoutTests: XCTestCase {
         let metrics = GridMetrics(iconSize: .medium)
 
         XCTAssertEqual(metrics.iconSelectionSize, CGSize(width: 72, height: 72))
-        XCTAssertEqual(metrics.itemSize, CGSize(width: 112, height: 108))
+        XCTAssertEqual(metrics.itemSize, CGSize(width: 96, height: 108))
         XCTAssertEqual(metrics.horizontalSpacing, 12)
         XCTAssertEqual(metrics.verticalSpacing, 4)
-        XCTAssertEqual(metrics.minimumPortalSize, CGSize(width: 268, height: 252))
+        XCTAssertEqual(metrics.minimumPortalSize, CGSize(width: 236, height: 252))
+        XCTAssertEqual(GridMetrics(iconSize: .small).itemSize.width, 72)
+        XCTAssertEqual(GridMetrics(iconSize: .large).itemSize.width, 120)
     }
 
     func testMinimumContainerSizeAllowsTwoColumns() {

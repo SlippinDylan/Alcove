@@ -33,7 +33,7 @@ public struct GridMetrics: Sendable, Hashable {
         iconSize: IconSize,
         labelFontSize: CGFloat = 12,
         labelHeight: CGFloat? = nil,
-        itemHorizontalPadding: CGFloat = 48,
+        itemHorizontalPadding: CGFloat? = nil,
         iconSelectionPadding: CGFloat = 4,
         iconLabelSpacing: CGFloat = 4,
         horizontalSpacing: CGFloat = 12,
@@ -44,7 +44,7 @@ public struct GridMetrics: Sendable, Hashable {
         self.labelFontSize = labelFontSize
         self.labelHeight = labelHeight
             ?? (labelFontSize * 2.4 + 3).rounded(.up)
-        self.itemHorizontalPadding = itemHorizontalPadding
+        self.itemHorizontalPadding = itemHorizontalPadding ?? iconSize.rawValue * 0.5
         self.iconSelectionPadding = iconSelectionPadding
         self.iconLabelSpacing = iconLabelSpacing
         self.horizontalSpacing = horizontalSpacing

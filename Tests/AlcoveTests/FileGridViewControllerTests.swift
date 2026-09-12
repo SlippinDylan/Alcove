@@ -215,7 +215,7 @@ final class FileGridViewControllerTests: XCTestCase {
         let controller = FileGridViewController(iconSize: .medium)
         controller.loadView()
         let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
-        scrollView.frame = NSRect(x: 0, y: 0, width: 392, height: 180)
+        scrollView.frame = NSRect(x: 0, y: 0, width: 344, height: 180)
         controller.setItems(makeItems(count: 20))
         let collectionView = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
         collectionView.frame.size.width = scrollView.contentSize.width
