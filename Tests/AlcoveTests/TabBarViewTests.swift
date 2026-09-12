@@ -50,12 +50,29 @@ final class TabBarViewTests: XCTestCase {
         let tabButton = try XCTUnwrap(tabBar.tabButtons[tab.id])
         let tabFrame = tabButton.convert(tabButton.bounds, to: tabBar)
         let material = try XCTUnwrap(tabBar.groupMaterialView.materialView)
-        let materialTabFrame = tabButton.convert(tabButton.bounds, to: material)
         XCTAssertGreaterThan(tabButton.bounds.width, 0)
         XCTAssertGreaterThan(tabButton.bounds.height, 0)
         XCTAssertGreaterThan(material.frame.width, 0)
         XCTAssertGreaterThan(material.frame.height, 0)
-        XCTAssertTrue(material.bounds.contains(materialTabFrame))
+        XCTAssertFalse(tabButton.isDescendant(of: material))
+        XCTAssertTrue(tabButton.isDescendant(of: tabBar.groupMaterialView))
+        XCTAssertGreaterThan(tabBar.groupMaterialView.layer?.backgroundColor?.alpha ?? 0, 0)
+        let materialIndex = try XCTUnwrap(tabBar.groupMaterialView.subviews.firstIndex(of: material))
+        let scrollIndex = try XCTUnwrap(
+            tabBar.groupMaterialView.subviews.firstIndex(of: tabBar.scrollView)
+        )
+        XCTAssertLessThan(materialIndex, scrollIndex)
+
+        tabBar.groupMaterialView.rebuildMaterial()
+        let rebuiltMaterial = try XCTUnwrap(tabBar.groupMaterialView.materialView)
+        let rebuiltMaterialIndex = try XCTUnwrap(
+            tabBar.groupMaterialView.subviews.firstIndex(of: rebuiltMaterial)
+        )
+        let rebuiltScrollIndex = try XCTUnwrap(
+            tabBar.groupMaterialView.subviews.firstIndex(of: tabBar.scrollView)
+        )
+        XCTAssertLessThan(rebuiltMaterialIndex, rebuiltScrollIndex)
+        XCTAssertTrue(tabButton.isDescendant(of: tabBar.groupMaterialView))
         XCTAssertTrue(
             tabBar.bounds.contains(tabFrame),
             "Expected visible tab frame; group=\(tabBar.groupMaterialView.frame), tab=\(tabFrame)"
@@ -166,7 +183,11 @@ final class TabBarViewTests: XCTestCase {
         )
         XCTAssertEqual(tabBar.groupMaterialView.materialPath, expectedPath)
         XCTAssertEqual(tabBar.groupMaterialView.layer?.cornerRadius, 999)
-        XCTAssertTrue(try XCTUnwrap(tabBar.tabButtons[tab.id]).isDescendant(of: material))
+        if let effect = material as? NSVisualEffectView {
+            XCTAssertEqual(effect.state, .active)
+        }
+        XCTAssertFalse(try XCTUnwrap(tabBar.tabButtons[tab.id]).isDescendant(of: material))
+        XCTAssertGreaterThan(tabBar.groupMaterialView.layer?.backgroundColor?.alpha ?? 0, 0)
     }
 
     @MainActor

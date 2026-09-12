@@ -7,7 +7,6 @@ final class TabBarView: NSView {
     var onClose: ((FolderTabID) -> Void)?
     var onAdd: (() -> Void)?
 
-    private let groupContentView: NSView
     let groupMaterialView: PortalChromeMaterialView
     private(set) var scrollView = NSScrollView()
     private let stackView = NSStackView()
@@ -20,10 +19,8 @@ final class TabBarView: NSView {
     private(set) var tabButtons: [FolderTabID: PortalTabButton] = [:]
 
     override init(frame frameRect: NSRect) {
-        let groupContentView = NSView()
-        self.groupContentView = groupContentView
         groupMaterialView = PortalChromeMaterialView(
-            contentView: groupContentView,
+            contentView: NSView(),
             role: .controlGroup
         )
         super.init(frame: frameRect)
@@ -42,8 +39,7 @@ final class TabBarView: NSView {
             height: max(1, bounds.height - 4)
         )
         groupMaterialView.materialView?.frame = groupMaterialView.bounds
-        groupContentView.frame = groupMaterialView.bounds
-        scrollView.frame = groupContentView.bounds.insetBy(dx: 8, dy: 3)
+        scrollView.frame = groupMaterialView.bounds.insetBy(dx: 8, dy: 3)
 
         let viewportSize = scrollView.contentSize
         let fittingSize = stackView.fittingSize
@@ -105,9 +101,9 @@ final class TabBarView: NSView {
         scrollView.hasVerticalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.documentView = stackView
-        groupContentView.addSubview(scrollView)
 
         addSubview(groupMaterialView)
+        groupMaterialView.addSubview(scrollView)
 
         managementButton.title = "•••"
         managementButton.isBordered = false

@@ -111,7 +111,7 @@ final class PortalChromeMaterialView: NSView {
 
         let material = makeMaterialView()
         material.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(material)
+        addSubview(material, positioned: .below, relativeTo: nil)
         materialConstraints = [
             material.topAnchor.constraint(equalTo: topAnchor),
             material.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -203,8 +203,21 @@ final class PortalChromeMaterialView: NSView {
     }
 
     private func applyContrastStyle() {
-        layer?.borderWidth = accessibility.increaseContrast ? 2 : 0
-        layer?.borderColor = accessibility.increaseContrast ? NSColor.separatorColor.cgColor : nil
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            if role == .controlGroup {
+                layer?.backgroundColor = NSColor.windowBackgroundColor
+                    .withAlphaComponent(0.72)
+                    .cgColor
+                layer?.borderWidth = accessibility.increaseContrast ? 2 : 0.5
+                layer?.borderColor = NSColor.separatorColor.cgColor
+            } else {
+                layer?.backgroundColor = NSColor.clear.cgColor
+                layer?.borderWidth = accessibility.increaseContrast ? 2 : 0
+                layer?.borderColor = accessibility.increaseContrast
+                    ? NSColor.separatorColor.cgColor
+                    : nil
+            }
+        }
     }
 
     private var cornerRadius: CGFloat {

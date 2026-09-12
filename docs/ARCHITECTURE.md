@@ -119,8 +119,10 @@ Visual chrome inside each portal window.
 - Rendering hierarchy: the background material, file grid, and top control row
   are sibling layers in a plain root container. The control-group
   `NSGlassEffectView` must not be nested inside the background
-  `NSVisualEffectView`; its folder controls are installed through the Glass
-  view's own `contentView`.
+  `NSVisualEffectView`. At the selected desktop window level, controls installed
+  in the small Glass `contentView` were hit-testable but rendered fully
+  transparent, so the control-group host keeps the Glass as its backing and
+  draws explicitly styled folder controls in a foreground overlay.
 
 ### 3.5 FileGrid
 
@@ -609,9 +611,15 @@ PortalWindowController / NSApplication
 The portal uses a plain root container whose surface material, file grid, and
 tab bar are siblings. This is an invariant: the control-group Glass must never
 be placed inside an `NSVisualEffectView` content hierarchy, because that legacy
-material prevents the nested Glass from rendering correctly. The folder
-controls remain inside `NSGlassEffectView.contentView`, not behind it as sibling
-content.
+material prevents the nested Glass from rendering correctly.
+
+Apple normally requires custom Glass content to use `NSGlassEffectView.contentView`.
+Alcove has a verified exception at `desktopIconWindow + 1`: a small Glass view's
+content remained interactive but was completely transparent. The control group
+therefore uses an empty Glass backing plus a nontransparent host fill and a
+foreground control overlay with explicit adaptive text and selection colors.
+This fallback must remain until a future window strategy proves the standard
+`contentView` path visibly renders on the supported system matrix.
 
 `NSGlassEffectView` exposes `contentView`, `cornerRadius`, `tintColor`, and `style`, but no public active-state override. Alcove therefore does not falsify `NSWindow.isKeyWindow`. The content background uses `NSVisualEffectView.state = .active`; the folder labels and selected inner capsule use explicit appearance-aware drawing that does not dim when another app becomes active.
 
