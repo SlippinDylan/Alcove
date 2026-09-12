@@ -277,32 +277,33 @@ Each slice produces a runnable, observable increment and adds only the domain or
 
 ### Slice 6 — Tabs
 
-**Goal:** Add, switch, and close multiple folder tabs while preserving runtime selection per tab and durable creation order.
+**Goal:** Add, switch, close, and reorder multiple folder tabs while preserving runtime selection per tab and durable order.
 
 **Entry Gate:** Slice 5 exit gate passed.
 
 **Deliverables:**
 - A centered scrollable outer capsule containing divider-free folder-title
   capsules, with direct switching and a fixed trailing settings icon. The icon
-  opens a centered standalone settings window whose native toolbar keeps Folders,
-  Style, and Other categories at the top and switches the grouped content below.
+  opens a centered standalone settings window whose standard title bar is separate
+  from a Folders/Style category row and divider.
+- The Folders page lists every tab with adjacent up/down and remove actions, keeps
+  Add Folder at the bottom of the list card, and places Remove Panel in a separate danger card.
 - Closing the last tab prompts to remove the portal; it never silently destroys it.
 - One reusable grid controller per portal; tab switches replace its model.
 - Per-tab runtime selection and scroll state.
-- Persist tabs in creation order and the selected tab.
-- No drag-to-reorder; tab reorder is Post-MVP.
+- Persist the current tab order and selected tab; adjacent up/down actions reorder tabs.
 
 **Tests:**
-- Unit: add, switch, close, selected-tab validation, creation-order preservation, and last-tab prompt decision.
+- Unit: add, switch, close, reorder, selected-tab validation, order preservation, and last-tab prompt decision.
 - Integration: tab switching replaces grid contents and restores per-tab runtime state.
 - Integration: add opens `NSOpenPanel`; close follows the last-tab prompt.
-- Persistence: creation order and selected tab survive restart.
+- Persistence: reordered tabs and selected tab survive restart.
 - Manual: add three tabs, switch among them, close one, relaunch, and verify state.
 
 **Exit Gate:**
-- [x] Add, switch, and close work for multiple tabs at the automated domain/integration boundary.
+- [x] Add, switch, close, and reorder work for multiple tabs at the automated domain/integration boundary.
 - [x] Per-tab runtime selection is restored on switch.
-- [x] Creation order and selected tab persist.
+- [x] Current order and selected tab persist.
 - [x] No tab drag-to-reorder behavior is present.
 
 ---
@@ -409,8 +410,8 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 **Deliverables:**
 - Menu-bar portal list and portal removal management.
 - Final loading, empty, missing-folder, and permission states plus unsupported-folder-location selection feedback.
-- User-invoked per-portal Follow Desktop icon/text sizing through Finder Automation, Alcove-owned Small/Medium/Large overrides, fixed tile spacing, resize snap, and 2×2 minimum.
-- Per-portal High Transparency/Standard/Low Transparency frosted-background presets, persisted independently with an accessibility-driven opaque override.
+- Per-portal Small/Medium/Large icon sizing, fixed equal tile spacing, resize snap, and 3×1 minimum.
+- Per-portal five-step frosted-background control, persisted independently with an accessibility-driven opaque override.
 - Evidence-backed Liquid Glass chrome on macOS 26 and `NSVisualEffectView` fallback on macOS 15–25.
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
 - Performance validation for defined NFR directory sizes.

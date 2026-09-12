@@ -55,7 +55,7 @@ Alcove is **not** a Finder replacement. It does not provide directory navigation
 | UC-3 | Select items with single-click, Command-click, Shift-click |
 | UC-4 | Open a file or folder with double-click |
 | UC-5 | Invoke Quick Look with Space for selected items |
-| UC-6 | Add, switch, and close tabs within a portal; preserve creation order and the selected tab across restarts |
+| UC-6 | Add, switch, close, and move folder tabs within a portal; preserve the resulting order and selected tab across restarts |
 | UC-7 | Move and resize a portal; have it remember position across sessions |
 | UC-8 | Unplug a display, replug it, and see portals restored to their remembered positions |
 | UC-9 | Switch Spaces and continue seeing portals on every Space; exact system-transition behavior is resolved by the desktop-layer spike |
@@ -101,7 +101,7 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 
 1. User activates portal creation from the menu bar (clicks Alcove icon → "New Portal")
 2. A transparent overlay appears on the pointer's current display
-3. A dashed `3×1` portal appears immediately. Its card, title control, and item slots are previewed as dashed outlines. Before any successful Follow Desktop action it uses the Medium preset; afterward it uses the last valid Finder snapshot and the created Portal starts in Follow Desktop mode.
+3. A dashed `3×1` portal appears immediately. Its card, title control, item slots, and bottom path row are previewed as dashed outlines using the Medium preset.
 4. Dragging changes columns and rows at half-cell thresholds: partial progress remains a translucent candidate until the next whole capacity is committed.
 5. On mouse-up, Alcove immediately persists and presents an empty Portal; creation does not open a folder chooser.
 6. The empty Portal shows a Choose Folder action in its content area. That action opens the standard directory-only `NSOpenPanel`.
@@ -116,17 +116,26 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 | Click tab | Switch to that tab's folder |
 | Settings → Folders → Add Folder… | Add a new tab (opens folder chooser) |
 | Settings → Folders → Remove current folder | Remove the selected tab; if last tab, prompt to remove the portal (never silently destroy it) |
-| Settings → Style | Choose Follow Desktop or an icon-size preset, and choose the background transparency |
-| Settings → Other → Remove Portal | Remove the complete Portal |
+| Settings → Style | Choose Small, Medium, or Large with a three-step slider, and choose one of five background levels with a five-step slider |
+| Settings → Folders → Remove Panel | Remove the complete Portal from the destructive action card at the bottom |
 | Tab title | Defaults to the mapped folder name |
 
 Tabs appear as small folder-name capsules inside one larger, horizontally
 centered capsule without dividers. The selected folder receives the inner
 capsule emphasis. Per-tab close and add buttons are intentionally omitted;
 editing actions open from the fixed trailing settings icon in a separate centered
-settings window. Its native toolbar keeps Folders, Style, and Other categories fixed
-across the top while the lower content switches to the selected category. Drag-to-reorder is
-Post-MVP.
+settings window. The standard title bar contains only the close control; a separate navigation
+row below it keeps Folders and Style fixed above a full-width separator, and the lower content
+switches to the selected category. The Folders card shows one folder per row with remove and
+adjacent up/down ordering actions, followed by Add Folder; Remove Panel lives in a separate
+destructive card at the bottom of the same page.
+
+The fixed leading pin button persists per Portal. Pinning disables user-driven dragging and
+resizing while leaving tab, file, Quick Look, settings, and display-recovery
+interactions available. A dedicated bottom row reserves space below the file grid and shows the
+selected folder's path in a capsule spanning the row's available width, abbreviating the current home directory as `~`; its copy
+button writes the displayed path to the clipboard. Empty Portals keep the row's layout space but
+do not display a path capsule.
 
 ### 5.6 Portal Window Behavior
 
@@ -135,11 +144,16 @@ Post-MVP.
 | Window level | Desktop-layer behavior required; the exact public-API strategy is selected by Spike 0.1. `desktopIconWindow + 1` is the first candidate, not a final configuration. |
 | Collection behavior | Selected by Spike 0.1 after comparing relevant combinations, including `.stationary`, `.moveToActiveSpace`, `.fullScreenAuxiliary`, and whether to use `.canJoinAllSpaces`. |
 | Title bar | None — no traffic-light window controls |
-| Movable | Yes — user-initiated drag from empty space in the top control row |
-| Resizable | Yes — user-initiated resize from edges/corners |
+| Movable | Yes — user-initiated drag from empty space in the top control row, unless the Portal is pinned |
+| Resizable | Yes — user-initiated resize from edges/corners, unless the Portal is pinned |
 | Inactive appearance | Portal material and folder controls retain their active visual contrast when another app becomes active |
 | Frame snap | Columns and rows switch at half-cell thresholds and always settle on a whole `columns × rows` capacity; that committed column count directly controls item wrapping and is never re-derived from a slightly smaller content rectangle |
 | Min size | 3 columns × 1 row |
+
+The file grid uses 8pt top and bottom content insets. These insets are part of the
+capacity-to-frame calculation, so existing persisted placements are migrated when they change.
+Horizontal and vertical spacing between complete file-object tiles are both 4pt; the persisted
+column capacity remains authoritative while the physical frame width follows those metrics.
 
 ---
 
@@ -150,8 +164,8 @@ Post-MVP.
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | FR-01 | Create portals via menu-bar → overlay → drag-rect → folder-choose flow | MVP |
-| FR-02 | Display folder contents as Finder-style icon tiles with one object space containing padded icon and title regions, separate icon/title selection treatments, and a title that wraps to at most two lines; default ordering is directories first, then localized standard name. Layout is continuous row-major order: widening pulls the next lower-row items into the preceding row, and narrowing pushes trailing items into following rows. | MVP |
-| FR-03 | Support adding, switching, and closing tabs per portal; persist creation order and the currently selected tab. Closing the last tab prompts to remove the portal. Tab reordering is Post-MVP. | MVP |
+| FR-02 | Display folder contents as Finder-style icon tiles with one outlined object space containing padded icon and title regions, separate icon/title selection treatments, and a title that wraps to at most two lines; default ordering is directories first, then localized standard name. Layout is continuous row-major order: widening pulls the next lower-row items into the preceding row, and narrowing pushes trailing items into following rows. | MVP |
+| FR-03 | Support adding, switching, closing, and moving folder tabs up or down per portal; persist the resulting order and the currently selected tab. Closing the last tab prompts to remove the portal. | MVP |
 | FR-04 | Finder-consistent selection (single, Command, Shift, keyboard) | MVP |
 | FR-05 | Double-click file opens with default app; double-click folder opens in Finder via NSWorkspace.open(folderURL) | MVP |
 | FR-06 | Quick Look via Space key through responder chain | MVP |
@@ -160,14 +174,16 @@ Post-MVP.
 | FR-09 | Multiple portals supported simultaneously | MVP |
 | FR-10 | Multiple displays supported | MVP |
 | FR-11 | Menu-bar icon with portal management menu | MVP |
-| FR-12 | Liquid Glass on macOS 26 for the centered folder-tab control group; each portal independently selects and persists High Transparency, Standard, or Low Transparency on the same always-active frosted content material | MVP |
+| FR-12 | Liquid Glass on macOS 26 for the centered folder-tab control group; each portal independently selects and persists one of five background levels on the same always-active frosted content material | MVP |
 | FR-13 | NSVisualEffectView fallback on macOS 15–25 | MVP |
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
 | FR-17 | Drag-out from portals | Investigate |
-| FR-18 | Each Portal supports a user-invoked Follow Desktop mode that reads Finder's current desktop icon and text sizes through its scripting interface, plus Alcove-owned Small/Medium/Large manual overrides. While at least one Portal follows Desktop, Alcove checks for changes once per second only while Finder is frontmost and once when Finder leaves the foreground. | MVP |
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
+| FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
+| FR-21 | Show the selected folder path in a reserved bottom capsule, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
+| FR-22 | The menu bar lists New Portal, each Portal with Show/Hide commands, a reserved application Settings item, and Quit; all user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
 
 ### Non-Functional Requirements
 
@@ -217,9 +233,10 @@ Post-MVP.
 | A-03 | Respects System Settings → Accessibility → Reduce Transparency |
 | A-04 | Respects System Settings → Accessibility → Increase Contrast |
 | A-05 | Standard macOS AppKit control sizes for interactive elements; sufficient focus indicators and contrast |
-| A-06 | Per-portal Follow Desktop sizing plus manual Small/Medium/Large overrides; Finder automation permission is requested only after the user chooses Follow Desktop |
+| A-06 | Per-portal Small/Medium/Large sizing through a keyboard-accessible three-step slider |
 | A-07 | Respects System Settings → Accessibility → Reduce Motion |
 | A-08 | VoiceOver labels and actions for all interactive elements |
+| A-09 | Pin, path, copy, menu, and settings controls expose localized accessibility labels and help |
 
 ---
 
@@ -234,7 +251,6 @@ Post-MVP.
 | PR-05 | No App Groups, Keychain, security-scoped bookmarks, or application-level provisioning-profile dependency in MVP; the non-sandboxed app persists a standardized file URL/path. Spike 0.6 separately inspects whether a signing workflow embeds a profile in the release candidate. |
 | PR-06 | No telemetry, analytics, or network calls in MVP |
 | PR-07 | All state stored locally under `~/Library/Application Support/Alcove/` |
-| PR-08 | Finder Automation permission is requested only after the user explicitly chooses Follow Desktop. Once enabled, Alcove may read the approved icon/text sizes at launch, activation, or bounded Finder-foreground polling without prompting; denial or revoked access preserves the last valid Portal layout. Passive changes preserve `GridCapacity`, recompute pixel frames and future creation previews, and wait for an active user move/resize to finish. |
 
 ---
 
@@ -266,7 +282,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-03 | Single-click selects; Command-click toggles; Shift-click extends range | FR-04 |
 | AC-04 | Double-click file opens with default app; double-click folder opens in Finder via NSWorkspace.open(folderURL) | FR-05 |
 | AC-05 | Space invokes Quick Look for selected items | FR-06 |
-| AC-06 | Portal supports adding, switching, and closing multiple tabs; each tab maps one folder, creation order and the selected tab survive restart, and closing the last tab prompts before removing the portal | FR-03 |
+| AC-06 | Portal supports adding, switching, closing, and moving multiple tabs; each tab maps one folder, the resulting order and selected tab survive restart, and closing the last tab prompts before removing the portal | FR-03 |
 | AC-07 | Portal frame persists across app restart and restores to the correct display | FR-07, FR-10 |
 | AC-08 | Portal frames restore correctly after display disconnect/reconnect | FR-08, FR-10 |
 | AC-09 | Portal frames restore correctly after resolution/scaling change | FR-08 |
@@ -279,6 +295,9 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-16 | Universal binary (arm64 + x86_64) builds and runs on both architectures | Distribution target |
 | AC-17 | Folder creation and re-mapping accept only resolved directories on internal fixed local storage and reject removable, ejectable, external, and network-volume locations without persisting partial state | FR-19 |
 | AC-18 | Spike 0.6 validates the selected signed DMG installation and launch procedure on the supported test matrix, and the verified steps are documented | Spike 0.6 release gate |
+| AC-19 | A pinned Portal cannot be dragged or resized by the user, restores that state after relaunch, and can still be relocated by display recovery | FR-20 |
+| AC-20 | The selected folder's abbreviated path updates with tab changes and can be copied without reducing the persisted visible grid capacity | FR-21 |
+| AC-21 | The menu hierarchy and all user-facing strings render in English, Simplified Chinese, or Traditional Chinese from the current macOS language, with unsupported languages falling back to English | FR-22 |
 
 ---
 

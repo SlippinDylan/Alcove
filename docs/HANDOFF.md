@@ -1,6 +1,6 @@
 # Alcove 当前状态与开发交接
 
-> 快照日期：2026-09-12（Asia/Tokyo）
+> 快照日期：2026-09-13（Asia/Tokyo）
 >
 > 适用基线：功能提交 `e73385b`；本交接文档的提交位于其后
 >
@@ -49,6 +49,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - Tab 是顶部大胶囊内的小文件夹名称胶囊，整体水平居中，无分割线。
 - 单个 Tab 只显示一个小胶囊；Tab 上不放加号或关闭叉号。
 - Tab 编辑集中在右上角设置入口。
+- 左上角图钉按 Portal 持久化；钉住后禁止用户拖动和缩放，但不阻断显示器恢复或内容交互。
 - 关闭最后一个已有 Tab 时，仍需确认是否移除整个 Portal。
 - 空 Portal 是合法、可持久化状态：`tabs == []` 时 `selectedTabID == nil`；非空时必须存在一个属于 `tabs` 的选中 ID。
 
@@ -61,6 +62,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 鼠标松开后立即创建并保存空 Portal，**不再立刻弹文件夹选择器**。
 - 空 Portal 内容区提供 Choose Folder…，用户从 Portal 内部选择第一个文件夹。
 - 取消选择或选到不支持的位置时，空 Portal 保留。
+- 创建骨架和最终窗口都为底部路径行预留固定高度，不能从文件网格容量中偷取空间。
 
 ### 3.5 容量、缩放和对象回流
 
@@ -93,24 +95,21 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.6 Finder 风格的文件对象
 
 - 每个对象空间包含带 padding 的图标区和最多两行的标题区。
+- 每个完整对象空间使用细边框显示实际 tile 边界；图标和标题的选中区域仍彼此独立。
 - 当前布局基于 Finder 桌面尺寸语义，不能把 64pt 图标、12pt 文字写死为唯一配置。
 - 单击选择；Command-click 切换；Shift-click 范围选择；方向键移动；Command-A 全选。
 - 双击、Command-Down 或 Command-O 打开；文件夹通过 `NSWorkspace` 在 Finder 中打开。
 - Space 使用 `QLPreviewPanel` 打开或关闭 Quick Look。
 - 选中标题文字为白色；图标和标题有各自的 Finder 风格选中区域。
 - 默认排序为目录优先，再按 localized standard name。
+- 当前 Tab 的文件夹路径显示在网格下方占满可用行宽的胶囊中，用户目录缩写为 `~`；复制按钮把显示路径写入剪贴板。空 Portal 隐藏路径胶囊但保留布局高度。
 
-### 3.7 Finder 桌面尺寸同步
+### 3.7 图标尺寸
 
-- 每个 Portal 独立选择并记住 Follow Desktop 或 Alcove 的 Small / Medium / Large。
-- 只有用户明确选择 Follow Desktop 时，才允许弹 Finder Automation 权限请求。
-- 被动刷新必须使用 `promptIfNeeded: false`，不得自己触发权限弹窗。
-- 至少一个 Portal 处于 Follow Desktop 时才监听 Finder 激活状态。
-- Finder 在前台时每秒读取一次；Finder 离开前台时执行最后一次刷新并停止 timer。
-- Finder 尺寸改变时保持 `GridCapacity` 不变，按新图标/文字 metrics 重算 Portal 像素 frame。
-- 用户正在移动或缩放时，Finder 被动更新必须让路；交互结束后重试。
-- 拒绝、撤销权限或读取失败时保留最后一个有效快照。
-- 成功取得 Finder 快照后，新建 Portal 的骨架和最终 Portal 使用同一 icon layout；不能出现预览和创建结果尺寸不一致。
+- 每个 Portal 独立选择并持久化 Small、Medium 或 Large，设置界面使用三档离散滑块。
+- 不读取 Finder 设置，不发送 Apple Events，也不申请 Finder Automation 权限。
+- 图标尺寸改变时保持 `GridCapacity` 不变，按所选 preset 重算 Portal 像素 frame。
+- 新建 Portal 的骨架和最终 Portal 都使用 Medium。
 
 ### 3.8 窗口、显示器与系统行为
 
@@ -125,26 +124,26 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 ### 3.9 当前设置窗口
 
-- Portal 右上角使用 SF Symbol `slider.horizontal.3`，不再使用 `•••`。
+- Portal 右上角使用 SF Symbol `gearshape`，不再使用 `slider.horizontal.3` 或 `•••`。
 - 点击后打开独立设置窗口，**不是 `NSPopover` 气泡**。
 - 窗口外框固定为约 `400×572pt`，每次打开在当前 Portal 所在屏幕的 visible frame 水平、垂直居中。
 - 使用原生 titled/closable `NSWindow`；显示红色关闭按钮，隐藏最小化和缩放按钮。
-- 顶部使用 AppKit 原生 `NSTabViewController.tabStyle = .toolbar`，不要再手写一套分类导航。
-- 顶部分类固定为 Folders、Style、Other；下方只显示当前分类内容。
+- 标准标题栏只放关闭按钮；其下是独立的 Folders、Style 分类导航行和全宽分割线，再下方才是内容。
+- Folders 使用可滚动列表卡片：每行一个文件夹，右侧提供上移、下移和删除，卡片底部提供 Add Folder；Remove Panel 位于同页最下方的独立危险操作卡片。
+- Style 使用三档图标尺寸滑块和五档背景强度滑块。
 - 内容使用接近系统设置的“章节标题 + 圆角分组卡片”结构。
-- Folders：Add Folder…、Remove 当前文件夹。
-- Style：Follow Desktop / Small / Medium / Large，以及背景透明度。
-- Other：目前只有 Remove Portal。
+- 不再存在 Other 分类或 Follow Desktop 选项。
 - 同一 Portal 重复点击设置图标时复用并前置同一个设置窗口；Portal 关闭时设置窗口同步关闭。
 - 提交 `9cd71a3` 曾错误实现为气泡 Popover，已被 `e73385b` 的独立窗口方案取代。后续不要恢复 Popover。
 
-视觉目标不是简单的工具栏加裸按钮，而是接近用户给出的原生设置参考：选中分类的 icon/label 使用系统强调色，未选分类使用次要文字色，toolbar 下有细分隔线；内容区有 20–24pt 级别的外边距、章节标题和接近全宽的圆角深浅分组卡片。概念线框如下：
+视觉目标接近用户给出的原生设置参考：选中分类的 icon/label 使用系统强调色，未选分类使用次要文字色，独立分类栏下有细分隔线；内容区有 20–24pt 级别的外边距、章节标题和接近全宽的圆角分组卡片。概念线框如下：
 
 ```text
 ┌──────────────────────────────┐  400pt
-│ ●                            │
-│   [icon]      [icon]  [icon] │
-│   Folders      Style   Other │  原生 toolbar tabs
+│ ●                            │  标准标题栏
+├──────────────────────────────┤
+│       [icon]      [icon]     │
+│       Folders      Style     │  独立分类栏
 ├──────────────────────────────┤
 │                              │
 │   Section title              │
@@ -161,33 +160,40 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 └──────────────────────────────┘  572pt
 ```
 
+### 3.10 菜单栏与本地化
+
+- 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；Portal 名称的二级菜单只提供 Show 和 Hide。
+- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前仅保留禁用入口，尚未实现全局设置窗口。
+- 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
+- English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
+
 ## 4. 当前实现和代码地图
 
 | 范围 | 主要文件 | 当前职责 |
 |---|---|---|
-| 应用生命周期 | `Alcove/Application/AppDelegate.swift` | 菜单栏应用生命周期、Finder Automation 读取、Finder 前台 monitor |
-| 全局协调 | `Alcove/Application/PortalCoordinator.swift` | Portal/Tab 事务、窗口回调、持久化、Finder metrics、显示器协调 |
+| 应用生命周期 | `Alcove/Application/AppDelegate.swift` | 菜单栏应用生命周期、持久状态恢复和终止协调 |
+| 全局协调 | `Alcove/Application/PortalCoordinator.swift` | Portal/Tab 事务、窗口回调、持久化和显示器协调 |
 | 新建 | `Alcove/PortalCreation/PortalFrameSelector.swift` | 当前屏幕 overlay、虚线骨架、整数容量选择 |
 | 新建事务 | `Alcove/PortalCreation/PortalCreationCoordinator.swift` | 选择 frame 后创建空 Portal |
 | Portal 窗口 | `Alcove/PortalWindowing/PortalWindow.swift` | 自定义拖动、用户交互边界、系统 placement 抑制 |
 | 窗口控制 | `Alcove/PortalWindowing/PortalWindowController.swift` | live resize 量化、容量提交、Quick Look/设置窗口生命周期 |
-| Portal 内容 | `Alcove/PortalPresentation/PortalViewController.swift` | Tab、网格、空态、加载/错误态、设置动作转发 |
-| Tab 与设置 | `Alcove/PortalPresentation/TabBarView.swift` | 顶部 Tab 胶囊、设置图标、独立原生设置窗口 |
+| Portal 内容 | `Alcove/PortalPresentation/PortalViewController.swift` | Tab、网格、底部路径胶囊、空态、加载/错误态、设置动作转发 |
+| Tab 与设置 | `Alcove/PortalPresentation/TabBarView.swift` | 左侧图钉、顶部 Tab 胶囊、设置图标、双行窗口 chrome、文件夹管理和离散样式滑块 |
 | 材质 | `Alcove/PortalPresentation/PortalChromeMaterialView.swift` | macOS 26 Glass / macOS 15 fallback、始终 active 的表面材质 |
 | 文件网格 | `Alcove/FileGrid/FileGridViewController.swift` | collection view、row-major 布局接入、选择和键盘行为 |
 | 文件单元 | `Alcove/FileGrid/FileItemCell.swift` | Finder 风格对象、两行标题、选中视觉和无障碍 |
 | 文件读取 | `Alcove/FolderAccess/*` | 后台枚举、路径校验、FSEvents 和恢复 |
 | Quick Look | `Alcove/QuickLookIntegration/QuickLookIntegration.swift` | responder chain 和 `QLPreviewPanel` 所有权 |
 | placement | `Alcove/DisplayPlacement/DisplayPlacement.swift` | NSScreen 快照、拓扑通知、legacy frame 解析 |
-| 持久化 | `Alcove/Persistence/*` | v6 DTO、迁移、同目录临时文件和原子替换 |
+| 持久化 | `Alcove/Persistence/*` | v10 DTO、v1–v9 迁移、同目录临时文件和原子替换 |
 | 纯领域/几何 | `Packages/AlcoveCore/Sources/AlcoveCore/*` | Portal、GridCapacity、GridLayout、placement state machine、selection |
 
 ## 5. 持久化现状
 
-- 当前 envelope 版本是 v6。
-- v6 允许 `selected_tab_id` 缺失，从而表达可恢复的空 Portal。
+- 当前 envelope 版本是 v10。
+- v6 引入的可选 `selected_tab_id` 和 v7 引入的必需 `is_pinned` 继续保留；v8 对应网格上下边距从 16pt 收紧到 8pt，v9 对应对象横向间距从 12pt 收紧到与纵向一致的 4pt。
 - v1–v4 会根据旧 frame 和当时 icon/text metrics 推导容量；v5 已包含 columns/rows。
-- v1–v5 都迁移为 v6。
+- v1–v9 都迁移为 v10；旧 `follow_desktop` 按最后保存的图标尺寸映射到最近的 Small/Medium/Large。迁移按当前 capacity 和 metrics 统一重算 frame，保持原顶部、右侧位置（显示器空间允许时）、容量、图钉和 Tab 顺序，并重新计算 normalized anchor。
 - 迁移前先写一次 `portals.vN.json.bak`；已有不同备份时停止，不能覆盖证据。
 - 当前存储路径：`~/Library/Application Support/Alcove/portals.json`。
 - 保存使用同目录临时文件后 replace/move；不要改成非原子覆盖写。
@@ -204,11 +210,11 @@ Tab 从左侧改为水平居中后，布局时机和材质层级共同导致单�
 
 ### 6.3 毛玻璃发黄
 
-直接依赖某些 material 的底色会受桌面壁纸和 appearance 影响而发黄。当前表面采用接近原生通知的 `.popover` material，并保持模糊层强度，再使用浅色模式中性白/深色模式中性黑的透明 tint 调节三档透明度。不要通过降低整个 visual effect alpha 来调透明度，否则模糊强度也会丢失。
+直接依赖某些 material 的底色会受桌面壁纸和 appearance 影响而发黄。当前表面采用接近原生通知的 `.popover` material，并保持模糊层强度，再使用浅色模式中性白/深色模式中性黑的透明 tint 调节五档背景强度。不要通过降低整个 visual effect alpha 来调透明度，否则模糊强度也会丢失。
 
-### 6.4 Finder 尺寸不能写死
+### 6.4 图标尺寸只有三个稳定档位
 
-Finder 桌面 icon/text 尺寸属于用户设置。项目不读取私有 preference key；只有显式 Follow Desktop 才通过 Finder scripting boundary 请求权限。手动预设是 Alcove 自己的稳定选择。
+当前只支持 Alcove 自己的 Small、Medium、Large，不读取系统或 Finder 设置。设置控件必须保持三档离散值，不能重新加入任意值或外部同步状态。
 
 ### 6.5 容量与 frame 不能混为一谈
 
@@ -224,22 +230,15 @@ Finder 桌面 icon/text 尺寸属于用户设置。项目不读取私有 prefere
 
 ### 6.8 设置入口不是菜单或气泡
 
-设置入口先后出现过 `NSMenu` 和自定义 `NSPopover`。用户明确要求参考原生设置界面的独立窗口。当前实现使用原生 toolbar tabs 的 `NSWindow`；不要回退为箭头气泡。
+设置入口先后出现过 `NSMenu` 和自定义 `NSPopover`。用户明确要求参考原生设置界面的独立窗口。当前实现使用标准标题栏加内容内独立分类导航；不要回退为箭头气泡，也不要把分类重新合并进标题栏。
 
 ### 6.9 用户移动和系统移动不能共用持久化回调
 
 AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化、Spaces 和 Stage Manager。当前移动由应用跟踪 mouse-down/drag/mouse-up，resize 使用 live-resize 生命周期；只有明确的用户结束边界才提交。
 
-### 6.10 Finder monitor 的竞态
+### 6.10 文件夹顺序只有一份状态
 
-已经处理过以下竞态，后续改动必须保留 generation 测试：
-
-- stop 前排队的 Finder activation Task 不得重新启动 timer。
-- 被取消的旧 refresh 不得清除新 refresh 的引用。
-- 旧 Finder 结果不得倒灌覆盖新的 explicit Follow 或 creation grid。
-- Finder read 期间或 store save 期间开始用户交互时，不得在交互中途发布新 frame/layout。
-
-目前 save-await 竞态使用二次校验和补偿回写旧 snapshot。仍存在一个极窄的已知风险：如果首次被动刷新写入成功后、补偿回写完成前进程崩溃，磁盘可能暂时保留 Finder 更新后的 snapshot；它不会丢失 Portal/Tab 数据或容量，但下次启动的 frame 可能使用该快照。若未来要消除该窗口，需要设计带交互 revision 的条件提交，而不是继续叠布尔值。
+`Portal.tabs` 数组是显示和持久化顺序的唯一来源。设置页的上移/下移必须通过 Coordinator 的 persistence-first 事务交换相邻元素，不能在 UI 中维护第二份排序；选中 Tab ID 在重排后保持不变。
 
 ### 6.11 截图权限
 
@@ -255,15 +254,48 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - Finder 风格图标网格、选择、键盘操作、打开和 Quick Look。
 - 本地固定磁盘目录校验；外置、可移除、可弹出、网络卷拒绝。
 - 后台文件枚举和 FSEvents 自动刷新。
-- v6 原子持久化及 v1–v5 迁移。
+- v10 原子持久化及 v1–v9 迁移。
 - 多显示器 placement state machine 和系统通知接入。
-- 三档 Portal 背景透明度、macOS 26 Glass 与旧系统 fallback。
-- Follow Desktop、手动 icon presets、Finder 前台有限轮询和竞态处理。
+- 五档 Portal 背景强度、macOS 26 Glass 与旧系统 fallback。
+- Small/Medium/Large 三档手动 icon presets；没有 Finder Automation 或外部尺寸同步。
 - 3×1 最小容量、创建/缩放半格阈值、capacity 驱动的 row-major 回流。
 - mini overlay 自动隐藏滚动条。
-- 独立的分类设置窗口及设置动作到 Coordinator 的完整链路。
+- 标题栏/分类栏分离的设置窗口、文件夹顺序管理、离散样式滑块及完整 Coordinator 动作链路。
+- 可持久化图钉、底部路径与复制按钮、菜单栏 Show/Hide 和全局 Settings 占位。
+- English、简体中文、繁体中文完整 bundle 本地化，其他系统语言回退 English。
 
 ### 7.2 最近验证结果
+
+本轮图钉、路径栏、菜单、本地化与等距紧凑网格实现后执行并通过：
+
+```bash
+swift test --package-path Packages/AlcoveCore
+
+xcodebuild test -quiet \
+  -project Alcove.xcodeproj \
+  -scheme Alcove \
+  -destination 'platform=macOS' \
+  -derivedDataPath /tmp/AlcoveSettingsRedesignTests \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGN_IDENTITY=''
+
+xcodebuild build -quiet \
+  -project Alcove.xcodeproj \
+  -scheme Alcove \
+  -configuration Release \
+  -destination 'generic/platform=macOS' \
+  -derivedDataPath /tmp/AlcoveSettingsRedesignRelease \
+  ARCHS='arm64 x86_64' \
+  ONLY_ACTIVE_ARCH=NO \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGN_IDENTITY=''
+```
+
+Core 125 项测试和完整 AppKit 测试通过；Release 二进制经 `lipo -info` 确认为
+`x86_64 arm64`，应用 bundle 包含 `en`、`zh-Hans`、`zh-Hant` 的
+`Localizable.strings`。Finder Automation 权限说明已从 Info.plist 和资源中移除。
 
 在功能提交 `e73385b` 前执行并通过：
 
@@ -297,7 +329,7 @@ Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
 ### 7.3 仍需人工验证或尚未封闭
 
 - 最新独立设置窗口的视觉结果尚未收到用户截图确认；这是下一次 UI 对话最可能的第一项工作。
-- 设置窗口需人工核对：400×572 外框、当前屏幕居中、只显示红色关闭按钮、原生 toolbar 分类、圆角卡片比例、字体和间距是否足够接近参考图。
+- 设置窗口需人工核对：400×572 外框、当前屏幕居中、独立标题栏只显示红色关闭按钮、下方分类栏与分割线、圆角卡片比例、滑块、字体和间距是否足够接近参考图。
 - Portal 的 desktop-level 窗口在 macOS 15/26、多个显示器、Spaces、Stage Manager、全屏应用、睡眠唤醒和缩放切换下仍需要真实系统矩阵。
 - 显示器 UUID 跨断开/重连的稳定性不是 Apple 的通用保证，仍需真实硬件证据。
 - Quick Look 的 desktop-level 单项/多项行为仍需人工验证。
@@ -307,6 +339,12 @@ Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
 `DELIVERY_PLAN.md` 和 Spike 文档中的未勾选项包含早期计划状态，其中一部分已有自动化实现但仍缺人工证据。下一段对话不能只看 checkbox 就断言功能不存在，也不能因为代码存在就宣称真机矩阵已通过。
 
 ## 8. Git 状态与提交边界
+
+本轮实现尚未提交。除下述既有 `project.pbxproj` 变更外，工作区还包含本轮图钉、
+路径 footer、v10 迁移、菜单、本地化、测试和文档改动。用户已明确允许仅为本地化
+资源修改 `project.pbxproj`；新增的 variant groups、known regions 和 Resources build
+phase 条目属于本轮，原有 object version、组排序和 Development Team/签名设置仍属于
+用户既有改动。后续若提交，必须按 hunk 区分，不能把整份工程文件直接混入功能提交。
 
 快照时：
 
@@ -351,7 +389,7 @@ e73385b fix: present portal settings in a window
 如果用户继续调整设置界面：
 
 1. 让用户用当前本地 HEAD 在 Xcode `Cmd + R` 打开设置窗口并提供截图。
-2. 以截图逐项核对窗口大小、居中、toolbar 高度、分类 icon/label、内容卡片宽度/圆角/间距和 dark/light appearance。
+2. 以截图逐项核对窗口大小、居中、标题栏与分类栏高度、分类 icon/label、分割线、内容卡片宽度/圆角/间距和 dark/light appearance。
 3. 只修明确偏差；不要再次替换交互形态。
 4. 跑 `TabBarViewTests`、`PortalViewControllerTests`、`PortalWindowConfigurationTests`、`PortalCoordinatorTests`，再按风险决定是否跑全套。
 5. 只本地 commit，保留 `project.pbxproj`，不 push。

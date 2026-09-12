@@ -76,10 +76,10 @@ Domain models and pure layout math. Zero AppKit imports.
 - `FileItem` — enumerated file/folder entry
 - `SelectionState` — per-tab selection model
 - `IconSize` — validated icon dimension value type
-- `DesktopIconSettings` — validated Finder desktop icon and text sizes captured through the scripting boundary
-- `PortalIconLayout` — either a fixed Alcove icon size or Follow Desktop with the last valid Finder settings
-- `PortalBackgroundStyle` — per-portal High Transparency, Standard, or Low Transparency preference
+- `PortalIconLayout` — an Alcove-owned fixed Small, Medium, or Large icon size with the standard label metric
+- `PortalBackgroundStyle` — ordered five-level per-portal background preference
 - `GridCapacity` — validated visible grid columns and rows; it is the durable size intent for a portal
+- `Portal.isPinned` — persisted interaction state that disables user-driven movement and resizing without suppressing system placement directives
 - `GridLayout` — computes item frames from container size, icon size, column count, and spacing
 - `PlacementGeometry` — captures and restores per-display frames with normalized movable-range anchors
 - `PlacementStateMachine` — preserves user-confirmed home placement while emitting transient topology directives
@@ -90,8 +90,7 @@ App entry point and global coordination.
 
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
-- `FinderDesktopSettingsReader` — executes the user-approved Finder script on a dedicated queue and validates the returned desktop icon/text sizes; it never reads private Finder preference keys
-- `FinderActivationMonitor` — observes public `NSWorkspace` activation notifications and runs a one-second timer only while Finder is frontmost and at least one Portal is in Follow Desktop mode; it schedules passive reads but performs no Apple Events itself
+- `StatusMenuController` — builds the localized New Portal / Portal Show-Hide / application Settings placeholder / Quit hierarchy
 - `NewPortalOverlay` — pointer-display overlay with a dashed `3×1` default card, title/item skeletons, half-cell candidate feedback, and whole-capacity snapping constrained to `visibleFrame`
 - Info.plist: `LSUIElement = YES`, `LSBackgroundOnly = NO`
 
@@ -118,11 +117,11 @@ App entry point and global coordination.
 Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
-- `TabBarView` — one centered, horizontally scrollable outer capsule containing divider-free folder-name capsules, plus a fixed trailing settings icon. The icon presents one reusable standalone `400×572pt` settings window centered on the Portal's current screen. A native toolbar-style `NSTabViewController` provides fixed Folders, Style, and Other categories above grouped content for folder actions, icon/background choices, and Portal removal; tabs remain in creation order in MVP and drag-to-reorder is Post-MVP
+- `TabBarView` — one centered, horizontally scrollable outer capsule containing divider-free folder-name capsules, a fixed leading pin button, and a fixed trailing settings icon. The pin action persists through the Coordinator before the window changes its resizable/drag behavior. The settings icon presents one reusable standalone settings window centered on the Portal's current screen. Its standard title bar contains only the close control; a separate Folders/Style navigation row and separator sit above scrollable grouped content. Folders are reordered through adjacent up/down actions, and icon/background values use discrete sliders
+- `FolderPathBarView` — a reserved bottom row derived from the selected tab URL; its capsule spans the row's available width, abbreviates the home directory as `~`, and copies the displayed path to `NSPasteboard`
 - `PortalChromeMaterialView` — role-aware compatibility boundary: the content surface keeps an always-active `.popover`-material `NSVisualEffectView` at full strength and varies an adaptive neutral tint overlay per Portal, while the centered control group uses `NSGlassEffectView` on macOS 26+ and an always-active `NSVisualEffectView` on 15–25
-- Layout: tab bar at top, icon grid fills remaining area
-- Portal size intent is `GridCapacity`, not a remembered pixel size. Creation and icon-metric changes derive the content frame from the same `GridMetrics`; changing Finder or manual icon metrics preserves capacity and recomputes the physical frame. A shared creation-grid snapshot starts at Medium and, after a successful explicit Follow Desktop read, carries the last accepted Finder layout into both the overlay and the newly created Portal.
-- Finder metric refresh skips any Portal with an active user move/resize and retries after that interaction ends. The user gesture therefore owns its transaction boundary; passive refresh never overwrites an in-progress frame.
+- Layout: tab bar at top, a fixed path row at bottom, and the icon grid between them. Both chrome rows are included in creation, minimum-size, live-resize, and persisted-capacity geometry
+- Portal size intent is `GridCapacity`, not a remembered pixel size. Creation and manual icon-size changes derive the content frame from the same `GridMetrics`; changing Small/Medium/Large preserves capacity and recomputes the physical frame. New Portal creation starts at Medium.
 - Rendering hierarchy: the background material, file grid, and top control row
   are sibling layers in a plain root container. The control-group
   `NSGlassEffectView` must not be nested inside the background
@@ -140,7 +139,7 @@ Visual chrome inside each portal window.
 - `FileGridViewController` — owns `NSScrollView` + `NSCollectionView`
 - The controller explicitly keeps the document collection width equal to the scroll viewport width during layout. `GridCapacity.columns` is authoritative for the pure row-major `GridLayout`; window-border or clip-view rounding must never derive a different column count. Live-resize capacity changes invalidate the layout immediately, so items reflow in sequence in both directions.
 - Vertical overflow uses AppKit's mini overlay scroller with automatic hiding, so it does not reserve horizontal content space and retains native scrolling/accessibility behavior.
-- `FileItemCell` — one accessible tile containing a padded system icon, a two-line title, and separate Finder-style icon/title selection regions
+- `FileItemCell` — one accessible tile with a thin outline exposing its complete object bounds, containing a padded system icon, a two-line title, and separate Finder-style icon/title selection regions
 - `FileGridDataSource` — bridges `FolderAccess` enumeration results to collection view items
 - `FileGridDelegate` — handles selection, double-click, keyboard events, and forwards to `QuickLookIntegration`
 - Selection protocol: single-click select, Command-click toggle, Shift-click range, arrow keys navigate
@@ -186,10 +185,12 @@ Versioned JSON storage with atomic replacement.
 - Location: `~/Library/Application Support/Alcove/portals.json`
 - Format: JSON object with `version: Int` at top level, followed by data payload
 - Persistence uses versioned Codable DTOs and maps to validated domain models
+- Current schema is v10: v6's optional selected tab and v7's required `is_pinned` remain; v8 records compact 8pt vertical grid insets, v9 records equal 4pt tile spacing, and v10 removes Finder-following state while expanding background control to five levels
 - Persistence is infrastructure outside AlcoveCore (contains domain/layout only); `PortalStore`, `NSScreen` lookup, `DisplayIdentity` adapters, and file I/O remain app infrastructure
 - Write strategy: write to `.tmp` file, then `FileManager.replaceItemAt` for atomic swap
 - Read strategy: read file → check `version` → dispatch to appropriate decoder → return typed result or migration error
 - No Core Data, no SQLite, no UserDefaults for portal state
+- AppKit strings use `en`, `zh-Hans`, and `zh-Hant` bundle resources. English is the development region and fallback for every other system language
 
 ---
 
@@ -297,8 +298,9 @@ struct IconSize: Sendable, Comparable {
     static func < (lhs: IconSize, rhs: IconSize) -> Bool { lhs.rawValue < rhs.rawValue }
 }
 
-Grid column count is derived from the current available width and validated
-metrics during each layout pass. It is not user preference or persistence state.
+Grid capacity is durable Portal state. `GridCapacity.columns` is supplied directly to the
+collection layout and keyboard navigation; the current available width may affect content width
+but must not silently replace the persisted column count.
 ```
 
 ### 4.6 PlacementRecord
@@ -341,7 +343,7 @@ struct NormalizedAnchor: Sendable {
 
 ```json
 {
-  "version": 5,
+  "version": 10,
   "portals": [ ... ]
 }
 ```
@@ -364,8 +366,14 @@ visible-frame intersection, falling back to the explicit primary display. Versio
 default the icon layout to the stored fixed icon size; v1 and v2 also default the newer
 per-portal background preference to Standard. Versions 1–4 derive `GridCapacity` from the
 saved frame's grid-content size (after removing the tab bar) and their saved icon/text metrics;
-version 5 already contains capacity. All legacy versions are atomically rewritten as v6,
-whose optional `selected_tab_id` represents a durable empty Portal. Before conversion the
+version 5 already contains capacity, v6 introduced an optional `selected_tab_id` for durable
+empty Portals, and v7 adds `is_pinned` plus the reserved bottom path row. Version 8 reduces the
+grid's top and bottom insets from 16pt to 8pt, and v9 reduces horizontal tile spacing from 12pt
+to the same 4pt used vertically. Version 10 removes `follow_desktop` from current data, maps any
+legacy followed icon size to the nearest Small/Medium/Large preset, adds the two outer background
+levels, and normalizes every migrated frame from its capacity and current metrics while preserving
+its former top-right position when the display permits. Versions 1–9 are atomically rewritten as v10.
+Before conversion the
 store writes the matching `portals.vN.json.bak` once and never
 replaces a different existing backup. Migrations remain explicit rather than using a
 speculative generic framework.
@@ -382,7 +390,7 @@ speculative generic framework.
 
 ### 5.5 Backup
 
-The v1/v2/v3/v4/v5→v6 migrations preserve the original as the matching
+The v1/v2/v3/v4/v5/v6/v7/v8/v9→v10 migrations preserve the original as the matching
 `portals.vN.json.bak`. The first backup is write-once; a different existing backup stops
 migration instead of overwriting evidence.
 
@@ -591,7 +599,7 @@ PortalViewController
 - On tab switch, the controller saves the outgoing tab's runtime selection/scroll state, replaces the grid model, and restores the incoming tab's runtime state after loading.
 - Item frames come from one fixed `GridLayout` used directly by the custom `NSCollectionViewLayout`; rendering, column count, keyboard navigation, portal minimum size, and snapping therefore share the same tile and spacing metrics.
 - A tile is wider than its icon and owns explicit icon/title regions and padding. Selection never paints the entire tile as one rectangle.
-- `NSScrollView` always shows vertical scrollbar; horizontal is disabled (grid wraps to columns).
+- `NSScrollView` uses a mini overlay vertical scrollbar with automatic hiding; horizontal scrolling is disabled because the grid wraps to the persisted column count.
 
 ---
 
@@ -648,8 +656,7 @@ The file grid remains ordinary content on the portal's active frosted surface. A
 not expose the private Notification Center material as a public semantic material, so the
 surface uses the closest public floating-surface approximation, `.popover`, at full
 strength. Transparency changes therefore do not weaken its blur. Each Portal persists one
-of three neutral overlay levels: High Transparency (0.08), Standard (0.16), or Low
-Transparency (0.26). The tint uses white in Aqua and black in Dark Aqua, allowing the
+of five neutral overlay levels with alpha values 0.04, 0.08, 0.16, 0.26, and 0.34. The tint uses white in Aqua and black in Dark Aqua, allowing the
 material to inherit color from the desktop instead of imposing a fixed hue. Reduce
 Transparency removes the overlay and uses the existing opaque accessibility surface
 without changing the saved preference. File cells and selection highlights do not create glass layers: icons
@@ -793,7 +800,6 @@ Alcove is **non-sandboxed**. No entitlement file is required to declare `app-san
 | Accessibility | No | Core interaction is within Alcove-owned windows |
 | Full Disk Access | No | User selects folders via `NSOpenPanel`; non-sandboxed app has normal POSIX access |
 | TCC (Desktop, Documents, Downloads) | Conditional | System may show permission dialog on first access; Alcove surfaces TCC errors explicitly, does not silently fail |
-| Finder Automation | Conditional | The explicit Follow Desktop action may request consent. Later launch/activation refreshes preflight with `askUserIfNeeded = false`, never trigger a new prompt, and preserve the last valid layout if access is unavailable. |
 | Network | No | Zero network calls in MVP |
 | Folder source | Internal fixed local storage only | Selection and re-mapping reject removable, ejectable, and network-volume locations |
 
@@ -951,5 +957,4 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 | **Core Data / SQLite** | Portal state is a small, infrequently-written JSON document; no query language or relational model needed; atomic file replacement is simpler and safer |
 | **UserDefaults** | Not suitable for structured, versioned, multi-entity state; file-based persistence allows backup, migration, and inspection |
 | **Storing absolute frames only** | Candidate restoration also stores save-time `visibleFrame`, preferred size, and an origin normalized within the actual movable range; Spike 0.2 validates whether this is sufficient for multi-display stability |
-| **Reading Finder desktop layout from private preferences** | Follow Desktop reads only the icon/text values exposed by Finder's scripting dictionary after user approval; grid spacing remains an explicit Alcove metric, and private `com.apple.finder` preference keys are not used |
 | **Sandboxed distribution** | Non-sandboxed allows normal POSIX file access without security-scoped bookmarks; simplifies implementation; distribution via GitHub with documented quarantine removal |
