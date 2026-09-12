@@ -137,6 +137,7 @@ final class FileGridViewController: NSViewController {
         scrollView.hasVerticalScroller = true
         scrollView.scrollerStyle = .overlay
         scrollView.autohidesScrollers = true
+        scrollView.verticalScroller?.controlSize = .mini
         scrollView.documentView = collectionView
         view = scrollView
     }

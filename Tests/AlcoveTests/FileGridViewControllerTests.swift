@@ -234,6 +234,8 @@ final class FileGridViewControllerTests: XCTestCase {
             layout.layoutAttributesForItem(at: IndexPath(item: 3, section: 0))
         )
         XCTAssertEqual(scrollView.scrollerStyle, .overlay)
+        XCTAssertTrue(scrollView.autohidesScrollers)
+        XCTAssertEqual(scrollView.verticalScroller?.controlSize, .mini)
         XCTAssertEqual(first.frame.minY, third.frame.minY)
         XCTAssertGreaterThan(fourth.frame.minY, first.frame.minY)
     }

@@ -139,6 +139,7 @@ Visual chrome inside each portal window.
 
 - `FileGridViewController` — owns `NSScrollView` + `NSCollectionView`
 - The controller explicitly keeps the document collection width equal to the scroll viewport width during layout. `GridCapacity.columns` is authoritative for the pure row-major `GridLayout`; window-border or clip-view rounding must never derive a different column count. Live-resize capacity changes invalidate the layout immediately, so items reflow in sequence in both directions.
+- Vertical overflow uses AppKit's mini overlay scroller with automatic hiding, so it does not reserve horizontal content space and retains native scrolling/accessibility behavior.
 - `FileItemCell` — one accessible tile containing a padded system icon, a two-line title, and separate Finder-style icon/title selection regions
 - `FileGridDataSource` — bridges `FolderAccess` enumeration results to collection view items
 - `FileGridDelegate` — handles selection, double-click, keyboard events, and forwards to `QuickLookIntegration`
