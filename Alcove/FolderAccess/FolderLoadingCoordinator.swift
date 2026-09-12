@@ -51,12 +51,6 @@ actor FolderLoadingCoordinator {
         }
         return .accepted(request: request, outcome: outcome)
     }
-
-    func cancelCurrentLoad() {
-        if currentGeneration < UInt64.max {
-            currentGeneration += 1
-        }
-    }
 }
 
 enum FolderLoadingError: Error, Equatable, Sendable {

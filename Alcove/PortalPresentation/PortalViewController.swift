@@ -220,7 +220,6 @@ final class PortalViewController: NSViewController {
         observationCoordinator.stop()
         loadTask?.cancel()
         loadTask = nil
-        Task { await loadingCoordinator.cancelCurrentLoad() }
     }
 
     func reload(showLoadingIndicator: Bool = true) async {
@@ -270,7 +269,6 @@ final class PortalViewController: NSViewController {
     private func showObservationFailure(_ error: Error) {
         loadTask?.cancel()
         loadTask = nil
-        Task { await loadingCoordinator.cancelCurrentLoad() }
         if let error = error as? FolderAccessError {
             showError(error)
         } else {
