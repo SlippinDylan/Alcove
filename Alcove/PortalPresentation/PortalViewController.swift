@@ -1,6 +1,14 @@
 import AlcoveCore
 import AppKit
 
+private func portalLocalizedFormat(_ key: String, _ arguments: CVarArg...) -> String {
+    String(
+        format: NSLocalizedString(key, comment: ""),
+        locale: Locale.current,
+        arguments: arguments
+    )
+}
+
 enum PortalPresentationState: Equatable {
     case emptyPortal
     case loading
@@ -23,6 +31,8 @@ struct PortalErrorPresentation: Equatable {
 @MainActor
 final class PortalViewController: NSViewController {
     static let tabBarHeight = PortalLayoutMetrics.tabBarHeight
+    static let pathBarHeight = PortalLayoutMetrics.pathBarHeight
+    static let chromeHeight = PortalLayoutMetrics.chromeHeight
 
     static func minimumContentSize(for iconSize: IconSize) -> NSSize {
         minimumContentSize(for: .fixed(iconSize))
@@ -40,7 +50,7 @@ final class PortalViewController: NSViewController {
             iconSize: iconLayout.iconSize,
             labelFontSize: iconLayout.textSize
         ).contentSize(for: capacity)
-        return NSSize(width: gridSize.width, height: gridSize.height + tabBarHeight)
+        return NSSize(width: gridSize.width, height: gridSize.height + chromeHeight)
     }
 
     static func snappedContentSize(_ requestedSize: NSSize, for iconSize: IconSize) -> NSSize {
@@ -89,6 +99,7 @@ final class PortalViewController: NSViewController {
     private let portalContentView: NSView
     private let portalMaterialView: PortalChromeMaterialView
     private let gridViewController: FileGridViewController
+    private let pathBarView = FolderPathBarView()
     private let stateLabel = NSTextField(labelWithString: "")
     private let recoveryButton = NSButton()
     private let progressIndicator = NSProgressIndicator()
@@ -104,17 +115,20 @@ final class PortalViewController: NSViewController {
         didSet { tabBarView.onAdd = onAddTab }
     }
     var onCloseTab: ((FolderTabID) -> Void)?
+    var onMoveTab: ((FolderTabID, PortalTabMoveDirection) -> Void)? {
+        didSet { tabBarView.onMoveTab = onMoveTab }
+    }
     var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? {
         didSet { tabBarView.onSetBackgroundStyle = onSetBackgroundStyle }
     }
     var onSetIconSize: ((IconSize) -> Void)? {
         didSet { tabBarView.onSetIconSize = onSetIconSize }
     }
-    var onFollowDesktopIconSettings: (() -> Void)? {
-        didSet { tabBarView.onFollowDesktopIconSettings = onFollowDesktopIconSettings }
-    }
     var onRemovePortal: (() -> Void)? {
         didSet { tabBarView.onRemovePortal = onRemovePortal }
+    }
+    var onSetPinned: ((Bool) -> Void)? {
+        didSet { tabBarView.onSetPinned = onSetPinned }
     }
     var onQuickLookRequested: (([URL]) -> Void)?
     var onQuickLookSelectionChanged: (([URL]) -> Void)?
@@ -192,6 +206,9 @@ final class PortalViewController: NSViewController {
         gridView.translatesAutoresizingMaskIntoConstraints = false
         rootView.addSubview(gridView)
 
+        pathBarView.translatesAutoresizingMaskIntoConstraints = false
+        rootView.addSubview(pathBarView)
+
         stateLabel.alignment = .center
         stateLabel.textColor = .secondaryLabelColor
         stateLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -211,7 +228,10 @@ final class PortalViewController: NSViewController {
         progressIndicator.isHidden = true
         rootView.addSubview(progressIndicator)
 
-        chooseFolderButton.title = "Choose Folder…"
+        chooseFolderButton.title = NSLocalizedString(
+            "portal.choose",
+            comment: "Choose a folder for an empty portal"
+        )
         chooseFolderButton.image = NSImage(
             systemSymbolName: "folder.badge.plus",
             accessibilityDescription: nil
@@ -220,7 +240,12 @@ final class PortalViewController: NSViewController {
         chooseFolderButton.bezelStyle = .rounded
         chooseFolderButton.target = self
         chooseFolderButton.action = #selector(chooseFirstFolder)
-        chooseFolderButton.setAccessibilityLabel("Choose a folder for this portal")
+        chooseFolderButton.setAccessibilityLabel(
+            NSLocalizedString(
+                "portal.choose.help",
+                comment: "Choose folder accessibility label"
+            )
+        )
         chooseFolderButton.translatesAutoresizingMaskIntoConstraints = false
         chooseFolderButton.isHidden = true
         rootView.addSubview(chooseFolderButton)
@@ -241,7 +266,11 @@ final class PortalViewController: NSViewController {
             tabBarView.topAnchor.constraint(equalTo: rootView.topAnchor),
             tabBarView.heightAnchor.constraint(equalToConstant: Self.tabBarHeight),
             gridView.topAnchor.constraint(equalTo: tabBarView.bottomAnchor),
-            gridView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
+            gridView.bottomAnchor.constraint(equalTo: pathBarView.topAnchor),
+            pathBarView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            pathBarView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            pathBarView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
+            pathBarView.heightAnchor.constraint(equalToConstant: Self.pathBarHeight),
             stateLabel.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             stateLabel.centerYAnchor.constraint(equalTo: rootView.centerYAnchor),
             stateLabel.leadingAnchor.constraint(greaterThanOrEqualTo: rootView.leadingAnchor, constant: 24),
@@ -258,6 +287,7 @@ final class PortalViewController: NSViewController {
             resizeCapacityOverlay.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
         ])
         view = rootView
+        pathBarView.update(folderURL: portal.selectedTab?.folderURL)
         if portal.tabs.isEmpty {
             showEmptyPortal()
         }
@@ -330,6 +360,7 @@ final class PortalViewController: NSViewController {
         }
         if isViewLoaded {
             tabBarView.configure(with: portal)
+            pathBarView.update(folderURL: portal.selectedTab?.folderURL)
         }
         if portal.selectedTabID != previousTabID || folderURL != previousFolderURL {
             onSelectionInvalidated?()
@@ -371,8 +402,14 @@ final class PortalViewController: NSViewController {
             guard !Task.isCancelled else { return }
             showErrorPresentation(
                 PortalErrorPresentation(
-                    message: "Unable to load folder",
-                    detail: "Try again. If the problem continues, choose another folder.",
+                    message: NSLocalizedString(
+                        "portal.error.load",
+                        comment: "Folder load error title"
+                    ),
+                    detail: NSLocalizedString(
+                        "portal.error.load.detail",
+                        comment: "Folder load error detail"
+                    ),
                     action: .retry
                 )
             )
@@ -411,8 +448,14 @@ final class PortalViewController: NSViewController {
         } else {
             showErrorPresentation(
                 PortalErrorPresentation(
-                    message: "Unable to watch folder",
-                    detail: "The folder could not be monitored for changes.",
+                    message: NSLocalizedString(
+                        "portal.error.watch",
+                        comment: "Folder observation error title"
+                    ),
+                    detail: NSLocalizedString(
+                        "portal.error.watch.detail",
+                        comment: "Folder observation error detail"
+                    ),
                     action: .retry
                 )
             )
@@ -431,7 +474,10 @@ final class PortalViewController: NSViewController {
                     runtimeStates.removeValue(forKey: $0)
                 }
                 if items.isEmpty {
-                    showState("This folder is empty")
+                    showState(NSLocalizedString(
+                        "portal.empty",
+                        comment: "Empty folder message"
+                    ))
                 } else {
                     showItems(items)
                     if let runtimeState {
@@ -452,7 +498,7 @@ final class PortalViewController: NSViewController {
         chooseFolderButton.isHidden = true
         gridViewController.setItems([])
         gridViewController.view.isHidden = true
-        stateLabel.stringValue = "Loading…"
+        stateLabel.stringValue = NSLocalizedString("portal.loading", comment: "Loading state")
         stateLabel.isHidden = false
         progressIndicator.isHidden = false
         progressIndicator.startAnimation(nil)
@@ -500,7 +546,9 @@ final class PortalViewController: NSViewController {
         stateLabel.stringValue = "\(presentation.message)\n\(presentation.detail)"
         stateLabel.maximumNumberOfLines = 0
         stateLabel.isHidden = false
-        recoveryButton.title = presentation.action == .locateFolder ? "Locate Folder…" : "Retry"
+        recoveryButton.title = presentation.action == .locateFolder
+            ? NSLocalizedString("portal.locate", comment: "Locate folder action")
+            : NSLocalizedString("portal.retry", comment: "Retry action")
         recoveryButton.setAccessibilityLabel(recoveryButton.title)
         recoveryButton.isHidden = false
         chooseFolderButton.isHidden = true
@@ -524,31 +572,49 @@ final class PortalViewController: NSViewController {
         switch error {
         case .folderNotFound(let url, _), .folderReplaced(let url):
             return PortalErrorPresentation(
-                message: "Folder not found",
+                message: NSLocalizedString(
+                    "portal.error.folder_not_found",
+                    comment: "Folder not found"
+                ),
                 detail: url.path,
                 action: .locateFolder
             )
         case .notDirectory(let url, _):
             return PortalErrorPresentation(
-                message: "The selected item is not a folder",
+                message: NSLocalizedString(
+                    "portal.error.not_folder",
+                    comment: "Selected item is not a folder"
+                ),
                 detail: url.path,
                 action: .locateFolder
             )
         case .permissionDenied(let url, _):
             return PortalErrorPresentation(
-                message: "Permission denied",
-                detail: "\(url.lastPathComponent). macOS may require permission in System Settings → Privacy & Security → Files and Folders.",
+                message: NSLocalizedString(
+                    "portal.error.permission_denied",
+                    comment: "Folder permission denied"
+                ),
+                detail: portalLocalizedFormat(
+                    "portal.error.permission_denied.detail",
+                    url.lastPathComponent
+                ),
                 action: .retry
             )
         case .readFailed(let url, _):
             return PortalErrorPresentation(
-                message: "Unable to read folder contents",
+                message: NSLocalizedString(
+                    "portal.error.read_contents",
+                    comment: "Unable to read folder contents"
+                ),
                 detail: url.path,
                 action: .retry
             )
         case .unsupportedLocation(let url, _):
             return PortalErrorPresentation(
-                message: "Choose a folder on this Mac's internal disk",
+                message: NSLocalizedString(
+                    "portal.error.unsupported_location",
+                    comment: "Unsupported folder location"
+                ),
                 detail: url.path,
                 action: .locateFolder
             )
@@ -585,6 +651,105 @@ final class PortalViewController: NSViewController {
 
     private var folderURL: URL? {
         portal.selectedTab?.folderURL
+    }
+}
+
+@MainActor
+final class FolderPathBarView: NSView {
+    private(set) var capsuleView = NSVisualEffectView()
+    private let pathIcon = NSImageView()
+    private(set) var pathLabel = NSTextField(labelWithString: "")
+    private(set) var copyButton = NSButton()
+    private(set) var displayedPath: String?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configureView()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    func update(folderURL: URL?) {
+        guard let folderURL else {
+            displayedPath = nil
+            capsuleView.isHidden = true
+            return
+        }
+        let path = NSString(
+            string: folderURL.standardizedFileURL.path
+        ).abbreviatingWithTildeInPath
+        displayedPath = path
+        pathLabel.stringValue = path
+        pathLabel.toolTip = path
+        capsuleView.isHidden = false
+    }
+
+    private func configureView() {
+        capsuleView.material = .popover
+        capsuleView.blendingMode = .withinWindow
+        capsuleView.state = .active
+        capsuleView.wantsLayer = true
+        capsuleView.layer?.cornerRadius = 14
+        capsuleView.layer?.masksToBounds = true
+        capsuleView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(capsuleView)
+
+        pathIcon.image = NSImage(
+            systemSymbolName: "folder",
+            accessibilityDescription: nil
+        )
+        pathIcon.contentTintColor = .secondaryLabelColor
+        pathIcon.translatesAutoresizingMaskIntoConstraints = false
+
+        pathLabel.lineBreakMode = .byTruncatingMiddle
+        pathLabel.maximumNumberOfLines = 1
+        pathLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        pathLabel.setAccessibilityLabel(
+            NSLocalizedString("portal.path.label", comment: "Folder path accessibility label")
+        )
+
+        copyButton.image = NSImage(
+            systemSymbolName: "doc.on.doc",
+            accessibilityDescription: nil
+        )
+        copyButton.imagePosition = .imageOnly
+        copyButton.isBordered = false
+        copyButton.target = self
+        copyButton.action = #selector(copyPath)
+        copyButton.toolTip = NSLocalizedString("portal.path.copy", comment: "Copy folder path")
+        copyButton.setAccessibilityLabel(copyButton.toolTip ?? "")
+
+        let stack = NSStackView(views: [pathIcon, pathLabel, copyButton])
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        capsuleView.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            capsuleView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            capsuleView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            capsuleView.topAnchor.constraint(equalTo: topAnchor, constant: 5),
+            capsuleView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
+            stack.leadingAnchor.constraint(equalTo: capsuleView.leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(equalTo: capsuleView.trailingAnchor, constant: -8),
+            stack.topAnchor.constraint(equalTo: capsuleView.topAnchor, constant: 3),
+            stack.bottomAnchor.constraint(equalTo: capsuleView.bottomAnchor, constant: -3),
+            pathIcon.widthAnchor.constraint(equalToConstant: 16),
+            pathIcon.heightAnchor.constraint(equalToConstant: 16),
+            copyButton.widthAnchor.constraint(equalToConstant: 24),
+            copyButton.heightAnchor.constraint(equalToConstant: 24),
+        ])
+    }
+
+    @objc private func copyPath() {
+        guard let displayedPath else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(displayedPath, forType: .string)
     }
 }
 

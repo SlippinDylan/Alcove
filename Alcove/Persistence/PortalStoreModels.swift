@@ -5,6 +5,331 @@ struct PortalEnvelopeVersionDTO: Decodable {
     let version: Int
 }
 
+struct PortalEnvelopeV10DTO: Codable, Equatable {
+    static let currentVersion = 10
+
+    let version: Int
+    let portals: [PortalV10DTO]
+
+    init(portals: [Portal]) {
+        version = Self.currentVersion
+        self.portals = portals.map(PortalV10DTO.init)
+    }
+}
+
+struct PortalV10DTO: Codable, Equatable {
+    let id: UUID
+    let tabs: [FolderTabDTO]
+    let selectedTabID: UUID?
+    let placement: PlacementRecordDTO
+    let iconSize: Double
+    let backgroundStyle: String
+    let columns: Int
+    let rows: Int
+    let isPinned: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tabs
+        case selectedTabID = "selected_tab_id"
+        case placement
+        case iconSize = "icon_size"
+        case backgroundStyle = "background_style"
+        case columns
+        case rows
+        case isPinned = "is_pinned"
+    }
+
+    init(_ portal: Portal) {
+        id = portal.id.rawValue
+        tabs = portal.tabs.map(FolderTabDTO.init)
+        selectedTabID = portal.selectedTabID?.rawValue
+        placement = PlacementRecordDTO(portal.placement)
+        iconSize = Double(portal.iconSize.rawValue)
+        backgroundStyle = portal.backgroundStyle.rawValue
+        columns = portal.gridCapacity.columns
+        rows = portal.gridCapacity.rows
+        isPinned = portal.isPinned
+    }
+
+    func domainValue() throws -> Portal {
+        guard let iconSize = IconSize(rawValue: CGFloat(iconSize)) else {
+            throw PortalStoreMappingError.invalidIconSize(self.iconSize)
+        }
+        guard let backgroundStyle = PortalBackgroundStyle(rawValue: backgroundStyle) else {
+            throw PortalStoreMappingError.invalidBackgroundStyle(self.backgroundStyle)
+        }
+        let gridCapacity: GridCapacity
+        do {
+            gridCapacity = try GridCapacity(columns: columns, rows: rows)
+        } catch {
+            throw PortalStoreMappingError.invalidGridCapacity(columns: columns, rows: rows)
+        }
+        return try Portal(
+            id: PortalID(rawValue: id),
+            tabs: try tabs.map { try $0.domainValue() },
+            selectedTabID: selectedTabID.map(FolderTabID.init(rawValue:)),
+            placement: try placement.domainValue(),
+            iconSize: iconSize,
+            backgroundStyle: backgroundStyle,
+            gridCapacity: gridCapacity,
+            isPinned: isPinned
+        )
+    }
+}
+
+struct PortalEnvelopeV9DTO: Codable, Equatable {
+    static let currentVersion = 9
+
+    let version: Int
+    let portals: [PortalV9DTO]
+
+    init(portals: [Portal]) {
+        version = Self.currentVersion
+        self.portals = portals.map(PortalV9DTO.init)
+    }
+}
+
+struct PortalV9DTO: Codable, Equatable {
+    let id: UUID
+    let tabs: [FolderTabDTO]
+    let selectedTabID: UUID?
+    let placement: PlacementRecordDTO
+    let iconLayoutMode: String
+    let iconSize: Double
+    let textSize: Double
+    let backgroundStyle: String
+    let columns: Int
+    let rows: Int
+    let isPinned: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tabs
+        case selectedTabID = "selected_tab_id"
+        case placement
+        case iconLayoutMode = "icon_layout_mode"
+        case iconSize = "icon_size"
+        case textSize = "text_size"
+        case backgroundStyle = "background_style"
+        case columns
+        case rows
+        case isPinned = "is_pinned"
+    }
+
+    init(_ portal: Portal) {
+        id = portal.id.rawValue
+        tabs = portal.tabs.map(FolderTabDTO.init)
+        selectedTabID = portal.selectedTabID?.rawValue
+        placement = PlacementRecordDTO(portal.placement)
+        switch portal.iconLayout {
+        case .fixed:
+            iconLayoutMode = "fixed"
+        }
+        iconSize = Double(portal.iconSize.rawValue)
+        textSize = Double(portal.textSize)
+        backgroundStyle = portal.backgroundStyle.rawValue
+        columns = portal.gridCapacity.columns
+        rows = portal.gridCapacity.rows
+        isPinned = portal.isPinned
+    }
+
+    func domainValue() throws -> Portal {
+        let iconLayout = try legacyIconLayout(
+            mode: iconLayoutMode,
+            iconSize: iconSize,
+            textSize: textSize
+        )
+        guard let backgroundStyle = PortalBackgroundStyle(rawValue: backgroundStyle) else {
+            throw PortalStoreMappingError.invalidBackgroundStyle(self.backgroundStyle)
+        }
+        let gridCapacity: GridCapacity
+        do {
+            gridCapacity = try GridCapacity(columns: columns, rows: rows)
+        } catch {
+            throw PortalStoreMappingError.invalidGridCapacity(columns: columns, rows: rows)
+        }
+        return try Portal(
+            id: PortalID(rawValue: id),
+            tabs: try tabs.map { try $0.domainValue() },
+            selectedTabID: selectedTabID.map(FolderTabID.init(rawValue:)),
+            placement: try placement.domainValue(),
+            iconLayout: iconLayout,
+            backgroundStyle: backgroundStyle,
+            gridCapacity: gridCapacity,
+            isPinned: isPinned
+        )
+    }
+}
+
+struct PortalEnvelopeV8DTO: Codable, Equatable {
+    static let currentVersion = 8
+
+    let version: Int
+    let portals: [PortalV8DTO]
+
+    init(portals: [Portal]) {
+        version = Self.currentVersion
+        self.portals = portals.map(PortalV8DTO.init)
+    }
+}
+
+struct PortalV8DTO: Codable, Equatable {
+    let id: UUID
+    let tabs: [FolderTabDTO]
+    let selectedTabID: UUID?
+    let placement: PlacementRecordDTO
+    let iconLayoutMode: String
+    let iconSize: Double
+    let textSize: Double
+    let backgroundStyle: String
+    let columns: Int
+    let rows: Int
+    let isPinned: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tabs
+        case selectedTabID = "selected_tab_id"
+        case placement
+        case iconLayoutMode = "icon_layout_mode"
+        case iconSize = "icon_size"
+        case textSize = "text_size"
+        case backgroundStyle = "background_style"
+        case columns
+        case rows
+        case isPinned = "is_pinned"
+    }
+
+    init(_ portal: Portal) {
+        id = portal.id.rawValue
+        tabs = portal.tabs.map(FolderTabDTO.init)
+        selectedTabID = portal.selectedTabID?.rawValue
+        placement = PlacementRecordDTO(portal.placement)
+        switch portal.iconLayout {
+        case .fixed:
+            iconLayoutMode = "fixed"
+        }
+        iconSize = Double(portal.iconSize.rawValue)
+        textSize = Double(portal.textSize)
+        backgroundStyle = portal.backgroundStyle.rawValue
+        columns = portal.gridCapacity.columns
+        rows = portal.gridCapacity.rows
+        isPinned = portal.isPinned
+    }
+
+    func domainValue() throws -> Portal {
+        let iconLayout = try legacyIconLayout(
+            mode: iconLayoutMode,
+            iconSize: iconSize,
+            textSize: textSize
+        )
+        guard let backgroundStyle = PortalBackgroundStyle(rawValue: backgroundStyle) else {
+            throw PortalStoreMappingError.invalidBackgroundStyle(self.backgroundStyle)
+        }
+        let gridCapacity: GridCapacity
+        do {
+            gridCapacity = try GridCapacity(columns: columns, rows: rows)
+        } catch {
+            throw PortalStoreMappingError.invalidGridCapacity(columns: columns, rows: rows)
+        }
+        return try Portal(
+            id: PortalID(rawValue: id),
+            tabs: try tabs.map { try $0.domainValue() },
+            selectedTabID: selectedTabID.map(FolderTabID.init(rawValue:)),
+            placement: try placement.domainValue(),
+            iconLayout: iconLayout,
+            backgroundStyle: backgroundStyle,
+            gridCapacity: gridCapacity,
+            isPinned: isPinned
+        )
+    }
+}
+
+struct PortalEnvelopeV7DTO: Codable, Equatable {
+    static let currentVersion = 7
+
+    let version: Int
+    let portals: [PortalV7DTO]
+
+    init(portals: [Portal]) {
+        version = Self.currentVersion
+        self.portals = portals.map(PortalV7DTO.init)
+    }
+}
+
+struct PortalV7DTO: Codable, Equatable {
+    let id: UUID
+    let tabs: [FolderTabDTO]
+    let selectedTabID: UUID?
+    let placement: PlacementRecordDTO
+    let iconLayoutMode: String
+    let iconSize: Double
+    let textSize: Double
+    let backgroundStyle: String
+    let columns: Int
+    let rows: Int
+    let isPinned: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tabs
+        case selectedTabID = "selected_tab_id"
+        case placement
+        case iconLayoutMode = "icon_layout_mode"
+        case iconSize = "icon_size"
+        case textSize = "text_size"
+        case backgroundStyle = "background_style"
+        case columns
+        case rows
+        case isPinned = "is_pinned"
+    }
+
+    init(_ portal: Portal) {
+        id = portal.id.rawValue
+        tabs = portal.tabs.map(FolderTabDTO.init)
+        selectedTabID = portal.selectedTabID?.rawValue
+        placement = PlacementRecordDTO(portal.placement)
+        switch portal.iconLayout {
+        case .fixed:
+            iconLayoutMode = "fixed"
+        }
+        iconSize = Double(portal.iconSize.rawValue)
+        textSize = Double(portal.textSize)
+        backgroundStyle = portal.backgroundStyle.rawValue
+        columns = portal.gridCapacity.columns
+        rows = portal.gridCapacity.rows
+        isPinned = portal.isPinned
+    }
+
+    func domainValue() throws -> Portal {
+        let iconLayout = try legacyIconLayout(
+            mode: iconLayoutMode,
+            iconSize: iconSize,
+            textSize: textSize
+        )
+        guard let backgroundStyle = PortalBackgroundStyle(rawValue: backgroundStyle) else {
+            throw PortalStoreMappingError.invalidBackgroundStyle(self.backgroundStyle)
+        }
+        let gridCapacity: GridCapacity
+        do {
+            gridCapacity = try GridCapacity(columns: columns, rows: rows)
+        } catch {
+            throw PortalStoreMappingError.invalidGridCapacity(columns: columns, rows: rows)
+        }
+        return try Portal(
+            id: PortalID(rawValue: id),
+            tabs: try tabs.map { try $0.domainValue() },
+            selectedTabID: selectedTabID.map(FolderTabID.init(rawValue:)),
+            placement: try placement.domainValue(),
+            iconLayout: iconLayout,
+            backgroundStyle: backgroundStyle,
+            gridCapacity: gridCapacity,
+            isPinned: isPinned
+        )
+    }
+}
+
 struct PortalEnvelopeV6DTO: Codable, Equatable {
     static let currentVersion = 6
 
@@ -50,8 +375,6 @@ struct PortalV6DTO: Codable, Equatable {
         switch portal.iconLayout {
         case .fixed:
             iconLayoutMode = "fixed"
-        case .followDesktop:
-            iconLayoutMode = "follow_desktop"
         }
         iconSize = Double(portal.iconSize.rawValue)
         textSize = Double(portal.textSize)
@@ -61,7 +384,7 @@ struct PortalV6DTO: Codable, Equatable {
     }
 
     func domainValue() throws -> Portal {
-        let iconLayout = try mappedIconLayout(
+        let iconLayout = try legacyIconLayout(
             mode: iconLayoutMode,
             iconSize: iconSize,
             textSize: textSize
@@ -82,7 +405,8 @@ struct PortalV6DTO: Codable, Equatable {
             placement: try placement.domainValue(),
             iconLayout: iconLayout,
             backgroundStyle: backgroundStyle,
-            gridCapacity: gridCapacity
+            gridCapacity: gridCapacity,
+            isPinned: false
         )
     }
 }
@@ -132,8 +456,6 @@ struct PortalV5DTO: Codable, Equatable {
         switch portal.iconLayout {
         case .fixed:
             iconLayoutMode = "fixed"
-        case .followDesktop:
-            iconLayoutMode = "follow_desktop"
         }
         iconSize = Double(portal.iconSize.rawValue)
         textSize = Double(portal.textSize)
@@ -165,23 +487,11 @@ struct PortalV5DTO: Codable, Equatable {
     }
 
     private func mappedIconLayout() throws -> PortalIconLayout {
-        guard let iconSize = IconSize(rawValue: CGFloat(iconSize)) else {
-            throw PortalStoreMappingError.invalidIconSize(self.iconSize)
-        }
-        switch iconLayoutMode {
-        case "fixed":
-            return .fixed(iconSize)
-        case "follow_desktop":
-            guard let desktopSettings = DesktopIconSettings(
-                iconSize: iconSize,
-                textSize: CGFloat(textSize)
-            ) else {
-                throw PortalStoreMappingError.invalidTextSize(textSize)
-            }
-            return .followDesktop(desktopSettings)
-        default:
-            throw PortalStoreMappingError.invalidIconLayoutMode(iconLayoutMode)
-        }
+        try legacyIconLayout(
+            mode: iconLayoutMode,
+            iconSize: iconSize,
+            textSize: textSize
+        )
     }
 }
 
@@ -226,8 +536,6 @@ struct PortalV4DTO: Codable, Equatable {
         switch portal.iconLayout {
         case .fixed:
             iconLayoutMode = "fixed"
-        case .followDesktop:
-            iconLayoutMode = "follow_desktop"
         }
         iconSize = Double(portal.iconSize.rawValue)
         textSize = Double(portal.textSize)
@@ -235,24 +543,11 @@ struct PortalV4DTO: Codable, Equatable {
     }
 
     func domainValue() throws -> Portal {
-        guard let iconSize = IconSize(rawValue: CGFloat(iconSize)) else {
-            throw PortalStoreMappingError.invalidIconSize(self.iconSize)
-        }
-        let iconLayout: PortalIconLayout
-        switch iconLayoutMode {
-        case "fixed":
-            iconLayout = .fixed(iconSize)
-        case "follow_desktop":
-            guard let desktopSettings = DesktopIconSettings(
-                iconSize: iconSize,
-                textSize: CGFloat(textSize)
-            ) else {
-                throw PortalStoreMappingError.invalidTextSize(textSize)
-            }
-            iconLayout = .followDesktop(desktopSettings)
-        default:
-            throw PortalStoreMappingError.invalidIconLayoutMode(iconLayoutMode)
-        }
+        let iconLayout = try legacyIconLayout(
+            mode: iconLayoutMode,
+            iconSize: iconSize,
+            textSize: textSize
+        )
         guard let backgroundStyle = PortalBackgroundStyle(rawValue: backgroundStyle) else {
             throw PortalStoreMappingError.invalidBackgroundStyle(self.backgroundStyle)
         }
@@ -421,9 +716,13 @@ private func migratedGridCapacity(
     from windowFrame: CGRect,
     iconLayout: PortalIconLayout
 ) throws -> GridCapacity {
+    // Versions 1–4 stored frames produced by the pre-v8/v9 grid metrics.
     try GridMetrics(
         iconSize: iconLayout.iconSize,
-        labelFontSize: iconLayout.textSize
+        labelFontSize: iconLayout.textSize,
+        horizontalSpacing: 12,
+        verticalSpacing: 4,
+        contentInsets: GridInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
     ).nearestCapacity(
         for: CGSize(
             width: windowFrame.width,
@@ -432,10 +731,10 @@ private func migratedGridCapacity(
     )
 }
 
-private func mappedIconLayout(
+private func legacyIconLayout(
     mode: String,
     iconSize rawIconSize: Double,
-    textSize: Double
+    textSize _: Double
 ) throws -> PortalIconLayout {
     guard let iconSize = IconSize(rawValue: CGFloat(rawIconSize)) else {
         throw PortalStoreMappingError.invalidIconSize(rawIconSize)
@@ -444,16 +743,16 @@ private func mappedIconLayout(
     case "fixed":
         return .fixed(iconSize)
     case "follow_desktop":
-        guard let desktopSettings = DesktopIconSettings(
-            iconSize: iconSize,
-            textSize: CGFloat(textSize)
-        ) else {
-            throw PortalStoreMappingError.invalidTextSize(textSize)
-        }
-        return .followDesktop(desktopSettings)
+        return .fixed(nearestIconSizePreset(to: iconSize))
     default:
         throw PortalStoreMappingError.invalidIconLayoutMode(mode)
     }
+}
+
+private func nearestIconSizePreset(to iconSize: IconSize) -> IconSize {
+    if iconSize.rawValue < 56 { return .small }
+    if iconSize.rawValue < 72 { return .medium }
+    return .large
 }
 
 private func legacySelectedTabID(in portal: Portal) -> UUID {

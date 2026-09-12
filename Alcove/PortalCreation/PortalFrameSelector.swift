@@ -11,19 +11,6 @@ final class PortalCreationGridState {
         self.iconLayout = iconLayout
     }
 
-    func update(with settings: DesktopIconSettings) {
-        do {
-            grid = try CreationGrid(
-                metrics: GridMetrics(
-                    iconSize: settings.iconSize,
-                    labelFontSize: settings.textSize
-                )
-            )
-            iconLayout = .followDesktop(settings)
-        } catch {
-            preconditionFailure("Validated desktop metrics must form a creation grid: \(error)")
-        }
-    }
 }
 
 @MainActor
@@ -156,9 +143,14 @@ final class PortalCreationOverlayView: NSView {
         wantsLayer = true
         setAccessibilityElement(true)
         setAccessibilityRole(.button)
-        setAccessibilityLabel("Create portal area")
+        setAccessibilityLabel(
+            NSLocalizedString("Create portal area", comment: "Accessibility label for portal creation")
+        )
         setAccessibilityHelp(
-            "Drag to choose a portal frame, or press Return to use a default frame."
+            NSLocalizedString(
+                "Drag to choose a portal frame, or press Return to use a default frame.",
+                comment: "Accessibility instructions for portal creation"
+            )
         )
     }
 
@@ -287,6 +279,15 @@ final class PortalCreationOverlayView: NSView {
             height: 28
         )
         strokeDashed(titleFrame, cornerRadius: 14, alpha: 0.9)
+
+        let pathWidth = min(260, max(80, frame.width - 32))
+        let pathFrame = NSRect(
+            x: frame.midX - pathWidth / 2,
+            y: frame.minY + 6,
+            width: pathWidth,
+            height: 28
+        )
+        strokeDashed(pathFrame, cornerRadius: 14, alpha: 0.9)
 
         for row in 0..<capacity.rows {
             for column in 0..<capacity.columns {

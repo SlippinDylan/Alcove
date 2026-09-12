@@ -70,15 +70,24 @@ enum FolderAccessError: Error, Equatable, Sendable {
     var userMessage: String {
         switch self {
         case .folderNotFound, .folderReplaced:
-            return "Folder not found"
+            return NSLocalizedString("Folder not found", comment: "Folder access error")
         case .notDirectory:
-            return "The selected item is not a folder"
+            return NSLocalizedString(
+                "The selected item is not a folder",
+                comment: "Folder access error"
+            )
         case .permissionDenied:
-            return "Permission denied"
+            return NSLocalizedString("Permission denied", comment: "Folder access error")
         case .readFailed:
-            return "Unable to read folder contents"
+            return NSLocalizedString(
+                "Unable to read folder contents",
+                comment: "Folder access error"
+            )
         case .unsupportedLocation:
-            return "Choose a folder on this Mac's internal disk"
+            return NSLocalizedString(
+                "Choose a folder on this Mac's internal disk",
+                comment: "Folder access error"
+            )
         }
     }
 }

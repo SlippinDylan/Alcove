@@ -53,6 +53,11 @@ public struct GridCapacityPreview: Sendable, Hashable {
 /// Measurements shared by a portal's tab strip and its grid content.
 public enum PortalLayoutMetrics {
     public static let tabBarHeight: CGFloat = 40
+    public static let pathBarHeight: CGFloat = 40
+
+    public static var chromeHeight: CGFloat {
+        tabBarHeight + pathBarHeight
+    }
 }
 
 public struct GridInsets: Sendable, Hashable {
@@ -90,9 +95,9 @@ public struct GridMetrics: Sendable, Hashable {
         itemHorizontalPadding: CGFloat? = nil,
         iconSelectionPadding: CGFloat = 4,
         iconLabelSpacing: CGFloat = 4,
-        horizontalSpacing: CGFloat = 12,
+        horizontalSpacing: CGFloat = 4,
         verticalSpacing: CGFloat = 4,
-        contentInsets: GridInsets = GridInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
+        contentInsets: GridInsets = GridInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
     ) {
         self.iconSize = iconSize
         self.labelFontSize = labelFontSize

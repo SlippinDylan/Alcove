@@ -25,19 +25,19 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, CGRect(x: 100, y: 100, width: 184, height: 120))
+        XCTAssertEqual(rectangle.frame, CGRect(x: 100, y: 100, width: 184, height: 160))
         XCTAssertEqual(rectangle.capacity, .minimum)
     }
 
     func testRectangleSnapsToNearestWholeCapacity() throws {
         let rectangle = try CreationGeometry.rectangle(
             mouseDown: CGPoint(x: 63, y: 81),
-            currentPoint: CGPoint(x: 216, y: 269),
+            currentPoint: CGPoint(x: 216, y: 281),
             visibleFrame: CGRect(x: 0, y: 0, width: 500, height: 400),
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, CGRect(x: 63, y: 81, width: 184, height: 200))
+        XCTAssertEqual(rectangle.frame, CGRect(x: 63, y: 81, width: 184, height: 240))
         XCTAssertEqual(rectangle.capacity, try GridCapacity(columns: 3, rows: 2))
     }
 
@@ -49,7 +49,7 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, CGRect(x: 146, y: 200, width: 184, height: 120))
+        XCTAssertEqual(rectangle.frame, CGRect(x: 146, y: 160, width: 184, height: 160))
         XCTAssertEqual(rectangle.frame.maxX, 330)
         XCTAssertEqual(rectangle.frame.maxY, 320)
     }
@@ -68,8 +68,8 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(downThenLeft.frame, CGRect(x: 116, y: 100, width: 184, height: 120))
-        XCTAssertEqual(upThenRight.frame, CGRect(x: 100, y: 180, width: 184, height: 120))
+        XCTAssertEqual(downThenLeft.frame, CGRect(x: 116, y: 100, width: 184, height: 160))
+        XCTAssertEqual(upThenRight.frame, CGRect(x: 100, y: 140, width: 184, height: 160))
     }
 
     func testRectangleClampsPointsAndFinalSnapToVisibleFrame() throws {
@@ -81,7 +81,7 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, CGRect(x: -500, y: -300, width: 300, height: 200))
+        XCTAssertEqual(rectangle.frame, CGRect(x: -500, y: -300, width: 300, height: 240))
         XCTAssertEqual(rectangle.capacity, try GridCapacity(columns: 5, rows: 2))
     }
 

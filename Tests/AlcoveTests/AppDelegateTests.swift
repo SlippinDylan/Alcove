@@ -21,7 +21,6 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
     private(set) var restoreCount = 0
     var error: Error?
     private(set) var stopCount = 0
-    private(set) var desktopSettingsRefreshCount = 0
 
     func restorePortals() async throws {
         restoreCount += 1
@@ -44,50 +43,12 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
         }
     }
 
-    func refreshFollowedDesktopIconSettings() async {
-        desktopSettingsRefreshCount += 1
-    }
-
     func stop() {
         stopCount += 1
     }
 
     func prepareForTermination() async {}
 
-}
-
-@MainActor
-private final class FinderRefreshTimerSchedulerSpy: FinderRefreshTimerScheduling {
-    private(set) var requestedIntervals: [TimeInterval] = []
-    private(set) var timers: [FinderRefreshTimerSpy] = []
-
-    func scheduleRepeating(
-        every interval: TimeInterval,
-        handler: @escaping @MainActor () -> Void
-    ) -> any FinderRefreshTiming {
-        requestedIntervals.append(interval)
-        let timer = FinderRefreshTimerSpy(handler: handler)
-        timers.append(timer)
-        return timer
-    }
-}
-
-@MainActor
-private final class FinderRefreshTimerSpy: FinderRefreshTiming {
-    private let handler: @MainActor () -> Void
-    private(set) var invalidationCount = 0
-
-    init(handler: @escaping @MainActor () -> Void) {
-        self.handler = handler
-    }
-
-    func invalidate() {
-        invalidationCount += 1
-    }
-
-    func fire() {
-        handler()
-    }
 }
 
 private enum StartupFixtureError: Error, Equatable {
@@ -118,7 +79,6 @@ final class AppDelegateTests: XCTestCase {
         XCTAssertEqual(spy.stopCount, 1)
         XCTAssertEqual(portalSpy.restoreCount, 1)
         XCTAssertEqual(portalSpy.createdFolders, [startupFolder])
-        XCTAssertEqual(portalSpy.desktopSettingsRefreshCount, 1)
         XCTAssertEqual(portalSpy.stopCount, 1)
         XCTAssertNil(delegate.startupError)
         XCTAssertEqual(NSApplication.shared.activationPolicy(), .accessory)
@@ -151,137 +111,6 @@ final class AppDelegateTests: XCTestCase {
     }
 
     @MainActor
-    func testBecomingActiveRefreshesFollowedDesktopSettings() async {
-        let coordinator = PortalCoordinatorSpy()
-        let activeDelegate = AppDelegate(
-            statusMenuController: StatusMenuControllerSpy(),
-            portalCoordinator: coordinator,
-            startupFolderURL: nil
-        )
-
-        activeDelegate.applicationDidBecomeActive(
-            Notification(name: NSApplication.didBecomeActiveNotification)
-        )
-        await activeDelegate.waitForDesktopSettingsRefreshForTesting()
-
-        XCTAssertEqual(coordinator.desktopSettingsRefreshCount, 1)
-    }
-
-    @MainActor
-    func testFinderActivationMonitorPollsWhileFinderIsFrontmostAndRefreshesOnExit() async {
-        let center = NotificationCenter()
-        let scheduler = FinderRefreshTimerSchedulerSpy()
-        let monitor = FinderActivationMonitor(
-            notificationCenter: center,
-            timerScheduler: scheduler,
-            applicationIdentifier: { notification in
-                notification.userInfo?["bundleIdentifier"] as? String
-            },
-            frontmostApplicationIdentifier: { nil }
-        )
-        var refreshCount = 0
-        monitor.onRefresh = { refreshCount += 1 }
-
-        monitor.start()
-        monitor.start()
-        postApplicationActivation("com.apple.finder", to: center)
-        await allowMonitorNotificationDelivery()
-
-        XCTAssertTrue(monitor.isMonitoring)
-        XCTAssertTrue(monitor.isPolling)
-        XCTAssertEqual(scheduler.requestedIntervals, [1])
-        XCTAssertEqual(scheduler.timers.count, 1)
-
-        scheduler.timers[0].fire()
-        XCTAssertEqual(refreshCount, 1)
-
-        postApplicationActivation("com.apple.TextEdit", to: center)
-        await allowMonitorNotificationDelivery()
-
-        XCTAssertFalse(monitor.isPolling)
-        XCTAssertEqual(scheduler.timers[0].invalidationCount, 1)
-        XCTAssertEqual(refreshCount, 2)
-
-        scheduler.timers[0].fire()
-        XCTAssertEqual(refreshCount, 2)
-    }
-
-    @MainActor
-    func testFinderActivationMonitorPreventsDuplicateTimersAndDropsCallbacksAfterStop() async {
-        let center = NotificationCenter()
-        let scheduler = FinderRefreshTimerSchedulerSpy()
-        let monitor = FinderActivationMonitor(
-            notificationCenter: center,
-            timerScheduler: scheduler,
-            applicationIdentifier: { notification in
-                notification.userInfo?["bundleIdentifier"] as? String
-            },
-            frontmostApplicationIdentifier: { nil }
-        )
-        var refreshCount = 0
-        monitor.onRefresh = { refreshCount += 1 }
-
-        monitor.start()
-        postApplicationActivation("com.apple.finder", to: center)
-        postApplicationActivation("com.apple.finder", to: center)
-        await allowMonitorNotificationDelivery()
-
-        XCTAssertEqual(scheduler.timers.count, 1)
-
-        monitor.stop()
-        XCTAssertFalse(monitor.isMonitoring)
-        XCTAssertFalse(monitor.isPolling)
-        XCTAssertEqual(scheduler.timers[0].invalidationCount, 1)
-
-        scheduler.timers[0].fire()
-        XCTAssertEqual(refreshCount, 0)
-
-        postApplicationActivation("com.apple.finder", to: center)
-        await allowMonitorNotificationDelivery()
-        XCTAssertEqual(scheduler.timers.count, 1)
-    }
-
-    @MainActor
-    func testFinderActivationMonitorStartsPollingWhenFinderIsAlreadyFrontmost() {
-        let scheduler = FinderRefreshTimerSchedulerSpy()
-        let monitor = FinderActivationMonitor(
-            notificationCenter: NotificationCenter(),
-            timerScheduler: scheduler,
-            applicationIdentifier: { _ in nil },
-            frontmostApplicationIdentifier: { "com.apple.finder" }
-        )
-
-        monitor.start()
-
-        XCTAssertTrue(monitor.isMonitoring)
-        XCTAssertTrue(monitor.isPolling)
-        XCTAssertEqual(scheduler.requestedIntervals, [1])
-    }
-
-    @MainActor
-    func testFinderActivationQueuedBeforeStopCannotRestartPolling() async {
-        let center = NotificationCenter()
-        let scheduler = FinderRefreshTimerSchedulerSpy()
-        let monitor = FinderActivationMonitor(
-            notificationCenter: center,
-            timerScheduler: scheduler,
-            applicationIdentifier: { notification in
-                notification.userInfo?["bundleIdentifier"] as? String
-            },
-            frontmostApplicationIdentifier: { nil }
-        )
-        monitor.start()
-
-        postApplicationActivation("com.apple.finder", to: center)
-        monitor.stop()
-        await allowMonitorNotificationDelivery()
-
-        XCTAssertFalse(monitor.isMonitoring)
-        XCTAssertFalse(monitor.isPolling)
-        XCTAssertTrue(scheduler.timers.isEmpty)
-    }
-
-    @MainActor
     func testStartupRestoreCanRetryWithoutOverwritingState() async {
         let statusSpy = StatusMenuControllerSpy()
         let portalSpy = PortalCoordinatorSpy()
@@ -308,58 +137,7 @@ final class AppDelegateTests: XCTestCase {
         XCTAssertEqual(stopCount, 0)
     }
 
-    func testFinderReaderMapsDesktopIconAndTextSizes() async throws {
-        let reader = FinderDesktopSettingsReader { source, promptIfNeeded in
-            XCTAssertTrue(source.contains("icon view options of desktop window"))
-            XCTAssertTrue(promptIfNeeded)
-            return .success("64\n12")
-        }
-
-        let settings = try await reader.readDesktopIconSettings(promptIfNeeded: true)
-
-        XCTAssertEqual(settings.iconSize, .medium)
-        XCTAssertEqual(settings.textSize, 12)
-    }
-
-    func testFinderReaderCanRefreshWithoutRequestingPermission() async throws {
-        let reader = FinderDesktopSettingsReader { _, promptIfNeeded in
-            XCTAssertFalse(promptIfNeeded)
-            return .success("80\n14")
-        }
-
-        let settings = try await reader.readDesktopIconSettings(promptIfNeeded: false)
-
-        XCTAssertEqual(settings.iconSize, .large)
-        XCTAssertEqual(settings.textSize, 14)
-    }
-
-    func testFinderReaderPreservesPermissionAndValidationFailures() async {
-        let permission = FinderAppleScriptFailure(
-            domain: "NSAppleScriptErrorDomain",
-            code: -1743,
-            message: "Not authorized to send Apple events to Finder."
-        )
-        await assertFinderError(
-            .scriptExecutionFailed(permission),
-            from: FinderDesktopSettingsReader { _, _ in
-                .failure(.scriptExecutionFailed(permission))
-            }
-        )
-        await assertFinderError(
-            .invalidResultFormat("64,12"),
-            from: FinderDesktopSettingsReader { _, _ in .success("64,12") }
-        )
-        await assertFinderError(
-            .invalidIconSize(129),
-            from: FinderDesktopSettingsReader { _, _ in .success("129\n12") }
-        )
-        await assertFinderError(
-            .invalidTextSize(33),
-            from: FinderDesktopSettingsReader { _, _ in .success("64\n33") }
-        )
-    }
-
-    func testInfoPlistDescribesUserInitiatedFinderAutomation() throws {
+    func testInfoPlistDoesNotRequestFinderAutomation() throws {
         let repositoryRoot = URL(filePath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -372,45 +150,9 @@ final class AppDelegateTests: XCTestCase {
                 as? [String: Any]
         )
 
-        XCTAssertEqual(
-            plist["NSAppleEventsUsageDescription"] as? String,
-            "Alcove 仅在你启用“跟随桌面设置”后读取 Finder 桌面的图标和文字大小，并在启动或重新激活时同步。"
-        )
+        XCTAssertNil(plist["NSAppleEventsUsageDescription"])
     }
 
-    private func assertFinderError(
-        _ expected: FinderDesktopSettingsReaderError,
-        from reader: FinderDesktopSettingsReader,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) async {
-        do {
-            _ = try await reader.readDesktopIconSettings(promptIfNeeded: true)
-            XCTFail("Expected \(expected)", file: file, line: line)
-        } catch let error as FinderDesktopSettingsReaderError {
-            XCTAssertEqual(error, expected, file: file, line: line)
-        } catch {
-            XCTFail("Unexpected error: \(error)", file: file, line: line)
-        }
-    }
-
-    @MainActor
-    private func postApplicationActivation(
-        _ bundleIdentifier: String,
-        to center: NotificationCenter
-    ) {
-        center.post(
-            name: NSWorkspace.didActivateApplicationNotification,
-            object: nil,
-            userInfo: ["bundleIdentifier": bundleIdentifier]
-        )
-    }
-
-    @MainActor
-    private func allowMonitorNotificationDelivery() async {
-        await Task.yield()
-        await Task.yield()
-    }
 }
 
 @MainActor

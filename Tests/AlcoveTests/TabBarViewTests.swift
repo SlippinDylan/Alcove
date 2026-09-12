@@ -95,7 +95,11 @@ final class TabBarViewTests: XCTestCase {
         defer { tabBar.closeSettingsWindow() }
 
         tabBar.tabButtons[second.id]?.performClick(nil)
-        try settingsButton(titled: "Remove First", in: tabBar).performClick(nil)
+        try folderActionButton(
+            labeled: NSLocalizedString("portal.settings.remove_folder_action", comment: ""),
+            for: "First",
+            in: tabBar
+        ).performClick(nil)
 
         XCTAssertEqual(selectedID, second.id)
         XCTAssertEqual(closedID, first.id)
@@ -103,38 +107,107 @@ final class TabBarViewTests: XCTestCase {
 
         tabBar.update(with: try makePortal(tabs: [first, second], selected: second.id))
         XCTAssertEqual(tabBar.selectedTabID, second.id)
-        XCTAssertNotNil(try? settingsButton(titled: "Remove Second", in: tabBar))
+        XCTAssertNotNil(try? folderActionButton(
+            labeled: NSLocalizedString("portal.settings.remove_folder_action", comment: ""),
+            for: "Second",
+            in: tabBar
+        ))
     }
 
     @MainActor
-    func testFolderSettingsInvokeCallbacksAndExposeSettingsIcon() throws {
+    func testFolderSettingsExposeIndependentNavigationAndForwardFolderActions() throws {
         let tabBar = TabBarView(frame: .zero)
-        let tab = makeTab(name: "First")
-        tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
+        let first = makeTab(name: "First")
+        let second = makeTab(name: "Second")
+        let third = makeTab(name: "Third")
+        tabBar.configure(with: try makePortal(
+            tabs: [first, second, third],
+            selected: first.id
+        ))
         var addCount = 0
-        var closedID: FolderTabID?
+        var closedIDs: [FolderTabID] = []
+        var moveRequests: [(FolderTabID, PortalTabMoveDirection)] = []
+        var removePortalCount = 0
         tabBar.onAdd = { addCount += 1 }
-        tabBar.onClose = { closedID = $0 }
+        tabBar.onClose = { closedIDs.append($0) }
+        tabBar.onMoveTab = { moveRequests.append(($0, $1)) }
+        tabBar.onRemovePortal = { removePortalCount += 1 }
         defer { tabBar.closeSettingsWindow() }
 
-        try settingsButton(titled: "Add Folder…", in: tabBar).performClick(nil)
-        try settingsButton(titled: "Remove First", in: tabBar).performClick(nil)
+        let settingsController = try settingsController(in: tabBar)
+        let settingsViewController = settingsController.settingsViewController
+        let settingsRoot = settingsViewController.view
+        settingsRoot.layoutSubtreeIfNeeded()
+        XCTAssertEqual(
+            Set(settingsViewController.categoryButtons.keys),
+            [.folders, .style]
+        )
+        XCTAssertEqual(settingsViewController.selectedCategory, .folders)
+        XCTAssertEqual(settingsViewController.categoryButtons[.folders]?.state, .on)
+        XCTAssertEqual(settingsViewController.categoryButtons[.style]?.state, .off)
+        XCTAssertTrue(settingsViewController.separatorView.superview === settingsRoot)
+        XCTAssertEqual(settingsViewController.separatorView.boxType, .separator)
+        let navigationFrame = try XCTUnwrap(
+            settingsViewController.categoryButtons[.folders]
+        ).convert(
+            try XCTUnwrap(settingsViewController.categoryButtons[.folders]).bounds,
+            to: settingsRoot
+        )
+        let separatorFrame = settingsViewController.separatorView.convert(
+            settingsViewController.separatorView.bounds,
+            to: settingsRoot
+        )
+        XCTAssertGreaterThan(navigationFrame.minY, separatorFrame.maxY)
+
+        try settingsButton(
+            titled: NSLocalizedString("portal.settings.add_folder", comment: ""),
+            in: tabBar
+        ).performClick(nil)
+        let firstMoveUp = try folderActionButton(
+            labeled: NSLocalizedString("portal.settings.move_up", comment: ""),
+            for: "First",
+            in: tabBar
+        )
+        XCTAssertFalse(firstMoveUp.isEnabled)
+        try folderActionButton(
+            labeled: NSLocalizedString("portal.settings.move_down", comment: ""),
+            for: "First",
+            in: tabBar
+        ).performClick(nil)
+        try folderActionButton(
+            labeled: NSLocalizedString("portal.settings.move_up", comment: ""),
+            for: "Second",
+            in: tabBar
+        ).performClick(nil)
+        try folderActionButton(
+            labeled: NSLocalizedString("portal.settings.remove_folder_action", comment: ""),
+            for: "Third",
+            in: tabBar
+        ).performClick(nil)
+        try settingsButton(
+            titled: NSLocalizedString("portal.settings.remove_portal", comment: ""),
+            in: tabBar
+        ).performClick(nil)
 
         XCTAssertEqual(addCount, 1)
-        XCTAssertEqual(closedID, tab.id)
-        XCTAssertEqual(tabBar.managementButton.accessibilityLabel(), "Portal settings")
+        XCTAssertEqual(closedIDs, [third.id])
+        XCTAssertEqual(moveRequests.count, 2)
+        XCTAssertEqual(moveRequests[0].0, first.id)
+        XCTAssertEqual(moveRequests[0].1, .down)
+        XCTAssertEqual(moveRequests[1].0, second.id)
+        XCTAssertEqual(moveRequests[1].1, .up)
+        XCTAssertEqual(removePortalCount, 1)
+        XCTAssertEqual(
+            tabBar.managementButton.accessibilityLabel(),
+            NSLocalizedString("portal.settings.label", comment: "")
+        )
         XCTAssertNotNil(tabBar.managementButton.image)
-        XCTAssertEqual(
-            try settingsController(in: tabBar).tabViewController.tabViewItems.map(\.label),
-            ["Folders", "Style", "Other"]
-        )
-        let settingsWindow = try XCTUnwrap(tabBar.settingsWindowController?.window)
-        XCTAssertEqual(settingsWindow.frame.size, NSSize(width: 400, height: 572))
-        XCTAssertEqual(
-            tabBar.settingsWindowController?.tabViewController.tabStyle,
-            .toolbar
-        )
-        XCTAssertNotNil(settingsWindow.toolbar)
+        let settingsWindow = try XCTUnwrap(settingsController.window)
+        XCTAssertEqual(settingsWindow.contentView?.bounds.size, NSSize(width: 400, height: 544))
+        XCTAssertNil(settingsWindow.toolbar)
+        XCTAssertFalse(settingsWindow.titlebarAppearsTransparent)
+        XCTAssertTrue(settingsWindow.styleMask.contains(.titled))
+        XCTAssertTrue(settingsWindow.styleMask.contains(.closable))
         if let visibleFrame = settingsWindow.screen?.visibleFrame {
             XCTAssertEqual(settingsWindow.frame.midX, visibleFrame.midX, accuracy: 0.5)
             XCTAssertEqual(settingsWindow.frame.midY, visibleFrame.midY, accuracy: 0.5)
@@ -151,78 +224,54 @@ final class TabBarViewTests: XCTestCase {
     }
 
     @MainActor
-    func testStyleCategoryShowsCurrentChoicesAndInvokesCallback() throws {
+    func testStyleCategoryUsesFiveAndThreeStepSlidersAndInvokesCallbacks() throws {
         let tab = makeTab(name: "First")
         var portal = try makePortal(tabs: [tab], selected: tab.id)
         portal.updateBackgroundStyle(.lowTransparency)
         let tabBar = TabBarView(frame: .zero)
         var requestedStyle: PortalBackgroundStyle?
+        var requestedIconSize: IconSize?
         tabBar.onSetBackgroundStyle = { requestedStyle = $0 }
+        tabBar.onSetIconSize = { requestedIconSize = $0 }
         defer { tabBar.closeSettingsWindow() }
 
         tabBar.configure(with: portal)
 
-        try selectCategory(named: "Style", in: tabBar)
-        let background = try popup(
+        try selectCategory(.style, in: tabBar)
+        let background = try slider(
             identifier: "portal-settings.background",
             in: tabBar
         )
-        XCTAssertEqual(background.itemTitles, [
-            "High Transparency", "Standard", "Low Transparency",
-        ])
-        XCTAssertEqual(background.titleOfSelectedItem, "Low Transparency")
+        let iconSize = try slider(identifier: "portal-settings.icon-size", in: tabBar)
+        XCTAssertEqual(background.minValue, 0)
+        XCTAssertEqual(background.maxValue, 4)
+        XCTAssertEqual(background.numberOfTickMarks, 5)
+        XCTAssertTrue(background.allowsTickMarkValuesOnly)
+        XCTAssertEqual(background.doubleValue, 3)
+        XCTAssertEqual(iconSize.minValue, 0)
+        XCTAssertEqual(iconSize.maxValue, 2)
+        XCTAssertEqual(iconSize.numberOfTickMarks, 3)
+        XCTAssertTrue(iconSize.allowsTickMarkValuesOnly)
+        XCTAssertEqual(iconSize.doubleValue, 1)
 
-        background.selectItem(at: 0)
+        background.doubleValue = 0
         NSApplication.shared.sendAction(
             try XCTUnwrap(background.action),
             to: background.target,
             from: background
         )
-        XCTAssertEqual(requestedStyle, .highTransparency)
+        XCTAssertEqual(requestedStyle, .maximumTransparency)
+        iconSize.doubleValue = 0
+        NSApplication.shared.sendAction(
+            try XCTUnwrap(iconSize.action),
+            to: iconSize.target,
+            from: iconSize
+        )
+        XCTAssertEqual(requestedIconSize, .small)
 
-        portal.updateBackgroundStyle(.highTransparency)
+        portal.updateBackgroundStyle(.minimumTransparency)
         tabBar.update(with: portal)
-        try selectCategory(named: "Style", in: tabBar)
-        XCTAssertEqual(
-            try popup(identifier: "portal-settings.background", in: tabBar).titleOfSelectedItem,
-            "High Transparency"
-        )
-    }
-
-    @MainActor
-    func testStyleAndOtherCategoriesForwardIconAndPortalActions() throws {
-        let tab = makeTab(name: "First")
-        let tabBar = TabBarView(frame: .zero)
-        var iconSize: IconSize?
-        var followCount = 0
-        var removeCount = 0
-        tabBar.onSetIconSize = { iconSize = $0 }
-        tabBar.onFollowDesktopIconSettings = { followCount += 1 }
-        tabBar.onRemovePortal = { removeCount += 1 }
-        tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
-        defer { tabBar.closeSettingsWindow() }
-
-        try selectCategory(named: "Style", in: tabBar)
-        let iconPopup = try popup(identifier: "portal-settings.icon-size", in: tabBar)
-        iconPopup.selectItem(withTitle: "Small")
-        NSApplication.shared.sendAction(
-            try XCTUnwrap(iconPopup.action),
-            to: iconPopup.target,
-            from: iconPopup
-        )
-        XCTAssertEqual(iconSize, .small)
-
-        iconPopup.selectItem(withTitle: "Follow Desktop")
-        NSApplication.shared.sendAction(
-            try XCTUnwrap(iconPopup.action),
-            to: iconPopup.target,
-            from: iconPopup
-        )
-        XCTAssertEqual(followCount, 1)
-
-        try selectCategory(named: "Other", in: tabBar)
-        try settingsButton(titled: "Remove Portal", in: tabBar).performClick(nil)
-        XCTAssertEqual(removeCount, 1)
+        XCTAssertEqual(try slider(identifier: "portal-settings.background", in: tabBar).doubleValue, 4)
     }
 
     @MainActor
@@ -342,10 +391,7 @@ final class TabBarViewTests: XCTestCase {
 
     @MainActor
     private func settingsRoot(in tabBar: TabBarView) throws -> NSView {
-        let controller = try settingsController(in: tabBar)
-        let index = controller.tabViewController.selectedTabViewItemIndex
-        let item = controller.tabViewController.tabViewItems[index]
-        return try XCTUnwrap(item.viewController).view
+        try settingsController(in: tabBar).settingsViewController.view
     }
 
     @MainActor
@@ -358,18 +404,41 @@ final class TabBarViewTests: XCTestCase {
     }
 
     @MainActor
-    private func selectCategory(named name: String, in tabBar: TabBarView) throws {
-        let tabs = try settingsController(in: tabBar).tabViewController
-        let index = try XCTUnwrap(tabs.tabViewItems.firstIndex { $0.label == name })
-        tabs.selectedTabViewItemIndex = index
+    private func selectCategory(
+        _ category: PortalSettingsViewController.Category,
+        in tabBar: TabBarView
+    ) throws {
+        try XCTUnwrap(
+            settingsController(in: tabBar).settingsViewController.categoryButtons[category]
+        ).performClick(nil)
     }
 
     @MainActor
-    private func popup(identifier: String, in tabBar: TabBarView) throws -> NSPopUpButton {
+    private func slider(identifier: String, in tabBar: TabBarView) throws -> NSSlider {
         try XCTUnwrap(
             descendants(of: try settingsRoot(in: tabBar))
-                .compactMap { $0 as? NSPopUpButton }
+                .compactMap { $0 as? NSSlider }
                 .first { $0.identifier?.rawValue == identifier }
+        )
+    }
+
+    @MainActor
+    private func folderActionButton(
+        labeled label: String,
+        for folderName: String,
+        in tabBar: TabBarView
+    ) throws -> NSButton {
+        let folderRow = try XCTUnwrap(
+            descendants(of: try settingsRoot(in: tabBar))
+                .compactMap { $0 as? NSStackView }
+                .first { row in
+                    row.subviews.compactMap { $0 as? NSTextField }
+                        .contains { $0.stringValue == folderName }
+                }
+        )
+        return try XCTUnwrap(
+            folderRow.subviews.compactMap { $0 as? NSButton }
+                .first { $0.accessibilityLabel() == label }
         )
     }
 

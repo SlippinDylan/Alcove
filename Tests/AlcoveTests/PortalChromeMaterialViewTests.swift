@@ -168,7 +168,7 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         let surface = PortalChromeMaterialView(
             contentView: NSView(),
             role: .surface,
-            backgroundStyle: .highTransparency,
+            backgroundStyle: .maximumTransparency,
             accessibilityProvider: { .standard },
             supportsGlass: false,
             notificationCenter: NotificationCenter()
@@ -185,6 +185,10 @@ final class PortalChromeMaterialViewTests: XCTestCase {
 
         XCTAssertEqual(effect.material, .popover)
         XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
+        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.04, accuracy: 0.001)
+        surface.updateBackgroundStyle(.highTransparency)
+        XCTAssertEqual(effect.material, .popover)
+        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
         XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.08, accuracy: 0.001)
         surface.updateBackgroundStyle(.standard)
         XCTAssertEqual(effect.material, .popover)
@@ -194,6 +198,10 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         XCTAssertEqual(effect.material, .popover)
         XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
         XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.26, accuracy: 0.001)
+        surface.updateBackgroundStyle(.minimumTransparency)
+        XCTAssertEqual(effect.material, .popover)
+        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
+        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.34, accuracy: 0.001)
         let initialTint = try XCTUnwrap(surface.surfaceTintView)
         XCTAssertNil(initialTint.hitTest(NSPoint(x: 10, y: 10)))
         let materialIndex = try XCTUnwrap(surface.subviews.firstIndex(of: effect))
@@ -205,7 +213,7 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         surface.rebuildMaterial()
         XCTAssertNil(initialTint.superview)
         XCTAssertNotNil(surface.surfaceTintView)
-        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.26, accuracy: 0.001)
+        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.34, accuracy: 0.001)
     }
 
     @MainActor

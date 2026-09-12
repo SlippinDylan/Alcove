@@ -44,7 +44,7 @@ public struct CreationGrid: Sendable, Hashable {
         let minimumGridSize = metrics.contentSize(for: .minimum)
         let minimumSize = CGSize(
             width: minimumGridSize.width,
-            height: minimumGridSize.height + PortalLayoutMetrics.tabBarHeight
+            height: minimumGridSize.height + PortalLayoutMetrics.chromeHeight
         )
         let columnIncrement = metrics.itemSize.width + metrics.horizontalSpacing
         let rowIncrement = metrics.itemSize.height + metrics.verticalSpacing
@@ -70,7 +70,7 @@ public struct CreationGrid: Sendable, Hashable {
         let gridSize = metrics.contentSize(for: capacity)
         return CGSize(
             width: gridSize.width,
-            height: gridSize.height + PortalLayoutMetrics.tabBarHeight
+            height: gridSize.height + PortalLayoutMetrics.chromeHeight
         )
     }
 

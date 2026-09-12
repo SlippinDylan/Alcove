@@ -644,6 +644,26 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testSettingsTabMovePersistsOrderAndPreservesSelection() async throws {
+        var portal = try makePortal(path: "/tmp/first", x: 10)
+        let secondID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
+        let selectedID = try XCTUnwrap(portal.selectedTabID)
+        let store = PortalStoreSpy(portals: [portal])
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(store: store, windowFactory: factory)
+        try await coordinator.restorePortals()
+
+        factory.windows[0].onMoveTab?(secondID, .up)
+        await coordinator.waitForTabMutationForTesting()
+
+        XCTAssertEqual(coordinator.portalStates[0].tabs.map(\.id), [secondID, selectedID])
+        XCTAssertEqual(coordinator.portalStates[0].selectedTabID, selectedID)
+        XCTAssertEqual(factory.windows[0].updatedPortals.last?.tabs.map(\.id), [secondID, selectedID])
+        let saves = await store.savedSnapshots()
+        XCTAssertEqual(saves.last?.first?.tabs.map(\.id), [secondID, selectedID])
+    }
+
+    @MainActor
     func testCancelledCloseTabDoesNotPresentPersistenceFailure() async throws {
         var portal = try makePortal(path: "/tmp/first", x: 10)
         let secondID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
@@ -737,12 +757,13 @@ final class PortalCoordinatorTests: XCTestCase {
         XCTAssertEqual(menus.last, [
             PortalMenuEntry(
                 id: portal.id,
-                title: "selected",
-                iconLayout: .fixed(.medium)
+                title: "selected"
             ),
         ])
         coordinator.showPortal(portal.id)
         XCTAssertEqual(factory.windows[0].presentCount, 2)
+        coordinator.hidePortal(portal.id)
+        XCTAssertEqual(factory.windows[0].hideCount, 1)
 
         await coordinator.setIconSize(.large, for: portal.id)
 
@@ -750,7 +771,7 @@ final class PortalCoordinatorTests: XCTestCase {
         XCTAssertEqual(factory.windows[0].updatedPortals.last?.iconSize, .large)
         let saves = await store.savedSnapshots()
         XCTAssertEqual(saves.last?.first?.iconSize, .large)
-        XCTAssertEqual(menus.last?.first?.iconLayout, .fixed(.large))
+        XCTAssertEqual(menus.last?.first?.title, "selected")
 
         await coordinator.removePortal(portal.id)
         XCTAssertTrue(coordinator.portalStates.isEmpty)
@@ -785,18 +806,12 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testInPortalSettingsCanChangeIconModeAndRemovePortal() async throws {
+    func testInPortalSettingsCanChangeManualIconSizePinAndRemovePortal() async throws {
         let portal = try makePortal(path: "/tmp/first", x: 10)
-        let desktopSettings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
         let factory = PortalWindowFactorySpy()
         let coordinator = PortalCoordinator(
             store: PortalStoreSpy(portals: [portal]),
-            windowFactory: factory,
-            finderSettingsReader: FinderDesktopSettingsReaderStub(
-                results: [.success(desktopSettings)]
-            )
+            windowFactory: factory
         )
         try await coordinator.restorePortals()
 
@@ -804,12 +819,10 @@ final class PortalCoordinatorTests: XCTestCase {
         await coordinator.waitForTabMutationForTesting()
         XCTAssertEqual(coordinator.portalStates[0].iconLayout, .fixed(.small))
 
-        factory.windows[0].onFollowDesktopIconSettings?()
+        factory.windows[0].onSetPinned?(true)
         await coordinator.waitForTabMutationForTesting()
-        XCTAssertEqual(
-            coordinator.portalStates[0].iconLayout,
-            .followDesktop(desktopSettings)
-        )
+        XCTAssertTrue(coordinator.portalStates[0].isPinned)
+        XCTAssertEqual(factory.windows[0].updatedPortals.last?.isPinned, true)
 
         factory.windows[0].onRemovePortal?()
         await coordinator.waitForTabMutationForTesting()
@@ -863,394 +876,25 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testFollowDesktopSettingsPersistsBeforeUpdatingTheRequestedPortal() async throws {
+    func testPinnedStateSaveFailureLeavesPortalAndWindowUntouched() async throws {
         let portal = try makePortal(path: "/tmp/first", x: 10)
-        let settings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        let reader = FinderDesktopSettingsReaderStub(results: [.success(settings)])
-        let store = PortalStoreSpy(portals: [portal])
-        let factory = PortalWindowFactorySpy()
-        let coordinator = PortalCoordinator(
-            store: store,
-            windowFactory: factory,
-            finderSettingsReader: reader
-        )
-        try await coordinator.restorePortals()
-
-        await coordinator.followDesktopIconSettings(for: portal.id)
-
-        XCTAssertEqual(coordinator.portalStates[0].iconLayout, .followDesktop(settings))
-        XCTAssertEqual(
-            factory.windows[0].updatedPortals.last?.iconLayout,
-            .followDesktop(settings)
-        )
-        let saves = await store.savedSnapshots()
-        XCTAssertEqual(saves.last?.first?.iconLayout, .followDesktop(settings))
-        XCTAssertNil(coordinator.finderSettingsError)
-        let readCount = await reader.readCount
-        XCTAssertEqual(readCount, 1)
-        let promptRequests = await reader.promptRequests
-        XCTAssertEqual(promptRequests, [true])
-    }
-
-    @MainActor
-    func testFinderMonitoringRunsOnlyWhileAPortalFollowsDesktop() async throws {
-        let portal = try makePortal(path: "/tmp/first", x: 10)
-        let settings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        let monitor = FinderActivationMonitor(
-            notificationCenter: NotificationCenter(),
-            applicationIdentifier: { _ in nil },
-            frontmostApplicationIdentifier: { nil }
-        )
-        let coordinator = PortalCoordinator(
-            store: PortalStoreSpy(portals: [portal]),
-            windowFactory: PortalWindowFactorySpy(),
-            finderSettingsReader: FinderDesktopSettingsReaderStub(
-                results: [.success(settings)]
-            ),
-            finderActivationMonitor: monitor
-        )
-
-        try await coordinator.restorePortals()
-        XCTAssertFalse(monitor.isMonitoring)
-
-        await coordinator.followDesktopIconSettings(for: portal.id)
-        XCTAssertTrue(monitor.isMonitoring)
-
-        await coordinator.setIconSize(.small, for: portal.id)
-        XCTAssertFalse(monitor.isMonitoring)
-    }
-
-    @MainActor
-    func testFinderPermissionFailureLeavesPortalAndWindowUntouched() async throws {
-        let portal = try makePortal(path: "/tmp/first", x: 10)
-        let failure = FinderAppleScriptFailure(
-            domain: "NSAppleScriptErrorDomain",
-            code: -1743,
-            message: "Not authorized"
-        )
-        let expectedError = FinderDesktopSettingsReaderError.scriptExecutionFailed(failure)
-        let reader = FinderDesktopSettingsReaderStub(results: [.failure(expectedError)])
-        let errors = FinderDesktopSettingsErrorPresenterSpy()
-        let factory = PortalWindowFactorySpy()
-        let coordinator = PortalCoordinator(
-            store: PortalStoreSpy(portals: [portal]),
-            windowFactory: factory,
-            finderSettingsReader: reader,
-            finderSettingsErrorPresenter: errors
-        )
-        try await coordinator.restorePortals()
-
-        await coordinator.followDesktopIconSettings(for: portal.id)
-
-        XCTAssertEqual(coordinator.portalStates, [portal])
-        XCTAssertEqual(factory.windows[0].updateCount, 0)
-        XCTAssertEqual(coordinator.finderSettingsError, expectedError)
-        XCTAssertEqual(errors.errors, [expectedError])
-    }
-
-    @MainActor
-    func testFollowDesktopSaveFailureLeavesPortalAndWindowUntouched() async throws {
-        let portal = try makePortal(path: "/tmp/first", x: 10)
-        let settings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        let reader = FinderDesktopSettingsReaderStub(results: [.success(settings)])
-        let store = PortalStoreSpy(portals: [portal], saveError: .rejected)
-        let factory = PortalWindowFactorySpy()
-        let persistenceErrors = PersistenceErrorPresenterSpy()
-        let finderErrors = FinderDesktopSettingsErrorPresenterSpy()
-        let coordinator = PortalCoordinator(
-            store: store,
-            windowFactory: factory,
-            persistenceErrorPresenter: persistenceErrors,
-            finderSettingsReader: reader,
-            finderSettingsErrorPresenter: finderErrors
-        )
-        try await coordinator.restorePortals()
-
-        await coordinator.followDesktopIconSettings(for: portal.id)
-
-        XCTAssertEqual(coordinator.portalStates, [portal])
-        XCTAssertEqual(factory.windows[0].updateCount, 0)
-        XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
-        XCTAssertEqual(persistenceErrors.errors.count, 1)
-        XCTAssertTrue(finderErrors.errors.isEmpty)
-    }
-
-    @MainActor
-    func testRefreshingDesktopSettingsUpdatesOnlyFollowedPortalsInOneSave() async throws {
-        let oldSettings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .medium, textSize: 12)
-        )
-        let newSettings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        var followed = try makePortal(path: "/tmp/followed", x: 10)
-        followed.followDesktop(oldSettings)
-        let fixed = try makePortal(path: "/tmp/fixed", x: 400)
-        let store = PortalStoreSpy(portals: [followed, fixed])
-        let factory = PortalWindowFactorySpy()
-        let reader = FinderDesktopSettingsReaderStub(results: [.success(newSettings)])
-        let creationGridState = PortalCreationGridState(
-            grid: try CreationGrid(metrics: GridMetrics(iconSize: .medium))
-        )
-        let coordinator = PortalCoordinator(
-            store: store,
-            windowFactory: factory,
-            finderSettingsReader: reader,
-            portalCreationGridState: creationGridState
-        )
-        try await coordinator.restorePortals()
-
-        await coordinator.refreshFollowedDesktopIconSettings()
-
-        XCTAssertEqual(
-            coordinator.portalStates.map(\.iconLayout),
-            [.followDesktop(newSettings), .fixed(.medium)]
-        )
-        XCTAssertEqual(factory.windows[0].updateCount, 1)
-        XCTAssertEqual(factory.windows[1].updateCount, 0)
-        let followedContentSize = NSWindow.contentRect(
-            forFrameRect: coordinator.portalStates[0].frame,
-            styleMask: [.resizable]
-        ).size
-        XCTAssertEqual(
-            followedContentSize,
-            PortalViewController.contentSize(
-                for: followed.gridCapacity,
-                iconLayout: .followDesktop(newSettings)
-            )
-        )
-        XCTAssertEqual(creationGridState.grid.metrics.iconSize, newSettings.iconSize)
-        XCTAssertEqual(creationGridState.grid.metrics.labelFontSize, newSettings.textSize)
-        let saves = await store.savedSnapshots()
-        XCTAssertEqual(saves.count, 1)
-        XCTAssertEqual(saves[0], coordinator.portalStates)
-        let promptRequests = await reader.promptRequests
-        XCTAssertEqual(promptRequests, [false])
-    }
-
-    @MainActor
-    func testDesktopRefreshDefersDuringUserInteractionAndRetriesAfterItEnds() async throws {
-        let oldSettings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .medium, textSize: 12)
-        )
-        let newSettings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        var portal = try makePortal(path: "/tmp/followed", x: 10)
-        portal.followDesktop(oldSettings)
-        let factory = PortalWindowFactorySpy()
-        let reader = FinderDesktopSettingsReaderStub(results: [.success(newSettings)])
-        let coordinator = PortalCoordinator(
-            store: PortalStoreSpy(portals: [portal]),
-            windowFactory: factory,
-            finderSettingsReader: reader,
-            finderActivationMonitor: FinderActivationMonitor(
-                notificationCenter: NotificationCenter(),
-                applicationIdentifier: { _ in nil },
-                frontmostApplicationIdentifier: { nil }
-            )
-        )
-        try await coordinator.restorePortals()
-        factory.windows[0].isUserPlacementInteractionActive = true
-
-        await coordinator.refreshFollowedDesktopIconSettings()
-
-        XCTAssertEqual(coordinator.portalStates[0].iconLayout, .followDesktop(oldSettings))
-        let readCountWhileResizing = await reader.readCount
-        XCTAssertEqual(readCountWhileResizing, 0)
-
-        factory.windows[0].isUserPlacementInteractionActive = false
-        factory.windows[0].onUserPlacementInteractionCancelled?()
-        await coordinator.waitForFinderRefreshForTesting()
-
-        XCTAssertEqual(coordinator.portalStates[0].iconLayout, .followDesktop(newSettings))
-        XCTAssertEqual(coordinator.portalStates[0].gridCapacity, portal.gridCapacity)
-        let promptRequests = await reader.promptRequests
-        XCTAssertEqual(promptRequests, [false])
-    }
-
-    @MainActor
-    func testDesktopRefreshDoesNotApplyWhenInteractionStartsDuringFinderRead() async throws {
-        let initial = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .medium, textSize: 12)
-        )
-        let refreshed = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        var portal = try makePortal(path: "/tmp/followed", x: 10)
-        portal.followDesktop(initial)
-        let factory = PortalWindowFactorySpy()
-        let reader = ControlledFinderDesktopSettingsReader(explicitSettings: refreshed)
-        let creationGridState = PortalCreationGridState(
-            grid: try CreationGrid(
-                metrics: GridMetrics(
-                    iconSize: initial.iconSize,
-                    labelFontSize: initial.textSize
-                )
-            )
-        )
-        let coordinator = PortalCoordinator(
-            store: PortalStoreSpy(portals: [portal]),
-            windowFactory: factory,
-            finderSettingsReader: reader,
-            portalCreationGridState: creationGridState
-        )
-        try await coordinator.restorePortals()
-
-        let refresh = Task { await coordinator.refreshFollowedDesktopIconSettings() }
-        while !(await reader.hasPendingRefresh) {
-            await Task.yield()
-        }
-        factory.windows[0].isUserPlacementInteractionActive = true
-        await reader.completeRefresh(with: refreshed)
-        await refresh.value
-
-        XCTAssertEqual(coordinator.portalStates[0].iconLayout, .followDesktop(initial))
-        XCTAssertEqual(creationGridState.grid.metrics.iconSize, initial.iconSize)
-        XCTAssertEqual(factory.windows[0].updateCount, 0)
-    }
-
-    @MainActor
-    func testDesktopRefreshRollsBackWhenInteractionStartsDuringSave() async throws {
-        let initial = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .medium, textSize: 12)
-        )
-        let refreshed = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        var portal = try makePortal(path: "/tmp/followed", x: 10)
-        portal.followDesktop(initial)
-        let store = SuspendingPortalStore(portals: [portal])
-        let factory = PortalWindowFactorySpy()
-        let coordinator = PortalCoordinator(
-            store: store,
-            windowFactory: factory,
-            finderSettingsReader: FinderDesktopSettingsReaderStub(
-                results: [.success(refreshed)]
-            )
-        )
-        try await coordinator.restorePortals()
-        await store.suspendNextSave()
-
-        let refresh = Task { await coordinator.refreshFollowedDesktopIconSettings() }
-        await store.waitUntilSaveIsSuspended()
-        factory.windows[0].isUserPlacementInteractionActive = true
-        await store.resumeSave()
-        await refresh.value
-
-        XCTAssertEqual(coordinator.portalStates[0].iconLayout, .followDesktop(initial))
-        XCTAssertEqual(factory.windows[0].updateCount, 0)
-        let saves = await store.savedSnapshots()
-        XCTAssertEqual(saves.count, 2)
-        XCTAssertEqual(saves[0][0].iconLayout, .followDesktop(refreshed))
-        XCTAssertEqual(saves[1], [portal])
-    }
-
-    @MainActor
-    func testDesktopRefreshSaveFailureLeavesAllFollowedPortalsUntouched() async throws {
-        let oldSettings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .medium, textSize: 12)
-        )
-        let newSettings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        var portal = try makePortal(path: "/tmp/followed", x: 10)
-        portal.followDesktop(oldSettings)
         let store = PortalStoreSpy(portals: [portal], saveError: .rejected)
         let factory = PortalWindowFactorySpy()
         let persistenceErrors = PersistenceErrorPresenterSpy()
         let coordinator = PortalCoordinator(
             store: store,
             windowFactory: factory,
-            persistenceErrorPresenter: persistenceErrors,
-            finderSettingsReader: FinderDesktopSettingsReaderStub(
-                results: [.success(newSettings)]
-            )
+            persistenceErrorPresenter: persistenceErrors
         )
         try await coordinator.restorePortals()
 
-        await coordinator.refreshFollowedDesktopIconSettings()
+        factory.windows[0].onSetPinned?(true)
+        await coordinator.waitForTabMutationForTesting()
 
-        XCTAssertEqual(coordinator.portalStates, [portal])
+        XCTAssertFalse(coordinator.portalStates[0].isPinned)
         XCTAssertEqual(factory.windows[0].updateCount, 0)
         XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
         XCTAssertEqual(persistenceErrors.errors.count, 1)
-    }
-
-    @MainActor
-    func testExplicitFollowWinsOverAnOlderPendingRefresh() async throws {
-        let initial = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .medium, textSize: 12)
-        )
-        let staleRefresh = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .small, textSize: 10)
-        )
-        let explicit = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        var portal = try makePortal(path: "/tmp/followed", x: 10)
-        portal.followDesktop(initial)
-        let reader = ControlledFinderDesktopSettingsReader(explicitSettings: explicit)
-        let creationGridState = PortalCreationGridState(
-            grid: try CreationGrid(
-                metrics: GridMetrics(
-                    iconSize: initial.iconSize,
-                    labelFontSize: initial.textSize
-                )
-            )
-        )
-        let coordinator = PortalCoordinator(
-            store: PortalStoreSpy(portals: [portal]),
-            windowFactory: PortalWindowFactorySpy(),
-            finderSettingsReader: reader,
-            portalCreationGridState: creationGridState
-        )
-        try await coordinator.restorePortals()
-
-        let refresh = Task { await coordinator.refreshFollowedDesktopIconSettings() }
-        while !(await reader.hasPendingRefresh) {
-            await Task.yield()
-        }
-        await coordinator.followDesktopIconSettings(for: portal.id)
-        await reader.completeRefresh(with: staleRefresh)
-        await refresh.value
-
-        XCTAssertEqual(coordinator.portalStates[0].iconLayout, .followDesktop(explicit))
-        XCTAssertEqual(creationGridState.grid.metrics.iconSize, explicit.iconSize)
-        XCTAssertEqual(creationGridState.grid.metrics.labelFontSize, explicit.textSize)
-    }
-
-    @MainActor
-    func testManualIconPresetCancelsAPendingExplicitFollow() async throws {
-        let desktopSettings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        let portal = try makePortal(path: "/tmp/portal", x: 10)
-        let reader = SuspendedExplicitFinderDesktopSettingsReader()
-        let coordinator = PortalCoordinator(
-            store: PortalStoreSpy(portals: [portal]),
-            windowFactory: PortalWindowFactorySpy(),
-            finderSettingsReader: reader
-        )
-        try await coordinator.restorePortals()
-
-        let follow = Task {
-            await coordinator.followDesktopIconSettings(for: portal.id)
-        }
-        while !(await reader.hasPendingExplicitRequest) {
-            await Task.yield()
-        }
-        await coordinator.setIconSize(.small, for: portal.id)
-        await reader.completeExplicitRequest(with: desktopSettings)
-        await follow.value
-
-        XCTAssertEqual(coordinator.portalStates[0].iconLayout, .fixed(.small))
     }
 
     @MainActor
@@ -1379,10 +1023,7 @@ final class PortalCoordinatorTests: XCTestCase {
         try await withPortalDirectory { replacement in
             var portal = try makePortal(path: "/tmp/missing", x: 10)
             portal.updateBackgroundStyle(.lowTransparency)
-            let desktopSettings = try XCTUnwrap(
-                DesktopIconSettings(iconSize: .large, textSize: 14)
-            )
-            portal.followDesktop(desktopSettings)
+            portal.updateIconSize(.large)
             let store = PortalStoreSpy(portals: [portal])
             let factory = PortalWindowFactorySpy()
             let coordinator = PortalCoordinator(
@@ -1399,7 +1040,7 @@ final class PortalCoordinatorTests: XCTestCase {
             XCTAssertEqual(updated.tabs[0].id, portal.selectedTabID)
             XCTAssertEqual(updated.tabs[0].folderURL, replacement.standardizedFileURL)
             XCTAssertEqual(updated.backgroundStyle, .lowTransparency)
-            XCTAssertEqual(updated.iconLayout, .followDesktop(desktopSettings))
+            XCTAssertEqual(updated.iconLayout, .fixed(.large))
             XCTAssertEqual(factory.windows[0].updatedPortals.last, updated)
             let saves = await store.savedSnapshots()
             XCTAssertEqual(saves.last, [updated])
@@ -1600,81 +1241,6 @@ private enum PortalStoreFixtureError: Error, Equatable {
     case cancelled
 }
 
-private actor FinderDesktopSettingsReaderStub: FinderDesktopSettingsReading {
-    private var results: [Result<DesktopIconSettings, FinderDesktopSettingsReaderError>]
-    private(set) var readCount = 0
-    private(set) var promptRequests: [Bool] = []
-
-    init(results: [Result<DesktopIconSettings, FinderDesktopSettingsReaderError>]) {
-        self.results = results
-    }
-
-    func readDesktopIconSettings(promptIfNeeded: Bool) async throws -> DesktopIconSettings {
-        readCount += 1
-        promptRequests.append(promptIfNeeded)
-        guard !results.isEmpty else {
-            throw FinderDesktopSettingsReaderError.invalidResultFormat("No stub result")
-        }
-        return try results.removeFirst().get()
-    }
-}
-
-private actor ControlledFinderDesktopSettingsReader: FinderDesktopSettingsReading {
-    private let explicitSettings: DesktopIconSettings
-    private var refreshContinuation: CheckedContinuation<DesktopIconSettings, Never>?
-
-    init(explicitSettings: DesktopIconSettings) {
-        self.explicitSettings = explicitSettings
-    }
-
-    var hasPendingRefresh: Bool {
-        refreshContinuation != nil
-    }
-
-    func readDesktopIconSettings(promptIfNeeded: Bool) async throws -> DesktopIconSettings {
-        if promptIfNeeded {
-            return explicitSettings
-        }
-        return await withCheckedContinuation { continuation in
-            refreshContinuation = continuation
-        }
-    }
-
-    func completeRefresh(with settings: DesktopIconSettings) {
-        refreshContinuation?.resume(returning: settings)
-        refreshContinuation = nil
-    }
-}
-
-private actor SuspendedExplicitFinderDesktopSettingsReader: FinderDesktopSettingsReading {
-    private var continuation: CheckedContinuation<DesktopIconSettings, Never>?
-
-    var hasPendingExplicitRequest: Bool {
-        continuation != nil
-    }
-
-    func readDesktopIconSettings(promptIfNeeded: Bool) async throws -> DesktopIconSettings {
-        precondition(promptIfNeeded)
-        return await withCheckedContinuation { continuation in
-            self.continuation = continuation
-        }
-    }
-
-    func completeExplicitRequest(with settings: DesktopIconSettings) {
-        continuation?.resume(returning: settings)
-        continuation = nil
-    }
-}
-
-@MainActor
-private final class FinderDesktopSettingsErrorPresenterSpy: FinderDesktopSettingsErrorPresenting {
-    private(set) var errors: [FinderDesktopSettingsReaderError] = []
-
-    func present(_ error: FinderDesktopSettingsReaderError) {
-        errors.append(error)
-    }
-}
-
 @MainActor
 private final class PortalWindowFactorySpy: PortalWindowBuilding {
     private(set) var createdPortalIDs: [PortalID] = []
@@ -1699,12 +1265,14 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var onSelectTab: ((FolderTabID) -> Void)?
     var onAddTab: (() -> Void)?
     var onCloseTab: ((FolderTabID) -> Void)?
+    var onMoveTab: ((FolderTabID, PortalTabMoveDirection) -> Void)?
     var onLocateFolder: ((FolderTabID) -> Void)?
     var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)?
     var onSetIconSize: ((IconSize) -> Void)?
-    var onFollowDesktopIconSettings: (() -> Void)?
     var onRemovePortal: (() -> Void)?
+    var onSetPinned: ((Bool) -> Void)?
     private(set) var presentCount = 0
+    private(set) var hideCount = 0
     private(set) var updateCount = 0
     private(set) var closeCount = 0
     private(set) var updatedPortals: [Portal] = []
@@ -1714,6 +1282,10 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
 
     func present() {
         presentCount += 1
+    }
+
+    func hide() {
+        hideCount += 1
     }
 
     func updatePortal(_ portal: Portal) {

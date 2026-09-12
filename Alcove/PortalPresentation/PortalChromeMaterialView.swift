@@ -264,9 +264,11 @@ final class PortalChromeMaterialView: NSView {
         alphaValue = 1
         guard materialPath == .visualEffect else { return }
         let tintAlpha: CGFloat = switch backgroundStyle {
+        case .maximumTransparency: 0.04
         case .highTransparency: 0.08
         case .standard: 0.16
         case .lowTransparency: 0.26
+        case .minimumTransparency: 0.34
         }
         surfaceTintView?.layer?.backgroundColor = surfaceTintColor
             .withAlphaComponent(tintAlpha)

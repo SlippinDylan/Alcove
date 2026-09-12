@@ -182,6 +182,40 @@ final class PortalWindowConfigurationTests: XCTestCase {
     }
 
     @MainActor
+    func testPinnedWindowRejectsUserPlacementAndResizeButAcceptsSystemPlacement() throws {
+        let pointer = PointerLocation(NSPoint(x: 10, y: 10))
+        let window = makeWindow(pointerLocationProvider: { pointer.location })
+        let initialFrame = window.frame
+        var placementCommits: [NSRect] = []
+        var resizeCommits: [NSRect] = []
+        window.onUserPlacementCommit = { placementCommits.append($0) }
+        window.onUserResizeCommit = { resizeCommits.append($0) }
+
+        window.setPinned(true)
+
+        XCTAssertTrue(window.isPinned)
+        XCTAssertFalse(window.styleMask.contains(.resizable))
+        XCTAssertFalse(window.isPortalDragRegion(at: NSPoint(x: 100, y: 220)))
+        window.beginUserDrag(at: pointer.location)
+        pointer.location = NSPoint(x: 50, y: 70)
+        window.handleUserDragEvent(try event(.leftMouseDragged, at: .zero, in: window))
+        window.beginUserResize()
+
+        XCTAssertEqual(window.frame, initialFrame)
+        XCTAssertFalse(window.isUserPlacementInteractionActive)
+        XCTAssertTrue(placementCommits.isEmpty)
+        XCTAssertTrue(resizeCommits.isEmpty)
+
+        let systemFrame = NSRect(x: 100, y: 120, width: 400, height: 300)
+        XCTAssertTrue(window.applySystemPlacement(frame: systemFrame))
+        XCTAssertEqual(window.frame, systemFrame)
+
+        window.setPinned(false)
+        XCTAssertFalse(window.isPinned)
+        XCTAssertTrue(window.styleMask.contains(.resizable))
+    }
+
+    @MainActor
     func testControllerSnapsContentSizeBeforeCommittingLiveResize() throws {
         let portal = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/portal"),
@@ -347,22 +381,18 @@ final class PortalWindowConfigurationTests: XCTestCase {
         )
         tabBar.managementButton.performClick(nil)
         let settingsController = try XCTUnwrap(tabBar.settingsWindowController)
-        let styleIndex = try XCTUnwrap(
-            settingsController.tabViewController.tabViewItems.firstIndex {
-                $0.label == "Style"
-            }
-        )
-        settingsController.tabViewController.selectedTabViewItemIndex = styleIndex
-        let settingsRoot = try XCTUnwrap(
-            settingsController.tabViewController.tabViewItems[styleIndex].viewController
-        ).view
+        let settingsViewController = settingsController.settingsViewController
+        try XCTUnwrap(settingsViewController.categoryButtons[.style]).performClick(nil)
+        let settingsRoot = settingsViewController.view
         let background = try XCTUnwrap(
             allDescendants(of: settingsRoot)
-                .compactMap { $0 as? NSPopUpButton }
+                .compactMap { $0 as? NSSlider }
                 .first { $0.identifier?.rawValue == "portal-settings.background" }
         )
 
-        background.selectItem(withTitle: "Low Transparency")
+        background.doubleValue = Double(
+            try XCTUnwrap(PortalBackgroundStyle.allCases.firstIndex(of: .lowTransparency))
+        )
         NSApplication.shared.sendAction(
             try XCTUnwrap(background.action),
             to: background.target,

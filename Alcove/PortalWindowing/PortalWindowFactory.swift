@@ -10,12 +10,14 @@ protocol PortalWindowPresenting: AnyObject {
     var onSelectTab: ((FolderTabID) -> Void)? { get set }
     var onAddTab: (() -> Void)? { get set }
     var onCloseTab: ((FolderTabID) -> Void)? { get set }
+    var onMoveTab: ((FolderTabID, PortalTabMoveDirection) -> Void)? { get set }
     var onLocateFolder: ((FolderTabID) -> Void)? { get set }
     var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? { get set }
     var onSetIconSize: ((IconSize) -> Void)? { get set }
-    var onFollowDesktopIconSettings: (() -> Void)? { get set }
     var onRemovePortal: (() -> Void)? { get set }
+    var onSetPinned: ((Bool) -> Void)? { get set }
     func present()
+    func hide()
     func updatePortal(_ portal: Portal)
     func reloadSelectedFolder()
     func applySystemPlacement(frame: NSRect) -> Bool

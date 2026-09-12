@@ -24,9 +24,12 @@ final class WorkspaceOpenFailurePresenter: WorkspaceOpenFailurePresenting {
     func presentFailure(for url: URL) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Unable to open item"
+        alert.messageText = NSLocalizedString(
+            "Unable to open item",
+            comment: "Alert title shown when an item cannot be opened"
+        )
         alert.informativeText = url.path
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: NSLocalizedString("OK", comment: "Confirmation button"))
         alert.runModal()
     }
 }

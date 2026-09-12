@@ -1,0 +1,109 @@
+/* Workspace opening */
+"Unable to open item" = "Unable to open item";
+"OK" = "OK";
+
+/* File item accessibility */
+"Folder. Double-click to open in Finder." = "Folder. Double-click to open in Finder.";
+"File. Double-click to open." = "File. Double-click to open.";
+"Open" = "Open";
+"Selected" = "Selected";
+"Not selected" = "Not selected";
+"%1$@, item %2$d of %3$d" = "%1$@, item %2$d of %3$d";
+
+/* Startup restore */
+"Unable to restore Alcove" = "Unable to restore Alcove";
+"Alcove could not load its saved portals. No saved data was changed.\n\n%@\n\nData file: %@" = "Alcove could not load its saved portals. No saved data was changed.\n\n%@\n\nData file: %@";
+"Retry" = "Retry";
+"Quit Alcove" = "Quit Alcove";
+"startup.restore.detail" = "Alcove could not load its saved portals. No saved data was changed.\n\nData file: %@";
+
+/* Folder access */
+"Folder not found" = "Folder not found";
+"The selected item is not a folder" = "The selected item is not a folder";
+"Permission denied" = "Permission denied";
+"Unable to read folder contents" = "Unable to read folder contents";
+"Choose a folder on this Mac's internal disk" = "Choose a folder on this Mac's internal disk";
+
+/* Folder picker */
+"Choose" = "Choose";
+"Choose a folder on this Mac's internal disk." = "Choose a folder on this Mac's internal disk.";
+"Unable to use this folder" = "Unable to use this folder";
+"Choose another folder and try again." = "Choose another folder and try again.";
+"Choose Another Folder" = "Choose Another Folder";
+"Unable to save Alcove changes" = "Unable to save Alcove changes";
+"Your previous saved state was kept. Check available disk space and folder permissions, then try again.\n\n%@" = "Your previous saved state was kept. Check available disk space and folder permissions, then try again.\n\n%@";
+"persistence.save.error.detail" = "Your previous saved state was kept. Check available disk space and folder permissions, then try again.";
+
+/* Portal creation */
+"Create portal area" = "Create portal area";
+"Drag to choose a portal frame, or press Return to use a default frame." = "Drag to choose a portal frame, or press Return to use a default frame.";
+
+/* Portal removal */
+"Remove this portal?" = "Remove this portal?";
+"Closing %@ removes the portal from Alcove. Files are not changed." = "Closing %@ removes the portal from Alcove. Files are not changed.";
+"Remove Portal" = "Remove Portal";
+"Cancel" = "Cancel";
+
+/* Menu bar */
+"menu.new_portal" = "New Panel";
+"menu.show" = "Show";
+"menu.hide" = "Hide";
+"menu.settings" = "Settings";
+"menu.quit" = "Quit Alcove";
+
+/* Portal pinning */
+"portal.pin.pin" = "Pin";
+"portal.pin.unpin" = "Unpin";
+"portal.pin.pin.help" = "Prevent this portal from being moved or resized.";
+"portal.pin.unpin.help" = "Allow this portal to be moved or resized.";
+"portal.empty.title" = "Empty Portal";
+"portal.tab.select" = "Select %@";
+"portal.tab.switch.help" = "Switch to this folder tab";
+
+/* Folder path */
+"portal.path.label" = "Folder path";
+"portal.path.copy" = "Copy Path";
+
+/* Portal settings */
+"portal.settings.label" = "Portal settings";
+"portal.settings.help" = "Configure folders, style, and portal actions";
+"portal.settings.title" = "Portal Settings";
+"portal.settings.folders" = "Folders";
+"portal.settings.style" = "Style";
+"portal.settings.add_folder" = "Add Folder…";
+"portal.settings.move_up" = "Move Up";
+"portal.settings.move_down" = "Move Down";
+"portal.settings.remove_folder_action" = "Remove Folder";
+"portal.settings.panel" = "Panel";
+"portal.settings.icon_size" = "Icon Size";
+"portal.settings.size" = "Size";
+"portal.settings.appearance" = "Appearance";
+"portal.settings.background" = "Background";
+"portal.settings.remove_portal" = "Remove Portal";
+"portal.settings.small" = "Small";
+"portal.settings.medium" = "Medium";
+"portal.settings.large" = "Large";
+"portal.settings.maximum_transparency" = "Maximum Transparency";
+"portal.settings.high_transparency" = "High Transparency";
+"portal.settings.standard" = "Standard";
+"portal.settings.low_transparency" = "Low Transparency";
+"portal.settings.minimum_transparency" = "Minimum Transparency";
+
+/* Portal content states */
+"portal.choose" = "Choose Folder…";
+"portal.choose.help" = "Choose a folder for this portal";
+"portal.empty" = "This folder is empty";
+"portal.loading" = "Loading…";
+"portal.error" = "Unable to load folder";
+"portal.error.load" = "Unable to load folder";
+"portal.error.load.detail" = "Try again. If the problem continues, choose another folder.";
+"portal.error.watch" = "Unable to watch folder";
+"portal.error.watch.detail" = "The folder could not be monitored for changes.";
+"portal.error.folder_not_found" = "Folder not found";
+"portal.error.not_folder" = "The selected item is not a folder";
+"portal.error.permission_denied" = "Permission denied";
+"portal.error.permission_denied.detail" = "%@. macOS may require permission in System Settings → Privacy & Security → Files and Folders.";
+"portal.error.read_contents" = "Unable to read folder contents";
+"portal.error.unsupported_location" = "Choose a folder on this Mac's internal disk";
+"portal.retry" = "Retry";
+"portal.locate" = "Locate Folder…";

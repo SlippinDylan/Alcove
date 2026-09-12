@@ -12,7 +12,7 @@ do {
 }
 
 let creationGridState = PortalCreationGridState(grid: creationGrid)
-let portalCoordinator = PortalCoordinator(portalCreationGridState: creationGridState)
+let portalCoordinator = PortalCoordinator()
 let frameSelector = PortalFrameSelector(gridState: creationGridState)
 let creationCoordinator = PortalCreationCoordinator(
     frameSelector: frameSelector,
@@ -21,15 +21,7 @@ let creationCoordinator = PortalCreationCoordinator(
 let statusMenuController = StatusMenuController(
     onNewPortal: { creationCoordinator.beginPortalCreation() },
     onShowPortal: { portalCoordinator.showPortal($0) },
-    onRemovePortal: { portalID in
-        Task { await portalCoordinator.removePortal(portalID) }
-    },
-    onSetIconSize: { portalID, iconSize in
-        Task { await portalCoordinator.setIconSize(iconSize, for: portalID) }
-    },
-    onFollowDesktopIconSettings: { portalID in
-        Task { await portalCoordinator.followDesktopIconSettings(for: portalID) }
-    }
+    onHidePortal: { portalCoordinator.hidePortal($0) }
 )
 portalCoordinator.onPortalsChanged = { [weak statusMenuController] entries in
     statusMenuController?.updatePortals(entries)

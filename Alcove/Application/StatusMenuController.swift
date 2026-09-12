@@ -4,7 +4,6 @@ import AlcoveCore
 struct PortalMenuEntry: Equatable {
     let id: PortalID
     let title: String
-    let iconLayout: PortalIconLayout
 }
 
 @MainActor
@@ -12,9 +11,7 @@ final class StatusMenuController: StatusMenuControlling {
     private let statusBar: NSStatusBar
     private let onNewPortal: () -> Void
     private let onShowPortal: (PortalID) -> Void
-    private let onRemovePortal: (PortalID) -> Void
-    private let onSetIconSize: (PortalID, IconSize) -> Void
-    private let onFollowDesktopIconSettings: (PortalID) -> Void
+    private let onHidePortal: (PortalID) -> Void
     private var portalEntries: [PortalMenuEntry] = []
     private var actionTargets: [PortalMenuActionTarget] = []
     private(set) var statusItem: NSStatusItem?
@@ -23,16 +20,12 @@ final class StatusMenuController: StatusMenuControlling {
         statusBar: NSStatusBar = .system,
         onNewPortal: @escaping () -> Void,
         onShowPortal: @escaping (PortalID) -> Void = { _ in },
-        onRemovePortal: @escaping (PortalID) -> Void = { _ in },
-        onSetIconSize: @escaping (PortalID, IconSize) -> Void = { _, _ in },
-        onFollowDesktopIconSettings: @escaping (PortalID) -> Void = { _ in }
+        onHidePortal: @escaping (PortalID) -> Void = { _ in }
     ) {
         self.statusBar = statusBar
         self.onNewPortal = onNewPortal
         self.onShowPortal = onShowPortal
-        self.onRemovePortal = onRemovePortal
-        self.onSetIconSize = onSetIconSize
-        self.onFollowDesktopIconSettings = onFollowDesktopIconSettings
+        self.onHidePortal = onHidePortal
     }
 
     func start() {
@@ -71,7 +64,7 @@ final class StatusMenuController: StatusMenuControlling {
         actionTargets.removeAll(keepingCapacity: true)
 
         let newPortalItem = NSMenuItem(
-            title: "New Portal",
+            title: NSLocalizedString("menu.new_portal", comment: "Create a new portal"),
             action: #selector(requestNewPortal(_:)),
             keyEquivalent: ""
         )
@@ -85,12 +78,18 @@ final class StatusMenuController: StatusMenuControlling {
             menu.addItem(portalItem)
         }
 
-        if !portalEntries.isEmpty {
-            menu.addItem(.separator())
-        }
+        if !portalEntries.isEmpty { menu.addItem(.separator()) }
+
+        let settingsItem = NSMenuItem(
+            title: NSLocalizedString("menu.settings", comment: "Open application settings"),
+            action: nil,
+            keyEquivalent: ","
+        )
+        settingsItem.isEnabled = false
+        menu.addItem(settingsItem)
 
         let quitItem = NSMenuItem(
-            title: "Quit Alcove",
+            title: NSLocalizedString("menu.quit", comment: "Quit Alcove"),
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
@@ -107,33 +106,14 @@ final class StatusMenuController: StatusMenuControlling {
 
     private func makePortalMenu(for entry: PortalMenuEntry) -> NSMenu {
         let menu = NSMenu(title: entry.title)
-        menu.addItem(makeActionItem(title: "Show", action: .show(entry.id)))
-
-        let iconSizeItem = NSMenuItem(title: "Icon Size", action: nil, keyEquivalent: "")
-        let iconSizeMenu = NSMenu(title: "Icon Size")
-        let followItem = makeActionItem(
-            title: "Follow Desktop",
-            action: .followDesktopIconSettings(entry.id)
-        )
-        if case .followDesktop = entry.iconLayout {
-            followItem.state = .on
-        }
-        iconSizeMenu.addItem(followItem)
-        iconSizeMenu.addItem(.separator())
-        for size in [IconSize.small, .medium, .large] {
-            let item = makeActionItem(
-                title: iconSizeTitle(size),
-                action: .setIconSize(entry.id, size)
-            )
-            if case .fixed(let selectedSize) = entry.iconLayout {
-                item.state = size == selectedSize ? .on : .off
-            }
-            iconSizeMenu.addItem(item)
-        }
-        iconSizeItem.submenu = iconSizeMenu
-        menu.addItem(iconSizeItem)
-        menu.addItem(.separator())
-        menu.addItem(makeActionItem(title: "Remove Portal", action: .remove(entry.id)))
+        menu.addItem(makeActionItem(
+            title: NSLocalizedString("menu.show", comment: "Show a portal"),
+            action: .show(entry.id)
+        ))
+        menu.addItem(makeActionItem(
+            title: NSLocalizedString("menu.hide", comment: "Hide a portal"),
+            action: .hide(entry.id)
+        ))
         return menu
     }
 
@@ -149,30 +129,17 @@ final class StatusMenuController: StatusMenuControlling {
         return item
     }
 
-    private func iconSizeTitle(_ size: IconSize) -> String {
-        switch size {
-        case .small: "Small"
-        case .medium: "Medium"
-        case .large: "Large"
-        default: "Custom"
-        }
-    }
-
     fileprivate func perform(_ action: PortalMenuAction) {
         switch action {
         case .show(let id): onShowPortal(id)
-        case .remove(let id): onRemovePortal(id)
-        case .setIconSize(let id, let size): onSetIconSize(id, size)
-        case .followDesktopIconSettings(let id): onFollowDesktopIconSettings(id)
+        case .hide(let id): onHidePortal(id)
         }
     }
 }
 
 private enum PortalMenuAction {
     case show(PortalID)
-    case remove(PortalID)
-    case setIconSize(PortalID, IconSize)
-    case followDesktopIconSettings(PortalID)
+    case hide(PortalID)
 }
 
 @MainActor

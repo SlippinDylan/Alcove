@@ -38,6 +38,11 @@ public struct FolderTab: Identifiable, Hashable, Sendable {
     }
 }
 
+public enum PortalTabMoveDirection: Equatable, Sendable {
+    case up
+    case down
+}
+
 /// Errors raised when a portal operation would violate durable portal state.
 public enum PortalError: Error, Equatable, Sendable {
     case selectionWithoutTabs(FolderTabID)
@@ -45,6 +50,7 @@ public enum PortalError: Error, Equatable, Sendable {
     case duplicateTabID(FolderTabID)
     case selectedTabNotFound(FolderTabID)
     case tabNotFound(FolderTabID)
+    case cannotMoveTab(FolderTabID, PortalTabMoveDirection)
     case cannotRemoveLastTab
     case invalidPlacement(PlacementRecordError)
 }
@@ -149,6 +155,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
     public private(set) var iconLayout: PortalIconLayout
     public private(set) var backgroundStyle: PortalBackgroundStyle
     public private(set) var gridCapacity: GridCapacity
+    public private(set) var isPinned: Bool
 
     public var frame: CGRect { placement.homeEntry.absoluteFrame }
     public var iconSize: IconSize { iconLayout.iconSize }
@@ -165,7 +172,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         display: DisplayDescriptor,
         iconLayout: PortalIconLayout = .fixed(.medium),
         backgroundStyle: PortalBackgroundStyle = .standard,
-        gridCapacity: GridCapacity = .minimum
+        gridCapacity: GridCapacity = .minimum,
+        isPinned: Bool = false
     ) throws {
         let placement: PlacementRecord
         do {
@@ -180,7 +188,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
             placement: placement,
             iconLayout: iconLayout,
             backgroundStyle: backgroundStyle,
-            gridCapacity: gridCapacity
+            gridCapacity: gridCapacity,
+            isPinned: isPinned
         )
     }
 
@@ -192,7 +201,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         display: DisplayDescriptor,
         iconSize: IconSize = .medium,
         backgroundStyle: PortalBackgroundStyle = .standard,
-        gridCapacity: GridCapacity = .minimum
+        gridCapacity: GridCapacity = .minimum,
+        isPinned: Bool = false
     ) throws {
         try self.init(
             id: id,
@@ -201,7 +211,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
             display: display,
             iconLayout: .fixed(iconSize),
             backgroundStyle: backgroundStyle,
-            gridCapacity: gridCapacity
+            gridCapacity: gridCapacity,
+            isPinned: isPinned
         )
     }
 
@@ -213,7 +224,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         display: DisplayDescriptor,
         iconLayout: PortalIconLayout,
         backgroundStyle: PortalBackgroundStyle = .standard,
-        gridCapacity: GridCapacity = .minimum
+        gridCapacity: GridCapacity = .minimum,
+        isPinned: Bool = false
     ) throws {
         let tab = FolderTab(folderURL: folderURL)
         let placement: PlacementRecord
@@ -229,7 +241,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
             placement: placement,
             iconLayout: iconLayout,
             backgroundStyle: backgroundStyle,
-            gridCapacity: gridCapacity
+            gridCapacity: gridCapacity,
+            isPinned: isPinned
         )
     }
 
@@ -241,7 +254,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         placement: PlacementRecord,
         iconSize: IconSize = .medium,
         backgroundStyle: PortalBackgroundStyle = .standard,
-        gridCapacity: GridCapacity = .minimum
+        gridCapacity: GridCapacity = .minimum,
+        isPinned: Bool = false
     ) throws {
         try self.init(
             id: id,
@@ -250,7 +264,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
             placement: placement,
             iconLayout: .fixed(iconSize),
             backgroundStyle: backgroundStyle,
-            gridCapacity: gridCapacity
+            gridCapacity: gridCapacity,
+            isPinned: isPinned
         )
     }
 
@@ -262,7 +277,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         placement: PlacementRecord,
         iconLayout: PortalIconLayout,
         backgroundStyle: PortalBackgroundStyle = .standard,
-        gridCapacity: GridCapacity = .minimum
+        gridCapacity: GridCapacity = .minimum,
+        isPinned: Bool = false
     ) throws {
         var tabIDs = Set<FolderTabID>()
         for tab in tabs {
@@ -291,6 +307,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         self.iconLayout = iconLayout
         self.backgroundStyle = backgroundStyle
         self.gridCapacity = gridCapacity
+        self.isPinned = isPinned
     }
 
     /// Appends a tab without changing the active tab.
@@ -320,6 +337,27 @@ public struct Portal: Identifiable, Equatable, Sendable {
         }
 
         selectedTabID = id
+    }
+
+    /// Moves a tab one position while preserving the selected tab identity.
+    public mutating func moveTab(
+        _ id: FolderTabID,
+        toward direction: PortalTabMoveDirection
+    ) throws {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else {
+            throw PortalError.tabNotFound(id)
+        }
+        let targetIndex: Int
+        switch direction {
+        case .up:
+            targetIndex = index - 1
+        case .down:
+            targetIndex = index + 1
+        }
+        guard tabs.indices.contains(targetIndex) else {
+            throw PortalError.cannotMoveTab(id, direction)
+        }
+        tabs.swapAt(index, targetIndex)
     }
 
     /// Removes one tab. The final tab is retained so the caller can request portal removal instead.
@@ -359,17 +397,6 @@ public struct Portal: Identifiable, Equatable, Sendable {
         self.iconLayout = iconLayout
     }
 
-    /// Makes the portal follow the supplied Finder desktop settings.
-    public mutating func followDesktop(_ settings: DesktopIconSettings) {
-        iconLayout = .followDesktop(settings)
-    }
-
-    /// Updates a followed desktop setting without changing a fixed preference.
-    public mutating func refreshDesktopIconSettings(_ settings: DesktopIconSettings) {
-        guard case .followDesktop = iconLayout else { return }
-        iconLayout = .followDesktop(settings)
-    }
-
     /// Replaces the app-owned background appearance preference.
     public mutating func updateBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) {
         self.backgroundStyle = backgroundStyle
@@ -378,5 +405,10 @@ public struct Portal: Identifiable, Equatable, Sendable {
     /// Replaces the visible grid capacity while preserving its current placement.
     public mutating func updateGridCapacity(_ gridCapacity: GridCapacity) {
         self.gridCapacity = gridCapacity
+    }
+
+    /// Updates whether user-driven movement and resizing are disabled for this portal.
+    public mutating func updatePinned(_ isPinned: Bool) {
+        self.isPinned = isPinned
     }
 }

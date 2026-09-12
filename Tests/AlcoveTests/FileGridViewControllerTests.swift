@@ -168,9 +168,23 @@ final class FileGridViewControllerTests: XCTestCase {
         )
         XCTAssertEqual(cell.view.accessibilityRole(), .button)
         XCTAssertEqual(cell.view.accessibilityLabel(), "Folder")
-        XCTAssertEqual(cell.view.accessibilityValue() as? String, "Not selected, item 1 of 1")
-        XCTAssertEqual(cell.view.accessibilityHelp(), "Folder. Double-click to open in Finder.")
-        XCTAssertEqual(cell.view.accessibilityCustomActions()?.map(\.name), ["Open"])
+        XCTAssertEqual(
+            cell.view.accessibilityValue() as? String,
+            String(
+                format: NSLocalizedString("%1$@, item %2$d of %3$d", comment: ""),
+                NSLocalizedString("Not selected", comment: ""),
+                1,
+                1
+            )
+        )
+        XCTAssertEqual(
+            cell.view.accessibilityHelp(),
+            NSLocalizedString("Folder. Double-click to open in Finder.", comment: "")
+        )
+        XCTAssertEqual(
+            cell.view.accessibilityCustomActions()?.map(\.name),
+            [NSLocalizedString("Open", comment: "")]
+        )
         XCTAssertTrue(cell.performAccessibilityOpen())
         XCTAssertEqual(opener.openedURLs, [item.url])
 
@@ -357,6 +371,9 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(cell.iconSelectionView.frame.size, NSSize(width: 72, height: 72))
         XCTAssertGreaterThan(cell.nameLabel.frame.height, 12)
         XCTAssertEqual(cell.view.layer?.backgroundColor?.alpha ?? 0, 0)
+        XCTAssertEqual(cell.view.layer?.cornerRadius, 12)
+        XCTAssertEqual(cell.view.layer?.borderWidth, 1)
+        XCTAssertGreaterThan(cell.view.layer?.borderColor?.alpha ?? 0, 0)
 
         cell.isSelected = true
 

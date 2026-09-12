@@ -26,6 +26,8 @@ final class FileItemCell: NSCollectionViewItem {
         }
         view = rootView
         view.wantsLayer = true
+        view.layer?.cornerRadius = 12
+        view.layer?.borderWidth = 1
 
         iconView.imageScaling = .scaleProportionallyUpOrDown
         iconView.translatesAutoresizingMaskIntoConstraints = false
@@ -122,10 +124,19 @@ final class FileItemCell: NSCollectionViewItem {
         view.setAccessibilityLabel(item.name)
         updateAccessibilityValue()
         updateSelectionAppearance()
-        view.setAccessibilityHelp(item.isDirectory ? "Folder. Double-click to open in Finder." : "File. Double-click to open.")
+        let accessibilityHelp = item.isDirectory
+            ? NSLocalizedString(
+                "Folder. Double-click to open in Finder.",
+                comment: "Accessibility help for a folder item"
+            )
+            : NSLocalizedString(
+                "File. Double-click to open.",
+                comment: "Accessibility help for a file item"
+            )
+        view.setAccessibilityHelp(accessibilityHelp)
         view.setAccessibilityCustomActions([
             NSAccessibilityCustomAction(
-                name: "Open",
+                name: NSLocalizedString("Open", comment: "Accessibility action to open an item"),
                 target: self,
                 selector: #selector(performAccessibilityOpen)
             ),
@@ -133,12 +144,23 @@ final class FileItemCell: NSCollectionViewItem {
     }
 
     private func updateAccessibilityValue() {
-        let selection = isSelected ? "Selected" : "Not selected"
-        view.setAccessibilityValue("\(selection), item \(itemPosition) of \(itemCount)")
+        let selection = isSelected
+            ? NSLocalizedString("Selected", comment: "Accessibility state for a selected item")
+            : NSLocalizedString("Not selected", comment: "Accessibility state for an unselected item")
+        let format = NSLocalizedString(
+            "%1$@, item %2$d of %3$d",
+            comment: "Accessibility value showing selection and item position"
+        )
+        view.setAccessibilityValue(
+            String(format: format, selection, itemPosition, itemCount)
+        )
     }
 
     private func updateSelectionAppearance() {
         view.effectiveAppearance.performAsCurrentDrawingAppearance {
+            view.layer?.borderColor = NSColor.separatorColor
+                .withAlphaComponent(0.65)
+                .cgColor
             iconSelectionView.layer?.backgroundColor = isSelected
                 ? NSColor.selectedContentBackgroundColor.withAlphaComponent(0.18).cgColor
                 : NSColor.clear.cgColor

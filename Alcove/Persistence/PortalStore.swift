@@ -63,31 +63,51 @@ actor PortalStore: PortalStoring {
         switch version {
         case 1:
             try preserveLegacyBackup(data, version: 1)
-            let portals = try loadV1(from: data)
+            let portals = try migrateLegacyPortals(try loadV1(from: data))
             try writeCurrentVersion(portals)
             return portals
         case PortalEnvelopeV2DTO.currentVersion:
             try preserveLegacyBackup(data, version: 2)
-            let portals = try loadV2(from: data)
+            let portals = try migrateLegacyPortals(try loadV2(from: data))
             try writeCurrentVersion(portals)
             return portals
         case PortalEnvelopeV3DTO.currentVersion:
             try preserveLegacyBackup(data, version: 3)
-            let portals = try loadV3(from: data)
+            let portals = try migrateLegacyPortals(try loadV3(from: data))
             try writeCurrentVersion(portals)
             return portals
         case PortalEnvelopeV4DTO.currentVersion:
             try preserveLegacyBackup(data, version: 4)
-            let portals = try loadV4(from: data)
+            let portals = try migrateLegacyPortals(try loadV4(from: data))
             try writeCurrentVersion(portals)
             return portals
         case PortalEnvelopeV5DTO.currentVersion:
             try preserveLegacyBackup(data, version: 5)
-            let portals = try loadV5(from: data)
+            let portals = try migrateLegacyPortals(try loadV5(from: data))
             try writeCurrentVersion(portals)
             return portals
         case PortalEnvelopeV6DTO.currentVersion:
-            return try loadV6(from: data)
+            try preserveLegacyBackup(data, version: 6)
+            let portals = try migrateLegacyPortals(try loadV6(from: data))
+            try writeCurrentVersion(portals)
+            return portals
+        case PortalEnvelopeV7DTO.currentVersion:
+            try preserveLegacyBackup(data, version: 7)
+            let portals = try migrateLegacyPortals(try loadV7(from: data))
+            try writeCurrentVersion(portals)
+            return portals
+        case PortalEnvelopeV8DTO.currentVersion:
+            try preserveLegacyBackup(data, version: 8)
+            let portals = try migrateLegacyPortals(try loadV8(from: data))
+            try writeCurrentVersion(portals)
+            return portals
+        case PortalEnvelopeV9DTO.currentVersion:
+            try preserveLegacyBackup(data, version: 9)
+            let portals = try migrateLegacyPortals(try loadV9(from: data))
+            try writeCurrentVersion(portals)
+            return portals
+        case PortalEnvelopeV10DTO.currentVersion:
+            return try loadV10(from: data)
         default:
             throw PortalStoreError.unsupportedVersion(version)
         }
@@ -95,6 +115,26 @@ actor PortalStore: PortalStoring {
 
     private func loadV2(from data: Data) throws -> [Portal] {
         let envelope: PortalEnvelopeV2DTO = try decodeEnvelope(from: data)
+        return try mapPortals(envelope.portals) { try $0.domainValue() }
+    }
+
+    private func loadV7(from data: Data) throws -> [Portal] {
+        let envelope: PortalEnvelopeV7DTO = try decodeEnvelope(from: data)
+        return try mapPortals(envelope.portals) { try $0.domainValue() }
+    }
+
+    private func loadV8(from data: Data) throws -> [Portal] {
+        let envelope: PortalEnvelopeV8DTO = try decodeEnvelope(from: data)
+        return try mapPortals(envelope.portals) { try $0.domainValue() }
+    }
+
+    private func loadV9(from data: Data) throws -> [Portal] {
+        let envelope: PortalEnvelopeV9DTO = try decodeEnvelope(from: data)
+        return try mapPortals(envelope.portals) { try $0.domainValue() }
+    }
+
+    private func loadV10(from data: Data) throws -> [Portal] {
+        let envelope: PortalEnvelopeV10DTO = try decodeEnvelope(from: data)
         return try mapPortals(envelope.portals) { try $0.domainValue() }
     }
 
@@ -194,6 +234,89 @@ actor PortalStore: PortalStoring {
         portals.append(portal)
     }
 
+    private func migrateLegacyPortals(_ portals: [Portal]) throws -> [Portal] {
+        return try portals.enumerated().map { index, portal in
+            do {
+                let metrics = GridMetrics(
+                    iconSize: portal.iconSize,
+                    labelFontSize: portal.textSize
+                )
+                let gridSize = metrics.contentSize(for: portal.gridCapacity)
+                let targetSize = CGSize(
+                    width: gridSize.width,
+                    height: gridSize.height + PortalLayoutMetrics.chromeHeight
+                )
+                return try adjustingPortalGeometry(
+                    portal,
+                    adjustingWidthBy: targetSize.width - portal.frame.width,
+                    adjustingHeightBy: targetSize.height - portal.frame.height,
+                    isPinned: portal.isPinned
+                )
+            } catch {
+                throw invalidPortalError(index: index, error: error)
+            }
+        }
+    }
+
+    private func adjustingPortalGeometry(
+        _ portal: Portal,
+        adjustingWidthBy widthDelta: CGFloat,
+        adjustingHeightBy heightDelta: CGFloat,
+        isPinned: Bool
+    ) throws -> Portal {
+        let framesByDisplay = try Dictionary(
+            uniqueKeysWithValues: portal.placement.framesByDisplay.map { display, entry in
+                let visibleFrame = entry.referenceVisibleFrame
+                let frame = try PlacementGeometry.restore(
+                    record: entry,
+                    currentVisibleFrame: visibleFrame
+                )
+                let width = min(
+                    visibleFrame.width,
+                    max(1, frame.width + widthDelta)
+                )
+                let height = min(
+                    visibleFrame.height,
+                    max(1, frame.height + heightDelta)
+                )
+                let origin = CGPoint(
+                    x: min(
+                        max(frame.maxX - width, visibleFrame.minX),
+                        visibleFrame.maxX - width
+                    ),
+                    y: min(
+                        max(frame.maxY - height, visibleFrame.minY),
+                        visibleFrame.maxY - height
+                    )
+                )
+                let adjustedFrame = CGRect(
+                    origin: origin,
+                    size: CGSize(width: width, height: height)
+                )
+                return (
+                    display,
+                    try PlacementGeometry.capture(
+                        windowFrame: adjustedFrame,
+                        visibleFrame: visibleFrame
+                    )
+                )
+            }
+        )
+        return try Portal(
+            id: portal.id,
+            tabs: portal.tabs,
+            selectedTabID: portal.selectedTabID,
+            placement: PlacementRecord(
+                framesByDisplay: framesByDisplay,
+                homeDisplay: portal.placement.homeDisplay
+            ),
+            iconLayout: portal.iconLayout,
+            backgroundStyle: portal.backgroundStyle,
+            gridCapacity: portal.gridCapacity,
+            isPinned: isPinned
+        )
+    }
+
     private func invalidPortalError(index: Int, error: Error) -> PortalStoreError {
         PortalStoreError.invalidPortal(
             index: index,
@@ -218,7 +341,7 @@ actor PortalStore: PortalStoring {
     private func writeCurrentVersion(_ portals: [Portal]) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        var data = try encoder.encode(PortalEnvelopeV6DTO(portals: portals))
+        var data = try encoder.encode(PortalEnvelopeV10DTO(portals: portals))
         data.append(0x0a)
         try writeAtomically(data, to: url)
     }

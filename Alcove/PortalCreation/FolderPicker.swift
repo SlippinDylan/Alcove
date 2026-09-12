@@ -29,8 +29,11 @@ final class OpenPanelFolderPicker: FolderPicking {
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = false
         panel.resolvesAliases = true
-        panel.prompt = "Choose"
-        panel.message = "Choose a folder on this Mac's internal disk."
+        panel.prompt = NSLocalizedString("Choose", comment: "Folder picker confirmation button")
+        panel.message = NSLocalizedString(
+            "Choose a folder on this Mac's internal disk.",
+            comment: "Folder picker instructions"
+        )
     }
 
     func cancel() {
@@ -53,13 +56,24 @@ final class PortalCreationErrorPresenter: PortalCreationErrorPresenting {
     func present(_ error: Error) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Unable to use this folder"
+        alert.messageText = NSLocalizedString(
+            "Unable to use this folder",
+            comment: "Alert title shown when a folder cannot be used"
+        )
         if let folderError = error as? FolderAccessError {
             alert.informativeText = folderError.userMessage
         } else {
-            alert.informativeText = "Choose another folder and try again."
+            alert.informativeText = NSLocalizedString(
+                "Choose another folder and try again.",
+                comment: "Recovery guidance for an invalid folder"
+            )
         }
-        alert.addButton(withTitle: "Choose Another Folder")
+        alert.addButton(
+            withTitle: NSLocalizedString(
+                "Choose Another Folder",
+                comment: "Button to choose a different folder"
+            )
+        )
         alert.runModal()
     }
 }
@@ -69,13 +83,15 @@ final class PortalPersistenceErrorPresenter: PortalPersistenceErrorPresenting {
     func present(_ error: Error) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Unable to save Alcove changes"
-        alert.informativeText = """
-        Your previous saved state was kept. Check available disk space and folder permissions, then try again.
-
-        \(error.localizedDescription)
-        """
-        alert.addButton(withTitle: "OK")
+        alert.messageText = NSLocalizedString(
+            "Unable to save Alcove changes",
+            comment: "Alert title shown when Alcove changes cannot be saved"
+        )
+        alert.informativeText = NSLocalizedString(
+            "persistence.save.error.detail",
+            comment: "Details shown when Alcove changes cannot be saved"
+        )
+        alert.addButton(withTitle: NSLocalizedString("OK", comment: "Confirmation button"))
         alert.runModal()
     }
 }

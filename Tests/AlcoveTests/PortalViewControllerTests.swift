@@ -21,9 +21,16 @@ final class PortalViewControllerTests: XCTestCase {
         let chooseButton = try XCTUnwrap(
             descendants(of: controller.view)
                 .compactMap { $0 as? NSButton }
-                .first { $0.accessibilityLabel() == "Choose a folder for this portal" }
+                .first {
+                    $0.accessibilityLabel()
+                        == NSLocalizedString("portal.choose.help", comment: "")
+                }
         )
         XCTAssertFalse(chooseButton.isHidden)
+        let pathBar = try XCTUnwrap(
+            descendants(of: controller.view).compactMap { $0 as? FolderPathBarView }.first
+        )
+        XCTAssertNil(pathBar.displayedPath)
         chooseButton.performClick(nil)
         XCTAssertEqual(addRequestCount, 1)
     }
@@ -48,6 +55,73 @@ final class PortalViewControllerTests: XCTestCase {
         XCTAssertNotNil(surface.materialView)
         XCTAssertNotNil(controlGroup.materialView)
         XCTAssertFalse(controlGroup.isDescendant(of: try XCTUnwrap(surface.materialView)))
+    }
+
+    @MainActor
+    func testPinButtonForwardsTheNextPersistentState() throws {
+        var portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/portal"),
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator()
+        )
+        var requestedStates: [Bool] = []
+        controller.onSetPinned = { requestedStates.append($0) }
+        controller.loadView()
+        let tabBar = try XCTUnwrap(
+            descendants(of: controller.view).compactMap { $0 as? TabBarView }.first
+        )
+
+        tabBar.pinButton.performClick(nil)
+        portal.updatePinned(true)
+        controller.updatePortal(portal)
+        tabBar.pinButton.performClick(nil)
+
+        XCTAssertEqual(requestedStates, [true, false])
+        XCTAssertEqual(
+            tabBar.pinButton.accessibilityLabel(),
+            NSLocalizedString("portal.pin.unpin", comment: "")
+        )
+    }
+
+    @MainActor
+    func testPathBarTracksTheSelectedFolderAndCopiesDisplayedPath() throws {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let firstURL = home.appendingPathComponent("Repo/First")
+        let secondURL = home.appendingPathComponent("Repo/Second")
+        var portal = try Portal(
+            folderURL: firstURL,
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let secondID = try portal.appendTab(folderURL: secondURL)
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator()
+        )
+        controller.loadView()
+        controller.view.frame = NSRect(x: 0, y: 0, width: 420, height: 360)
+        controller.view.layoutSubtreeIfNeeded()
+        let pathBar = try XCTUnwrap(
+            descendants(of: controller.view).compactMap { $0 as? FolderPathBarView }.first
+        )
+        XCTAssertEqual(pathBar.displayedPath, "~/Repo/First")
+        XCTAssertEqual(pathBar.capsuleView.frame.minX, 8, accuracy: 0.5)
+        XCTAssertEqual(
+            pathBar.capsuleView.frame.width,
+            pathBar.bounds.width - 16,
+            accuracy: 0.5
+        )
+
+        try portal.selectTab(secondID)
+        controller.updatePortal(portal)
+        pathBar.copyButton.performClick(nil)
+
+        XCTAssertEqual(pathBar.displayedPath, "~/Repo/Second")
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "~/Repo/Second")
     }
 
     @MainActor
@@ -113,22 +187,18 @@ final class PortalViewControllerTests: XCTestCase {
         )
         tabBar.managementButton.performClick(nil)
         let settingsController = try XCTUnwrap(tabBar.settingsWindowController)
-        let styleIndex = try XCTUnwrap(
-            settingsController.tabViewController.tabViewItems.firstIndex {
-                $0.label == "Style"
-            }
-        )
-        settingsController.tabViewController.selectedTabViewItemIndex = styleIndex
-        let settingsRoot = try XCTUnwrap(
-            settingsController.tabViewController.tabViewItems[styleIndex].viewController
-        ).view
+        let settingsViewController = settingsController.settingsViewController
+        try XCTUnwrap(settingsViewController.categoryButtons[.style]).performClick(nil)
+        let settingsRoot = settingsViewController.view
         let background = try XCTUnwrap(
             descendants(of: settingsRoot)
-                .compactMap { $0 as? NSPopUpButton }
+                .compactMap { $0 as? NSSlider }
                 .first { $0.identifier?.rawValue == "portal-settings.background" }
         )
 
-        background.selectItem(withTitle: "High Transparency")
+        background.doubleValue = Double(try XCTUnwrap(
+            PortalBackgroundStyle.allCases.firstIndex(of: .highTransparency)
+        ))
         NSApplication.shared.sendAction(
             try XCTUnwrap(background.action),
             to: background.target,
@@ -137,36 +207,6 @@ final class PortalViewControllerTests: XCTestCase {
         settingsController.close()
 
         XCTAssertEqual(requestedStyle, .highTransparency)
-    }
-
-    @MainActor
-    func testFollowedTextSizeUpdatesGridWhenIconSizeIsUnchanged() throws {
-        var portal = try Portal(
-            folderURL: URL(fileURLWithPath: "/tmp/portal"),
-            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
-            display: testDisplay
-        )
-        let grid = FileGridViewController(iconSize: portal.iconSize, textSize: portal.textSize)
-        let controller = PortalViewController(
-            portal: portal,
-            loadingCoordinator: FolderLoadingCoordinator(),
-            gridViewController: grid
-        )
-        controller.loadView()
-        let settings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .medium, textSize: 16)
-        )
-
-        portal.followDesktop(settings)
-        controller.updatePortal(portal)
-
-        let scrollView = try XCTUnwrap(grid.view as? NSScrollView)
-        let collectionView = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
-        let layout = try XCTUnwrap(
-            collectionView.collectionViewLayout as? PortalGridCollectionViewLayout
-        )
-        XCTAssertEqual(layout.metrics.iconSize, .medium)
-        XCTAssertEqual(layout.metrics.labelFontSize, 16)
     }
 
     @MainActor
@@ -202,12 +242,12 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testMinimumContentSizeTracksTwoByTwoGridAndTabBar() {
+    func testMinimumContentSizeTracksGridAndChromeRows() {
         let metrics = GridMetrics(iconSize: .large)
         let actual = PortalViewController.minimumContentSize(for: .large)
         let expected = NSSize(
             width: metrics.minimumPortalSize.width,
-            height: metrics.minimumPortalSize.height + PortalViewController.tabBarHeight
+            height: metrics.minimumPortalSize.height + PortalViewController.chromeHeight
         )
 
         XCTAssertEqual(actual, expected)
@@ -287,7 +327,10 @@ final class PortalViewControllerTests: XCTestCase {
 
         await controller.reload()
 
-        XCTAssertEqual(controller.presentationState, .message("This folder is empty"))
+        XCTAssertEqual(
+            controller.presentationState,
+            .message(NSLocalizedString("portal.empty", comment: ""))
+        )
     }
 
     @MainActor
@@ -317,7 +360,7 @@ final class PortalViewControllerTests: XCTestCase {
             controller.presentationState,
             .error(
                 PortalErrorPresentation(
-                    message: "Folder not found",
+                    message: NSLocalizedString("portal.error.folder_not_found", comment: ""),
                     detail: root.path,
                     action: .locateFolder
                 )
@@ -346,7 +389,7 @@ final class PortalViewControllerTests: XCTestCase {
         )
 
         XCTAssertEqual(permissionPresentation.action, .retry)
-        XCTAssertTrue(permissionPresentation.detail.contains("Privacy & Security"))
+        XCTAssertTrue(permissionPresentation.detail.contains(url.lastPathComponent))
         XCTAssertEqual(readPresentation.action, .retry)
         XCTAssertEqual(readPresentation.detail, url.path)
     }
@@ -529,7 +572,10 @@ final class PortalViewControllerTests: XCTestCase {
         controller.updatePortal(portal)
         controller.stopObservation()
         await controller.reload()
-        XCTAssertEqual(controller.presentationState, .message("This folder is empty"))
+        XCTAssertEqual(
+            controller.presentationState,
+            .message(NSLocalizedString("portal.empty", comment: ""))
+        )
 
         await enumerator.setItems([firstItem], for: firstRoot)
         await controller.reload(showLoadingIndicator: false)
@@ -619,7 +665,7 @@ final class PortalViewControllerTests: XCTestCase {
             defer { controller.stopObservation() }
             try await waitUntilPresentation(
                 controller,
-                equals: .message("This folder is empty")
+                equals: .message(NSLocalizedString("portal.empty", comment: ""))
             )
 
             try Data("visible".utf8).write(to: root.appendingPathComponent("visible.txt"))

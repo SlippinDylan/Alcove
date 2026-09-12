@@ -19,6 +19,9 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     var onCloseTab: ((FolderTabID) -> Void)? {
         didSet { portalViewController.onCloseTab = onCloseTab }
     }
+    var onMoveTab: ((FolderTabID, PortalTabMoveDirection) -> Void)? {
+        didSet { portalViewController.onMoveTab = onMoveTab }
+    }
     var onLocateFolder: ((FolderTabID) -> Void)? {
         didSet { portalViewController.onLocateFolderRequested = onLocateFolder }
     }
@@ -28,13 +31,11 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     var onSetIconSize: ((IconSize) -> Void)? {
         didSet { portalViewController.onSetIconSize = onSetIconSize }
     }
-    var onFollowDesktopIconSettings: (() -> Void)? {
-        didSet {
-            portalViewController.onFollowDesktopIconSettings = onFollowDesktopIconSettings
-        }
-    }
     var onRemovePortal: (() -> Void)? {
         didSet { portalViewController.onRemovePortal = onRemovePortal }
+    }
+    var onSetPinned: ((Bool) -> Void)? {
+        didSet { portalViewController.onSetPinned = onSetPinned }
     }
     private let portalViewController: PortalViewController
     private let quickLookIntegration: QuickLookIntegration
@@ -63,7 +64,9 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
             dragRegionHeight: PortalViewController.tabBarHeight
         )
         window.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconLayout)
-        window.title = portal.selectedTab?.folderURL.lastPathComponent ?? "Empty Portal"
+        window.setPinned(portal.isPinned)
+        window.title = portal.selectedTab?.folderURL.lastPathComponent
+            ?? NSLocalizedString("portal.empty.title", comment: "Empty portal window title")
         super.init(window: window)
         shouldCascadeWindows = false
         window.delegate = self
@@ -107,12 +110,18 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         window?.makeKeyAndOrderFront(nil)
     }
 
+    func hide() {
+        window?.orderOut(nil)
+    }
+
     func updatePortal(_ portal: Portal) {
         iconLayout = portal.iconLayout
         gridCapacity = portal.gridCapacity
         portalViewController.updatePortal(portal)
         window?.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconLayout)
-        window?.title = portal.selectedTab?.folderURL.lastPathComponent ?? "Empty Portal"
+        (window as? PortalWindow)?.setPinned(portal.isPinned)
+        window?.title = portal.selectedTab?.folderURL.lastPathComponent
+            ?? NSLocalizedString("portal.empty.title", comment: "Empty portal window title")
     }
 
     func reloadSelectedFolder() {
@@ -157,7 +166,7 @@ extension PortalWindowController: NSWindowDelegate {
         )
         let proposedGridSize = NSSize(
             width: proposedContentSize.width,
-            height: max(0, proposedContentSize.height - PortalViewController.tabBarHeight)
+            height: max(0, proposedContentSize.height - PortalViewController.chromeHeight)
         )
         let preview: GridCapacityPreview
         do {

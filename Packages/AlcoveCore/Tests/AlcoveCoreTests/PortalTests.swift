@@ -182,6 +182,41 @@ final class PortalTests: XCTestCase {
         XCTAssertNotEqual(secondID, thirdID)
     }
 
+    func testMovingTabsSwapsAdjacentOrderAndPreservesSelection() throws {
+        var portal = try makePortal(path: "/tmp/first")
+        let firstID = portal.tabs[0].id
+        let secondID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
+        let thirdID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/third"))
+        try portal.selectTab(secondID)
+
+        try portal.moveTab(secondID, toward: .up)
+        XCTAssertEqual(portal.tabs.map(\.id), [secondID, firstID, thirdID])
+        XCTAssertEqual(portal.selectedTabID, secondID)
+
+        try portal.moveTab(secondID, toward: .down)
+        XCTAssertEqual(portal.tabs.map(\.id), [firstID, secondID, thirdID])
+        XCTAssertEqual(portal.selectedTabID, secondID)
+    }
+
+    func testMovingTabsRejectsUnknownIDsAndBoundaryMoves() throws {
+        var portal = try makePortal(path: "/tmp/first")
+        let secondID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
+        let firstID = portal.tabs[0].id
+        let unknownID = FolderTabID(rawValue: UUID())
+        let originalTabs = portal.tabs
+
+        XCTAssertThrowsError(try portal.moveTab(unknownID, toward: .up)) { error in
+            XCTAssertEqual(error as? PortalError, .tabNotFound(unknownID))
+        }
+        XCTAssertThrowsError(try portal.moveTab(firstID, toward: .up)) { error in
+            XCTAssertEqual(error as? PortalError, .cannotMoveTab(firstID, .up))
+        }
+        XCTAssertThrowsError(try portal.moveTab(secondID, toward: .down)) { error in
+            XCTAssertEqual(error as? PortalError, .cannotMoveTab(secondID, .down))
+        }
+        XCTAssertEqual(portal.tabs, originalTabs)
+    }
+
     func testRemovingSelectedTabSelectsItsSuccessorOrPredecessor() throws {
         var portal = try makePortal(path: "/tmp/first")
         let secondID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
@@ -240,37 +275,54 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(portal.backgroundStyle, .highTransparency)
         XCTAssertEqual(
             PortalBackgroundStyle.allCases,
-            [.highTransparency, .standard, .lowTransparency]
+            [
+                .maximumTransparency,
+                .highTransparency,
+                .standard,
+                .lowTransparency,
+                .minimumTransparency,
+            ]
+        )
+        XCTAssertEqual(
+            [
+                PortalBackgroundStyle.maximumTransparency.rawValue,
+                PortalBackgroundStyle.highTransparency.rawValue,
+                PortalBackgroundStyle.standard.rawValue,
+                PortalBackgroundStyle.lowTransparency.rawValue,
+                PortalBackgroundStyle.minimumTransparency.rawValue,
+            ],
+            [
+                "maximum_transparency",
+                "high_transparency",
+                "standard",
+                "low_transparency",
+                "minimum_transparency",
+            ]
         )
     }
 
-    func testIconLayoutSupportsFixedAndFollowDesktopPreferences() throws {
+    func testPinnedStateDefaultsAndUpdatesIndependentlyOfPlacement() throws {
         var portal = try makePortal(path: "/tmp/folder")
-        let followed = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        let refreshed = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .small, textSize: 10)
-        )
+        let placement = portal.placement
+
+        XCTAssertFalse(portal.isPinned)
+        portal.updatePinned(true)
+
+        XCTAssertTrue(portal.isPinned)
+        XCTAssertEqual(portal.placement, placement)
+    }
+
+    func testIconLayoutSupportsOnlyAppSelectedSizes() throws {
+        var portal = try makePortal(path: "/tmp/folder")
 
         XCTAssertEqual(portal.iconLayout, .fixed(.medium))
         XCTAssertEqual(portal.iconSize, .medium)
-        XCTAssertEqual(portal.textSize, DesktopIconSettings.defaultTextSize)
+        XCTAssertEqual(portal.textSize, 12)
 
-        portal.followDesktop(followed)
-        XCTAssertEqual(portal.iconLayout, .followDesktop(followed))
+        portal.updateIconSize(.large)
+        XCTAssertEqual(portal.iconLayout, .fixed(.large))
         XCTAssertEqual(portal.iconSize, .large)
-        XCTAssertEqual(portal.textSize, 14)
-
-        portal.refreshDesktopIconSettings(refreshed)
-        XCTAssertEqual(portal.iconLayout, .followDesktop(refreshed))
-
-        portal.updateIconSize(.medium)
-        portal.refreshDesktopIconSettings(followed)
-        XCTAssertEqual(portal.iconLayout, .fixed(.medium))
-
-        portal.updateIconLayout(.followDesktop(followed))
-        XCTAssertEqual(portal.iconLayout, .followDesktop(followed))
+        XCTAssertEqual(portal.textSize, 12)
     }
 
     func testGridCapacityDefaultsAndUpdatesIndependentlyOfPlacement() throws {

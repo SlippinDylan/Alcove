@@ -1,0 +1,109 @@
+/* Workspace opening */
+"Unable to open item" = "無法打開項目";
+"OK" = "好";
+
+/* File item accessibility */
+"Folder. Double-click to open in Finder." = "資料夾。按兩下以在 Finder 中開啟。";
+"File. Double-click to open." = "檔案。按兩下以開啟。";
+"Open" = "開啟";
+"Selected" = "已選取";
+"Not selected" = "未選取";
+"%1$@, item %2$d of %3$d" = "%1$@，第 %2$d 項，共 %3$d 項";
+
+/* Startup restore */
+"Unable to restore Alcove" = "無法還原 Alcove";
+"Alcove could not load its saved portals. No saved data was changed.\n\n%@\n\nData file: %@" = "Alcove 無法載入已儲存的資料夾面板。未變更任何已儲存資料。\n\n%@\n\n資料檔案：%@";
+"Retry" = "重試";
+"Quit Alcove" = "結束 Alcove";
+"startup.restore.detail" = "Alcove 無法載入已儲存的資料夾面板。未變更任何已儲存資料。\n\n資料檔案：%@";
+
+/* Folder access */
+"Folder not found" = "找不到資料夾";
+"The selected item is not a folder" = "所選項目不是資料夾";
+"Permission denied" = "權限遭拒";
+"Unable to read folder contents" = "無法讀取資料夾內容";
+"Choose a folder on this Mac's internal disk" = "請選擇 Mac 內置磁碟上的資料夾";
+
+/* Folder picker */
+"Choose" = "選擇";
+"Choose a folder on this Mac's internal disk." = "請選擇 Mac 內置磁碟上的資料夾。";
+"Unable to use this folder" = "無法使用此資料夾";
+"Choose another folder and try again." = "請選擇其他資料夾，然後再試一次。";
+"Choose Another Folder" = "選擇其他資料夾";
+"Unable to save Alcove changes" = "無法儲存 Alcove 的變更";
+"Your previous saved state was kept. Check available disk space and folder permissions, then try again.\n\n%@" = "已保留先前儲存的狀態。請檢查可用磁碟空間與資料夾權限，然後再試一次。\n\n%@";
+"persistence.save.error.detail" = "已保留先前儲存的狀態。請檢查可用磁碟空間與資料夾權限，然後再試一次。";
+
+/* Portal creation */
+"Create portal area" = "建立資料夾面板";
+"Drag to choose a portal frame, or press Return to use a default frame." = "拖移以決定資料夾面板的大小，或按 Return 使用預設大小。";
+
+/* Portal removal */
+"Remove this portal?" = "移除此資料夾面板？";
+"Closing %@ removes the portal from Alcove. Files are not changed." = "關閉 %@ 會從 Alcove 中移除此資料夾面板。檔案不會變更。";
+"Remove Portal" = "移除面板";
+"Cancel" = "取消";
+
+/* Menu bar */
+"menu.new_portal" = "新增面板";
+"menu.show" = "顯示";
+"menu.hide" = "隱藏";
+"menu.settings" = "設定";
+"menu.quit" = "結束 Alcove";
+
+/* Portal pinning */
+"portal.pin.pin" = "釘選";
+"portal.pin.unpin" = "取消釘選";
+"portal.pin.pin.help" = "防止此面板被移動或調整大小。";
+"portal.pin.unpin.help" = "允許移動或調整此面板的大小。";
+"portal.empty.title" = "空面板";
+"portal.tab.select" = "選擇 %@";
+"portal.tab.switch.help" = "切換到此資料夾分頁";
+
+/* Folder path */
+"portal.path.label" = "資料夾路徑";
+"portal.path.copy" = "複製路徑";
+
+/* Portal settings */
+"portal.settings.label" = "面板設定";
+"portal.settings.help" = "設定資料夾、樣式與面板操作";
+"portal.settings.title" = "面板設定";
+"portal.settings.folders" = "資料夾";
+"portal.settings.style" = "樣式";
+"portal.settings.add_folder" = "加入資料夾…";
+"portal.settings.move_up" = "上移";
+"portal.settings.move_down" = "下移";
+"portal.settings.remove_folder_action" = "移除資料夾";
+"portal.settings.panel" = "面板";
+"portal.settings.icon_size" = "圖示大小";
+"portal.settings.size" = "大小";
+"portal.settings.appearance" = "外觀";
+"portal.settings.background" = "背景";
+"portal.settings.remove_portal" = "移除面板";
+"portal.settings.small" = "小";
+"portal.settings.medium" = "中";
+"portal.settings.large" = "大";
+"portal.settings.maximum_transparency" = "最高透明度";
+"portal.settings.high_transparency" = "高透明度";
+"portal.settings.standard" = "標準";
+"portal.settings.low_transparency" = "低透明度";
+"portal.settings.minimum_transparency" = "最低透明度";
+
+/* Portal content states */
+"portal.choose" = "選擇資料夾…";
+"portal.choose.help" = "為此面板選擇資料夾";
+"portal.empty" = "此資料夾是空的";
+"portal.loading" = "正在載入…";
+"portal.error" = "無法載入資料夾";
+"portal.error.load" = "無法載入資料夾";
+"portal.error.load.detail" = "請再試一次。如果問題仍然存在，請選擇其他資料夾。";
+"portal.error.watch" = "無法監看資料夾";
+"portal.error.watch.detail" = "無法監控資料夾的變更。";
+"portal.error.folder_not_found" = "找不到資料夾";
+"portal.error.not_folder" = "所選項目不是資料夾";
+"portal.error.permission_denied" = "權限遭拒";
+"portal.error.permission_denied.detail" = "%@。macOS 可能需要在「系統設定」→「隱私權與安全性」→「檔案與資料夾」中授予權限。";
+"portal.error.read_contents" = "無法讀取資料夾內容";
+"portal.error.unsupported_location" = "請選擇 Mac 內置磁碟上的資料夾";
+"portal.retry" = "重試";
+"portal.locate" = "定位資料夾…";

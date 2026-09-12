@@ -7,11 +7,7 @@ final class PortalCreationCoordinatorTests: XCTestCase {
     @MainActor
     func testValidTransactionCreatesExactlyOneEmptyPortal() async throws {
         let frame = NSRect(x: 10, y: 20, width: 300, height: 240)
-        let settings = try XCTUnwrap(
-            DesktopIconSettings(iconSize: .large, textSize: 14)
-        )
-        let iconLayout = PortalIconLayout.followDesktop(settings)
-        let frameSelector = FrameSelectorStub(frames: [frame], iconLayout: iconLayout)
+        let frameSelector = FrameSelectorStub(frames: [frame])
         let portalCoordinator = PortalCoordinatorStub()
         let coordinator = PortalCreationCoordinator(
             frameSelector: frameSelector,
@@ -26,8 +22,7 @@ final class PortalCreationCoordinatorTests: XCTestCase {
             PortalRequest(
                 folder: nil,
                 frame: frame,
-                capacity: .minimum,
-                iconLayout: iconLayout
+                capacity: .minimum
             ),
         ])
         XCTAssertEqual(coordinator.state, .idle)
@@ -115,7 +110,10 @@ final class PortalCreationCoordinatorTests: XCTestCase {
         overlay.onCompletion = { selectedFrame = $0 }
 
         XCTAssertEqual(overlay.accessibilityRole(), .button)
-        XCTAssertEqual(overlay.accessibilityLabel(), "Create portal area")
+        XCTAssertEqual(
+            overlay.accessibilityLabel(),
+            NSLocalizedString("Create portal area", comment: "")
+        )
         XCTAssertTrue(overlay.accessibilityPerformPress())
         let selection = try XCTUnwrap(selectedFrame)
         XCTAssertEqual(selection.capacity, .minimum)
@@ -205,8 +203,6 @@ private final class PortalCoordinatorStub: PortalCoordinating {
     private(set) var requests: [PortalRequest] = []
 
     func restorePortals() async throws {}
-
-    func refreshFollowedDesktopIconSettings() async {}
 
     func stop() {}
 

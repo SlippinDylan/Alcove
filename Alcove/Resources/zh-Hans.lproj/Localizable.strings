@@ -1,0 +1,109 @@
+/* Workspace opening */
+"Unable to open item" = "无法打开项目";
+"OK" = "好";
+
+/* File item accessibility */
+"Folder. Double-click to open in Finder." = "文件夹。连按两次以在 Finder 中打开。";
+"File. Double-click to open." = "文件。连按两次以打开。";
+"Open" = "打开";
+"Selected" = "已选中";
+"Not selected" = "未选中";
+"%1$@, item %2$d of %3$d" = "%1$@，第 %2$d 项，共 %3$d 项";
+
+/* Startup restore */
+"Unable to restore Alcove" = "无法恢复 Alcove";
+"Alcove could not load its saved portals. No saved data was changed.\n\n%@\n\nData file: %@" = "Alcove 无法加载已保存的文件夹面板。未更改任何已保存数据。\n\n%@\n\n数据文件：%@";
+"Retry" = "重试";
+"Quit Alcove" = "退出 Alcove";
+"startup.restore.detail" = "Alcove 无法加载已保存的文件夹面板。未更改任何已保存数据。\n\n数据文件：%@";
+
+/* Folder access */
+"Folder not found" = "找不到文件夹";
+"The selected item is not a folder" = "所选项目不是文件夹";
+"Permission denied" = "权限被拒绝";
+"Unable to read folder contents" = "无法读取文件夹内容";
+"Choose a folder on this Mac's internal disk" = "请选择 Mac 内置磁盘上的文件夹";
+
+/* Folder picker */
+"Choose" = "选择";
+"Choose a folder on this Mac's internal disk." = "请选择 Mac 内置磁盘上的文件夹。";
+"Unable to use this folder" = "无法使用此文件夹";
+"Choose another folder and try again." = "请选择其他文件夹，然后重试。";
+"Choose Another Folder" = "选择其他文件夹";
+"Unable to save Alcove changes" = "无法保存 Alcove 的更改";
+"Your previous saved state was kept. Check available disk space and folder permissions, then try again.\n\n%@" = "已保留之前保存的状态。请检查可用磁盘空间和文件夹权限，然后重试。\n\n%@";
+"persistence.save.error.detail" = "已保留之前保存的状态。请检查可用磁盘空间和文件夹权限，然后重试。";
+
+/* Portal creation */
+"Create portal area" = "创建文件夹面板";
+"Drag to choose a portal frame, or press Return to use a default frame." = "拖动以确定文件夹面板的大小，或按 Return 使用默认大小。";
+
+/* Portal removal */
+"Remove this portal?" = "移除此文件夹面板？";
+"Closing %@ removes the portal from Alcove. Files are not changed." = "关闭 %@ 会从 Alcove 中移除此文件夹面板。文件不会被更改。";
+"Remove Portal" = "移除面板";
+"Cancel" = "取消";
+
+/* Menu bar */
+"menu.new_portal" = "新建面板";
+"menu.show" = "显示";
+"menu.hide" = "隐藏";
+"menu.settings" = "设置";
+"menu.quit" = "退出 Alcove";
+
+/* Portal pinning */
+"portal.pin.pin" = "固定";
+"portal.pin.unpin" = "取消固定";
+"portal.pin.pin.help" = "防止此面板被移动或调整大小。";
+"portal.pin.unpin.help" = "允许移动或调整此面板的大小。";
+"portal.empty.title" = "空面板";
+"portal.tab.select" = "选择 %@";
+"portal.tab.switch.help" = "切换到此文件夹标签页";
+
+/* Folder path */
+"portal.path.label" = "文件夹路径";
+"portal.path.copy" = "复制路径";
+
+/* Portal settings */
+"portal.settings.label" = "面板设置";
+"portal.settings.help" = "配置文件夹、样式和面板操作";
+"portal.settings.title" = "面板设置";
+"portal.settings.folders" = "文件夹";
+"portal.settings.style" = "样式";
+"portal.settings.add_folder" = "添加文件夹…";
+"portal.settings.move_up" = "上移";
+"portal.settings.move_down" = "下移";
+"portal.settings.remove_folder_action" = "移除文件夹";
+"portal.settings.panel" = "面板";
+"portal.settings.icon_size" = "图标大小";
+"portal.settings.size" = "大小";
+"portal.settings.appearance" = "外观";
+"portal.settings.background" = "背景";
+"portal.settings.remove_portal" = "移除面板";
+"portal.settings.small" = "小";
+"portal.settings.medium" = "中";
+"portal.settings.large" = "大";
+"portal.settings.maximum_transparency" = "最高透明度";
+"portal.settings.high_transparency" = "高透明度";
+"portal.settings.standard" = "标准";
+"portal.settings.low_transparency" = "低透明度";
+"portal.settings.minimum_transparency" = "最低透明度";
+
+/* Portal content states */
+"portal.choose" = "选择文件夹…";
+"portal.choose.help" = "为此面板选择一个文件夹";
+"portal.empty" = "此文件夹为空";
+"portal.loading" = "正在加载…";
+"portal.error" = "无法加载文件夹";
+"portal.error.load" = "无法加载文件夹";
+"portal.error.load.detail" = "请重试。如果问题仍然存在，请选择其他文件夹。";
+"portal.error.watch" = "无法监视文件夹";
+"portal.error.watch.detail" = "无法监视文件夹的更改。";
+"portal.error.folder_not_found" = "找不到文件夹";
+"portal.error.not_folder" = "所选项目不是文件夹";
+"portal.error.permission_denied" = "权限被拒绝";
+"portal.error.permission_denied.detail" = "%@。macOS 可能需要在“系统设置”→“隐私与安全性”→“文件与文件夹”中授予权限。";
+"portal.error.read_contents" = "无法读取文件夹内容";
+"portal.error.unsupported_location" = "请选择 Mac 内置磁盘上的文件夹";
+"portal.retry" = "重试";
+"portal.locate" = "定位文件夹…";

@@ -18,9 +18,11 @@ final class GridLayoutTests: XCTestCase {
 
         XCTAssertEqual(metrics.iconSelectionSize, CGSize(width: 72, height: 72))
         XCTAssertEqual(metrics.itemSize, CGSize(width: 96, height: 108))
-        XCTAssertEqual(metrics.horizontalSpacing, 12)
+        XCTAssertEqual(metrics.horizontalSpacing, 4)
         XCTAssertEqual(metrics.verticalSpacing, 4)
-        XCTAssertEqual(metrics.minimumPortalSize, CGSize(width: 344, height: 140))
+        XCTAssertEqual(metrics.contentInsets.top, 8)
+        XCTAssertEqual(metrics.contentInsets.bottom, 8)
+        XCTAssertEqual(metrics.minimumPortalSize, CGSize(width: 328, height: 124))
         XCTAssertEqual(GridMetrics(iconSize: .small).itemSize.width, 72)
         XCTAssertEqual(GridMetrics(iconSize: .large).itemSize.width, 120)
     }

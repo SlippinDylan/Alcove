@@ -26,8 +26,6 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>Alcove 仅在你启用“跟随桌面设置”后读取 Finder 桌面的图标和文字大小，并在启动或重新激活时同步。</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

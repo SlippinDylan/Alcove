@@ -62,6 +62,7 @@ final class PortalWindow: NSWindow {
     private var placementTracker = PortalWindowUserPlacementTracker()
     private var isPerformingLiveResize = false
     private var initialLiveResizeFrame: NSRect?
+    private(set) var isPinned = false
 
     var onUserPlacementCommit: ((NSRect) -> Void)?
     var onUserResizeCommit: ((NSRect) -> Void)?
@@ -138,12 +139,25 @@ final class PortalWindow: NSWindow {
         return true
     }
 
+    func setPinned(_ isPinned: Bool) {
+        guard self.isPinned != isPinned else { return }
+        if isPinned {
+            cancelUserPlacementInteraction()
+            styleMask.remove(.resizable)
+        } else {
+            styleMask.insert(.resizable)
+        }
+        self.isPinned = isPinned
+    }
+
     func beginUserResize() {
+        guard !isPinned else { return }
         isPerformingLiveResize = true
         initialLiveResizeFrame = frame
     }
 
     func beginUserDrag(at pointer: NSPoint) {
+        guard !isPinned else { return }
         placementTracker.begin(at: pointer, frame: frame)
     }
 
@@ -172,6 +186,7 @@ final class PortalWindow: NSWindow {
     }
 
     func isPortalDragRegion(at location: NSPoint) -> Bool {
+        guard !isPinned else { return false }
         let resizeBorderWidth: CGFloat = 8
         let dragRect = NSRect(
             x: contentLayoutRect.minX + resizeBorderWidth,
@@ -196,6 +211,7 @@ final class PortalWindow: NSWindow {
     }
 
     func handleUserDragEvent(_ event: NSEvent?) {
+        guard !isPinned else { return }
         guard let event else {
             placementTracker.cancel()
             onUserPlacementInteractionCancelled?()
