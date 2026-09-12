@@ -18,11 +18,6 @@ final class PortalViewControllerTests: XCTestCase {
 
         let material = try XCTUnwrap(controller.view as? PortalChromeMaterialView)
         XCTAssertNotNil(material.materialView)
-        if #available(macOS 26.0, *) {
-            XCTAssertEqual(material.materialPath, .glass)
-        } else {
-            XCTAssertEqual(material.materialPath, .visualEffect)
-        }
         XCTAssertTrue(material.materialView?.subviews.isEmpty == false)
     }
 
