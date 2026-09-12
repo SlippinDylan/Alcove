@@ -31,7 +31,7 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
     }
 
     func createPortal(
-        for folderURL: URL,
+        for folderURL: URL?,
         frame: NSRect?,
         gridCapacity: GridCapacity,
         iconLayout: PortalIconLayout
@@ -39,7 +39,9 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
         if let error {
             throw error
         }
-        createdFolders.append(folderURL)
+        if let folderURL {
+            createdFolders.append(folderURL)
+        }
     }
 
     func refreshFollowedDesktopIconSettings() async {

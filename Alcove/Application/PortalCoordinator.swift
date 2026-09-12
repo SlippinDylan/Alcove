@@ -5,7 +5,7 @@ import AppKit
 protocol PortalCoordinating: AnyObject {
     func restorePortals() async throws
     func createPortal(
-        for folderURL: URL,
+        for folderURL: URL?,
         frame: NSRect?,
         gridCapacity: GridCapacity,
         iconLayout: PortalIconLayout
@@ -142,12 +142,17 @@ final class PortalCoordinator: PortalCoordinating {
     }
 
     func createPortal(
-        for folderURL: URL,
+        for folderURL: URL?,
         frame: NSRect? = nil,
         gridCapacity: GridCapacity = .minimum,
         iconLayout: PortalIconLayout = .fixed(.medium)
     ) async throws {
-        let folderURL = try await locationValidator.validate(folderURL)
+        let validatedFolderURL: URL?
+        if let folderURL {
+            validatedFolderURL = try await locationValidator.validate(folderURL)
+        } else {
+            validatedFolderURL = nil
+        }
         try Task.checkCancellation()
         try await performMutation { [weak self] in
             guard let self else { return }
@@ -166,13 +171,23 @@ final class PortalCoordinator: PortalCoordinating {
                 visibleFrame: display.visibleFrame,
                 gridCapacity: gridCapacity
             )
-            let portal = try Portal(
-                folderURL: folderURL,
-                frame: initialFrame,
-                display: display,
-                iconLayout: iconLayout,
-                gridCapacity: gridCapacity
-            )
+            let portal: Portal
+            if let validatedFolderURL {
+                portal = try Portal(
+                    folderURL: validatedFolderURL,
+                    frame: initialFrame,
+                    display: display,
+                    iconLayout: iconLayout,
+                    gridCapacity: gridCapacity
+                )
+            } else {
+                portal = try Portal(
+                    frame: initialFrame,
+                    display: display,
+                    iconLayout: iconLayout,
+                    gridCapacity: gridCapacity
+                )
+            }
             let updatedPortals = portalStates + [portal]
             try await store.save(updatedPortals)
             portalStates = updatedPortals
@@ -995,8 +1010,7 @@ final class PortalCoordinator: PortalCoordinating {
 
     private func publishPortalMenu() {
         let entries = portalStates.map { portal in
-            let title = portal.tabs.first(where: { $0.id == portal.selectedTabID })?
-                .folderURL.lastPathComponent ?? "Portal"
+            let title = portal.selectedTab?.folderURL.lastPathComponent ?? "Empty Portal"
             return PortalMenuEntry(id: portal.id, title: title, iconLayout: portal.iconLayout)
         }
         onPortalsChanged?(entries)

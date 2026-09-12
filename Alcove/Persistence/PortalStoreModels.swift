@@ -5,6 +5,88 @@ struct PortalEnvelopeVersionDTO: Decodable {
     let version: Int
 }
 
+struct PortalEnvelopeV6DTO: Codable, Equatable {
+    static let currentVersion = 6
+
+    let version: Int
+    let portals: [PortalV6DTO]
+
+    init(portals: [Portal]) {
+        version = Self.currentVersion
+        self.portals = portals.map(PortalV6DTO.init)
+    }
+}
+
+struct PortalV6DTO: Codable, Equatable {
+    let id: UUID
+    let tabs: [FolderTabDTO]
+    let selectedTabID: UUID?
+    let placement: PlacementRecordDTO
+    let iconLayoutMode: String
+    let iconSize: Double
+    let textSize: Double
+    let backgroundStyle: String
+    let columns: Int
+    let rows: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tabs
+        case selectedTabID = "selected_tab_id"
+        case placement
+        case iconLayoutMode = "icon_layout_mode"
+        case iconSize = "icon_size"
+        case textSize = "text_size"
+        case backgroundStyle = "background_style"
+        case columns
+        case rows
+    }
+
+    init(_ portal: Portal) {
+        id = portal.id.rawValue
+        tabs = portal.tabs.map(FolderTabDTO.init)
+        selectedTabID = portal.selectedTabID?.rawValue
+        placement = PlacementRecordDTO(portal.placement)
+        switch portal.iconLayout {
+        case .fixed:
+            iconLayoutMode = "fixed"
+        case .followDesktop:
+            iconLayoutMode = "follow_desktop"
+        }
+        iconSize = Double(portal.iconSize.rawValue)
+        textSize = Double(portal.textSize)
+        backgroundStyle = portal.backgroundStyle.rawValue
+        columns = portal.gridCapacity.columns
+        rows = portal.gridCapacity.rows
+    }
+
+    func domainValue() throws -> Portal {
+        let iconLayout = try mappedIconLayout(
+            mode: iconLayoutMode,
+            iconSize: iconSize,
+            textSize: textSize
+        )
+        guard let backgroundStyle = PortalBackgroundStyle(rawValue: backgroundStyle) else {
+            throw PortalStoreMappingError.invalidBackgroundStyle(self.backgroundStyle)
+        }
+        let gridCapacity: GridCapacity
+        do {
+            gridCapacity = try GridCapacity(columns: columns, rows: rows)
+        } catch {
+            throw PortalStoreMappingError.invalidGridCapacity(columns: columns, rows: rows)
+        }
+        return try Portal(
+            id: PortalID(rawValue: id),
+            tabs: try tabs.map { try $0.domainValue() },
+            selectedTabID: selectedTabID.map(FolderTabID.init(rawValue:)),
+            placement: try placement.domainValue(),
+            iconLayout: iconLayout,
+            backgroundStyle: backgroundStyle,
+            gridCapacity: gridCapacity
+        )
+    }
+}
+
 struct PortalEnvelopeV5DTO: Codable, Equatable {
     static let currentVersion = 5
 
@@ -45,7 +127,7 @@ struct PortalV5DTO: Codable, Equatable {
     init(_ portal: Portal) {
         id = portal.id.rawValue
         tabs = portal.tabs.map(FolderTabDTO.init)
-        selectedTabID = portal.selectedTabID.rawValue
+        selectedTabID = legacySelectedTabID(in: portal)
         placement = PlacementRecordDTO(portal.placement)
         switch portal.iconLayout {
         case .fixed:
@@ -139,7 +221,7 @@ struct PortalV4DTO: Codable, Equatable {
     init(_ portal: Portal) {
         id = portal.id.rawValue
         tabs = portal.tabs.map(FolderTabDTO.init)
-        selectedTabID = portal.selectedTabID.rawValue
+        selectedTabID = legacySelectedTabID(in: portal)
         placement = PlacementRecordDTO(portal.placement)
         switch portal.iconLayout {
         case .fixed:
@@ -268,7 +350,7 @@ struct PortalV2DTO: Codable, Equatable {
     init(_ portal: Portal) {
         id = portal.id.rawValue
         tabs = portal.tabs.map(FolderTabDTO.init)
-        selectedTabID = portal.selectedTabID.rawValue
+        selectedTabID = legacySelectedTabID(in: portal)
         placement = PlacementRecordDTO(portal.placement)
         iconSize = Double(portal.iconSize.rawValue)
     }
@@ -348,6 +430,37 @@ private func migratedGridCapacity(
             height: windowFrame.height - PortalLayoutMetrics.tabBarHeight
         )
     )
+}
+
+private func mappedIconLayout(
+    mode: String,
+    iconSize rawIconSize: Double,
+    textSize: Double
+) throws -> PortalIconLayout {
+    guard let iconSize = IconSize(rawValue: CGFloat(rawIconSize)) else {
+        throw PortalStoreMappingError.invalidIconSize(rawIconSize)
+    }
+    switch mode {
+    case "fixed":
+        return .fixed(iconSize)
+    case "follow_desktop":
+        guard let desktopSettings = DesktopIconSettings(
+            iconSize: iconSize,
+            textSize: CGFloat(textSize)
+        ) else {
+            throw PortalStoreMappingError.invalidTextSize(textSize)
+        }
+        return .followDesktop(desktopSettings)
+    default:
+        throw PortalStoreMappingError.invalidIconLayoutMode(mode)
+    }
+}
+
+private func legacySelectedTabID(in portal: Portal) -> UUID {
+    guard let selectedTabID = portal.selectedTabID else {
+        preconditionFailure("Legacy persistence cannot encode an empty Portal")
+    }
+    return selectedTabID.rawValue
 }
 
 struct FolderTabDTO: Codable, Equatable {

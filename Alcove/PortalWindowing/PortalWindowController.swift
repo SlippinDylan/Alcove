@@ -52,8 +52,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
             dragRegionHeight: PortalViewController.tabBarHeight
         )
         window.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconLayout)
-        let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
-        window.title = selectedTab?.folderURL.lastPathComponent ?? "Alcove"
+        window.title = portal.selectedTab?.folderURL.lastPathComponent ?? "Empty Portal"
         super.init(window: window)
         shouldCascadeWindows = false
         window.delegate = self
@@ -102,8 +101,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         gridCapacity = portal.gridCapacity
         portalViewController.updatePortal(portal)
         window?.contentMinSize = PortalViewController.minimumContentSize(for: portal.iconLayout)
-        let selectedTab = portal.tabs.first(where: { $0.id == portal.selectedTabID })
-        window?.title = selectedTab?.folderURL.lastPathComponent ?? "Alcove"
+        window?.title = portal.selectedTab?.folderURL.lastPathComponent ?? "Empty Portal"
     }
 
     func reloadSelectedFolder() {

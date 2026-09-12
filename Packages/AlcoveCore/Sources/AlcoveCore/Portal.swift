@@ -40,7 +40,8 @@ public struct FolderTab: Identifiable, Hashable, Sendable {
 
 /// Errors raised when a portal operation would violate durable portal state.
 public enum PortalError: Error, Equatable, Sendable {
-    case emptyTabs
+    case selectionWithoutTabs(FolderTabID)
+    case missingSelectedTab
     case duplicateTabID(FolderTabID)
     case selectedTabNotFound(FolderTabID)
     case tabNotFound(FolderTabID)
@@ -143,7 +144,7 @@ public struct PlacementRecord: Equatable, Sendable {
 public struct Portal: Identifiable, Equatable, Sendable {
     public let id: PortalID
     public private(set) var tabs: [FolderTab]
-    public private(set) var selectedTabID: FolderTabID
+    public private(set) var selectedTabID: FolderTabID?
     public private(set) var placement: PlacementRecord
     public private(set) var iconLayout: PortalIconLayout
     public private(set) var backgroundStyle: PortalBackgroundStyle
@@ -152,6 +153,36 @@ public struct Portal: Identifiable, Equatable, Sendable {
     public var frame: CGRect { placement.homeEntry.absoluteFrame }
     public var iconSize: IconSize { iconLayout.iconSize }
     public var textSize: CGFloat { iconLayout.textSize }
+    public var selectedTab: FolderTab? {
+        guard let selectedTabID else { return nil }
+        return tabs.first { $0.id == selectedTabID }
+    }
+
+    /// Creates an empty portal that can be mapped to its first folder later.
+    public init(
+        id: PortalID = PortalID(),
+        frame: CGRect,
+        display: DisplayDescriptor,
+        iconLayout: PortalIconLayout = .fixed(.medium),
+        backgroundStyle: PortalBackgroundStyle = .standard,
+        gridCapacity: GridCapacity = .minimum
+    ) throws {
+        let placement: PlacementRecord
+        do {
+            placement = try PlacementRecord(frame: frame, display: display)
+        } catch let error as PlacementRecordError {
+            throw PortalError.invalidPlacement(error)
+        }
+        try self.init(
+            id: id,
+            tabs: [],
+            selectedTabID: nil,
+            placement: placement,
+            iconLayout: iconLayout,
+            backgroundStyle: backgroundStyle,
+            gridCapacity: gridCapacity
+        )
+    }
 
     /// Creates a one-tab portal with a placement captured on a real display.
     public init(
@@ -206,7 +237,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
     public init(
         id: PortalID = PortalID(),
         tabs: [FolderTab],
-        selectedTabID: FolderTabID,
+        selectedTabID: FolderTabID?,
         placement: PlacementRecord,
         iconSize: IconSize = .medium,
         backgroundStyle: PortalBackgroundStyle = .standard,
@@ -227,16 +258,12 @@ public struct Portal: Identifiable, Equatable, Sendable {
     public init(
         id: PortalID = PortalID(),
         tabs: [FolderTab],
-        selectedTabID: FolderTabID,
+        selectedTabID: FolderTabID?,
         placement: PlacementRecord,
         iconLayout: PortalIconLayout,
         backgroundStyle: PortalBackgroundStyle = .standard,
         gridCapacity: GridCapacity = .minimum
     ) throws {
-        guard !tabs.isEmpty else {
-            throw PortalError.emptyTabs
-        }
-
         var tabIDs = Set<FolderTabID>()
         for tab in tabs {
             guard tabIDs.insert(tab.id).inserted else {
@@ -244,8 +271,17 @@ public struct Portal: Identifiable, Equatable, Sendable {
             }
         }
 
-        guard tabIDs.contains(selectedTabID) else {
-            throw PortalError.selectedTabNotFound(selectedTabID)
+        if tabs.isEmpty {
+            if let selectedTabID {
+                throw PortalError.selectionWithoutTabs(selectedTabID)
+            }
+        } else {
+            guard let selectedTabID else {
+                throw PortalError.missingSelectedTab
+            }
+            guard tabIDs.contains(selectedTabID) else {
+                throw PortalError.selectedTabNotFound(selectedTabID)
+            }
         }
 
         self.id = id
@@ -264,6 +300,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
         }
 
         tabs.append(tab)
+        if selectedTabID == nil {
+            selectedTabID = tab.id
+        }
     }
 
     /// Appends a new tab without changing the active tab.

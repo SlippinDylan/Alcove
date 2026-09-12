@@ -103,10 +103,11 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 2. A transparent overlay appears on the pointer's current display
 3. A dashed `3×1` portal appears immediately. Its card, title control, and item slots are previewed as dashed outlines. Before any successful Follow Desktop action it uses the Medium preset; afterward it uses the last valid Finder snapshot and the created Portal starts in Follow Desktop mode.
 4. Dragging changes columns and rows at half-cell thresholds: partial progress remains a translucent candidate until the next whole capacity is committed.
-5. On mouse-up, a folder chooser (standard `NSOpenPanel`) appears
-6. Alcove validates that the selected folder is on the Mac's internal, fixed local storage; removable, ejectable, and network-volume locations are rejected with an explanation
-7. An eligible folder becomes the first tab of the new portal
-8. The committed whole `columns × rows` capacity is persisted; its physical frame is derived from the active icon and text metrics.
+5. On mouse-up, Alcove immediately persists and presents an empty Portal; creation does not open a folder chooser.
+6. The empty Portal shows a Choose Folder action in its content area. That action opens the standard directory-only `NSOpenPanel`.
+7. Alcove validates that the selected folder is on the Mac's internal, fixed local storage; removable, ejectable, and network-volume locations are rejected with an explanation.
+8. An eligible folder becomes the first selected tab. Cancelling or rejecting the choice leaves the empty Portal intact.
+9. The committed whole `columns × rows` capacity is persisted; its physical frame is derived from the active icon and text metrics.
 
 ### 5.5 Tab Management
 
@@ -183,7 +184,7 @@ Post-MVP.
 | State | Display |
 |-------|---------|
 | Empty folder | Placeholder text: "This folder is empty" with folder icon |
-| Tab with no folder mapped | Should not occur; tab creation always requires folder selection |
+| Empty Portal | Shows an in-Portal Choose Folder action; it has no tabs and no selected tab until the first eligible folder is chosen |
 
 ### 7.2 Error States
 

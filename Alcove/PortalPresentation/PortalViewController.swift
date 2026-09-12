@@ -2,6 +2,7 @@ import AlcoveCore
 import AppKit
 
 enum PortalPresentationState: Equatable {
+    case emptyPortal
     case loading
     case items(Int)
     case message(String)
@@ -91,6 +92,7 @@ final class PortalViewController: NSViewController {
     private let stateLabel = NSTextField(labelWithString: "")
     private let recoveryButton = NSButton()
     private let progressIndicator = NSProgressIndicator()
+    private let chooseFolderButton = NSButton()
     private let resizeCapacityOverlay = PortalResizeCapacityOverlay()
     private var loadTask: Task<Void, Never>?
     private var observationTask: Task<Void, Never>?
@@ -188,6 +190,20 @@ final class PortalViewController: NSViewController {
         progressIndicator.isHidden = true
         rootView.addSubview(progressIndicator)
 
+        chooseFolderButton.title = "Choose Folder…"
+        chooseFolderButton.image = NSImage(
+            systemSymbolName: "folder.badge.plus",
+            accessibilityDescription: nil
+        )
+        chooseFolderButton.imagePosition = .imageLeading
+        chooseFolderButton.bezelStyle = .rounded
+        chooseFolderButton.target = self
+        chooseFolderButton.action = #selector(chooseFirstFolder)
+        chooseFolderButton.setAccessibilityLabel("Choose a folder for this portal")
+        chooseFolderButton.translatesAutoresizingMaskIntoConstraints = false
+        chooseFolderButton.isHidden = true
+        rootView.addSubview(chooseFolderButton)
+
         resizeCapacityOverlay.translatesAutoresizingMaskIntoConstraints = false
         resizeCapacityOverlay.isHidden = true
         rootView.addSubview(resizeCapacityOverlay)
@@ -213,12 +229,17 @@ final class PortalViewController: NSViewController {
             recoveryButton.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             progressIndicator.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             progressIndicator.bottomAnchor.constraint(equalTo: stateLabel.topAnchor, constant: -12),
+            chooseFolderButton.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
+            chooseFolderButton.centerYAnchor.constraint(equalTo: rootView.centerYAnchor),
             resizeCapacityOverlay.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             resizeCapacityOverlay.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             resizeCapacityOverlay.topAnchor.constraint(equalTo: rootView.topAnchor),
             resizeCapacityOverlay.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
         ])
         view = rootView
+        if portal.tabs.isEmpty {
+            showEmptyPortal()
+        }
     }
 
     func showResizeCapacityPreview(_ preview: GridCapacityPreview) {
@@ -238,6 +259,10 @@ final class PortalViewController: NSViewController {
     }
 
     func load() {
+        guard folderURL != nil else {
+            showEmptyPortal()
+            return
+        }
         loadTask?.cancel()
         let showLoadingIndicator = presentationState == .loading
         loadTask = Task { [weak self] in
@@ -252,6 +277,7 @@ final class PortalViewController: NSViewController {
         let previousBackgroundStyle = self.portal.backgroundStyle
         let previousFolderURL = folderURL
         if isViewLoaded,
+           let previousTabID,
            portal.selectedTabID != previousTabID,
            presentedTabID == previousTabID {
             runtimeStates[previousTabID] = gridViewController.captureRuntimeState()
@@ -275,8 +301,12 @@ final class PortalViewController: NSViewController {
         if portal.selectedTabID != previousTabID || folderURL != previousFolderURL {
             onSelectionInvalidated?()
             if isViewLoaded {
-                showLoading()
-                startObservation()
+                if portal.tabs.isEmpty {
+                    showEmptyPortal()
+                } else {
+                    showLoading()
+                    startObservation()
+                }
             }
         }
     }
@@ -290,6 +320,10 @@ final class PortalViewController: NSViewController {
     }
 
     func reload(showLoadingIndicator: Bool = true) async {
+        guard let folderURL else {
+            showEmptyPortal()
+            return
+        }
         if showLoadingIndicator {
             showLoading()
         }
@@ -317,7 +351,10 @@ final class PortalViewController: NSViewController {
         loadTask = nil
         observationTask?.cancel()
         observationCoordinator.stop()
-        let root = folderURL
+        guard let root = folderURL else {
+            showEmptyPortal()
+            return
+        }
         observationTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -357,7 +394,9 @@ final class PortalViewController: NSViewController {
             switch outcome {
             case .contents(let result):
                 let items = result.items
-                let runtimeState = runtimeStates.removeValue(forKey: portal.selectedTabID)
+                let runtimeState = portal.selectedTabID.flatMap {
+                    runtimeStates.removeValue(forKey: $0)
+                }
                 if items.isEmpty {
                     showState("This folder is empty")
                 } else {
@@ -377,6 +416,7 @@ final class PortalViewController: NSViewController {
         presentedTabID = nil
         recoveryAction = nil
         recoveryButton.isHidden = true
+        chooseFolderButton.isHidden = true
         gridViewController.setItems([])
         gridViewController.view.isHidden = true
         stateLabel.stringValue = "Loading…"
@@ -390,6 +430,7 @@ final class PortalViewController: NSViewController {
         presentedTabID = portal.selectedTabID
         recoveryAction = nil
         recoveryButton.isHidden = true
+        chooseFolderButton.isHidden = true
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
         stateLabel.isHidden = true
@@ -402,6 +443,7 @@ final class PortalViewController: NSViewController {
         presentedTabID = nil
         recoveryAction = nil
         recoveryButton.isHidden = true
+        chooseFolderButton.isHidden = true
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
         gridViewController.setItems([])
@@ -428,6 +470,21 @@ final class PortalViewController: NSViewController {
         recoveryButton.title = presentation.action == .locateFolder ? "Locate Folder…" : "Retry"
         recoveryButton.setAccessibilityLabel(recoveryButton.title)
         recoveryButton.isHidden = false
+        chooseFolderButton.isHidden = true
+    }
+
+    private func showEmptyPortal() {
+        presentationState = .emptyPortal
+        presentedTabID = nil
+        recoveryAction = nil
+        observationCoordinator.stop()
+        gridViewController.setItems([])
+        gridViewController.view.isHidden = true
+        stateLabel.isHidden = true
+        recoveryButton.isHidden = true
+        progressIndicator.stopAnimation(nil)
+        progressIndicator.isHidden = true
+        chooseFolderButton.isHidden = false
     }
 
     static func errorPresentation(for error: FolderAccessError) -> PortalErrorPresentation {
@@ -468,7 +525,9 @@ final class PortalViewController: NSViewController {
     @objc func performRecoveryAction() {
         switch recoveryAction {
         case .locateFolder:
-            onLocateFolderRequested?(portal.selectedTabID)
+            if let selectedTabID = portal.selectedTabID {
+                onLocateFolderRequested?(selectedTabID)
+            }
         case .retry:
             startObservation()
         case nil:
@@ -479,15 +538,20 @@ final class PortalViewController: NSViewController {
     func reloadSelectedFolder() {
         onSelectionInvalidated?()
         guard isViewLoaded else { return }
+        guard folderURL != nil else {
+            showEmptyPortal()
+            return
+        }
         showLoading()
         startObservation()
     }
 
-    private var folderURL: URL {
-        guard let tab = portal.tabs.first(where: { $0.id == portal.selectedTabID }) else {
-            preconditionFailure("Portal selected-tab invariant violated")
-        }
-        return tab.folderURL
+    @objc private func chooseFirstFolder() {
+        onAddTab?()
+    }
+
+    private var folderURL: URL? {
+        portal.selectedTab?.folderURL
     }
 }
 

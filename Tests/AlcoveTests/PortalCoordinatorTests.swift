@@ -110,6 +110,40 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testEmptyPortalPersistsThenChoosesItsFirstFolderInsideTheWindow() async throws {
+        try await withPortalDirectory { folder in
+            let store = PortalStoreSpy(portals: [])
+            let factory = PortalWindowFactorySpy()
+            let coordinator = PortalCoordinator(
+                store: store,
+                windowFactory: factory,
+                tabFolderPicker: TabFolderPickerStub(folders: [folder])
+            )
+            try await coordinator.restorePortals()
+
+            try await coordinator.createPortal(for: nil)
+
+            let emptyPortal = try XCTUnwrap(coordinator.portalStates.first)
+            XCTAssertTrue(emptyPortal.tabs.isEmpty)
+            XCTAssertNil(emptyPortal.selectedTabID)
+            XCTAssertEqual(factory.windows.count, 1)
+
+            factory.windows[0].onAddTab?()
+            await coordinator.waitForTabMutationForTesting()
+
+            XCTAssertEqual(coordinator.portalStates[0].tabs.map(\.folderURL), [folder])
+            XCTAssertEqual(
+                coordinator.portalStates[0].selectedTabID,
+                coordinator.portalStates[0].tabs[0].id
+            )
+            let saves = await store.savedSnapshots()
+            XCTAssertEqual(saves.count, 2)
+            XCTAssertTrue(saves[0][0].tabs.isEmpty)
+            XCTAssertEqual(saves[1], coordinator.portalStates)
+        }
+    }
+
+    @MainActor
     func testUserPlacementCommitPersistsUpdatedState() async throws {
         let portal = try makePortal(path: "/tmp/first", x: 10)
         let store = PortalStoreSpy(portals: [portal])
@@ -1325,7 +1359,7 @@ final class PortalCoordinatorTests: XCTestCase {
             )
             try await coordinator.restorePortals()
 
-            factory.windows[0].onLocateFolder?(portal.selectedTabID)
+            factory.windows[0].onLocateFolder?(try XCTUnwrap(portal.selectedTabID))
             await coordinator.waitForTabMutationForTesting()
 
             let updated = coordinator.portalStates[0]
@@ -1351,7 +1385,7 @@ final class PortalCoordinatorTests: XCTestCase {
             )
             try await coordinator.restorePortals()
 
-            factory.windows[0].onLocateFolder?(portal.selectedTabID)
+            factory.windows[0].onLocateFolder?(try XCTUnwrap(portal.selectedTabID))
             await coordinator.waitForTabMutationForTesting()
 
             XCTAssertEqual(coordinator.portalStates[0].tabs[0].folderURL, folder)
@@ -1376,7 +1410,7 @@ final class PortalCoordinatorTests: XCTestCase {
             )
             try await coordinator.restorePortals()
 
-            factory.windows[0].onLocateFolder?(portal.selectedTabID)
+            factory.windows[0].onLocateFolder?(try XCTUnwrap(portal.selectedTabID))
             await coordinator.waitForTabMutationForTesting()
 
             XCTAssertEqual(coordinator.portalStates, [portal])
@@ -1399,7 +1433,7 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         try await cancelCoordinator.restorePortals()
 
-        await cancelCoordinator.closeTab(portal.selectedTabID, in: portal.id)
+        await cancelCoordinator.closeTab(try XCTUnwrap(portal.selectedTabID), in: portal.id)
         XCTAssertEqual(cancelCoordinator.portalStates, [portal])
         XCTAssertEqual(cancelFactory.windows[0].closeCount, 0)
 
@@ -1413,7 +1447,7 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         try await confirmCoordinator.restorePortals()
 
-        await confirmCoordinator.closeTab(portal.selectedTabID, in: portal.id)
+        await confirmCoordinator.closeTab(try XCTUnwrap(portal.selectedTabID), in: portal.id)
         XCTAssertTrue(confirmCoordinator.portalStates.isEmpty)
         XCTAssertEqual(confirmFactory.windows[0].closeCount, 1)
         let saves = await confirmStore.savedSnapshots()

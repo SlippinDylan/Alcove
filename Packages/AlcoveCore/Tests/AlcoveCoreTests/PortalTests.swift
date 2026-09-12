@@ -28,7 +28,20 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(tab.folderURL.path, "/path/that/does/not/folder")
     }
 
-    func testRestoreRejectsEmptyTabsDuplicateTabIDsAndUnknownSelection() {
+    func testEmptyPortalRequiresNoSelectionAndSelectsItsFirstAddedTab() throws {
+        var portal = try Portal(
+            tabs: [],
+            selectedTabID: nil,
+            placement: makePlacement()
+        )
+
+        XCTAssertTrue(portal.tabs.isEmpty)
+        XCTAssertNil(portal.selectedTabID)
+        let firstID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/first"))
+        XCTAssertEqual(portal.selectedTabID, firstID)
+    }
+
+    func testRestoreRejectsInvalidTabAndSelectionCombinations() {
         let firstID = FolderTabID(rawValue: UUID())
         let firstTab = FolderTab(id: firstID, folderURL: URL(fileURLWithPath: "/tmp/first"))
         let unknownID = FolderTabID(rawValue: UUID())
@@ -36,7 +49,12 @@ final class PortalTests: XCTestCase {
         XCTAssertThrowsError(
             try Portal(tabs: [], selectedTabID: firstID, placement: makePlacement())
         ) { error in
-            XCTAssertEqual(error as? PortalError, .emptyTabs)
+            XCTAssertEqual(error as? PortalError, .selectionWithoutTabs(firstID))
+        }
+        XCTAssertThrowsError(
+            try Portal(tabs: [firstTab], selectedTabID: nil, placement: makePlacement())
+        ) { error in
+            XCTAssertEqual(error as? PortalError, .missingSelectedTab)
         }
         XCTAssertThrowsError(
             try Portal(

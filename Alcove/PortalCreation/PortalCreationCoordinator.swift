@@ -4,7 +4,6 @@ import AlcoveCore
 enum PortalCreationState: Equatable {
     case idle
     case selectingFrame
-    case choosingFolder
     case creating
 }
 
@@ -39,7 +38,6 @@ struct PortalFrameSelection: Equatable {
 @MainActor
 final class PortalCreationCoordinator: PortalCreationRequesting {
     private let frameSelector: any PortalFrameSelecting
-    private let folderPicker: any FolderPicking
     private let portalCoordinator: any PortalCoordinating
     private let errorPresenter: any PortalCreationErrorPresenting
     private var creationTask: Task<Void, Never>?
@@ -47,12 +45,10 @@ final class PortalCreationCoordinator: PortalCreationRequesting {
 
     init(
         frameSelector: any PortalFrameSelecting,
-        folderPicker: any FolderPicking,
         portalCoordinator: any PortalCoordinating,
         errorPresenter: any PortalCreationErrorPresenting = PortalCreationErrorPresenter()
     ) {
         self.frameSelector = frameSelector
-        self.folderPicker = folderPicker
         self.portalCoordinator = portalCoordinator
         self.errorPresenter = errorPresenter
     }
@@ -69,7 +65,6 @@ final class PortalCreationCoordinator: PortalCreationRequesting {
     func cancelPortalCreation() {
         creationTask?.cancel()
         frameSelector.cancel()
-        folderPicker.cancel()
     }
 
     func waitForCurrentCreation() async {
@@ -86,27 +81,20 @@ final class PortalCreationCoordinator: PortalCreationRequesting {
             return false
         }
 
-        while !Task.isCancelled {
-            state = .choosingFolder
-            guard let folderURL = await folderPicker.chooseFolder(), !Task.isCancelled else {
-                return false
-            }
-
-            state = .creating
-            do {
-                try await portalCoordinator.createPortal(
-                    for: folderURL,
-                    frame: selection.frame,
-                    gridCapacity: selection.capacity,
-                    iconLayout: selection.iconLayout
-                )
-                return true
-            } catch is CancellationError {
-                return false
-            } catch {
-                errorPresenter.present(error)
-            }
+        state = .creating
+        do {
+            try await portalCoordinator.createPortal(
+                for: nil,
+                frame: selection.frame,
+                gridCapacity: selection.capacity,
+                iconLayout: selection.iconLayout
+            )
+            return true
+        } catch is CancellationError {
+            return false
+        } catch {
+            errorPresenter.present(error)
+            return false
         }
-        return false
     }
 }

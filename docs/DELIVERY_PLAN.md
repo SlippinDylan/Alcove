@@ -227,8 +227,8 @@ Each slice produces a runnable, observable increment and adds only the domain or
 - Immediate dashed `3×1` card with title/item skeletons, Escape cancellation,
   translucent partial-cell feedback, and whole-column/whole-row snapping at
   half-cell thresholds.
-- Directory-only `NSOpenPanel` after mouse-up.
-- Validate the resolved folder's hosting volume and reject removable, ejectable, and network-volume locations without creating a partial portal.
+- Persist and present an empty Portal after mouse-up; its in-content Choose Folder action opens the directory-only `NSOpenPanel`.
+- Validate the resolved folder's hosting volume and reject removable, ejectable, and network-volume locations without changing the empty Portal.
 - Create a runtime portal for the selected folder; repeating the flow can create multiple portals.
 - No durable storage yet.
 

@@ -16,7 +16,6 @@ let portalCoordinator = PortalCoordinator(portalCreationGridState: creationGridS
 let frameSelector = PortalFrameSelector(gridState: creationGridState)
 let creationCoordinator = PortalCreationCoordinator(
     frameSelector: frameSelector,
-    folderPicker: OpenPanelFolderPicker(),
     portalCoordinator: portalCoordinator
 )
 let statusMenuController = StatusMenuController(

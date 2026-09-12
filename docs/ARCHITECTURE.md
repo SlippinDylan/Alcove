@@ -71,7 +71,7 @@ The module boundaries describe the intended separation of responsibilities. Modu
 
 Domain models and pure layout math. Zero AppKit imports.
 
-- `Portal` — top-level aggregate
+- `Portal` — top-level aggregate; valid states are either no tabs with no selected tab, or one-or-more tabs with a selected tab contained in that list
 - `FolderTab` — tab identity and folder URL reference
 - `FileItem` — enumerated file/folder entry
 - `SelectionState` — per-tab selection model
@@ -361,9 +361,10 @@ The concrete v1 migration maps each legacy frame to the display with the largest
 visible-frame intersection, falling back to the explicit primary display. Versions 1–3
 default the icon layout to the stored fixed icon size; v1 and v2 also default the newer
 per-portal background preference to Standard. Versions 1–4 derive `GridCapacity` from the
-saved frame's grid-content size (after removing the tab bar) and their saved icon/text metrics.
-All legacy versions are atomically rewritten as v5. Before conversion the store writes the
-matching `portals.vN.json.bak` once and never
+saved frame's grid-content size (after removing the tab bar) and their saved icon/text metrics;
+version 5 already contains capacity. All legacy versions are atomically rewritten as v6,
+whose optional `selected_tab_id` represents a durable empty Portal. Before conversion the
+store writes the matching `portals.vN.json.bak` once and never
 replaces a different existing backup. Migrations remain explicit rather than using a
 speculative generic framework.
 
@@ -379,7 +380,7 @@ speculative generic framework.
 
 ### 5.5 Backup
 
-The v1/v2/v3/v4→v5 migrations preserve the original as the matching
+The v1/v2/v3/v4/v5→v6 migrations preserve the original as the matching
 `portals.vN.json.bak`. The first backup is write-once; a different existing backup stops
 migration instead of overwriting evidence.
 

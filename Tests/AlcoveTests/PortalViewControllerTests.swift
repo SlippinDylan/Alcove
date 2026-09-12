@@ -4,6 +4,31 @@ import XCTest
 
 final class PortalViewControllerTests: XCTestCase {
     @MainActor
+    func testEmptyPortalShowsFolderChoiceInsideThePortal() throws {
+        let controller = PortalViewController(
+            portal: try Portal(
+                frame: CGRect(x: 0, y: 0, width: 344, height: 180),
+                display: testDisplay
+            ),
+            loadingCoordinator: FolderLoadingCoordinator()
+        )
+        var addRequestCount = 0
+        controller.onAddTab = { addRequestCount += 1 }
+
+        controller.loadView()
+
+        XCTAssertEqual(controller.presentationState, .emptyPortal)
+        let chooseButton = try XCTUnwrap(
+            descendants(of: controller.view)
+                .compactMap { $0 as? NSButton }
+                .first { $0.accessibilityLabel() == "Choose a folder for this portal" }
+        )
+        XCTAssertFalse(chooseButton.isHidden)
+        chooseButton.performClick(nil)
+        XCTAssertEqual(addRequestCount, 1)
+    }
+
+    @MainActor
     func testPortalSeparatesBackgroundMaterialFromControlGroupGlass() throws {
         let controller = PortalViewController(
             portal: try Portal(
@@ -357,7 +382,7 @@ final class PortalViewControllerTests: XCTestCase {
             frame: CGRect(x: 0, y: 0, width: 420, height: 360),
             display: testDisplay
         )
-        let firstTabID = portal.selectedTabID
+        let firstTabID = try XCTUnwrap(portal.selectedTabID)
         let secondTabID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
         let grid = FileGridViewController()
         let controller = PortalViewController(
@@ -410,7 +435,7 @@ final class PortalViewControllerTests: XCTestCase {
             frame: CGRect(x: 0, y: 0, width: 420, height: 360),
             display: testDisplay
         )
-        let firstTabID = portal.selectedTabID
+        let firstTabID = try XCTUnwrap(portal.selectedTabID)
         let secondTabID = try portal.appendTab(folderURL: secondRoot)
         let grid = FileGridViewController()
         let controller = PortalViewController(
@@ -468,7 +493,7 @@ final class PortalViewControllerTests: XCTestCase {
             frame: CGRect(x: 0, y: 0, width: 420, height: 360),
             display: testDisplay
         )
-        let firstTabID = portal.selectedTabID
+        let firstTabID = try XCTUnwrap(portal.selectedTabID)
         let secondTabID = try portal.appendTab(folderURL: secondRoot)
         let grid = FileGridViewController()
         let controller = PortalViewController(
