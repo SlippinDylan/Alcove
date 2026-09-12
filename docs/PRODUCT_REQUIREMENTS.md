@@ -101,11 +101,12 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 
 1. User activates portal creation from the menu bar (clicks Alcove icon → "New Portal")
 2. A transparent overlay appears on the pointer's current display
-3. User drags a dashed rectangle constrained to `NSScreen.visibleFrame`
-4. On mouse-up, a folder chooser (standard `NSOpenPanel`) appears
-5. Alcove validates that the selected folder is on the Mac's internal, fixed local storage; removable, ejectable, and network-volume locations are rejected with an explanation
-6. An eligible folder becomes the first tab of the new portal
-7. Portal frame snaps to grid metrics (column count, icon spacing)
+3. A dashed `3×1` portal appears immediately. Its card, title control, and item slots are previewed as dashed outlines.
+4. Dragging changes columns and rows at half-cell thresholds: partial progress remains a translucent candidate until the next whole capacity is committed.
+5. On mouse-up, a folder chooser (standard `NSOpenPanel`) appears
+6. Alcove validates that the selected folder is on the Mac's internal, fixed local storage; removable, ejectable, and network-volume locations are rejected with an explanation
+7. An eligible folder becomes the first tab of the new portal
+8. The committed whole `columns × rows` capacity is persisted; its physical frame is derived from the active icon and text metrics.
 
 ### 5.5 Tab Management
 
@@ -132,8 +133,8 @@ Post-MVP.
 | Movable | Yes — user-initiated drag from empty space in the top control row |
 | Resizable | Yes — user-initiated resize from edges/corners |
 | Inactive appearance | Portal material and folder controls retain their active visual contrast when another app becomes active |
-| Frame snap | Snaps to grid metrics and column count |
-| Min size | Enough to show at least 2 columns and 2 rows |
+| Frame snap | Columns and rows switch at half-cell thresholds and always settle on a whole `columns × rows` capacity |
+| Min size | 3 columns × 1 row |
 
 ---
 

@@ -253,7 +253,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try await portalCoordinator.restorePortals()
                 await portalCoordinator.refreshFollowedDesktopIconSettings()
                 if let startupFolderURL {
-                    try await portalCoordinator.createPortal(for: startupFolderURL, frame: nil)
+                    try await portalCoordinator.createPortal(
+                        for: startupFolderURL,
+                        frame: nil,
+                        gridCapacity: .minimum
+                    )
                 }
                 startupError = nil
                 return

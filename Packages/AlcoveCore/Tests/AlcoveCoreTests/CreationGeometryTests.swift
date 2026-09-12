@@ -25,12 +25,11 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, CGRect(x: 58, y: 80, width: 184, height: 80))
-        assert(rectangle.frame, contains: CGPoint(x: 100, y: 100))
-        assert(rectangle.frame, contains: CGPoint(x: 110, y: 110))
+        XCTAssertEqual(rectangle.frame, CGRect(x: 100, y: 100, width: 184, height: 120))
+        XCTAssertEqual(rectangle.capacity, .minimum)
     }
 
-    func testRectangleSnapsSizeUpAndOriginToGrid() throws {
+    func testRectangleSnapsToNearestWholeCapacity() throws {
         let rectangle = try CreationGeometry.rectangle(
             mouseDown: CGPoint(x: 63, y: 81),
             currentPoint: CGPoint(x: 216, y: 269),
@@ -38,9 +37,8 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, CGRect(x: 58, y: 80, width: 184, height: 240))
-        assert(rectangle.frame, contains: CGPoint(x: 63, y: 81))
-        assert(rectangle.frame, contains: CGPoint(x: 216, y: 269))
+        XCTAssertEqual(rectangle.frame, CGRect(x: 63, y: 81, width: 184, height: 200))
+        XCTAssertEqual(rectangle.capacity, try GridCapacity(columns: 3, rows: 2))
     }
 
     func testRectanglePreservesNegativeDirection() throws {
@@ -51,9 +49,9 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, CGRect(x: 174, y: 160, width: 184, height: 160))
-        assert(rectangle.frame, contains: CGPoint(x: 330, y: 320))
-        assert(rectangle.frame, contains: CGPoint(x: 200, y: 190))
+        XCTAssertEqual(rectangle.frame, CGRect(x: 146, y: 200, width: 184, height: 120))
+        XCTAssertEqual(rectangle.frame.maxX, 330)
+        XCTAssertEqual(rectangle.frame.maxY, 320)
     }
 
     func testRectangleSupportsMixedDragDirections() throws {
@@ -70,12 +68,8 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(downThenLeft.frame, CGRect(x: 116, y: 80, width: 184, height: 240))
-        XCTAssertEqual(upThenRight.frame, CGRect(x: 58, y: 80, width: 184, height: 240))
-        assert(downThenLeft.frame, contains: CGPoint(x: 300, y: 100))
-        assert(downThenLeft.frame, contains: CGPoint(x: 170, y: 250))
-        assert(upThenRight.frame, contains: CGPoint(x: 100, y: 300))
-        assert(upThenRight.frame, contains: CGPoint(x: 230, y: 150))
+        XCTAssertEqual(downThenLeft.frame, CGRect(x: 116, y: 100, width: 184, height: 120))
+        XCTAssertEqual(upThenRight.frame, CGRect(x: 100, y: 180, width: 184, height: 120))
     }
 
     func testRectangleClampsPointsAndFinalSnapToVisibleFrame() throws {
@@ -87,7 +81,8 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, visibleFrame)
+        XCTAssertEqual(rectangle.frame, CGRect(x: -500, y: -300, width: 300, height: 200))
+        XCTAssertEqual(rectangle.capacity, try GridCapacity(columns: 5, rows: 2))
     }
 
     func testSmallVisibleFrameUsesEntireVisibleArea() throws {
@@ -99,7 +94,38 @@ final class CreationGeometryTests: XCTestCase {
             grid: try CreationGrid(metrics: metrics)
         )
 
-        XCTAssertEqual(rectangle.frame, CGRect(x: -40, y: 30, width: 100, height: 80))
+        XCTAssertEqual(rectangle.frame, visibleFrame)
+        XCTAssertEqual(rectangle.capacity, .minimum)
+    }
+
+    func testHalfUnitThresholdCommitsCandidateColumnAndRow() throws {
+        let grid = try CreationGrid(metrics: metrics)
+        let visibleFrame = CGRect(x: 0, y: 0, width: 800, height: 600)
+        let belowThreshold = try CreationGeometry.rectangle(
+            mouseDown: .zero,
+            currentPoint: CGPoint(
+                x: grid.minimumSize.width + grid.columnIncrement * 0.2,
+                y: grid.minimumSize.height + grid.rowIncrement * 0.2
+            ),
+            visibleFrame: visibleFrame,
+            grid: grid
+        )
+        let atThreshold = try CreationGeometry.rectangle(
+            mouseDown: .zero,
+            currentPoint: CGPoint(
+                x: grid.minimumSize.width + grid.columnIncrement * 0.5,
+                y: grid.minimumSize.height + grid.rowIncrement * 0.5
+            ),
+            visibleFrame: visibleFrame,
+            grid: grid
+        )
+
+        XCTAssertEqual(belowThreshold.capacity, .minimum)
+        XCTAssertEqual(belowThreshold.ghostColumnProgress, 0.4, accuracy: 0.001)
+        XCTAssertEqual(belowThreshold.ghostRowProgress, 0.4, accuracy: 0.001)
+        XCTAssertEqual(atThreshold.capacity, try GridCapacity(columns: 4, rows: 2))
+        XCTAssertEqual(atThreshold.ghostColumnProgress, 0)
+        XCTAssertEqual(atThreshold.ghostRowProgress, 0)
     }
 
     func testRectangleRejectsNonFiniteGestureAndDisplayValues() throws {
@@ -134,15 +160,4 @@ final class CreationGeometryTests: XCTestCase {
         }
     }
 
-    private func assert(
-        _ frame: CGRect,
-        contains point: CGPoint,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) {
-        XCTAssertGreaterThanOrEqual(point.x, frame.minX, file: file, line: line)
-        XCTAssertLessThanOrEqual(point.x, frame.maxX, file: file, line: line)
-        XCTAssertGreaterThanOrEqual(point.y, frame.minY, file: file, line: line)
-        XCTAssertLessThanOrEqual(point.y, frame.maxY, file: file, line: line)
-    }
 }

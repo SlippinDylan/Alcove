@@ -21,7 +21,9 @@ final class PortalCreationCoordinatorTests: XCTestCase {
         let created = await coordinator.runCreation()
         XCTAssertTrue(created)
 
-        XCTAssertEqual(portalCoordinator.requests, [PortalRequest(folder: folder, frame: frame)])
+        XCTAssertEqual(portalCoordinator.requests, [
+            PortalRequest(folder: folder, frame: frame, capacity: .minimum),
+        ])
         XCTAssertEqual(coordinator.state, .idle)
     }
 
@@ -70,8 +72,8 @@ final class PortalCreationCoordinatorTests: XCTestCase {
         XCTAssertTrue(created)
 
         XCTAssertEqual(portalCoordinator.requests, [
-            PortalRequest(folder: rejected, frame: frame),
-            PortalRequest(folder: accepted, frame: frame),
+            PortalRequest(folder: rejected, frame: frame, capacity: .minimum),
+            PortalRequest(folder: accepted, frame: frame, capacity: .minimum),
         ])
         XCTAssertEqual(presenter.presentedErrors.count, 1)
     }
@@ -100,8 +102,8 @@ final class PortalCreationCoordinatorTests: XCTestCase {
         XCTAssertTrue(secondCreated)
 
         XCTAssertEqual(portalCoordinator.requests, [
-            PortalRequest(folder: folders[0], frame: frames[0]),
-            PortalRequest(folder: folders[1], frame: frames[1]),
+            PortalRequest(folder: folders[0], frame: frames[0], capacity: .minimum),
+            PortalRequest(folder: folders[1], frame: frames[1], capacity: .minimum),
         ])
     }
 
@@ -146,21 +148,23 @@ final class PortalCreationCoordinatorTests: XCTestCase {
             visibleFrame: visibleFrame,
             grid: try CreationGrid(metrics: GridMetrics(iconSize: .medium))
         )
-        var selectedFrame: NSRect?
+        var selectedFrame: PortalFrameSelection?
         overlay.onCompletion = { selectedFrame = $0 }
 
         XCTAssertEqual(overlay.accessibilityRole(), .button)
         XCTAssertEqual(overlay.accessibilityLabel(), "Create portal area")
         XCTAssertTrue(overlay.accessibilityPerformPress())
-        let frame = try XCTUnwrap(selectedFrame)
-        XCTAssertTrue(visibleFrame.contains(frame))
-        XCTAssertTrue(frame.contains(NSPoint(x: visibleFrame.midX, y: visibleFrame.midY)))
+        let selection = try XCTUnwrap(selectedFrame)
+        XCTAssertEqual(selection.capacity, .minimum)
+        XCTAssertTrue(visibleFrame.contains(selection.frame))
+        XCTAssertTrue(selection.frame.contains(NSPoint(x: visibleFrame.midX, y: visibleFrame.midY)))
     }
 }
 
 private struct PortalRequest: Equatable {
     let folder: URL
     let frame: NSRect?
+    let capacity: GridCapacity
 }
 
 @MainActor
@@ -172,9 +176,11 @@ private final class FrameSelectorStub: PortalFrameSelecting {
         self.frames = frames
     }
 
-    func selectFrame() async -> NSRect? {
+    func selectFrame() async -> PortalFrameSelection? {
         guard !frames.isEmpty else { return nil }
-        return frames.removeFirst()
+        return frames.removeFirst().map {
+            PortalFrameSelection(frame: $0, capacity: .minimum)
+        }
     }
 
     func cancel() {
@@ -184,10 +190,10 @@ private final class FrameSelectorStub: PortalFrameSelecting {
 
 @MainActor
 private final class SuspendedFrameSelector: PortalFrameSelecting {
-    private var continuation: CheckedContinuation<NSRect?, Never>?
+    private var continuation: CheckedContinuation<PortalFrameSelection?, Never>?
     private(set) var selectionCount = 0
 
-    func selectFrame() async -> NSRect? {
+    func selectFrame() async -> PortalFrameSelection? {
         selectionCount += 1
         return await withCheckedContinuation { continuation in
             self.continuation = continuation
@@ -201,7 +207,11 @@ private final class SuspendedFrameSelector: PortalFrameSelecting {
     func complete(with frame: NSRect?) {
         guard let continuation else { return }
         self.continuation = nil
-        continuation.resume(returning: frame)
+        continuation.resume(
+            returning: frame.map {
+                PortalFrameSelection(frame: $0, capacity: .minimum)
+            }
+        )
     }
 }
 
@@ -241,8 +251,14 @@ private final class PortalCoordinatorStub: PortalCoordinating {
 
     func prepareForTermination() async {}
 
-    func createPortal(for folderURL: URL, frame: NSRect?) async throws {
-        requests.append(PortalRequest(folder: folderURL, frame: frame))
+    func createPortal(
+        for folderURL: URL,
+        frame: NSRect?,
+        gridCapacity: GridCapacity
+    ) async throws {
+        requests.append(
+            PortalRequest(folder: folderURL, frame: frame, capacity: gridCapacity)
+        )
         if !errors.isEmpty, let error = errors.removeFirst() {
             throw error
         }

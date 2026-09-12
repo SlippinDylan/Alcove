@@ -224,14 +224,17 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Deliverables:**
 - Enable the menu-bar "New Portal" command.
 - Transparent overlay on the pointer's current display, constrained to `visibleFrame`.
-- Dashed rectangle drag, Escape cancellation, and grid-snapped frame.
+- Immediate dashed `3×1` card with title/item skeletons, Escape cancellation,
+  translucent partial-cell feedback, and whole-column/whole-row snapping at
+  half-cell thresholds.
 - Directory-only `NSOpenPanel` after mouse-up.
 - Validate the resolved folder's hosting volume and reject removable, ejectable, and network-volume locations without creating a partial portal.
 - Create a runtime portal for the selected folder; repeating the flow can create multiple portals.
 - No durable storage yet.
 
 **Tests:**
-- Unit: rectangle constraint, cancellation, and grid-snap math.
+- Unit: rectangle constraint, cancellation, `3×1` default, half-cell threshold,
+  and whole-capacity grid-snap math.
 - Integration: overlay → drag → folder selection → portal appears.
 - Manual: create multiple portals on available displays.
 
@@ -245,7 +248,7 @@ Each slice produces a runnable, observable increment and adds only the domain or
 
 ### Slice 5 — Minimal Persistence
 
-**Goal:** Restore the portal state that exists at this point: portal identity, one mapped tab, current frame, icon-size preset, and creation order.
+**Goal:** Restore the portal state that exists at this point: portal identity, one mapped tab, whole grid capacity, current placement, icon-size preference, and creation order.
 
 **Entry Gate:** Slice 4 exit gate passed.
 
@@ -253,6 +256,7 @@ Each slice produces a runnable, observable increment and adds only the domain or
 - Small validated domain model for current portal state.
 - Versioned v1 JSON envelope at `~/Library/Application Support/Alcove/portals.json`.
 - Separate Codable persistence DTOs mapped to domain values.
+- Persist the committed `columns × rows` capacity independently from the pixel frame so icon-metric changes retain the user's layout intent.
 - Atomic temporary-write and replace behavior with explicit errors.
 - Persist only current needs while representing the mapped folder as a one-element tab list so Slice 6 can extend it without an artificial schema migration.
 - Reserve schema-version handling; do not build a mock migration chain. Add the first migration only when a real second schema exists.

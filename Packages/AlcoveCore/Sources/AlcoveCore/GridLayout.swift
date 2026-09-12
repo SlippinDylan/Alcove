@@ -6,8 +6,8 @@ public struct GridCapacity: Sendable, Hashable {
     public static let minimumColumns = 3
     public static let minimumRows = 1
     public static let minimum = GridCapacity(
-        uncheckedColumns: minimumColumns,
-        uncheckedRows: minimumRows
+        validatedColumns: minimumColumns,
+        validatedRows: minimumRows
     )
 
     public let columns: Int
@@ -24,9 +24,9 @@ public struct GridCapacity: Sendable, Hashable {
         self.rows = rows
     }
 
-    fileprivate init(uncheckedColumns: Int, uncheckedRows: Int) {
-        columns = uncheckedColumns
-        rows = uncheckedRows
+    init(validatedColumns: Int, validatedRows: Int) {
+        columns = validatedColumns
+        rows = validatedRows
     }
 }
 
@@ -146,7 +146,7 @@ public struct GridMetrics: Sendable, Hashable {
             spacing: verticalSpacing,
             minimum: GridCapacity.minimum.rows
         )
-        return GridCapacity(uncheckedColumns: columns, uncheckedRows: rows)
+        return GridCapacity(validatedColumns: columns, validatedRows: rows)
     }
 
     private func nearestCount(

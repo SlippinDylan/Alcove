@@ -80,23 +80,30 @@ final class PortalCoordinatorTests: XCTestCase {
             let factory = PortalWindowFactorySpy()
             let coordinator = PortalCoordinator(store: store, windowFactory: factory)
             let frame = NSRect(x: 30, y: 40, width: 320, height: 240)
+            let capacity = try GridCapacity(columns: 4, rows: 2)
             try await coordinator.restorePortals()
 
-            try await coordinator.createPortal(for: folder, frame: frame)
+            try await coordinator.createPortal(
+                for: folder,
+                frame: frame,
+                gridCapacity: capacity
+            )
 
             let saves = await store.savedSnapshots()
             XCTAssertEqual(saves.count, 1)
             XCTAssertEqual(saves[0], coordinator.portalStates)
-            let createdFrame = try XCTUnwrap(coordinator.portalStates.first?.frame)
-            XCTAssertGreaterThanOrEqual(createdFrame.width, frame.width)
-            XCTAssertGreaterThan(createdFrame.height, frame.height)
+            let createdPortal = try XCTUnwrap(coordinator.portalStates.first)
+            XCTAssertEqual(createdPortal.gridCapacity, capacity)
             let contentSize = NSWindow.contentRect(
-                forFrameRect: createdFrame,
+                forFrameRect: createdPortal.frame,
                 styleMask: [.resizable]
             ).size
             XCTAssertEqual(
                 contentSize,
-                PortalViewController.snappedContentSize(contentSize, for: .medium)
+                PortalViewController.contentSize(
+                    for: capacity,
+                    iconLayout: .fixed(.medium)
+                )
             )
             XCTAssertEqual(factory.windows.first?.presentCount, 1)
         }
@@ -983,7 +990,18 @@ final class PortalCoordinatorTests: XCTestCase {
 
         let updated = coordinator.portalStates[0]
         XCTAssertEqual(updated.iconSize, .large)
-        XCTAssertGreaterThan(updated.frame.height, portal.frame.height)
+        XCTAssertEqual(updated.gridCapacity, portal.gridCapacity)
+        let updatedContentSize = NSWindow.contentRect(
+            forFrameRect: updated.frame,
+            styleMask: [.resizable]
+        ).size
+        XCTAssertEqual(
+            updatedContentSize,
+            PortalViewController.contentSize(
+                for: portal.gridCapacity,
+                iconLayout: .fixed(.large)
+            )
+        )
         let appliedFrame = try XCTUnwrap(factory.windows[0].systemFrames.last)
         XCTAssertEqual(appliedFrame.size, updated.frame.size)
         XCTAssertTrue(coordinatorTestDisplay.visibleFrame.contains(appliedFrame))
@@ -992,7 +1010,7 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testIconLayoutChangeResnapsAnExistingLargeWindowToTheNewPitch() async throws {
+    func testIconLayoutChangePreservesCapacityAndFitsNewMetrics() async throws {
         let portal = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/first"),
             frame: NSRect(x: 20, y: 30, width: 560, height: 480),
@@ -1004,13 +1022,9 @@ final class PortalCoordinatorTests: XCTestCase {
             windowFactory: PortalWindowFactorySpy()
         )
         try await coordinator.restorePortals()
-        let requestedContentSize = NSWindow.contentRect(
-            forFrameRect: NSRect(origin: .zero, size: portal.frame.size),
-            styleMask: [.resizable]
-        ).size
-        let expectedContentSize = PortalViewController.snappedContentSize(
-            requestedContentSize,
-            for: .fixed(.large)
+        let expectedContentSize = PortalViewController.contentSize(
+            for: portal.gridCapacity,
+            iconLayout: .fixed(.large)
         )
 
         await coordinator.setIconSize(.large, for: portal.id)
@@ -1023,6 +1037,7 @@ final class PortalCoordinatorTests: XCTestCase {
             styleMask: [.resizable]
         ).size
         XCTAssertEqual(updatedContentSize, expectedContentSize)
+        XCTAssertEqual(coordinator.portalStates[0].gridCapacity, portal.gridCapacity)
     }
 
     @MainActor

@@ -91,7 +91,7 @@ App entry point and global coordination.
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
 - `FinderDesktopSettingsReader` — executes the user-approved Finder script on a dedicated queue and validates the returned desktop icon/text sizes; it never reads private Finder preference keys
-- `NewPortalOverlay` — pointer-display overlay with dashed drag rectangle, constrained to `visibleFrame`
+- `NewPortalOverlay` — pointer-display overlay with a dashed `3×1` default card, title/item skeletons, half-cell candidate feedback, and whole-capacity snapping constrained to `visibleFrame`
 - Info.plist: `LSUIElement = YES`, `LSBackgroundOnly = NO`
 
 ### 3.3 PortalWindowing
@@ -120,6 +120,7 @@ Visual chrome inside each portal window.
 - `TabBarView` — one centered, horizontally scrollable outer capsule containing divider-free folder-name capsules, plus a fixed trailing More menu for add/close and per-portal background-transparency actions; tabs remain in creation order in MVP and drag-to-reorder is Post-MVP
 - `PortalChromeMaterialView` — role-aware compatibility boundary: the content surface keeps an always-active `.popover`-material `NSVisualEffectView` at full strength and varies an adaptive neutral tint overlay per Portal, while the centered control group uses `NSGlassEffectView` on macOS 26+ and an always-active `NSVisualEffectView` on 15–25
 - Layout: tab bar at top, icon grid fills remaining area
+- Portal size intent is `GridCapacity`, not a remembered pixel size. Creation and icon-metric changes derive the content frame from the same `GridMetrics`; changing Finder or manual icon metrics preserves capacity and recomputes the physical frame.
 - Rendering hierarchy: the background material, file grid, and top control row
   are sibling layers in a plain root container. The control-group
   `NSGlassEffectView` must not be nested inside the background

@@ -1,4 +1,5 @@
 import AppKit
+import AlcoveCore
 
 enum PortalCreationState: Equatable {
     case idle
@@ -15,8 +16,13 @@ protocol PortalCreationRequesting: AnyObject {
 
 @MainActor
 protocol PortalFrameSelecting: AnyObject {
-    func selectFrame() async -> NSRect?
+    func selectFrame() async -> PortalFrameSelection?
     func cancel()
+}
+
+struct PortalFrameSelection: Equatable {
+    let frame: NSRect
+    let capacity: GridCapacity
 }
 
 @MainActor
@@ -65,7 +71,7 @@ final class PortalCreationCoordinator: PortalCreationRequesting {
         state = .selectingFrame
         defer { state = .idle }
 
-        guard let frame = await frameSelector.selectFrame(), !Task.isCancelled else {
+        guard let selection = await frameSelector.selectFrame(), !Task.isCancelled else {
             return false
         }
 
@@ -77,7 +83,11 @@ final class PortalCreationCoordinator: PortalCreationRequesting {
 
             state = .creating
             do {
-                try await portalCoordinator.createPortal(for: folderURL, frame: frame)
+                try await portalCoordinator.createPortal(
+                    for: folderURL,
+                    frame: selection.frame,
+                    gridCapacity: selection.capacity
+                )
                 return true
             } catch is CancellationError {
                 return false

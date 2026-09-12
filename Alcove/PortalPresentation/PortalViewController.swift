@@ -21,17 +21,24 @@ struct PortalErrorPresentation: Equatable {
 
 @MainActor
 final class PortalViewController: NSViewController {
-    static let tabBarHeight: CGFloat = 40
+    static let tabBarHeight = PortalLayoutMetrics.tabBarHeight
 
     static func minimumContentSize(for iconSize: IconSize) -> NSSize {
         minimumContentSize(for: .fixed(iconSize))
     }
 
     static func minimumContentSize(for iconLayout: PortalIconLayout) -> NSSize {
+        contentSize(for: .minimum, iconLayout: iconLayout)
+    }
+
+    static func contentSize(
+        for capacity: GridCapacity,
+        iconLayout: PortalIconLayout
+    ) -> NSSize {
         let gridSize = GridMetrics(
             iconSize: iconLayout.iconSize,
             labelFontSize: iconLayout.textSize
-        ).minimumPortalSize
+        ).contentSize(for: capacity)
         return NSSize(width: gridSize.width, height: gridSize.height + tabBarHeight)
     }
 

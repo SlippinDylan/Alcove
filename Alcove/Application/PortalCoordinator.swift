@@ -4,7 +4,11 @@ import AppKit
 @MainActor
 protocol PortalCoordinating: AnyObject {
     func restorePortals() async throws
-    func createPortal(for folderURL: URL, frame: NSRect?) async throws
+    func createPortal(
+        for folderURL: URL,
+        frame: NSRect?,
+        gridCapacity: GridCapacity
+    ) async throws
     func refreshFollowedDesktopIconSettings() async
     func stop()
     func prepareForTermination() async
@@ -124,7 +128,11 @@ final class PortalCoordinator: PortalCoordinating {
         }
     }
 
-    func createPortal(for folderURL: URL, frame: NSRect? = nil) async throws {
+    func createPortal(
+        for folderURL: URL,
+        frame: NSRect? = nil,
+        gridCapacity: GridCapacity = .minimum
+    ) async throws {
         let folderURL = try await locationValidator.validate(folderURL)
         try Task.checkCancellation()
         try await performMutation { [weak self] in
@@ -138,15 +146,17 @@ final class PortalCoordinator: PortalCoordinating {
                 frame: requestedFrame,
                 in: snapshot
             )
-            let initialFrame = Self.frameEnsuringMinimumContent(
+            let initialFrame = Self.frameFittingCapacity(
                 requestedFrame,
                 iconSize: .medium,
-                visibleFrame: display.visibleFrame
+                visibleFrame: display.visibleFrame,
+                gridCapacity: gridCapacity
             )
             let portal = try Portal(
                 folderURL: folderURL,
                 frame: initialFrame,
-                display: display
+                display: display,
+                gridCapacity: gridCapacity
             )
             let updatedPortals = portalStates + [portal]
             try await store.save(updatedPortals)
@@ -374,11 +384,11 @@ final class PortalCoordinator: PortalCoordinating {
             identity: portal.placement.homeDisplay,
             visibleFrame: homeEntry.referenceVisibleFrame
         )
-        let adjustedFrame = Self.frameEnsuringMinimumContent(
+        let adjustedFrame = Self.frameFittingCapacity(
             portal.frame,
             iconLayout: portal.iconLayout,
             visibleFrame: homeDisplay.visibleFrame,
-            roundingRule: .toNearestOrAwayFromZero
+            gridCapacity: portal.gridCapacity
         )
         guard adjustedFrame != portal.frame else { return portal }
         try portal.recordUserPlacement(frame: adjustedFrame, display: homeDisplay)
@@ -936,34 +946,30 @@ final class PortalCoordinator: PortalCoordinating {
         )
     }
 
-    private static func frameEnsuringMinimumContent(
+    private static func frameFittingCapacity(
         _ frame: NSRect,
         iconSize: IconSize,
-        visibleFrame: NSRect
+        visibleFrame: NSRect,
+        gridCapacity: GridCapacity = .minimum
     ) -> NSRect {
-        frameEnsuringMinimumContent(
+        frameFittingCapacity(
             frame,
             iconLayout: .fixed(iconSize),
             visibleFrame: visibleFrame,
-            roundingRule: .up
+            gridCapacity: gridCapacity
         )
     }
 
-    private static func frameEnsuringMinimumContent(
+    private static func frameFittingCapacity(
         _ frame: NSRect,
         iconLayout: PortalIconLayout,
         visibleFrame: NSRect,
-        roundingRule: FloatingPointRoundingRule
+        gridCapacity: GridCapacity
     ) -> NSRect {
         let styleMask: NSWindow.StyleMask = [.resizable]
-        let requestedContentSize = NSWindow.contentRect(
-            forFrameRect: NSRect(origin: .zero, size: frame.size),
-            styleMask: styleMask
-        ).size
-        let snappedContentSize = PortalViewController.snappedContentSize(
-            requestedContentSize,
-            for: iconLayout,
-            roundingRule: roundingRule
+        let snappedContentSize = PortalViewController.contentSize(
+            for: gridCapacity,
+            iconLayout: iconLayout
         )
         let snappedFrameSize = NSWindow.frameRect(
             forContentRect: NSRect(origin: .zero, size: snappedContentSize),

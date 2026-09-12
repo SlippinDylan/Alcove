@@ -3,10 +3,11 @@ import Foundation
 
 /// A validated grid used to size and align a newly created portal.
 public struct CreationGrid: Sendable, Hashable {
+    public let metrics: GridMetrics
     public let minimumSize: CGSize
 
-    fileprivate let columnIncrement: CGFloat
-    fileprivate let rowIncrement: CGFloat
+    public let columnIncrement: CGFloat
+    public let rowIncrement: CGFloat
 
     public init(metrics: GridMetrics) throws {
         let values = [
@@ -40,7 +41,11 @@ public struct CreationGrid: Sendable, Hashable {
             throw CreationGeometryError.invalidGridMetrics
         }
 
-        let minimumSize = metrics.minimumPortalSize
+        let minimumGridSize = metrics.contentSize(for: .minimum)
+        let minimumSize = CGSize(
+            width: minimumGridSize.width,
+            height: minimumGridSize.height + PortalLayoutMetrics.tabBarHeight
+        )
         let columnIncrement = metrics.itemSize.width + metrics.horizontalSpacing
         let rowIncrement = metrics.itemSize.height + metrics.verticalSpacing
         guard minimumSize.width.isFinite,
@@ -55,49 +60,100 @@ public struct CreationGrid: Sendable, Hashable {
             throw CreationGeometryError.invalidGridMetrics
         }
 
+        self.metrics = metrics
         self.minimumSize = minimumSize
         self.columnIncrement = columnIncrement
         self.rowIncrement = rowIncrement
     }
 
-    fileprivate func snappedSize(for requestedSize: CGSize, within visibleSize: CGSize) -> CGSize {
-        CGSize(
-            width: snappedExtent(
-                requestedSize.width,
-                minimum: minimumSize.width,
-                increment: columnIncrement,
-                limit: visibleSize.width
-            ),
-            height: snappedExtent(
-                requestedSize.height,
-                minimum: minimumSize.height,
-                increment: rowIncrement,
-                limit: visibleSize.height
-            )
+    public func cardSize(for capacity: GridCapacity) -> CGSize {
+        let gridSize = metrics.contentSize(for: capacity)
+        return CGSize(
+            width: gridSize.width,
+            height: gridSize.height + PortalLayoutMetrics.tabBarHeight
         )
     }
 
-    private func snappedExtent(
+    fileprivate func selection(
+        for requestedSize: CGSize,
+        within visibleSize: CGSize
+    ) -> CreationGridSelection {
+        let horizontal = quantizedExtent(
+                requestedSize.width,
+                minimum: minimumSize.width,
+                increment: columnIncrement,
+                limit: visibleSize.width,
+                minimumCount: GridCapacity.minimumColumns
+            )
+        let vertical = quantizedExtent(
+                requestedSize.height,
+                minimum: minimumSize.height,
+                increment: rowIncrement,
+                limit: visibleSize.height,
+                minimumCount: GridCapacity.minimumRows
+            )
+        return CreationGridSelection(
+            capacity: GridCapacity(
+                validatedColumns: horizontal.count,
+                validatedRows: vertical.count
+            ),
+            size: CGSize(width: horizontal.extent, height: vertical.extent),
+            ghostColumnProgress: horizontal.ghostProgress,
+            ghostRowProgress: vertical.ghostProgress
+        )
+    }
+
+    private func quantizedExtent(
         _ requested: CGFloat,
         minimum: CGFloat,
         increment: CGFloat,
-        limit: CGFloat
-    ) -> CGFloat {
+        limit: CGFloat,
+        minimumCount: Int
+    ) -> (extent: CGFloat, count: Int, ghostProgress: CGFloat) {
         guard limit >= minimum else {
-            return limit
+            return (limit, minimumCount, 0)
         }
 
-        let additionalUnits = max(0, ((requested - minimum) / increment).rounded(.up))
-        return min(minimum + additionalUnits * increment, limit)
+        let rawAdditionalUnits = max(0, (requested - minimum) / increment)
+        let maximumAdditionalUnits = Int(((limit - minimum) / increment).rounded(.down))
+        let additionalUnits = min(
+            maximumAdditionalUnits,
+            Int(rawAdditionalUnits.rounded(.toNearestOrAwayFromZero))
+        )
+        let lowerUnits = Int(rawAdditionalUnits.rounded(.down))
+        let ghostProgress: CGFloat
+        if additionalUnits == lowerUnits, additionalUnits < maximumAdditionalUnits {
+            ghostProgress = min(1, (rawAdditionalUnits - CGFloat(lowerUnits)) * 2)
+        } else {
+            ghostProgress = 0
+        }
+        return (
+            minimum + CGFloat(additionalUnits) * increment,
+            minimumCount + additionalUnits,
+            ghostProgress
+        )
     }
+}
+
+public struct CreationGridSelection: Sendable, Hashable {
+    public let capacity: GridCapacity
+    public let size: CGSize
+    public let ghostColumnProgress: CGFloat
+    public let ghostRowProgress: CGFloat
 }
 
 /// A finite portal frame wholly contained in the display's visible frame.
 public struct CreationRectangle: Sendable, Hashable {
     public let frame: CGRect
+    public let capacity: GridCapacity
+    public let ghostColumnProgress: CGFloat
+    public let ghostRowProgress: CGFloat
 
-    fileprivate init(frame: CGRect) {
+    fileprivate init(frame: CGRect, selection: CreationGridSelection) {
         self.frame = frame
+        capacity = selection.capacity
+        ghostColumnProgress = selection.ghostColumnProgress
+        ghostRowProgress = selection.ghostRowProgress
     }
 }
 
@@ -114,10 +170,8 @@ public enum CreationGeometry {
     ///
     /// Both gesture points are first clamped to `visibleFrame`. The rectangle grows
     /// from the mouse-down edge toward the current point, which preserves every drag
-    /// direction. Its size is then rounded up to the next grid row or column that can
-    /// contain the drag. Origins snap outward relative to the drag direction; when an
-    /// aligned frame would exclude either gesture point, the affected extent grows by
-    /// one grid unit. The final clamp keeps the returned frame on-screen.
+    /// direction. Its size switches to the nearest whole grid row or column at each
+    /// half-unit threshold. The final clamp keeps the returned frame on-screen.
     public static func rectangle(
         mouseDown: CGPoint,
         currentPoint: CGPoint,
@@ -140,24 +194,22 @@ public enum CreationGeometry {
             width: min(max(dragged.width, grid.minimumSize.width), visibleFrame.width),
             height: min(max(dragged.height, grid.minimumSize.height), visibleFrame.height)
         )
-        let initialSize = grid.snappedSize(for: requestedSize, within: visibleFrame.size)
+        let selection = grid.selection(for: requestedSize, within: visibleFrame.size)
         let horizontal = snappedAxis(
             minimum: dragged.minX,
             maximum: dragged.maxX,
-            initialExtent: initialSize.width,
+            extent: selection.size.width,
             growsPositive: current.x >= start.x,
             visibleMinimum: visibleFrame.minX,
-            visibleMaximum: visibleFrame.maxX,
-            increment: grid.columnIncrement
+            visibleMaximum: visibleFrame.maxX
         )
         let vertical = snappedAxis(
             minimum: dragged.minY,
             maximum: dragged.maxY,
-            initialExtent: initialSize.height,
+            extent: selection.size.height,
             growsPositive: current.y >= start.y,
             visibleMinimum: visibleFrame.minY,
-            visibleMaximum: visibleFrame.maxY,
-            increment: grid.rowIncrement
+            visibleMaximum: visibleFrame.maxY
         )
         return CreationRectangle(
             frame: CGRect(
@@ -165,7 +217,8 @@ public enum CreationGeometry {
                 y: vertical.origin,
                 width: horizontal.extent,
                 height: vertical.extent
-            )
+            ),
+            selection: selection
         )
     }
 
@@ -198,36 +251,20 @@ public enum CreationGeometry {
     private static func snappedAxis(
         minimum: CGFloat,
         maximum: CGFloat,
-        initialExtent: CGFloat,
+        extent: CGFloat,
         growsPositive: Bool,
         visibleMinimum: CGFloat,
-        visibleMaximum: CGFloat,
-        increment: CGFloat
+        visibleMaximum: CGFloat
     ) -> (origin: CGFloat, extent: CGFloat) {
         let visibleExtent = visibleMaximum - visibleMinimum
-        var extent = initialExtent
-
-        while true {
-            if extent >= visibleExtent {
-                return (visibleMinimum, visibleExtent)
-            }
-            let unsnappedOrigin = growsPositive ? minimum : maximum - extent
-            let roundingRule: FloatingPointRoundingRule = growsPositive ? .down : .up
-            let origin = visibleMinimum
-                + ((unsnappedOrigin - visibleMinimum) / increment).rounded(roundingRule) * increment
-            let containsDrag = origin <= minimum && origin + extent >= maximum
-            if containsDrag {
-                return (
-                    clamp(
-                        origin,
-                        minimum: visibleMinimum,
-                        maximum: visibleMaximum - extent
-                    ),
-                    extent
-                )
-            }
-            extent = min(extent + increment, visibleExtent)
+        if extent >= visibleExtent {
+            return (visibleMinimum, visibleExtent)
         }
+        let origin = growsPositive ? minimum : maximum - extent
+        return (
+            clamp(origin, minimum: visibleMinimum, maximum: visibleMaximum - extent),
+            extent
+        )
     }
 
     private static func clamp(_ value: CGFloat, minimum: CGFloat, maximum: CGFloat) -> CGFloat {

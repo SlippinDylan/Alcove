@@ -1,3 +1,4 @@
+import AlcoveCore
 import XCTest
 @testable import Alcove
 
@@ -29,7 +30,11 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
         }
     }
 
-    func createPortal(for folderURL: URL, frame: NSRect?) async throws {
+    func createPortal(
+        for folderURL: URL,
+        frame: NSRect?,
+        gridCapacity: GridCapacity
+    ) async throws {
         if let error {
             throw error
         }
