@@ -115,7 +115,7 @@ Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
 - `TabBarView` — one centered, horizontally scrollable outer capsule containing divider-free folder-name capsules, plus a fixed trailing More menu for add/close and per-portal background-transparency actions; tabs remain in creation order in MVP and drag-to-reorder is Post-MVP
-- `PortalChromeMaterialView` — role-aware compatibility boundary: the content surface uses an always-active `NSVisualEffectView` with per-portal alpha, while the centered control group uses `NSGlassEffectView` on macOS 26+ and an always-active `NSVisualEffectView` on 15–25
+- `PortalChromeMaterialView` — role-aware compatibility boundary: the content surface keeps an always-active `.popover`-material `NSVisualEffectView` at full strength and varies an adaptive neutral tint overlay per Portal, while the centered control group uses `NSGlassEffectView` on macOS 26+ and an always-active `NSVisualEffectView` on 15–25
 - Layout: tab bar at top, icon grid fills remaining area
 - Rendering hierarchy: the background material, file grid, and top control row
   are sibling layers in a plain root container. The control-group
@@ -629,11 +629,15 @@ This fallback must remain until a future window strategy proves the standard
 
 `NSGlassEffectView` exposes `contentView`, `cornerRadius`, `tintColor`, and `style`, but no public active-state override. Alcove therefore does not falsify `NSWindow.isKeyWindow`. The content background uses `NSVisualEffectView.state = .active`; the folder labels and selected inner capsule use explicit appearance-aware drawing that does not dim when another app becomes active.
 
-The file grid remains ordinary content on the portal's active frosted surface. Each Portal
-persists one of three alpha levels on the same `.underWindowBackground` material: High
-Transparency (0.35), Standard (0.55), or Low Transparency (0.78). Reduce Transparency
-overrides the rendered alpha to 1 without changing the saved preference. File cells and
-selection highlights do not create glass layers: icons
+The file grid remains ordinary content on the portal's active frosted surface. AppKit does
+not expose the private Notification Center material as a public semantic material, so the
+surface uses the closest public floating-surface approximation, `.popover`, at full
+strength. Transparency changes therefore do not weaken its blur. Each Portal persists one
+of three neutral overlay levels: High Transparency (0.08), Standard (0.16), or Low
+Transparency (0.26). The tint uses white in Aqua and black in Dark Aqua, allowing the
+material to inherit color from the desktop instead of imposing a fixed hue. Reduce
+Transparency removes the overlay and uses the existing opaque accessibility surface
+without changing the saved preference. File cells and selection highlights do not create glass layers: icons
 stay as standard `NSImage` values from `NSWorkspace`, preserving readability and
 avoiding per-item rendering cost.
 

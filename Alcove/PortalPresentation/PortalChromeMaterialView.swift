@@ -57,6 +57,7 @@ final class PortalChromeMaterialView: NSView {
 
     private(set) var materialPath: PortalChromeMaterialPath
     private(set) var materialView: NSView?
+    private(set) var surfaceTintView: NSView?
     private(set) var accessibility: PortalAccessibilityOptions
     private(set) var rebuildCount = 0
 
@@ -98,6 +99,7 @@ final class PortalChromeMaterialView: NSView {
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         applyContrastStyle()
+        applySurfaceStyle()
         (materialView as? PortalOpaqueChromeView)?.needsDisplay = true
     }
 
@@ -112,6 +114,8 @@ final class PortalChromeMaterialView: NSView {
         NSLayoutConstraint.deactivate(materialConstraints)
         materialConstraints = []
         materialView?.removeFromSuperview()
+        surfaceTintView?.removeFromSuperview()
+        surfaceTintView = nil
 
         let material = makeMaterialView()
         material.translatesAutoresizingMaskIntoConstraints = false
@@ -122,6 +126,18 @@ final class PortalChromeMaterialView: NSView {
             material.trailingAnchor.constraint(equalTo: trailingAnchor),
             material.bottomAnchor.constraint(equalTo: bottomAnchor),
         ]
+        if role == .surface, materialPath == .visualEffect {
+            let tint = PortalSurfaceTintView()
+            tint.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(tint, positioned: .above, relativeTo: material)
+            materialConstraints += [
+                tint.topAnchor.constraint(equalTo: topAnchor),
+                tint.leadingAnchor.constraint(equalTo: leadingAnchor),
+                tint.trailingAnchor.constraint(equalTo: trailingAnchor),
+                tint.bottomAnchor.constraint(equalTo: bottomAnchor),
+            ]
+            surfaceTintView = tint
+        }
         NSLayoutConstraint.activate(materialConstraints)
         materialView = material
         rebuildCount += 1
@@ -237,7 +253,7 @@ final class PortalChromeMaterialView: NSView {
 
     private var visualEffectMaterial: NSVisualEffectView.Material {
         guard role == .surface else { return .popover }
-        return .underWindowBackground
+        return .popover
     }
 
     private func applySurfaceStyle() {
@@ -245,16 +261,41 @@ final class PortalChromeMaterialView: NSView {
             alphaValue = 1
             return
         }
-        guard materialPath != .opaque else {
-            alphaValue = 1
-            return
+        alphaValue = 1
+        guard materialPath == .visualEffect else { return }
+        let tintAlpha: CGFloat = switch backgroundStyle {
+        case .highTransparency: 0.08
+        case .standard: 0.16
+        case .lowTransparency: 0.26
         }
-        alphaValue = switch backgroundStyle {
-        case .highTransparency: 0.35
-        case .standard: 0.55
-        case .lowTransparency: 0.78
-        }
+        surfaceTintView?.layer?.backgroundColor = surfaceTintColor
+            .withAlphaComponent(tintAlpha)
+            .cgColor
         (materialView as? NSVisualEffectView)?.material = visualEffectMaterial
+    }
+
+    private var surfaceTintColor: NSColor {
+        if effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+            return .black
+        }
+        return .white
+    }
+}
+
+@MainActor
+private final class PortalSurfaceTintView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
     }
 }
 

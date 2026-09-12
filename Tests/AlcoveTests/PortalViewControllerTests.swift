@@ -58,8 +58,13 @@ final class PortalViewControllerTests: XCTestCase {
         portal.updateBackgroundStyle(.lowTransparency)
         controller.updatePortal(portal)
 
-        let expectedAlpha: CGFloat = surface.materialPath == .opaque ? 1 : 0.78
-        XCTAssertEqual(surface.alphaValue, expectedAlpha, accuracy: 0.001)
+        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
+        if surface.materialPath == .opaque {
+            XCTAssertNil(surface.surfaceTintView)
+        } else {
+            let tintColor = try XCTUnwrap(surface.surfaceTintView?.layer?.backgroundColor)
+            XCTAssertEqual(tintColor.alpha, 0.26, accuracy: 0.001)
+        }
         XCTAssertEqual(controller.presentationState, .items(1))
         XCTAssertEqual(invalidationCount, 0)
     }
