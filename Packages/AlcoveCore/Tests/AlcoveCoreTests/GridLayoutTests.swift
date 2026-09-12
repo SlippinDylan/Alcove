@@ -48,6 +48,20 @@ final class GridLayoutTests: XCTestCase {
         XCTAssertEqual(result.itemFrames[3], CGRect(x: 6, y: 88, width: 48, height: 68))
     }
 
+    func testExplicitVisibleColumnsRemainAuthoritativeWhenWidthIsSlightlyShort() {
+        let result = GridLayout(metrics: metrics).layout(
+            itemCount: 8,
+            visibleColumns: 4,
+            availableWidth: 241
+        )
+
+        XCTAssertEqual(result.columnCount, 4)
+        XCTAssertEqual(result.itemFrames[3].minY, result.itemFrames[0].minY)
+        XCTAssertGreaterThan(result.itemFrames[4].minY, result.itemFrames[0].minY)
+        XCTAssertEqual(result.itemFrames[7].minY, result.itemFrames[4].minY)
+        XCTAssertEqual(result.contentSize.width, 242)
+    }
+
     func testEmptyLayoutKeepsOnlyInsetsInItsHeight() {
         let result = GridLayout(metrics: metrics).layout(itemCount: 0, availableWidth: 126)
 

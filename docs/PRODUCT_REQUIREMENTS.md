@@ -134,7 +134,7 @@ Post-MVP.
 | Movable | Yes — user-initiated drag from empty space in the top control row |
 | Resizable | Yes — user-initiated resize from edges/corners |
 | Inactive appearance | Portal material and folder controls retain their active visual contrast when another app becomes active |
-| Frame snap | Columns and rows switch at half-cell thresholds and always settle on a whole `columns × rows` capacity |
+| Frame snap | Columns and rows switch at half-cell thresholds and always settle on a whole `columns × rows` capacity; that committed column count directly controls item wrapping and is never re-derived from a slightly smaller content rectangle |
 | Min size | 3 columns × 1 row |
 
 ---

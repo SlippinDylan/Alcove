@@ -208,9 +208,36 @@ public struct GridLayout: Sendable {
 
     public func layout(itemCount: Int, availableWidth: CGFloat) -> GridLayoutResult {
         let columnCount = derivedColumnCount(availableWidth: availableWidth)
+        return layout(
+            itemCount: itemCount,
+            columnCount: columnCount,
+            availableWidth: availableWidth
+        )
+    }
+
+    public func layout(
+        itemCount: Int,
+        visibleColumns: Int,
+        availableWidth: CGFloat
+    ) -> GridLayoutResult {
+        layout(
+            itemCount: itemCount,
+            columnCount: max(GridCapacity.minimumColumns, visibleColumns),
+            availableWidth: availableWidth
+        )
+    }
+
+    private func layout(
+        itemCount: Int,
+        columnCount: Int,
+        availableWidth: CGFloat
+    ) -> GridLayoutResult {
         let rowCount = itemCount.quotientAndRemainder(dividingBy: columnCount).quotient
             + (itemCount.isMultiple(of: columnCount) ? 0 : 1)
-        let contentWidth = max(availableWidth, metrics.minimumContainerSize.width)
+        let requiredWidth = metrics.contentInsets.leading + metrics.contentInsets.trailing
+            + metrics.itemSize.width * CGFloat(columnCount)
+            + metrics.horizontalSpacing * CGFloat(columnCount - 1)
+        let contentWidth = max(availableWidth, requiredWidth)
         let contentHeight = metrics.contentInsets.top
             + (CGFloat(rowCount) * metrics.itemSize.height)
             + (CGFloat(max(0, rowCount - 1)) * metrics.verticalSpacing)

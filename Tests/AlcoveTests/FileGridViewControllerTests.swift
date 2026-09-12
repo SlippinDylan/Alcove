@@ -59,9 +59,7 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(controller.selectionState.selectedIDs, [items[1].id])
         XCTAssertEqual(controller.lastKeyboardScrollPosition, .nearestHorizontalEdge)
         controller.handleKeyCommand(.moveDown(extending: true))
-        let columnCount = GridLayout(metrics: GridMetrics(iconSize: .medium))
-            .layout(itemCount: items.count, availableWidth: 560)
-            .columnCount
+        let columnCount = GridCapacity.minimum.columns
         XCTAssertTrue(controller.selectionState.selectedIDs.contains(items[1 + columnCount].id))
         XCTAssertEqual(controller.lastKeyboardScrollPosition, .nearestVerticalEdge)
 
@@ -197,6 +195,7 @@ final class FileGridViewControllerTests: XCTestCase {
 
         let expected = GridLayout(metrics: layout.metrics).layout(
             itemCount: 5,
+            visibleColumns: GridCapacity.minimum.columns,
             availableWidth: collectionView.bounds.width
         )
         XCTAssertEqual(layout.collectionViewContentSize, expected.contentSize)
@@ -264,6 +263,7 @@ final class FileGridViewControllerTests: XCTestCase {
 
         scrollView.frame.size.width = 452
         scrollView.layoutSubtreeIfNeeded()
+        controller.updateGridCapacity(try GridCapacity(columns: 4, rows: 2))
         controller.viewDidLayout()
         layout.prepare()
         let fourColumnFirst = try XCTUnwrap(
@@ -277,6 +277,7 @@ final class FileGridViewControllerTests: XCTestCase {
 
         scrollView.frame.size.width = 344
         scrollView.layoutSubtreeIfNeeded()
+        controller.updateGridCapacity(try GridCapacity(columns: 3, rows: 2))
         controller.viewDidLayout()
         layout.prepare()
         let narrowedFirst = try XCTUnwrap(
@@ -287,6 +288,43 @@ final class FileGridViewControllerTests: XCTestCase {
         )
         XCTAssertGreaterThan(narrowedFourth.frame.minY, narrowedFirst.frame.minY)
         XCTAssertEqual(collectionView.bounds.width, scrollView.contentView.bounds.width)
+    }
+
+    @MainActor
+    func testFourColumnCapacityDoesNotFallBackToThreeForNarrowerContentRect() throws {
+        let capacity = try GridCapacity(columns: 4, rows: 2)
+        let controller = FileGridViewController(
+            iconSize: .medium,
+            gridCapacity: capacity
+        )
+        controller.loadView()
+        controller.setItems(makeItems(count: 8))
+        let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
+        scrollView.frame = NSRect(x: 0, y: 0, width: 450, height: 292)
+        scrollView.layoutSubtreeIfNeeded()
+        controller.viewDidLayout()
+        let collectionView = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
+        let layout = try XCTUnwrap(
+            collectionView.collectionViewLayout as? PortalGridCollectionViewLayout
+        )
+        layout.prepare()
+
+        let first = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0))
+        )
+        let fourth = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 3, section: 0))
+        )
+        let fifth = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 4, section: 0))
+        )
+        let eighth = try XCTUnwrap(
+            layout.layoutAttributesForItem(at: IndexPath(item: 7, section: 0))
+        )
+        XCTAssertEqual(layout.visibleColumns, 4)
+        XCTAssertEqual(fourth.frame.minY, first.frame.minY)
+        XCTAssertGreaterThan(fifth.frame.minY, first.frame.minY)
+        XCTAssertEqual(eighth.frame.minY, fifth.frame.minY)
     }
 
     @MainActor

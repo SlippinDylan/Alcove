@@ -129,8 +129,16 @@ final class PortalViewController: NSViewController {
             role: .surface,
             backgroundStyle: portal.backgroundStyle
         )
-        self.gridViewController = gridViewController
-            ?? FileGridViewController(iconSize: portal.iconSize, textSize: portal.textSize)
+        if let gridViewController {
+            gridViewController.updateGridCapacity(portal.gridCapacity)
+            self.gridViewController = gridViewController
+        } else {
+            self.gridViewController = FileGridViewController(
+                iconSize: portal.iconSize,
+                textSize: portal.textSize,
+                gridCapacity: portal.gridCapacity
+            )
+        }
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -248,6 +256,10 @@ final class PortalViewController: NSViewController {
         resizeCapacityOverlay.isHidden = false
     }
 
+    func previewGridCapacity(_ gridCapacity: GridCapacity) {
+        gridViewController.updateGridCapacity(gridCapacity)
+    }
+
     func hideResizeCapacityPreview() {
         guard isViewLoaded else { return }
         resizeCapacityOverlay.isHidden = true
@@ -274,6 +286,7 @@ final class PortalViewController: NSViewController {
     func updatePortal(_ portal: Portal) {
         let previousTabID = self.portal.selectedTabID
         let previousIconLayout = self.portal.iconLayout
+        let previousGridCapacity = self.portal.gridCapacity
         let previousBackgroundStyle = self.portal.backgroundStyle
         let previousFolderURL = folderURL
         if isViewLoaded,
@@ -288,6 +301,9 @@ final class PortalViewController: NSViewController {
                 iconSize: portal.iconSize,
                 textSize: portal.textSize
             )
+        }
+        if portal.gridCapacity != previousGridCapacity {
+            gridViewController.updateGridCapacity(portal.gridCapacity)
         }
         if portal.backgroundStyle != previousBackgroundStyle {
             portalMaterialView.updateBackgroundStyle(portal.backgroundStyle)

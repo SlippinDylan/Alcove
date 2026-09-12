@@ -6,12 +6,16 @@ final class PortalGridCollectionViewLayout: NSCollectionViewLayout {
     var metrics: GridMetrics {
         didSet { invalidateLayout() }
     }
+    var visibleColumns: Int {
+        didSet { invalidateLayout() }
+    }
 
     private var result: GridLayoutResult?
     private var attributes: [IndexPath: NSCollectionViewLayoutAttributes] = [:]
 
-    init(metrics: GridMetrics) {
+    init(metrics: GridMetrics, visibleColumns: Int) {
         self.metrics = metrics
+        self.visibleColumns = visibleColumns
         super.init()
     }
 
@@ -25,6 +29,7 @@ final class PortalGridCollectionViewLayout: NSCollectionViewLayout {
         guard let collectionView else { return }
         let result = GridLayout(metrics: metrics).layout(
             itemCount: collectionView.numberOfItems(inSection: 0),
+            visibleColumns: visibleColumns,
             availableWidth: collectionView.bounds.width
         )
         self.result = result
@@ -70,6 +75,7 @@ final class FileGridViewController: NSViewController {
     private let workspaceOpener: any WorkspaceOpening
     private let openFailurePresenter: any WorkspaceOpenFailurePresenting
     private var metrics: GridMetrics
+    private var gridCapacity: GridCapacity
     private var items: [FileItem] = []
     private(set) var selectionState = SelectionState()
     private(set) var failedOpenURLs: [URL] = []
@@ -81,11 +87,13 @@ final class FileGridViewController: NSViewController {
         workspaceOpener: any WorkspaceOpening = SystemWorkspaceOpener(),
         openFailurePresenter: any WorkspaceOpenFailurePresenting = WorkspaceOpenFailurePresenter(),
         iconSize: IconSize = .medium,
-        textSize: CGFloat = 12
+        textSize: CGFloat = 12,
+        gridCapacity: GridCapacity = .minimum
     ) {
         self.workspaceOpener = workspaceOpener
         self.openFailurePresenter = openFailurePresenter
         metrics = GridMetrics(iconSize: iconSize, labelFontSize: textSize)
+        self.gridCapacity = gridCapacity
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -99,7 +107,10 @@ final class FileGridViewController: NSViewController {
     }
 
     override func loadView() {
-        collectionView.collectionViewLayout = PortalGridCollectionViewLayout(metrics: metrics)
+        collectionView.collectionViewLayout = PortalGridCollectionViewLayout(
+            metrics: metrics,
+            visibleColumns: gridCapacity.columns
+        )
         collectionView.frame = NSRect(
             origin: .zero,
             size: NSSize(width: 560, height: metrics.minimumContainerSize.height)
@@ -165,6 +176,17 @@ final class FileGridViewController: NSViewController {
         layout.metrics = metrics
         collectionView.reloadData()
         applySelection()
+    }
+
+    func updateGridCapacity(_ gridCapacity: GridCapacity) {
+        guard self.gridCapacity != gridCapacity else { return }
+        self.gridCapacity = gridCapacity
+        guard isViewLoaded,
+              let layout = collectionView.collectionViewLayout
+                as? PortalGridCollectionViewLayout else {
+            return
+        }
+        layout.visibleColumns = gridCapacity.columns
     }
 
     func captureRuntimeState() -> FileGridRuntimeState {
@@ -240,9 +262,7 @@ final class FileGridViewController: NSViewController {
     }
 
     private var columnCount: Int {
-        GridLayout(metrics: metrics)
-            .layout(itemCount: items.count, availableWidth: collectionView.bounds.width)
-            .columnCount
+        gridCapacity.columns
     }
 
     private func moveFocus(

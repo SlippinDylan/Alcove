@@ -155,6 +155,7 @@ extension PortalWindowController: NSWindowDelegate {
             return frameSize
         }
         pendingResizeCapacity = preview.capacity
+        portalViewController.previewGridCapacity(preview.capacity)
         portalViewController.showResizeCapacityPreview(preview)
         let snappedContentSize = PortalViewController.contentSize(
             for: preview.capacity,
