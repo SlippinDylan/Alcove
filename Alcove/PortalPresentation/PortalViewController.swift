@@ -92,7 +92,10 @@ final class PortalViewController: NSViewController {
         self.tabBarView = tabBarView
         let portalContentView = NSView()
         self.portalContentView = portalContentView
-        portalMaterialView = PortalChromeMaterialView(contentView: portalContentView)
+        portalMaterialView = PortalChromeMaterialView(
+            contentView: portalContentView,
+            role: .surface
+        )
         self.gridViewController = gridViewController
             ?? FileGridViewController(iconSize: portal.iconSize)
         super.init(nibName: nil, bundle: nil)

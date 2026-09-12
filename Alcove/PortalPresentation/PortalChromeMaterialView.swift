@@ -6,6 +6,11 @@ enum PortalChromeMaterialPath: Equatable {
     case opaque
 }
 
+enum PortalChromeMaterialRole: Equatable {
+    case surface
+    case controlGroup
+}
+
 struct PortalAccessibilityOptions: Equatable {
     let reduceTransparency: Bool
     let increaseContrast: Bool
@@ -24,13 +29,14 @@ struct PortalAccessibilityOptions: Equatable {
 
 enum PortalChromeMaterialResolver {
     static func resolve(
+        role: PortalChromeMaterialRole,
         supportsGlass: Bool,
         accessibility: PortalAccessibilityOptions
     ) -> PortalChromeMaterialPath {
         if accessibility.reduceTransparency {
             return .opaque
         }
-        return supportsGlass ? .glass : .visualEffect
+        return role == .controlGroup && supportsGlass ? .glass : .visualEffect
     }
 }
 
@@ -39,6 +45,7 @@ final class PortalChromeMaterialView: NSView {
     typealias AccessibilityProvider = @MainActor () -> PortalAccessibilityOptions
 
     private let chromeContentView: NSView
+    private let role: PortalChromeMaterialRole
     private let accessibilityProvider: AccessibilityProvider
     private let supportsGlass: Bool
     private let notificationCenter: NotificationCenter
@@ -53,6 +60,7 @@ final class PortalChromeMaterialView: NSView {
 
     init(
         contentView: NSView,
+        role: PortalChromeMaterialRole = .controlGroup,
         accessibilityProvider: @escaping AccessibilityProvider = {
             PortalAccessibilityOptions.current()
         },
@@ -60,17 +68,19 @@ final class PortalChromeMaterialView: NSView {
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
     ) {
         chromeContentView = contentView
+        self.role = role
         self.accessibilityProvider = accessibilityProvider
         self.supportsGlass = supportsGlass
         self.notificationCenter = notificationCenter
         accessibility = accessibilityProvider()
         materialPath = PortalChromeMaterialResolver.resolve(
+            role: role,
             supportsGlass: supportsGlass,
             accessibility: accessibility
         )
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.cornerRadius = 24
+        layer?.cornerRadius = cornerRadius
         layer?.masksToBounds = true
         rebuildMaterial()
         startObserving()
@@ -90,6 +100,7 @@ final class PortalChromeMaterialView: NSView {
     func rebuildMaterial() {
         accessibility = accessibilityProvider()
         materialPath = PortalChromeMaterialResolver.resolve(
+            role: role,
             supportsGlass: supportsGlass,
             accessibility: accessibility
         )
@@ -151,7 +162,7 @@ final class PortalChromeMaterialView: NSView {
         case .glass:
             if #available(macOS 26.0, *) {
                 let glass = NSGlassEffectView()
-                glass.cornerRadius = 24
+                glass.cornerRadius = cornerRadius
                 glass.style = .regular
                 glass.contentView = chromeContentView
                 return glass
@@ -161,6 +172,8 @@ final class PortalChromeMaterialView: NSView {
             return makeVisualEffectView()
         case .opaque:
             let opaque = PortalOpaqueChromeView()
+            opaque.layer?.cornerRadius = cornerRadius
+            opaque.layer?.masksToBounds = true
             installChromeContent(in: opaque)
             return opaque
         }
@@ -168,11 +181,11 @@ final class PortalChromeMaterialView: NSView {
 
     private func makeVisualEffectView() -> NSVisualEffectView {
         let effect = NSVisualEffectView()
-        effect.material = .underWindowBackground
+        effect.material = role == .surface ? .underWindowBackground : .popover
         effect.blendingMode = .behindWindow
-        effect.state = .followsWindowActiveState
+        effect.state = .active
         effect.wantsLayer = true
-        effect.layer?.cornerRadius = 24
+        effect.layer?.cornerRadius = cornerRadius
         effect.layer?.masksToBounds = true
         installChromeContent(in: effect)
         return effect
@@ -192,6 +205,10 @@ final class PortalChromeMaterialView: NSView {
     private func applyContrastStyle() {
         layer?.borderWidth = accessibility.increaseContrast ? 2 : 0
         layer?.borderColor = accessibility.increaseContrast ? NSColor.separatorColor.cgColor : nil
+    }
+
+    private var cornerRadius: CGFloat {
+        role == .surface ? 24 : 999
     }
 }
 

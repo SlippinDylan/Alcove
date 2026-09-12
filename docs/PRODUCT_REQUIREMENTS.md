@@ -116,9 +116,11 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 | More menu → Close current folder | Remove the selected tab; if last tab, prompt to remove the portal (never silently destroy it) |
 | Tab title | Defaults to the mapped folder name |
 
-Tabs appear as folder-name capsules in creation order. Per-tab close and add
-buttons are intentionally omitted; editing actions live in the fixed trailing
-More menu. Drag-to-reorder is Post-MVP.
+Tabs appear as small folder-name capsules inside one larger, horizontally
+centered capsule without dividers. The selected folder receives the inner
+capsule emphasis. Per-tab close and add buttons are intentionally omitted;
+editing actions live in the fixed trailing More menu. Drag-to-reorder is
+Post-MVP.
 
 ### 5.6 Portal Window Behavior
 
@@ -129,6 +131,7 @@ More menu. Drag-to-reorder is Post-MVP.
 | Title bar | None — no traffic-light window controls |
 | Movable | Yes — user-initiated drag from empty space in the top control row |
 | Resizable | Yes — user-initiated resize from edges/corners |
+| Inactive appearance | Portal material and folder controls retain their active visual contrast when another app becomes active |
 | Frame snap | Snaps to grid metrics and column count |
 | Min size | Enough to show at least 2 columns and 2 rows |
 
@@ -151,7 +154,7 @@ More menu. Drag-to-reorder is Post-MVP.
 | FR-09 | Multiple portals supported simultaneously | MVP |
 | FR-10 | Multiple displays supported | MVP |
 | FR-11 | Menu-bar icon with portal management menu | MVP |
-| FR-12 | Liquid Glass on macOS 26 for the complete portal surface and its capsule controls | MVP |
+| FR-12 | Liquid Glass on macOS 26 for the centered folder-tab control group; the portal content background remains an always-active native translucent material | MVP |
 | FR-13 | NSVisualEffectView fallback on macOS 15–25 | MVP |
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
@@ -262,7 +265,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-09 | Portal frames restore correctly after resolution/scaling change | FR-08 |
 | AC-10 | Portal coexists with Spaces and Stage Manager without permanent eviction | G-1; Spike 0.1 product gate |
 | AC-11 | App runs on macOS 15 with NSVisualEffectView materials | FR-13 |
-| AC-12 | App uses Liquid Glass on macOS 26 for the complete portal surface and capsule controls | FR-12 |
+| AC-12 | App uses Liquid Glass on macOS 26 for the centered folder-tab capsule group and preserves active visual contrast when the portal loses focus | FR-12 |
 | AC-13 | Folder contents update automatically when files are added/removed | FR-15, FR-16 |
 | AC-14 | No file mutations (rename, trash, new folder) are possible through the portal | NG-2 |
 | AC-15 | App is a menu-bar utility with no Dock icon | FR-11 |

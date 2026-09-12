@@ -113,8 +113,8 @@ App entry point and global coordination.
 Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
-- `TabBarView` — horizontally scrollable folder-name capsules plus a fixed trailing More menu for add/close actions; tabs remain in creation order in MVP and drag-to-reorder is Post-MVP
-- `PortalChromeMaterialView` — compatibility boundary for the complete portal surface using `NSGlassEffectView` on macOS 26+ and `NSVisualEffectView` on 15–25, subject to Spike 0.4
+- `TabBarView` — one centered, horizontally scrollable outer capsule containing divider-free folder-name capsules, plus a fixed trailing More menu for add/close actions; tabs remain in creation order in MVP and drag-to-reorder is Post-MVP
+- `PortalChromeMaterialView` — role-aware compatibility boundary: the content surface uses an always-active `NSVisualEffectView`, while the centered control group uses `NSGlassEffectView` on macOS 26+ and an always-active `NSVisualEffectView` on 15–25
 - Layout: tab bar at top, icon grid fills remaining area
 
 ### 3.5 FileGrid
@@ -598,14 +598,14 @@ PortalWindowController / NSApplication
 
 | macOS Version | Material API | Scope |
 |---------------|-------------|-------|
-| 26+ | Root `NSGlassEffectView` plus system glass button styling | Complete portal surface and capsule controls |
-| 15–25 | `NSVisualEffectView` (material selected by spike) | Same layout and translucency role, visual approximation |
+| 26+ | `NSGlassEffectView` for the centered navigation capsule; active `NSVisualEffectView` for the content surface | Glass at the top-level navigation layer, stable background contrast |
+| 15–25 | Active `NSVisualEffectView` | Same layout and persistent active appearance, visual approximation |
 
-`NSGlassEffectView` exposes `contentView`, `cornerRadius`, `tintColor`, and `style`. Standard controls supply interaction; `NSGlassEffectView` does not have `isInteractive` or `state` properties. Alcove uses one root glass effect rather than a separate `NSGlassEffectContainerView`; capsule and More controls use the system glass button style.
+`NSGlassEffectView` exposes `contentView`, `cornerRadius`, `tintColor`, and `style`, but no public active-state override. Alcove therefore does not falsify `NSWindow.isKeyWindow`. The content background uses `NSVisualEffectView.state = .active`; the folder labels and selected inner capsule use explicit appearance-aware drawing that does not dim when another app becomes active.
 
-The file grid is embedded as content inside one portal-level glass surface. File
-cells and selection highlights do not create additional glass layers: icons stay
-as standard `NSImage` values from `NSWorkspace`, preserving readability and
+The file grid remains ordinary content on the portal's active translucent
+surface. File cells and selection highlights do not create glass layers: icons
+stay as standard `NSImage` values from `NSWorkspace`, preserving readability and
 avoiding per-item rendering cost.
 
 **Availability check pattern:**
@@ -849,14 +849,15 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 ### 16.4 Liquid Glass and Compatibility Material — Spike 0.4
 
-**Provisional claim:** A root `NSGlassEffectView` plus system glass button styling can render the complete portal surface and controls on macOS 26, while `NSVisualEffectView` can preserve layout and usable contrast on macOS 15–25.
+**Provisional claim:** A centered `NSGlassEffectView` can render the folder navigation group on macOS 26, while an always-active `NSVisualEffectView` preserves portal-background contrast and the macOS 15–25 fallback.
 
 **Gate criteria:**
 
 - Verify both material paths at the selected desktop window level.
 - Verify Reduce Transparency, Increase Contrast, readability, and equivalent control layout.
-- Verify the portal-level glass surface keeps the file grid readable, while
-  individual file cells remain ordinary AppKit content without nested glass.
+- Verify the centered control-group glass keeps the file grid readable beneath
+  it, while the content surface and individual cells remain non-glass AppKit
+  content.
 
 **If gate fails:** Revise the material boundary or visual scope explicitly; do not describe an untested fallback as validated compatibility.
 

@@ -7,6 +7,8 @@ final class TabBarView: NSView {
     var onClose: ((FolderTabID) -> Void)?
     var onAdd: (() -> Void)?
 
+    private let groupContentView: NSView
+    let groupMaterialView: PortalChromeMaterialView
     private(set) var scrollView = NSScrollView()
     private let stackView = NSStackView()
     private(set) var managementButton = NSButton()
@@ -15,15 +17,33 @@ final class TabBarView: NSView {
 
     private(set) var tabOrder: [FolderTabID] = []
     private(set) var selectedTabID: FolderTabID?
-    private(set) var tabButtons: [FolderTabID: NSButton] = [:]
+    private(set) var tabButtons: [FolderTabID: PortalTabButton] = [:]
 
     override init(frame frameRect: NSRect) {
+        let groupContentView = NSView()
+        self.groupContentView = groupContentView
+        groupMaterialView = PortalChromeMaterialView(
+            contentView: groupContentView,
+            role: .controlGroup
+        )
         super.init(frame: frameRect)
         configureView()
     }
 
     override func layout() {
         super.layout()
+        let reservedSideWidth: CGFloat = 52
+        let maximumGroupWidth = max(1, bounds.width - reservedSideWidth * 2)
+        let groupWidth = min(stackView.fittingSize.width + 16, maximumGroupWidth)
+        groupMaterialView.frame = NSRect(
+            x: bounds.midX - groupWidth / 2,
+            y: 2,
+            width: groupWidth,
+            height: max(1, bounds.height - 4)
+        )
+        groupMaterialView.layoutSubtreeIfNeeded()
+        scrollView.frame = groupContentView.bounds.insetBy(dx: 8, dy: 3)
+
         let viewportSize = scrollView.contentSize
         let fittingSize = stackView.fittingSize
         stackView.frame = NSRect(
@@ -38,6 +58,11 @@ final class TabBarView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         nil
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateManagementButtonAppearance()
     }
 
     func configure(with portal: Portal) {
@@ -60,6 +85,7 @@ final class TabBarView: NSView {
                 makeTabButton(for: tab, selected: tab.id == portal.selectedTabID)
             )
         }
+        stackView.frame = NSRect(origin: .zero, size: stackView.fittingSize)
         configureManagementMenu(for: portal)
         needsLayout = true
     }
@@ -68,48 +94,41 @@ final class TabBarView: NSView {
         stackView.orientation = .horizontal
         stackView.alignment = .centerY
         stackView.distribution = .fill
-        stackView.spacing = 6
-        stackView.edgeInsets = NSEdgeInsets(top: 2, left: 8, bottom: 2, right: 8)
-        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.spacing = 2
 
         scrollView.drawsBackground = false
         scrollView.hasHorizontalScroller = true
         scrollView.horizontalScroller?.controlSize = .mini
+        scrollView.scrollerStyle = .overlay
         scrollView.hasVerticalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.documentView = stackView
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(scrollView)
+        groupContentView.addSubview(scrollView)
 
-        managementButton.image = NSImage(
-            systemSymbolName: "ellipsis",
-            accessibilityDescription: "Portal options"
-        )
-        managementButton.imagePosition = .imageOnly
-        applyManagementButtonStyle()
+        addSubview(groupMaterialView)
+
+        managementButton.title = "•••"
+        managementButton.isBordered = false
         managementButton.target = self
         managementButton.action = #selector(showManagementMenu)
         managementButton.setAccessibilityLabel("Portal options")
         managementButton.setAccessibilityHelp("Add or close folder tabs")
         managementButton.translatesAutoresizingMaskIntoConstraints = false
         addSubview(managementButton)
+        updateManagementButtonAppearance()
 
         NSLayoutConstraint.activate([
-            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: managementButton.leadingAnchor, constant: -8),
-            scrollView.topAnchor.constraint(equalTo: topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            managementButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            managementButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             managementButton.centerYAnchor.constraint(equalTo: centerYAnchor),
             managementButton.widthAnchor.constraint(equalToConstant: 30),
+            managementButton.heightAnchor.constraint(equalToConstant: 30),
         ])
     }
 
-    private func makeTabButton(for tab: FolderTab, selected: Bool) -> NSButton {
-        let button = NSButton(title: tab.folderURL.lastPathComponent, target: nil, action: nil)
-        button.setButtonType(.toggle)
-        applyCapsuleStyle(to: button)
-        button.state = selected ? .on : .off
+    private func makeTabButton(for tab: FolderTab, selected: Bool) -> PortalTabButton {
+        let button = PortalTabButton(title: tab.folderURL.lastPathComponent)
+        button.setAccessibilityRole(.radioButton)
+        button.setSelected(selected)
         button.setAccessibilityLabel("Select \(tab.folderURL.lastPathComponent)")
         button.setAccessibilityHelp("Switch to this folder tab")
 
@@ -131,6 +150,7 @@ final class TabBarView: NSView {
             action: #selector(TabActionTarget.performAction(_:)),
             keyEquivalent: ""
         )
+        addItem.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
         addItem.target = addTarget
         managementMenu.addItem(addItem)
         managementMenu.addItem(.separator())
@@ -145,26 +165,27 @@ final class TabBarView: NSView {
             action: #selector(TabActionTarget.performAction(_:)),
             keyEquivalent: ""
         )
+        closeItem.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
         closeItem.target = closeTarget
         managementMenu.addItem(closeItem)
     }
 
-    private func applyCapsuleStyle(to button: NSButton) {
-        if #available(macOS 26.0, *) {
-            button.bezelStyle = .glass
-            button.borderShape = .capsule
-        } else {
-            button.bezelStyle = .accessoryBar
+    private func updateManagementButtonAppearance() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            managementButton.attributedTitle = NSAttributedString(
+                string: "•••",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 14, weight: .bold),
+                    .foregroundColor: activeLabelColor,
+                ]
+            )
         }
     }
 
-    private func applyManagementButtonStyle() {
-        if #available(macOS 26.0, *) {
-            managementButton.bezelStyle = .glass
-            managementButton.borderShape = .circle
-        } else {
-            managementButton.bezelStyle = .accessoryBarAction
-        }
+    private var activeLabelColor: NSColor {
+        effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? .white
+            : .black
     }
 
     @objc private func showManagementMenu() {
@@ -186,6 +207,74 @@ final class TabBarView: NSView {
 
     fileprivate func addTab() {
         onAdd?()
+    }
+}
+
+@MainActor
+final class PortalTabButton: NSButton {
+    private(set) var isTabSelected = false
+
+    init(title: String) {
+        super.init(frame: .zero)
+        self.title = title
+        setButtonType(.momentaryPushIn)
+        isBordered = false
+        wantsLayer = true
+        layer?.cornerRadius = 14
+        updateAppearance()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override var intrinsicContentSize: NSSize {
+        let size = super.intrinsicContentSize
+        return NSSize(width: size.width + 24, height: 28)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateAppearance()
+    }
+
+    func setSelected(_ selected: Bool) {
+        let didChange = isTabSelected != selected
+        isTabSelected = selected
+        setAccessibilitySelected(selected)
+        setAccessibilityValue(NSNumber(value: selected))
+        updateAppearance()
+        if didChange {
+            NSAccessibility.post(element: self, notification: .valueChanged)
+        }
+    }
+
+    private func updateAppearance() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            let foreground = activeLabelColor
+            attributedTitle = NSAttributedString(
+                string: title,
+                attributes: [
+                    .font: NSFont.systemFont(
+                        ofSize: NSFont.systemFontSize,
+                        weight: isTabSelected ? .semibold : .regular
+                    ),
+                    .foregroundColor: foreground,
+                ]
+            )
+            layer?.backgroundColor = isTabSelected
+                ? foreground.withAlphaComponent(0.13).cgColor
+                : NSColor.clear.cgColor
+            layer?.borderWidth = isTabSelected ? 0.5 : 0
+            layer?.borderColor = foreground.withAlphaComponent(0.12).cgColor
+        }
+    }
+
+    private var activeLabelColor: NSColor {
+        effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? .white
+            : .black
     }
 }
 

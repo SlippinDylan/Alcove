@@ -16,16 +16,36 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            PortalChromeMaterialResolver.resolve(supportsGlass: true, accessibility: standard),
+            PortalChromeMaterialResolver.resolve(
+                role: .controlGroup,
+                supportsGlass: true,
+                accessibility: standard
+            ),
             .glass
         )
         XCTAssertEqual(
-            PortalChromeMaterialResolver.resolve(supportsGlass: false, accessibility: standard),
+            PortalChromeMaterialResolver.resolve(
+                role: .controlGroup,
+                supportsGlass: false,
+                accessibility: standard
+            ),
             .visualEffect
         )
         XCTAssertEqual(
-            PortalChromeMaterialResolver.resolve(supportsGlass: true, accessibility: reduced),
+            PortalChromeMaterialResolver.resolve(
+                role: .controlGroup,
+                supportsGlass: true,
+                accessibility: reduced
+            ),
             .opaque
+        )
+        XCTAssertEqual(
+            PortalChromeMaterialResolver.resolve(
+                role: .surface,
+                supportsGlass: true,
+                accessibility: standard
+            ),
+            .visualEffect
         )
     }
 
@@ -42,9 +62,9 @@ final class PortalChromeMaterialViewTests: XCTestCase {
 
         let effect = try XCTUnwrap(host.materialView as? NSVisualEffectView)
         let initialConstraintCount = host.constraints.count
-        XCTAssertEqual(effect.material, .underWindowBackground)
+        XCTAssertEqual(effect.material, .popover)
         XCTAssertEqual(effect.blendingMode, .behindWindow)
-        XCTAssertEqual(effect.state, .followsWindowActiveState)
+        XCTAssertEqual(effect.state, .active)
         XCTAssertTrue(content.isDescendant(of: effect))
 
         options.value = .reduced
@@ -103,8 +123,25 @@ final class PortalChromeMaterialViewTests: XCTestCase {
 
         let glass = try XCTUnwrap(host.materialView as? NSGlassEffectView)
         XCTAssertTrue(content.isDescendant(of: glass))
-        XCTAssertEqual(glass.cornerRadius, 24)
+        XCTAssertEqual(glass.cornerRadius, 999)
         XCTAssertEqual(glass.style, .regular)
+    }
+
+    @MainActor
+    func testPortalSurfaceUsesAlwaysActiveBackgroundMaterial() throws {
+        let host = PortalChromeMaterialView(
+            contentView: NSView(),
+            role: .surface,
+            accessibilityProvider: { .standard },
+            supportsGlass: true,
+            notificationCenter: NotificationCenter()
+        )
+
+        let effect = try XCTUnwrap(host.materialView as? NSVisualEffectView)
+        XCTAssertEqual(host.materialPath, .visualEffect)
+        XCTAssertEqual(effect.material, .underWindowBackground)
+        XCTAssertEqual(effect.state, .active)
+        XCTAssertEqual(effect.layer?.cornerRadius, 24)
     }
 }
 
