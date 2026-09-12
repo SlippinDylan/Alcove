@@ -272,6 +272,7 @@ final class FileGridViewControllerTests: XCTestCase {
 
         XCTAssertGreaterThan(cell.iconSelectionView.layer?.backgroundColor?.alpha ?? 0, 0)
         XCTAssertGreaterThan(cell.labelSelectionView.layer?.backgroundColor?.alpha ?? 0, 0)
+        XCTAssertEqual(cell.nameLabel.textColor, .white)
         XCTAssertEqual(cell.view.layer?.backgroundColor?.alpha ?? 0, 0)
         XCTAssertEqual(cell.view.accessibilityLabel(), item.name)
     }

@@ -149,7 +149,7 @@ final class FileItemCell: NSCollectionViewItem {
             labelSelectionView.layer?.backgroundColor = isSelected
                 ? NSColor.selectedContentBackgroundColor.cgColor
                 : NSColor.clear.cgColor
-            nameLabel.textColor = isSelected ? .selectedTextColor : .labelColor
+            nameLabel.textColor = isSelected ? .white : .labelColor
         }
     }
 
