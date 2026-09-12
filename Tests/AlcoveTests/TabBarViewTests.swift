@@ -47,6 +47,19 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertEqual(tabBar.tabButtons[tab.id]?.title, "Only")
         XCTAssertTrue(tabBar.bounds.contains(managementButtonFrame(in: tabBar)))
         XCTAssertEqual(tabBar.groupMaterialView.frame.midX, tabBar.bounds.midX, accuracy: 0.5)
+        let tabButton = try XCTUnwrap(tabBar.tabButtons[tab.id])
+        let tabFrame = tabButton.convert(tabButton.bounds, to: tabBar)
+        let material = try XCTUnwrap(tabBar.groupMaterialView.materialView)
+        let materialTabFrame = tabButton.convert(tabButton.bounds, to: material)
+        XCTAssertGreaterThan(tabButton.bounds.width, 0)
+        XCTAssertGreaterThan(tabButton.bounds.height, 0)
+        XCTAssertGreaterThan(material.frame.width, 0)
+        XCTAssertGreaterThan(material.frame.height, 0)
+        XCTAssertTrue(material.bounds.contains(materialTabFrame))
+        XCTAssertTrue(
+            tabBar.bounds.contains(tabFrame),
+            "Expected visible tab frame; group=\(tabBar.groupMaterialView.frame), tab=\(tabFrame)"
+        )
     }
 
     @MainActor

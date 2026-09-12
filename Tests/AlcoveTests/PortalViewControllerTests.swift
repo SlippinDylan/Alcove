@@ -22,6 +22,38 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testFolderCapsulesAreVisibleOnTheFirstPortalWindowLayout() throws {
+        var portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/first"),
+            frame: CGRect(x: 0, y: 0, width: 500, height: 360),
+            display: testDisplay
+        )
+        _ = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator()
+        )
+        let window = PortalWindow(
+            contentRect: portal.frame,
+            strategy: .developmentDefault,
+            contentViewController: controller
+        )
+
+        window.contentView?.layoutSubtreeIfNeeded()
+
+        let buttons = descendants(of: try XCTUnwrap(window.contentView))
+            .compactMap { $0 as? PortalTabButton }
+        XCTAssertEqual(buttons.count, 2)
+        for button in buttons {
+            let frame = button.convert(button.bounds, to: window.contentView)
+            XCTAssertTrue(
+                try XCTUnwrap(window.contentView).bounds.contains(frame),
+                "Expected visible folder capsule, got \(frame)"
+            )
+        }
+    }
+
+    @MainActor
     func testMinimumContentSizeTracksTwoByTwoGridAndTabBar() {
         let metrics = GridMetrics(iconSize: .large)
         let actual = PortalViewController.minimumContentSize(for: .large)
@@ -458,6 +490,11 @@ final class PortalViewControllerTests: XCTestCase {
         }
         XCTFail("Timed out waiting for \(expected); got \(controller.presentationState)")
     }
+}
+
+@MainActor
+private func descendants(of view: NSView) -> [NSView] {
+    view.subviews.flatMap { [$0] + descendants(of: $0) }
 }
 
 @MainActor

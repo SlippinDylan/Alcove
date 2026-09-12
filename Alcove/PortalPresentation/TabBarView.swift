@@ -41,7 +41,8 @@ final class TabBarView: NSView {
             width: groupWidth,
             height: max(1, bounds.height - 4)
         )
-        groupMaterialView.layoutSubtreeIfNeeded()
+        groupMaterialView.materialView?.frame = groupMaterialView.bounds
+        groupContentView.frame = groupMaterialView.bounds
         scrollView.frame = groupContentView.bounds.insetBy(dx: 8, dy: 3)
 
         let viewportSize = scrollView.contentSize
@@ -53,6 +54,7 @@ final class TabBarView: NSView {
                 height: max(viewportSize.height, fittingSize.height)
             )
         )
+        groupMaterialView.layoutSubtreeIfNeeded()
     }
 
     @available(*, unavailable)
