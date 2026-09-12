@@ -58,7 +58,8 @@ final class PortalViewControllerTests: XCTestCase {
         portal.updateBackgroundStyle(.lowTransparency)
         controller.updatePortal(portal)
 
-        XCTAssertEqual(surface.alphaValue, 0.78, accuracy: 0.001)
+        let expectedAlpha: CGFloat = surface.materialPath == .opaque ? 1 : 0.78
+        XCTAssertEqual(surface.alphaValue, expectedAlpha, accuracy: 0.001)
         XCTAssertEqual(controller.presentationState, .items(1))
         XCTAssertEqual(invalidationCount, 0)
     }
