@@ -93,7 +93,7 @@ final class PortalViewController: NSViewController {
         let portalContentView = NSView()
         self.portalContentView = portalContentView
         portalMaterialView = PortalChromeMaterialView(
-            contentView: portalContentView,
+            contentView: NSView(),
             role: .surface
         )
         self.gridViewController = gridViewController
@@ -113,6 +113,9 @@ final class PortalViewController: NSViewController {
 
     override func loadView() {
         let rootView = portalContentView
+
+        portalMaterialView.translatesAutoresizingMaskIntoConstraints = false
+        rootView.addSubview(portalMaterialView)
 
         tabBarView.translatesAutoresizingMaskIntoConstraints = false
         tabBarView.onSelect = { [weak self] id in self?.onSelectTab?(id) }
@@ -152,6 +155,10 @@ final class PortalViewController: NSViewController {
         rootView.addSubview(progressIndicator)
 
         NSLayoutConstraint.activate([
+            portalMaterialView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            portalMaterialView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            portalMaterialView.topAnchor.constraint(equalTo: rootView.topAnchor),
+            portalMaterialView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
             gridView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             tabBarView.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
@@ -169,7 +176,7 @@ final class PortalViewController: NSViewController {
             progressIndicator.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             progressIndicator.bottomAnchor.constraint(equalTo: stateLabel.topAnchor, constant: -12),
         ])
-        view = portalMaterialView
+        view = rootView
     }
 
     override func viewDidAppear() {

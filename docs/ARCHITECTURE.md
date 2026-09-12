@@ -116,6 +116,11 @@ Visual chrome inside each portal window.
 - `TabBarView` — one centered, horizontally scrollable outer capsule containing divider-free folder-name capsules, plus a fixed trailing More menu for add/close actions; tabs remain in creation order in MVP and drag-to-reorder is Post-MVP
 - `PortalChromeMaterialView` — role-aware compatibility boundary: the content surface uses an always-active `NSVisualEffectView`, while the centered control group uses `NSGlassEffectView` on macOS 26+ and an always-active `NSVisualEffectView` on 15–25
 - Layout: tab bar at top, icon grid fills remaining area
+- Rendering hierarchy: the background material, file grid, and top control row
+  are sibling layers in a plain root container. The control-group
+  `NSGlassEffectView` must not be nested inside the background
+  `NSVisualEffectView`; its folder controls are installed through the Glass
+  view's own `contentView`.
 
 ### 3.5 FileGrid
 
@@ -600,6 +605,13 @@ PortalWindowController / NSApplication
 |---------------|-------------|-------|
 | 26+ | `NSGlassEffectView` for the centered navigation capsule; active `NSVisualEffectView` for the content surface | Glass at the top-level navigation layer, stable background contrast |
 | 15–25 | Active `NSVisualEffectView` | Same layout and persistent active appearance, visual approximation |
+
+The portal uses a plain root container whose surface material, file grid, and
+tab bar are siblings. This is an invariant: the control-group Glass must never
+be placed inside an `NSVisualEffectView` content hierarchy, because that legacy
+material prevents the nested Glass from rendering correctly. The folder
+controls remain inside `NSGlassEffectView.contentView`, not behind it as sibling
+content.
 
 `NSGlassEffectView` exposes `contentView`, `cornerRadius`, `tintColor`, and `style`, but no public active-state override. Alcove therefore does not falsify `NSWindow.isKeyWindow`. The content background uses `NSVisualEffectView.state = .active`; the folder labels and selected inner capsule use explicit appearance-aware drawing that does not dim when another app becomes active.
 

@@ -45,7 +45,7 @@ final class PortalChromeMaterialView: NSView {
     typealias AccessibilityProvider = @MainActor () -> PortalAccessibilityOptions
 
     private let chromeContentView: NSView
-    private let role: PortalChromeMaterialRole
+    let role: PortalChromeMaterialRole
     private let accessibilityProvider: AccessibilityProvider
     private let supportsGlass: Bool
     private let notificationCenter: NotificationCenter

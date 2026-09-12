@@ -4,7 +4,7 @@ import XCTest
 
 final class PortalViewControllerTests: XCTestCase {
     @MainActor
-    func testPortalMaterialOwnsTheFullViewSurface() throws {
+    func testPortalSeparatesBackgroundMaterialFromControlGroupGlass() throws {
         let controller = PortalViewController(
             portal: try Portal(
                 folderURL: URL(fileURLWithPath: "/tmp/portal"),
@@ -16,9 +16,13 @@ final class PortalViewControllerTests: XCTestCase {
 
         controller.loadView()
 
-        let material = try XCTUnwrap(controller.view as? PortalChromeMaterialView)
-        XCTAssertNotNil(material.materialView)
-        XCTAssertTrue(material.materialView?.subviews.isEmpty == false)
+        let materials = descendants(of: controller.view)
+            .compactMap { $0 as? PortalChromeMaterialView }
+        let surface = try XCTUnwrap(materials.first { $0.role == .surface })
+        let controlGroup = try XCTUnwrap(materials.first { $0.role == .controlGroup })
+        XCTAssertNotNil(surface.materialView)
+        XCTAssertNotNil(controlGroup.materialView)
+        XCTAssertFalse(controlGroup.isDescendant(of: try XCTUnwrap(surface.materialView)))
     }
 
     @MainActor
