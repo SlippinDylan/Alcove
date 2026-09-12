@@ -50,6 +50,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 
 | Document | Description |
 |---|---|
+| [Current Handoff](docs/HANDOFF.md) | 当前需求、实现进度、未推送提交、已知风险、踩坑记录和下一段对话接管步骤 |
 | [Product Requirements](docs/PRODUCT_REQUIREMENTS.md) | Goals, personas, interaction contract, acceptance criteria |
 | [Architecture](docs/ARCHITECTURE.md) | Component boundaries, domain models, persistence, concurrency |
 | [Research](docs/RESEARCH.md) | Evidence table, API analysis, reference project inspections |
