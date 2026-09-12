@@ -123,9 +123,9 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 Tabs appear as small folder-name capsules inside one larger, horizontally
 centered capsule without dividers. The selected folder receives the inner
 capsule emphasis. Per-tab close and add buttons are intentionally omitted;
-editing actions live in a fixed trailing settings popover. Its Folders, Style,
-and Other categories remain fixed across the top while the lower content switches
-to the selected category. Drag-to-reorder is
+editing actions open from the fixed trailing settings icon in a separate centered
+settings window. Its native toolbar keeps Folders, Style, and Other categories fixed
+across the top while the lower content switches to the selected category. Drag-to-reorder is
 Post-MVP.
 
 ### 5.6 Portal Window Behavior

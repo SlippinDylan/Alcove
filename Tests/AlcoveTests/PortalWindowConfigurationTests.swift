@@ -345,15 +345,17 @@ final class PortalWindowConfigurationTests: XCTestCase {
         let tabBar = try XCTUnwrap(
             allDescendants(of: contentView).compactMap { $0 as? TabBarView }.first
         )
+        tabBar.managementButton.performClick(nil)
+        let settingsController = try XCTUnwrap(tabBar.settingsWindowController)
+        let styleIndex = try XCTUnwrap(
+            settingsController.tabViewController.tabViewItems.firstIndex {
+                $0.label == "Style"
+            }
+        )
+        settingsController.tabViewController.selectedTabViewItemIndex = styleIndex
         let settingsRoot = try XCTUnwrap(
-            tabBar.settingsPopover.contentViewController?.view
-        )
-        let styleButton = try XCTUnwrap(
-            allDescendants(of: settingsRoot)
-                .compactMap { $0 as? NSButton }
-                .first { $0.accessibilityLabel() == "Style" }
-        )
-        styleButton.performClick(nil)
+            settingsController.tabViewController.tabViewItems[styleIndex].viewController
+        ).view
         let background = try XCTUnwrap(
             allDescendants(of: settingsRoot)
                 .compactMap { $0 as? NSPopUpButton }
@@ -366,6 +368,7 @@ final class PortalWindowConfigurationTests: XCTestCase {
             to: background.target,
             from: background
         )
+        settingsController.close()
 
         XCTAssertEqual(requestedStyle, .lowTransparency)
     }

@@ -278,6 +278,10 @@ final class PortalViewController: NSViewController {
         resizeCapacityOverlay.isHidden = true
     }
 
+    func closeSettingsWindow() {
+        tabBarView.closeSettingsWindow()
+    }
+
     override func viewDidAppear() {
         super.viewDidAppear()
         startObservation()

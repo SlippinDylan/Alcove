@@ -130,6 +130,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
 extension PortalWindowController: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         (window as? PortalWindow)?.cancelUserPlacementInteraction(notify: false)
+        portalViewController.closeSettingsWindow()
         portalViewController.stopObservation()
         quickLookIntegration.detach()
     }

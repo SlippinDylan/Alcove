@@ -92,6 +92,7 @@ final class TabBarViewTests: XCTestCase {
         tabBar.onSelect = { selectedID = $0 }
         tabBar.onClose = { closedID = $0 }
         tabBar.configure(with: portal)
+        defer { tabBar.closeSettingsWindow() }
 
         tabBar.tabButtons[second.id]?.performClick(nil)
         try settingsButton(titled: "Remove First", in: tabBar).performClick(nil)
@@ -114,6 +115,7 @@ final class TabBarViewTests: XCTestCase {
         var closedID: FolderTabID?
         tabBar.onAdd = { addCount += 1 }
         tabBar.onClose = { closedID = $0 }
+        defer { tabBar.closeSettingsWindow() }
 
         try settingsButton(titled: "Add Folder…", in: tabBar).performClick(nil)
         try settingsButton(titled: "Remove First", in: tabBar).performClick(nil)
@@ -123,8 +125,28 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertEqual(tabBar.managementButton.accessibilityLabel(), "Portal settings")
         XCTAssertNotNil(tabBar.managementButton.image)
         XCTAssertEqual(
-            categoryButtons(in: tabBar).map { $0.accessibilityLabel() },
+            try settingsController(in: tabBar).tabViewController.tabViewItems.map(\.label),
             ["Folders", "Style", "Other"]
+        )
+        let settingsWindow = try XCTUnwrap(tabBar.settingsWindowController?.window)
+        XCTAssertEqual(settingsWindow.frame.size, NSSize(width: 400, height: 572))
+        XCTAssertEqual(
+            tabBar.settingsWindowController?.tabViewController.tabStyle,
+            .toolbar
+        )
+        XCTAssertNotNil(settingsWindow.toolbar)
+        if let visibleFrame = settingsWindow.screen?.visibleFrame {
+            XCTAssertEqual(settingsWindow.frame.midX, visibleFrame.midX, accuracy: 0.5)
+            XCTAssertEqual(settingsWindow.frame.midY, visibleFrame.midY, accuracy: 0.5)
+        }
+        XCTAssertFalse(
+            try XCTUnwrap(settingsWindow.standardWindowButton(.closeButton)).isHidden
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(settingsWindow.standardWindowButton(.miniaturizeButton)).isHidden
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(settingsWindow.standardWindowButton(.zoomButton)).isHidden
         )
     }
 
@@ -136,10 +158,11 @@ final class TabBarViewTests: XCTestCase {
         let tabBar = TabBarView(frame: .zero)
         var requestedStyle: PortalBackgroundStyle?
         tabBar.onSetBackgroundStyle = { requestedStyle = $0 }
+        defer { tabBar.closeSettingsWindow() }
 
         tabBar.configure(with: portal)
 
-        try categoryButton(named: "Style", in: tabBar).performClick(nil)
+        try selectCategory(named: "Style", in: tabBar)
         let background = try popup(
             identifier: "portal-settings.background",
             in: tabBar
@@ -159,7 +182,7 @@ final class TabBarViewTests: XCTestCase {
 
         portal.updateBackgroundStyle(.highTransparency)
         tabBar.update(with: portal)
-        try categoryButton(named: "Style", in: tabBar).performClick(nil)
+        try selectCategory(named: "Style", in: tabBar)
         XCTAssertEqual(
             try popup(identifier: "portal-settings.background", in: tabBar).titleOfSelectedItem,
             "High Transparency"
@@ -177,8 +200,9 @@ final class TabBarViewTests: XCTestCase {
         tabBar.onFollowDesktopIconSettings = { followCount += 1 }
         tabBar.onRemovePortal = { removeCount += 1 }
         tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
+        defer { tabBar.closeSettingsWindow() }
 
-        try categoryButton(named: "Style", in: tabBar).performClick(nil)
+        try selectCategory(named: "Style", in: tabBar)
         let iconPopup = try popup(identifier: "portal-settings.icon-size", in: tabBar)
         iconPopup.selectItem(withTitle: "Small")
         NSApplication.shared.sendAction(
@@ -196,7 +220,7 @@ final class TabBarViewTests: XCTestCase {
         )
         XCTAssertEqual(followCount, 1)
 
-        try categoryButton(named: "Other", in: tabBar).performClick(nil)
+        try selectCategory(named: "Other", in: tabBar)
         try settingsButton(titled: "Remove Portal", in: tabBar).performClick(nil)
         XCTAssertEqual(removeCount, 1)
     }
@@ -307,8 +331,21 @@ final class TabBarViewTests: XCTestCase {
     }
 
     @MainActor
+    private func settingsController(
+        in tabBar: TabBarView
+    ) throws -> PortalSettingsWindowController {
+        if tabBar.settingsWindowController == nil {
+            tabBar.managementButton.performClick(nil)
+        }
+        return try XCTUnwrap(tabBar.settingsWindowController)
+    }
+
+    @MainActor
     private func settingsRoot(in tabBar: TabBarView) throws -> NSView {
-        try XCTUnwrap(tabBar.settingsPopover.contentViewController?.view)
+        let controller = try settingsController(in: tabBar)
+        let index = controller.tabViewController.selectedTabViewItemIndex
+        let item = controller.tabViewController.tabViewItems[index]
+        return try XCTUnwrap(item.viewController).view
     }
 
     @MainActor
@@ -321,17 +358,10 @@ final class TabBarViewTests: XCTestCase {
     }
 
     @MainActor
-    private func categoryButtons(in tabBar: TabBarView) -> [NSButton] {
-        guard let root = try? settingsRoot(in: tabBar) else { return [] }
-        return descendants(of: root)
-            .compactMap { $0 as? NSButton }
-            .filter { $0.identifier?.rawValue.hasPrefix("portal-settings.category.") == true }
-            .sorted { $0.tag < $1.tag }
-    }
-
-    @MainActor
-    private func categoryButton(named name: String, in tabBar: TabBarView) throws -> NSButton {
-        try XCTUnwrap(categoryButtons(in: tabBar).first { $0.accessibilityLabel() == name })
+    private func selectCategory(named name: String, in tabBar: TabBarView) throws {
+        let tabs = try settingsController(in: tabBar).tabViewController
+        let index = try XCTUnwrap(tabs.tabViewItems.firstIndex { $0.label == name })
+        tabs.selectedTabViewItemIndex = index
     }
 
     @MainActor
