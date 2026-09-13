@@ -546,7 +546,13 @@ final class PortalSettingsViewController: NSViewController {
         return label
     }
 
-    private func actionButton(title: String, symbol: String?, action: Selector) -> NSButton {
+    private func actionButton(
+        title: String,
+        symbol: String?,
+        bezelColor: NSColor,
+        hasDestructiveAction: Bool = false,
+        action: Selector
+    ) -> NSButton {
         let button = NSButton(title: title, target: self, action: action)
         if let symbol {
             button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
@@ -554,11 +560,15 @@ final class PortalSettingsViewController: NSViewController {
         }
         if #available(macOS 26.0, *) {
             button.bezelStyle = .glass
+            button.tintProminence = .primary
+            button.borderShape = .capsule
         } else {
             button.bezelStyle = .rounded
         }
         button.controlSize = .small
-        button.contentTintColor = .labelColor
+        button.bezelColor = bezelColor
+        button.contentTintColor = .white
+        button.hasDestructiveAction = hasDestructiveAction
         button.userInterfaceLayoutDirection = .leftToRight
         return button
     }
@@ -629,6 +639,7 @@ final class PortalSettingsViewController: NSViewController {
             let addButton = actionButton(
                 title: NSLocalizedString("portal.settings.add_folder", comment: "Add folder"),
                 symbol: "folder.badge.plus",
+                bezelColor: .controlAccentColor,
                 action: #selector(addFolder)
             )
             addSection(
@@ -742,9 +753,10 @@ final class PortalSettingsViewController: NSViewController {
         let button = actionButton(
             title: NSLocalizedString("portal.settings.remove_portal", comment: "Remove portal"),
             symbol: nil,
+            bezelColor: .systemRed,
+            hasDestructiveAction: true,
             action: #selector(removePortal)
         )
-        button.contentTintColor = .systemRed
         let row = NSStackView(views: [labels, button])
         row.orientation = .horizontal
         row.distribution = .fill

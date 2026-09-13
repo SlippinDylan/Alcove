@@ -153,8 +153,12 @@ final class TabBarViewTests: XCTestCase {
             in: tabBar
         )
         XCTAssertTrue(addButton.isBordered)
+        XCTAssertEqual(addButton.bezelColor, .controlAccentColor)
+        XCTAssertEqual(addButton.contentTintColor, .white)
         if #available(macOS 26.0, *) {
             XCTAssertEqual(addButton.bezelStyle, .glass)
+            XCTAssertEqual(addButton.tintProminence, .primary)
+            XCTAssertEqual(addButton.borderShape, .capsule)
         }
         addButton.performClick(nil)
         settingsViewController.reorderFolder(first.id, to: 2)
@@ -163,10 +167,19 @@ final class TabBarViewTests: XCTestCase {
             for: "Third",
             in: tabBar
         ).performClick(nil)
-        try settingsButton(
+        let removePortalButton = try settingsButton(
             titled: NSLocalizedString("portal.settings.remove_portal", comment: ""),
             in: tabBar
-        ).performClick(nil)
+        )
+        XCTAssertEqual(removePortalButton.bezelColor, .systemRed)
+        XCTAssertEqual(removePortalButton.contentTintColor, .white)
+        XCTAssertTrue(removePortalButton.hasDestructiveAction)
+        if #available(macOS 26.0, *) {
+            XCTAssertEqual(removePortalButton.bezelStyle, .glass)
+            XCTAssertEqual(removePortalButton.tintProminence, .primary)
+            XCTAssertEqual(removePortalButton.borderShape, .capsule)
+        }
+        removePortalButton.performClick(nil)
 
         XCTAssertEqual(addCount, 1)
         XCTAssertEqual(closedIDs, [third.id])
