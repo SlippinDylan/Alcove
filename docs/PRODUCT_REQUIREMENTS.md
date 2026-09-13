@@ -184,7 +184,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 | FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
 | FR-21 | Show the selected folder path in a reserved bottom capsule, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
-| FR-22 | The menu bar lists New Portal, each Portal with Show/Hide commands, a reserved application Settings item, and Quit; all user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
+| FR-22 | The menu bar lists New Portal, each Portal with Show/Hide commands, application Settings, and Quit. Application Settings provides General and About categories; General controls launch at login, and About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
 
 ### Non-Functional Requirements
 

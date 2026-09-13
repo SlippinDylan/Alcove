@@ -10,6 +10,7 @@ struct PortalMenuEntry: Equatable {
 final class StatusMenuController: StatusMenuControlling {
     private let statusBar: NSStatusBar
     private let onNewPortal: () -> Void
+    private let onOpenSettings: () -> Void
     private let onShowPortal: (PortalID) -> Void
     private let onHidePortal: (PortalID) -> Void
     private var portalEntries: [PortalMenuEntry] = []
@@ -19,11 +20,13 @@ final class StatusMenuController: StatusMenuControlling {
     init(
         statusBar: NSStatusBar = .system,
         onNewPortal: @escaping () -> Void,
+        onOpenSettings: @escaping () -> Void = {},
         onShowPortal: @escaping (PortalID) -> Void = { _ in },
         onHidePortal: @escaping (PortalID) -> Void = { _ in }
     ) {
         self.statusBar = statusBar
         self.onNewPortal = onNewPortal
+        self.onOpenSettings = onOpenSettings
         self.onShowPortal = onShowPortal
         self.onHidePortal = onHidePortal
     }
@@ -69,6 +72,10 @@ final class StatusMenuController: StatusMenuControlling {
             keyEquivalent: ""
         )
         newPortalItem.target = self
+        newPortalItem.image = menuImage(
+            symbolName: "rectangle.badge.plus",
+            accessibilityDescription: newPortalItem.title
+        )
         menu.addItem(newPortalItem)
         menu.addItem(.separator())
 
@@ -82,10 +89,14 @@ final class StatusMenuController: StatusMenuControlling {
 
         let settingsItem = NSMenuItem(
             title: NSLocalizedString("menu.settings", comment: "Open application settings"),
-            action: nil,
+            action: #selector(requestSettings(_:)),
             keyEquivalent: ","
         )
-        settingsItem.isEnabled = false
+        settingsItem.target = self
+        settingsItem.image = menuImage(
+            symbolName: "gearshape",
+            accessibilityDescription: settingsItem.title
+        )
         menu.addItem(settingsItem)
 
         let quitItem = NSMenuItem(
@@ -94,14 +105,35 @@ final class StatusMenuController: StatusMenuControlling {
             keyEquivalent: "q"
         )
         quitItem.target = NSApplication.shared
+        quitItem.image = menuImage(
+            symbolName: "power",
+            accessibilityDescription: quitItem.title
+        )
         menu.addItem(quitItem)
 
         return menu
     }
 
+    private func menuImage(
+        symbolName: String,
+        accessibilityDescription: String
+    ) -> NSImage? {
+        let image = NSImage(
+            systemSymbolName: symbolName,
+            accessibilityDescription: accessibilityDescription
+        )
+        image?.isTemplate = true
+        return image
+    }
+
     @objc
     private func requestNewPortal(_ sender: NSMenuItem) {
         onNewPortal()
+    }
+
+    @objc
+    private func requestSettings(_ sender: NSMenuItem) {
+        onOpenSettings()
     }
 
     private func makePortalMenu(for entry: PortalMenuEntry) -> NSMenu {

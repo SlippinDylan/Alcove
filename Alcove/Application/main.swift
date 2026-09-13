@@ -18,8 +18,10 @@ let creationCoordinator = PortalCreationCoordinator(
     frameSelector: frameSelector,
     portalCoordinator: portalCoordinator
 )
+let applicationSettingsController = ApplicationSettingsWindowController()
 let statusMenuController = StatusMenuController(
     onNewPortal: { creationCoordinator.beginPortalCreation() },
+    onOpenSettings: { applicationSettingsController.present() },
     onShowPortal: { portalCoordinator.showPortal($0) },
     onHidePortal: { portalCoordinator.hidePortal($0) }
 )

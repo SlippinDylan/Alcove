@@ -7,20 +7,30 @@ final class StatusMenuControllerTests: XCTestCase {
     @MainActor
     func testMenuContainsEnabledNewPortalSeparatorAndQuit() {
         var requestCount = 0
-        let controller = StatusMenuController {
-            requestCount += 1
-        }
+        var settingsRequestCount = 0
+        let controller = StatusMenuController(
+            onNewPortal: { requestCount += 1 },
+            onOpenSettings: { settingsRequestCount += 1 }
+        )
         let menu = controller.makeMenu()
 
         XCTAssertEqual(menu.items.count, 4)
         XCTAssertEqual(menu.items[0].title, NSLocalizedString("menu.new_portal", comment: ""))
         XCTAssertTrue(menu.items[0].isEnabled)
+        XCTAssertNotNil(menu.items[0].image)
+        XCTAssertTrue(menu.items[0].image?.isTemplate == true)
         menu.performActionForItem(at: 0)
         XCTAssertEqual(requestCount, 1)
         XCTAssertTrue(menu.items[1].isSeparatorItem)
         XCTAssertEqual(menu.items[2].title, NSLocalizedString("menu.settings", comment: ""))
-        XCTAssertFalse(menu.items[2].isEnabled)
+        XCTAssertTrue(menu.items[2].isEnabled)
+        XCTAssertNotNil(menu.items[2].image)
+        XCTAssertTrue(menu.items[2].image?.isTemplate == true)
+        menu.performActionForItem(at: 2)
+        XCTAssertEqual(settingsRequestCount, 1)
         XCTAssertEqual(menu.items[3].title, NSLocalizedString("menu.quit", comment: ""))
+        XCTAssertNotNil(menu.items[3].image)
+        XCTAssertTrue(menu.items[3].image?.isTemplate == true)
         XCTAssertEqual(menu.items[3].action, #selector(NSApplication.terminate(_:)))
         XCTAssertTrue(menu.items[3].target === NSApplication.shared)
     }

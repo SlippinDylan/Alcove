@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 71;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -26,19 +26,6 @@
 		100000000000000000000011 /* PortalWindowStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000013 /* PortalWindowStrategy.swift */; };
 		100000000000000000000012 /* PortalWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000014 /* PortalWindow.swift */; };
 		100000000000000000000013 /* PortalWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000015 /* PortalWindowController.swift */; };
-		100000000000000000000023 /* PortalWindowFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000025 /* PortalWindowFactory.swift */; };
-		100000000000000000000024 /* TabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000026 /* TabBarView.swift */; };
-		100000000000000000000025 /* LastTabRemovalConfirmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000027 /* LastTabRemovalConfirmer.swift */; };
-		100000000000000000000026 /* TabBarViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000028 /* TabBarViewTests.swift */; };
-		100000000000000000000027 /* QuickLookIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000029 /* QuickLookIntegration.swift */; };
-		100000000000000000000028 /* QuickLookIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002A /* QuickLookIntegrationTests.swift */; };
-		100000000000000000000029 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002B /* Quartz.framework */; };
-		10000000000000000000002A /* DisplayPlacement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002C /* DisplayPlacement.swift */; };
-		10000000000000000000002B /* DisplayPlacementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002D /* DisplayPlacementTests.swift */; };
-		10000000000000000000002C /* FolderObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002E /* FolderObserver.swift */; };
-		10000000000000000000002D /* FolderObserverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002F /* FolderObserverTests.swift */; };
-		10000000000000000000002E /* PortalChromeMaterialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000030 /* PortalChromeMaterialView.swift */; };
-		10000000000000000000002F /* PortalChromeMaterialViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000031 /* PortalChromeMaterialViewTests.swift */; };
 		100000000000000000000014 /* FolderAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* FolderAccessTests.swift */; };
 		100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000017 /* PortalCoordinatorTests.swift */; };
 		100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000018 /* FileGridViewControllerTests.swift */; };
@@ -54,7 +41,23 @@
 		100000000000000000000020 /* PortalStoreFileSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000022 /* PortalStoreFileSystem.swift */; };
 		100000000000000000000021 /* PortalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000023 /* PortalStore.swift */; };
 		100000000000000000000022 /* PortalStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000024 /* PortalStoreTests.swift */; };
+		100000000000000000000023 /* PortalWindowFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000025 /* PortalWindowFactory.swift */; };
+		100000000000000000000024 /* TabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000026 /* TabBarView.swift */; };
+		100000000000000000000025 /* LastTabRemovalConfirmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000027 /* LastTabRemovalConfirmer.swift */; };
+		100000000000000000000026 /* TabBarViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000028 /* TabBarViewTests.swift */; };
+		100000000000000000000027 /* QuickLookIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000029 /* QuickLookIntegration.swift */; };
+		100000000000000000000028 /* QuickLookIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002A /* QuickLookIntegrationTests.swift */; };
+		100000000000000000000029 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002B /* Quartz.framework */; };
+		10000000000000000000002A /* DisplayPlacement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002C /* DisplayPlacement.swift */; };
+		10000000000000000000002B /* DisplayPlacementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002D /* DisplayPlacementTests.swift */; };
+		10000000000000000000002C /* FolderObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002E /* FolderObserver.swift */; };
+		10000000000000000000002D /* FolderObserverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002F /* FolderObserverTests.swift */; };
+		10000000000000000000002E /* PortalChromeMaterialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000030 /* PortalChromeMaterialView.swift */; };
+		10000000000000000000002F /* PortalChromeMaterialViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000031 /* PortalChromeMaterialViewTests.swift */; };
 		100000000000000000000030 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 700000000000000000000011 /* Localizable.strings */; };
+		100000000000000000000031 /* ApplicationSettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000035 /* ApplicationSettingsWindowController.swift */; };
+		100000000000000000000032 /* ApplicationSettingsWindowControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000036 /* ApplicationSettingsWindowControllerTests.swift */; };
+		BE2637E43056904F005587C8 /* Alcove.icon in Resources */ = {isa = PBXBuildFile; fileRef = BE2637E33056904F005587C8 /* Alcove.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -89,19 +92,6 @@
 		200000000000000000000013 /* PortalWindowStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowStrategy.swift; sourceTree = "<group>"; };
 		200000000000000000000014 /* PortalWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindow.swift; sourceTree = "<group>"; };
 		200000000000000000000015 /* PortalWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowController.swift; sourceTree = "<group>"; };
-		200000000000000000000025 /* PortalWindowFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowFactory.swift; sourceTree = "<group>"; };
-		200000000000000000000026 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
-		200000000000000000000027 /* LastTabRemovalConfirmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastTabRemovalConfirmer.swift; sourceTree = "<group>"; };
-		200000000000000000000028 /* TabBarViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarViewTests.swift; sourceTree = "<group>"; };
-		200000000000000000000029 /* QuickLookIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookIntegration.swift; sourceTree = "<group>"; };
-		20000000000000000000002A /* QuickLookIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookIntegrationTests.swift; sourceTree = "<group>"; };
-		20000000000000000000002B /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
-		20000000000000000000002C /* DisplayPlacement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayPlacement.swift; sourceTree = "<group>"; };
-		20000000000000000000002D /* DisplayPlacementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayPlacementTests.swift; sourceTree = "<group>"; };
-		20000000000000000000002E /* FolderObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderObserver.swift; sourceTree = "<group>"; };
-		20000000000000000000002F /* FolderObserverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderObserverTests.swift; sourceTree = "<group>"; };
-		200000000000000000000030 /* PortalChromeMaterialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalChromeMaterialView.swift; sourceTree = "<group>"; };
-		200000000000000000000031 /* PortalChromeMaterialViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalChromeMaterialViewTests.swift; sourceTree = "<group>"; };
 		200000000000000000000016 /* FolderAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAccessTests.swift; sourceTree = "<group>"; };
 		200000000000000000000017 /* PortalCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCoordinatorTests.swift; sourceTree = "<group>"; };
 		200000000000000000000018 /* FileGridViewControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridViewControllerTests.swift; sourceTree = "<group>"; };
@@ -117,9 +107,25 @@
 		200000000000000000000022 /* PortalStoreFileSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreFileSystem.swift; sourceTree = "<group>"; };
 		200000000000000000000023 /* PortalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStore.swift; sourceTree = "<group>"; };
 		200000000000000000000024 /* PortalStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreTests.swift; sourceTree = "<group>"; };
+		200000000000000000000025 /* PortalWindowFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowFactory.swift; sourceTree = "<group>"; };
+		200000000000000000000026 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
+		200000000000000000000027 /* LastTabRemovalConfirmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastTabRemovalConfirmer.swift; sourceTree = "<group>"; };
+		200000000000000000000028 /* TabBarViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarViewTests.swift; sourceTree = "<group>"; };
+		200000000000000000000029 /* QuickLookIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookIntegration.swift; sourceTree = "<group>"; };
+		20000000000000000000002A /* QuickLookIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookIntegrationTests.swift; sourceTree = "<group>"; };
+		20000000000000000000002B /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
+		20000000000000000000002C /* DisplayPlacement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayPlacement.swift; sourceTree = "<group>"; };
+		20000000000000000000002D /* DisplayPlacementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayPlacementTests.swift; sourceTree = "<group>"; };
+		20000000000000000000002E /* FolderObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderObserver.swift; sourceTree = "<group>"; };
+		20000000000000000000002F /* FolderObserverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderObserverTests.swift; sourceTree = "<group>"; };
+		200000000000000000000030 /* PortalChromeMaterialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalChromeMaterialView.swift; sourceTree = "<group>"; };
+		200000000000000000000031 /* PortalChromeMaterialViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalChromeMaterialViewTests.swift; sourceTree = "<group>"; };
 		200000000000000000000032 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		200000000000000000000033 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		200000000000000000000034 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		200000000000000000000035 /* ApplicationSettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSettingsWindowController.swift; sourceTree = "<group>"; };
+		200000000000000000000036 /* ApplicationSettingsWindowControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSettingsWindowControllerTests.swift; sourceTree = "<group>"; };
+		BE2637E33056904F005587C8 /* Alcove.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Alcove.icon; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -157,6 +163,7 @@
 		700000000000000000000002 /* Alcove */ = {
 			isa = PBXGroup;
 			children = (
+				BE2637E33056904F005587C8 /* Alcove.icon */,
 				700000000000000000000003 /* Application */,
 				700000000000000000000009 /* FolderAccess */,
 				70000000000000000000000A /* FileGrid */,
@@ -174,6 +181,7 @@
 		700000000000000000000003 /* Application */ = {
 			isa = PBXGroup;
 			children = (
+				200000000000000000000035 /* ApplicationSettingsWindowController.swift */,
 				200000000000000000000001 /* AppDelegate.swift */,
 				20000000000000000000000B /* PortalCoordinator.swift */,
 				200000000000000000000002 /* StatusMenuController.swift */,
@@ -202,6 +210,7 @@
 		700000000000000000000006 /* AlcoveTests */ = {
 			isa = PBXGroup;
 			children = (
+				200000000000000000000036 /* ApplicationSettingsWindowControllerTests.swift */,
 				200000000000000000000005 /* AppDelegateTests.swift */,
 				20000000000000000000002D /* DisplayPlacementTests.swift */,
 				200000000000000000000018 /* FileGridViewControllerTests.swift */,
@@ -284,22 +293,6 @@
 			path = PortalWindowing;
 			sourceTree = "<group>";
 		};
-		70000000000000000000000F /* QuickLookIntegration */ = {
-			isa = PBXGroup;
-			children = (
-				200000000000000000000029 /* QuickLookIntegration.swift */,
-			);
-			path = QuickLookIntegration;
-			sourceTree = "<group>";
-		};
-		700000000000000000000010 /* DisplayPlacement */ = {
-			isa = PBXGroup;
-			children = (
-				20000000000000000000002C /* DisplayPlacement.swift */,
-			);
-			path = DisplayPlacement;
-			sourceTree = "<group>";
-		};
 		70000000000000000000000D /* PortalCreation */ = {
 			isa = PBXGroup;
 			children = (
@@ -320,20 +313,23 @@
 			path = Persistence;
 			sourceTree = "<group>";
 		};
-/* End PBXGroup section */
-
-/* Begin PBXVariantGroup section */
-		700000000000000000000011 /* Localizable.strings */ = {
-			isa = PBXVariantGroup;
+		70000000000000000000000F /* QuickLookIntegration */ = {
+			isa = PBXGroup;
 			children = (
-				200000000000000000000032 /* en */,
-				200000000000000000000033 /* zh-Hans */,
-				200000000000000000000034 /* zh-Hant */,
+				200000000000000000000029 /* QuickLookIntegration.swift */,
 			);
-			name = Localizable.strings;
+			path = QuickLookIntegration;
 			sourceTree = "<group>";
 		};
-/* End PBXVariantGroup section */
+		700000000000000000000010 /* DisplayPlacement */ = {
+			isa = PBXGroup;
+			children = (
+				20000000000000000000002C /* DisplayPlacement.swift */,
+			);
+			path = DisplayPlacement;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
 		500000000000000000000001 /* Alcove */ = {
@@ -422,6 +418,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BE2637E43056904F005587C8 /* Alcove.icon in Resources */,
 				100000000000000000000030 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -440,6 +437,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				100000000000000000000031 /* ApplicationSettingsWindowController.swift in Sources */,
 				100000000000000000000001 /* AppDelegate.swift in Sources */,
 				100000000000000000000009 /* PortalCoordinator.swift in Sources */,
 				100000000000000000000002 /* StatusMenuController.swift in Sources */,
@@ -476,6 +474,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				100000000000000000000032 /* ApplicationSettingsWindowControllerTests.swift in Sources */,
 				100000000000000000000005 /* AppDelegateTests.swift in Sources */,
 				10000000000000000000002B /* DisplayPlacementTests.swift in Sources */,
 				100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */,
@@ -502,6 +501,19 @@
 			targetProxy = 300000000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		700000000000000000000011 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				200000000000000000000032 /* en */,
+				200000000000000000000033 /* zh-Hans */,
+				200000000000000000000034 /* zh-Hant */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		C00000000000000000000001 /* Debug */ = {
@@ -546,15 +558,23 @@
 		C00000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Alcove;
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DS4FSRW7VS;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Alcove/Resources/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dylanwang.Alcove;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = NO;
 			};
 			name = Debug;
@@ -562,15 +582,23 @@
 		C00000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Alcove;
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DS4FSRW7VS;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Alcove/Resources/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dylanwang.Alcove;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = NO;
 			};
 			name = Release;
@@ -582,7 +610,11 @@
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dylanwang.AlcoveTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -597,25 +629,15 @@
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dylanwang.AlcoveTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Alcove.app/Contents/MacOS/Alcove";
-			};
-			name = Release;
-		};
-		C00000000000000000000007 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
-			};
-			name = Debug;
-		};
-		C00000000000000000000008 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
 			};
 			name = Release;
 		};

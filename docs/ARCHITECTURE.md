@@ -90,7 +90,8 @@ App entry point and global coordination.
 
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
-- `StatusMenuController` — builds the localized New Portal / Portal Show-Hide / application Settings placeholder / Quit hierarchy
+- `StatusMenuController` — builds the localized New Portal / Portal Show-Hide / application Settings / Quit hierarchy and routes Settings to one reusable application settings window
+- `ApplicationSettingsWindowController` — owns the preference-style General/About window. General adapts `SMAppService.mainApp` at the system boundary for launch-at-login registration; About reads version metadata and the compiled Icon Composer application icon from the running app
 - `NewPortalOverlay` — pointer-display overlay with a dashed `3×1` default card, title/item skeletons, half-cell candidate feedback, and whole-capacity snapping constrained to `visibleFrame`
 - Info.plist: `LSUIElement = YES`, `LSBackgroundOnly = NO`
 

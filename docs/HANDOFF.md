@@ -163,7 +163,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.10 菜单栏与本地化
 
 - 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；Portal 名称的二级菜单只提供 Show 和 Hide。
-- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前仅保留禁用入口，尚未实现全局设置窗口。
+- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；点击后打开可复用的独立设置窗口。General 提供系统登录时自动启动开关，About 使用 Icon Composer 生成的应用图标并显示应用名称、版本、构建号和版权信息。
 - 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
 - English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
 
@@ -261,7 +261,7 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - 3×1 最小容量、创建/缩放半格阈值、capacity 驱动的 row-major 回流。
 - mini overlay 自动隐藏滚动条。
 - 原生 preference toolbar 设置窗口、原生表格文件夹排序、离散样式滑块及完整 Coordinator 动作链路。
-- 可持久化图钉、底部路径与复制按钮、菜单栏 Show/Hide 和全局 Settings 占位。
+- 可持久化图钉、底部路径与复制按钮、菜单栏 Show/Hide，以及包含 General/About 的全局 Settings 窗口。
 - English、简体中文、繁体中文完整 bundle 本地化，其他系统语言回退 English。
 
 ### 7.2 最近验证结果

@@ -1,0 +1,106 @@
+{
+  "fill-specializations" : [
+    {
+      "value" : {
+        "solid" : "display-p3:0.01660,0.03146,0.07575,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "solid" : "gray:0.20687,1.00000"
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "fill" : "automatic",
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "ChatGPT Image 2026年9月13日 00_28_53.png",
+          "name" : "ChatGPT Image 2026年9月13日 00_28_53",
+          "position" : {
+            "scale" : 0.8,
+            "translation-in-points" : [
+              -9.459374999999909,
+              -3.6000000000000227
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "hidden" : true,
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "ChatGPT Image 2026年9月13日 00_14_32.png",
+          "name" : "ChatGPT Image 2026年9月13日 00_14_32",
+          "position" : {
+            "scale" : 0.8,
+            "translation-in-points" : [
+              7.2000000000000455,
+              16.049999999999955
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "hidden" : true,
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "fill" : "automatic",
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "ChatGPT Image 2026年9月12日 14_14_00.png",
+          "name" : "ChatGPT Image 2026年9月12日 14_14_00",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 0.7,
+            "translation-in-points" : [
+              -13.659374999999955,
+              0.35000000000002274
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : [
+      "macOS"
+    ]
+  }
+}

@@ -51,6 +51,13 @@
 "menu.settings" = "Settings";
 "menu.quit" = "Quit Alcove";
 
+/* Application settings */
+"application.settings.general" = "General";
+"application.settings.about" = "About";
+"application.settings.startup" = "Startup";
+"application.settings.launch_at_login" = "Launch at Login";
+"application.settings.launch_at_login_error" = "Unable to Change Login Setting";
+
 /* Portal pinning */
 "portal.pin.pin" = "Pin";
 "portal.pin.unpin" = "Unpin";

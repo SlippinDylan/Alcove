@@ -51,6 +51,13 @@
 "menu.settings" = "设置";
 "menu.quit" = "退出 Alcove";
 
+/* Application settings */
+"application.settings.general" = "通用";
+"application.settings.about" = "关于";
+"application.settings.startup" = "启动";
+"application.settings.launch_at_login" = "开机自启动";
+"application.settings.launch_at_login_error" = "无法更改开机启动设置";
+
 /* Portal pinning */
 "portal.pin.pin" = "固定";
 "portal.pin.unpin" = "取消固定";
