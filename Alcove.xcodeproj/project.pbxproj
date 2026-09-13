@@ -60,6 +60,7 @@
 		100000000000000000000033 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000037 /* PrivacyInfo.xcprivacy */; };
 		BA0000000000000000000001 /* AlcoveLayoutBackupCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000003 /* AlcoveLayoutBackupCodec.swift */; };
 		BA0000000000000000000002 /* AlcoveLayoutBackupCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000004 /* AlcoveLayoutBackupCodecTests.swift */; };
+		BB0000000000000000000001 /* ApplicationLayoutBackupController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000002 /* ApplicationLayoutBackupController.swift */; };
 		BE2637E43056904F005587C8 /* Alcove.icon in Resources */ = {isa = PBXBuildFile; fileRef = BE2637E33056904F005587C8 /* Alcove.icon */; };
 /* End PBXBuildFile section */
 
@@ -131,6 +132,7 @@
 		200000000000000000000037 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BA0000000000000000000003 /* AlcoveLayoutBackupCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlcoveLayoutBackupCodec.swift; sourceTree = "<group>"; };
 		BA0000000000000000000004 /* AlcoveLayoutBackupCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlcoveLayoutBackupCodecTests.swift; sourceTree = "<group>"; };
+		BB0000000000000000000002 /* ApplicationLayoutBackupController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationLayoutBackupController.swift; sourceTree = "<group>"; };
 		BE2637E33056904F005587C8 /* Alcove.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Alcove.icon; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -187,6 +189,7 @@
 		700000000000000000000003 /* Application */ = {
 			isa = PBXGroup;
 			children = (
+				BB0000000000000000000002 /* ApplicationLayoutBackupController.swift */,
 				200000000000000000000035 /* ApplicationSettingsWindowController.swift */,
 				200000000000000000000001 /* AppDelegate.swift */,
 				20000000000000000000000B /* PortalCoordinator.swift */,
@@ -448,6 +451,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BA0000000000000000000001 /* AlcoveLayoutBackupCodec.swift in Sources */,
+				BB0000000000000000000001 /* ApplicationLayoutBackupController.swift in Sources */,
 				100000000000000000000031 /* ApplicationSettingsWindowController.swift in Sources */,
 				100000000000000000000001 /* AppDelegate.swift in Sources */,
 				100000000000000000000009 /* PortalCoordinator.swift in Sources */,

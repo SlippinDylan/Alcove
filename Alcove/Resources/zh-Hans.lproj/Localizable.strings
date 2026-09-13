@@ -54,6 +54,7 @@
 /* Application settings */
 "application.settings.general" = "通用";
 "application.settings.style" = "样式";
+"application.settings.advanced" = "高级";
 "application.settings.about" = "关于";
 "application.settings.startup" = "启动";
 "application.settings.launch_at_login" = "开机自启动";
@@ -73,6 +74,17 @@
 "application.settings.spacing" = "面板间距";
 "application.settings.spacing_value" = "%d 点";
 "application.settings.shadow" = "显示阴影";
+"application.settings.backup.section" = "布局备份";
+"application.settings.backup.title" = "布局数据备份";
+"application.settings.backup.description" = "导入或导出 Alcove 布局，用于备份、恢复或在 Mac 之间迁移。";
+"application.settings.backup.import" = "导入";
+"application.settings.backup.export" = "导出";
+"application.settings.backup.replace_title" = "替换当前布局？";
+"application.settings.backup.replace_message" = "这将使用备份中的 %d 个面板替换当前布局，此操作无法撤销。";
+"application.settings.backup.replace" = "替换布局";
+"application.settings.backup.import_error" = "无法导入布局";
+"application.settings.backup.export_error" = "无法导出布局";
+"application.settings.backup.import_busy" = "请先结束当前的面板操作，再导入布局。";
 "portal.placement.unavailable.title" = "无法放置面板";
 "portal.placement.unavailable.detail" = "请选择一块空白区域，并与屏幕边缘及其他面板保持所设间距。";
 "portal.state.not_loaded" = "面板状态尚未加载完成。";

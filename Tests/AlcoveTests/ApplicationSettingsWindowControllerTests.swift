@@ -13,6 +13,20 @@ private final class LaunchAtLoginControllerSpy: LaunchAtLoginControlling {
     }
 }
 
+@MainActor
+private final class ApplicationLayoutBackupControllerSpy: ApplicationLayoutBackupControlling {
+    private(set) var importCount = 0
+    private(set) var exportCount = 0
+
+    func beginImport(from window: NSWindow) {
+        importCount += 1
+    }
+
+    func beginExport(from window: NSWindow) {
+        exportCount += 1
+    }
+}
+
 final class ApplicationSettingsWindowControllerTests: XCTestCase {
     @MainActor
     func testPortalAppearancePreferencesUseDefaultsAndPersistFiveStepValues() throws {
@@ -62,6 +76,35 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testImportedAppearancePersistsWithoutCallingChangeCallback() throws {
+        let suiteName = "ApplicationSettingsWindowControllerTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let controller = ApplicationPreferencesController(userDefaults: defaults)
+        var callbackCount = 0
+        controller.onPortalAppearanceChanged = { _ in
+            callbackCount += 1
+            return false
+        }
+        let imported = PortalAppearancePreferences(
+            iconSize: .large,
+            backgroundStyle: .minimumTransparency,
+            cornerRadius: .small,
+            spacing: .maximum,
+            shadowEnabled: false
+        )
+
+        controller.replacePortalAppearanceFromImport(imported)
+
+        XCTAssertEqual(callbackCount, 0)
+        XCTAssertEqual(controller.portalAppearance, imported)
+        XCTAssertEqual(
+            ApplicationPreferencesController(userDefaults: defaults).portalAppearance,
+            imported
+        )
+    }
+
+    @MainActor
     func testStyleSettingsExposeGlobalContentAndAppearanceControls() throws {
         let controller = ApplicationSettingsWindowController(
             launchAtLoginController: LaunchAtLoginControllerSpy(),
@@ -95,6 +138,35 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         controller.close()
     }
 
+    @MainActor
+    func testAdvancedSettingsExposeLayoutImportAndExportActions() throws {
+        let backupController = ApplicationLayoutBackupControllerSpy()
+        let controller = ApplicationSettingsWindowController(
+            launchAtLoginController: LaunchAtLoginControllerSpy(),
+            layoutBackupController: backupController,
+            metadata: ApplicationMetadata(infoDictionary: [:]),
+            applicationIcon: NSImage(size: NSSize(width: 128, height: 128))
+        )
+        controller.selectCategory(.advanced)
+        let views = descendants(of: controller.settingsViewController.view)
+        let card = try XCTUnwrap(views.first {
+            $0.identifier?.rawValue == "application-settings.backup.card"
+        })
+        let importButton = try XCTUnwrap(views.compactMap { $0 as? NSButton }.first {
+            $0.identifier?.rawValue == "application-settings.backup.import"
+        })
+        let exportButton = try XCTUnwrap(views.compactMap { $0 as? NSButton }.first {
+            $0.identifier?.rawValue == "application-settings.backup.export"
+        })
+
+        XCTAssertNotNil(card.layer)
+        importButton.performClick(nil)
+        exportButton.performClick(nil)
+        XCTAssertEqual(backupController.importCount, 1)
+        XCTAssertEqual(backupController.exportCount, 1)
+        controller.close()
+    }
+
     func testApplicationMetadataReadsBundleValues() {
         let metadata = ApplicationMetadata(infoDictionary: [
             "CFBundleName": "Alcove",
@@ -109,7 +181,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testSettingsWindowUsesGeneralStyleAndAboutPreferenceCategories() throws {
+    func testSettingsWindowUsesAllPreferenceCategories() throws {
         let controller = ApplicationSettingsWindowController(
             launchAtLoginController: LaunchAtLoginControllerSpy(),
             metadata: ApplicationMetadata(infoDictionary: [:]),

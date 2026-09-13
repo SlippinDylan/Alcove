@@ -28,8 +28,27 @@ let creationCoordinator = PortalCreationCoordinator(
     frameSelector: frameSelector,
     portalCoordinator: portalCoordinator
 )
+let layoutBackupController = ApplicationLayoutBackupController(
+    snapshotProvider: {
+        (portalCoordinator.portalStates, applicationPreferencesController.portalAppearance)
+    },
+    replaceHandler: { backup in
+        try await portalCoordinator.replaceLayout(with: backup)
+    },
+    importCompletion: { appearance in
+        applicationPreferencesController.replacePortalAppearanceFromImport(appearance)
+        do {
+            try creationGridState.updateIconSize(appearance.iconSize)
+        } catch {
+            assertionFailure("Imported preset icon size must produce valid creation metrics: \(error)")
+        }
+        frameSelector.updateCornerRadius(appearance.cornerRadius.points)
+        frameSelector.updateSpacing(appearance.spacing.points)
+    }
+)
 let applicationSettingsController = ApplicationSettingsWindowController(
-    preferencesController: applicationPreferencesController
+    preferencesController: applicationPreferencesController,
+    layoutBackupController: layoutBackupController
 )
 applicationPreferencesController.onPortalAppearanceChanged = { appearance in
     guard portalCoordinator.updatePortalAppearance(appearance) else { return false }

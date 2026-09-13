@@ -160,6 +160,148 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testLayoutImportPersistsCompleteReplacementBeforeSwappingRuntimeWindows() async throws {
+        let existing = try makePortal(path: "/tmp/existing", x: 10)
+        let store = PortalStoreSpy(portals: [existing])
+        let factory = PortalWindowFactorySpy()
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+        let importedID = PortalID(rawValue: UUID())
+        let backup = try makeLayoutBackup(portalID: importedID)
+
+        try await coordinator.replaceLayout(with: backup)
+
+        let saves = await store.savedSnapshots()
+        XCTAssertEqual(saves.count, 1)
+        XCTAssertEqual(saves[0], coordinator.portalStates)
+        let imported = try XCTUnwrap(coordinator.portalStates.first)
+        XCTAssertEqual(imported.id, importedID)
+        XCTAssertEqual(imported.iconSize, .large)
+        XCTAssertEqual(imported.backgroundStyle, .highTransparency)
+        XCTAssertEqual(imported.sortOrder, .creationDate)
+        XCTAssertEqual(imported.tint, .purple)
+        XCTAssertTrue(imported.isPinned)
+        XCTAssertEqual(imported.selectedTabID, imported.tabs[1].id)
+        XCTAssertEqual(
+            imported.tabs.map(\.folderURL),
+            [URL(fileURLWithPath: "/missing/one"), URL(fileURLWithPath: "/missing/two")]
+        )
+        XCTAssertEqual(factory.windows.count, 2)
+        XCTAssertEqual(factory.windows[0].closeCount, 1)
+        XCTAssertEqual(factory.windows[1].presentCount, 1)
+        XCTAssertEqual(factory.windows[1].updatedAppearances.last?.spacing, .maximum)
+    }
+
+    @MainActor
+    func testLayoutImportSaveFailureLeavesRuntimeStateUntouched() async throws {
+        let existing = try makePortal(path: "/tmp/existing", x: 10)
+        let store = PortalStoreSpy(portals: [existing], saveError: .rejected)
+        let factory = PortalWindowFactorySpy()
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+
+        do {
+            try await coordinator.replaceLayout(
+                with: try makeLayoutBackup(portalID: PortalID(rawValue: UUID()))
+            )
+            XCTFail("A failed replacement save must be reported")
+        } catch let error as PortalStoreFixtureError {
+            XCTAssertEqual(error, .rejected)
+        }
+
+        XCTAssertEqual(coordinator.portalStates, [existing])
+        XCTAssertEqual(factory.windows.count, 1)
+        XCTAssertEqual(factory.windows[0].closeCount, 0)
+        XCTAssertEqual(factory.windows[0].presentCount, 1)
+        let saves = await store.savedSnapshots()
+        XCTAssertTrue(saves.isEmpty)
+    }
+
+    @MainActor
+    func testLayoutImportPreflightFailureDoesNotSaveOrChangeRuntimeState() async throws {
+        let existing = try makePortal(path: "/tmp/existing", x: 10)
+        let store = PortalStoreSpy(portals: [existing])
+        let factory = PortalWindowFactorySpy()
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+        let oversizedCapacity = try GridCapacity(columns: 100, rows: 100)
+
+        do {
+            try await coordinator.replaceLayout(
+                with: try makeLayoutBackup(
+                    portalID: PortalID(rawValue: UUID()),
+                    gridCapacity: oversizedCapacity
+                )
+            )
+            XCTFail("An imported layout that cannot fit must fail preflight")
+        } catch let error as PortalCoordinatorError {
+            XCTAssertEqual(error, .placementUnavailable)
+        }
+
+        XCTAssertEqual(coordinator.portalStates, [existing])
+        XCTAssertEqual(factory.windows.count, 1)
+        XCTAssertEqual(factory.windows[0].closeCount, 0)
+        let saves = await store.savedSnapshots()
+        XCTAssertTrue(saves.isEmpty)
+    }
+
+    @MainActor
+    private func makeLayoutBackup(
+        portalID: PortalID,
+        gridCapacity: GridCapacity = .minimum
+    ) throws -> AlcoveLayoutBackup {
+        AlcoveLayoutBackup(
+            global: AlcoveLayoutBackupGlobal(
+                iconSize: .large,
+                backgroundStyle: .highTransparency,
+                spacing: .maximum,
+                cornerRadius: .small,
+                shadowEnabled: false
+            ),
+            portals: [
+                AlcoveLayoutBackupPortal(
+                    id: portalID,
+                    sortOrder: .creationDate,
+                    tint: .purple,
+                    isPinned: true,
+                    normalizedAnchor: try NormalizedAnchor(x: 0.25, y: 0.75),
+                    size: CGSize(width: 1, height: 1),
+                    gridCapacity: gridCapacity,
+                    folderURLs: [
+                        URL(fileURLWithPath: "/missing/one"),
+                        URL(fileURLWithPath: "/missing/two"),
+                    ],
+                    selectedFolderIndex: 1
+                ),
+            ]
+        )
+    }
+
+    @MainActor
     func testCreateRejectsAFrameOccupiedByAnotherPortal() async throws {
         let existing = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/existing"),

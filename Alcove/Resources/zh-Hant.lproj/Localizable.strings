@@ -54,6 +54,7 @@
 /* Application settings */
 "application.settings.general" = "一般";
 "application.settings.style" = "樣式";
+"application.settings.advanced" = "進階";
 "application.settings.about" = "關於";
 "application.settings.startup" = "啟動";
 "application.settings.launch_at_login" = "登入時自動啟動";
@@ -73,6 +74,17 @@
 "application.settings.spacing" = "面板間距";
 "application.settings.spacing_value" = "%d 點";
 "application.settings.shadow" = "顯示陰影";
+"application.settings.backup.section" = "佈局備份";
+"application.settings.backup.title" = "佈局資料備份";
+"application.settings.backup.description" = "匯入或匯出 Alcove 佈局，用於備份、還原或在 Mac 之間移轉。";
+"application.settings.backup.import" = "匯入";
+"application.settings.backup.export" = "匯出";
+"application.settings.backup.replace_title" = "取代目前佈局？";
+"application.settings.backup.replace_message" = "這會使用備份中的 %d 個面板取代目前佈局，此操作無法還原。";
+"application.settings.backup.replace" = "取代佈局";
+"application.settings.backup.import_error" = "無法匯入佈局";
+"application.settings.backup.export_error" = "無法匯出佈局";
+"application.settings.backup.import_busy" = "請先結束目前的面板操作，再匯入佈局。";
 "portal.placement.unavailable.title" = "無法放置面板";
 "portal.placement.unavailable.detail" = "請選擇一塊空白區域，並與螢幕邊緣及其他面板保持所設間距。";
 "portal.state.not_loaded" = "面板狀態尚未載入完成。";

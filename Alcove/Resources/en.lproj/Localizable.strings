@@ -54,6 +54,7 @@
 /* Application settings */
 "application.settings.general" = "General";
 "application.settings.style" = "Style";
+"application.settings.advanced" = "Advanced";
 "application.settings.about" = "About";
 "application.settings.startup" = "Startup";
 "application.settings.launch_at_login" = "Launch at Login";
@@ -73,6 +74,17 @@
 "application.settings.spacing" = "Panel Spacing";
 "application.settings.spacing_value" = "%d points";
 "application.settings.shadow" = "Show Shadow";
+"application.settings.backup.section" = "Layout Backup";
+"application.settings.backup.title" = "Layout Data Backup";
+"application.settings.backup.description" = "Import or export your Alcove layout for backup, recovery, or migration between Macs.";
+"application.settings.backup.import" = "Import";
+"application.settings.backup.export" = "Export";
+"application.settings.backup.replace_title" = "Replace the Current Layout?";
+"application.settings.backup.replace_message" = "This replaces the current layout with %d panels from the backup. This action can’t be undone.";
+"application.settings.backup.replace" = "Replace Layout";
+"application.settings.backup.import_error" = "Unable to Import Layout";
+"application.settings.backup.export_error" = "Unable to Export Layout";
+"application.settings.backup.import_busy" = "Finish the current panel interaction before importing a layout.";
 "portal.placement.unavailable.title" = "Unable to Place Panel";
 "portal.placement.unavailable.detail" = "Choose a free area that leaves the selected spacing from the screen edges and other panels.";
 "portal.state.not_loaded" = "Panel state has not finished loading.";

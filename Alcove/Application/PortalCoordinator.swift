@@ -263,6 +263,53 @@ final class PortalCoordinator: PortalCoordinating {
         runtimePortalFrames(excluding: nil)
     }
 
+    func replaceLayout(with backup: AlcoveLayoutBackup) async throws {
+        try await performMutation { [weak self] in
+            guard let self else { return }
+            guard hasLoadedPersistentState else {
+                throw PortalCoordinatorError.persistentStateNotLoaded
+            }
+            guard pendingUserPlacements.isEmpty,
+                  folderSelectionTask == nil,
+                  !windows.values.contains(where: \.isUserPlacementInteractionActive) else {
+                throw PortalCoordinatorError.layoutImportBusy
+            }
+
+            let snapshot = try currentDisplaySnapshot()
+            let appearance = PortalAppearancePreferences(
+                iconSize: backup.global.iconSize,
+                backgroundStyle: backup.global.backgroundStyle,
+                cornerRadius: backup.global.cornerRadius,
+                spacing: backup.global.spacing,
+                shadowEnabled: backup.global.shadowEnabled
+            )
+            let importedPortals = try portals(
+                from: backup,
+                appearance: appearance,
+                display: snapshot.primaryDescriptor
+            )
+
+            // Persistence is the transaction boundary. Runtime state remains untouched
+            // unless the complete imported layout has validated and saved successfully.
+            try await store.save(importedPortals)
+
+            for window in windows.values {
+                window.close()
+            }
+            windows.removeAll()
+            placementSessions.removeAll()
+            deferredTopologyPortals.removeAll()
+            pendingUserPlacements.removeAll()
+            pendingPlacementAttempts.removeAll()
+            spacingLayoutBaseFrames.removeAll()
+            spacingLayoutNeedsRetry = false
+            portalAppearance = appearance
+            portalStates = importedPortals
+            publishPortalMenu()
+            applyDisplayTopology(.success(snapshot))
+        }
+    }
+
     func stop() {
         displayObserver.stop()
     }
@@ -371,6 +418,77 @@ final class PortalCoordinator: PortalCoordinating {
         guard adjustedFrame != portal.frame else { return portal }
         try portal.recordUserPlacement(frame: adjustedFrame, display: homeDisplay)
         return portal
+    }
+
+    private func portals(
+        from backup: AlcoveLayoutBackup,
+        appearance: PortalAppearancePreferences,
+        display: DisplayDescriptor
+    ) throws -> [Portal] {
+        let spacing = appearance.spacing.points
+        let usableFrame = display.visibleFrame.insetBy(dx: spacing, dy: spacing)
+        let iconLayout = PortalIconLayout.fixed(appearance.iconSize)
+        var portals: [Portal] = []
+        var desiredFrames: [NSRect] = []
+        portals.reserveCapacity(backup.portals.count)
+        desiredFrames.reserveCapacity(backup.portals.count)
+
+        for importedPortal in backup.portals {
+            let contentSize = PortalViewController.contentSize(
+                for: importedPortal.gridCapacity,
+                iconLayout: iconLayout
+            )
+            let frameSize = NSWindow.frameRect(
+                forContentRect: NSRect(origin: .zero, size: contentSize),
+                styleMask: [.resizable]
+            ).size
+            guard frameSize.width <= usableFrame.width,
+                  frameSize.height <= usableFrame.height else {
+                throw PortalCoordinatorError.placementUnavailable
+            }
+            let frame = NSRect(
+                x: usableFrame.minX
+                    + CGFloat(importedPortal.normalizedAnchor.x)
+                    * (usableFrame.width - frameSize.width),
+                y: usableFrame.minY
+                    + CGFloat(importedPortal.normalizedAnchor.y)
+                    * (usableFrame.height - frameSize.height),
+                width: frameSize.width,
+                height: frameSize.height
+            )
+            let tabs = importedPortal.folderURLs.map { FolderTab(folderURL: $0) }
+            let selectedTabID = importedPortal.selectedFolderIndex.map { tabs[$0].id }
+            let placement = try PlacementRecord(frame: frame, display: display)
+            let portal = try Portal(
+                id: importedPortal.id,
+                tabs: tabs,
+                selectedTabID: selectedTabID,
+                placement: placement,
+                iconLayout: iconLayout,
+                backgroundStyle: appearance.backgroundStyle,
+                gridCapacity: importedPortal.gridCapacity,
+                isPinned: importedPortal.isPinned,
+                sortOrder: importedPortal.sortOrder,
+                tint: importedPortal.tint
+            )
+            portals.append(portal)
+            desiredFrames.append(frame)
+        }
+
+        guard let reflowedFrames = try PortalFrameReflow.reflowedFrames(
+            desiredFrames,
+            visibleFrame: display.visibleFrame,
+            minimumGap: spacing
+        ) else {
+            throw PortalCoordinatorError.placementUnavailable
+        }
+        for index in portals.indices {
+            try portals[index].recordUserPlacement(
+                frame: reflowedFrames[index],
+                display: display
+            )
+        }
+        return portals
     }
 
     func setBackgroundStyle(
@@ -1380,6 +1498,7 @@ private struct PendingUserPlacement {
 enum PortalCoordinatorError: Error, Equatable {
     case persistentStateNotLoaded
     case placementUnavailable
+    case layoutImportBusy
 }
 
 extension PortalCoordinatorError: LocalizedError {
@@ -1394,6 +1513,11 @@ extension PortalCoordinatorError: LocalizedError {
             NSLocalizedString(
                 "portal.placement.unavailable.detail",
                 comment: "Portal placement conflict detail"
+            )
+        case .layoutImportBusy:
+            NSLocalizedString(
+                "application.settings.backup.import_busy",
+                comment: "Layout import busy error"
             )
         }
     }

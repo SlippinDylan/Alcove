@@ -76,6 +76,7 @@ protocol ApplicationPreferencesControlling: AnyObject {
     @discardableResult func setPortalCornerRadius(_ cornerRadius: PortalCornerRadius) -> Bool
     @discardableResult func setPortalSpacing(_ spacing: PortalSpacing) -> Bool
     @discardableResult func setPortalShadowEnabled(_ enabled: Bool) -> Bool
+    func replacePortalAppearanceFromImport(_ appearance: PortalAppearancePreferences)
 }
 
 @MainActor
@@ -176,6 +177,17 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
         userDefaults.set(enabled, forKey: Key.portalShadowEnabled)
         return true
     }
+
+    /// Persists an already-committed imported appearance without re-entering
+    /// the normal change callback and attempting a second layout transaction.
+    func replacePortalAppearanceFromImport(_ appearance: PortalAppearancePreferences) {
+        portalAppearance = appearance
+        userDefaults.set(Double(appearance.iconSize.rawValue), forKey: Key.portalIconSize)
+        userDefaults.set(appearance.backgroundStyle.rawValue, forKey: Key.portalBackgroundStyle)
+        userDefaults.set(appearance.cornerRadius.rawValue, forKey: Key.portalCornerRadius)
+        userDefaults.set(appearance.spacing.rawValue, forKey: Key.portalSpacing)
+        userDefaults.set(appearance.shadowEnabled, forKey: Key.portalShadowEnabled)
+    }
 }
 
 @MainActor
@@ -238,12 +250,14 @@ final class ApplicationSettingsWindowController: NSWindowController {
     init(
         launchAtLoginController: any LaunchAtLoginControlling = LaunchAtLoginController(),
         preferencesController: any ApplicationPreferencesControlling = ApplicationPreferencesController(),
+        layoutBackupController: any ApplicationLayoutBackupControlling = DisabledApplicationLayoutBackupController(),
         metadata: ApplicationMetadata = ApplicationMetadata(),
         applicationIcon: NSImage = NSApplication.shared.applicationIconImage
     ) {
         let settingsViewController = ApplicationSettingsViewController(
             launchAtLoginController: launchAtLoginController,
             preferencesController: preferencesController,
+            layoutBackupController: layoutBackupController,
             metadata: metadata,
             applicationIcon: applicationIcon
         )
@@ -350,6 +364,7 @@ final class ApplicationSettingsViewController: NSViewController {
     enum Category: Int, CaseIterable {
         case general
         case style
+        case advanced
         case about
 
         var title: String {
@@ -358,6 +373,8 @@ final class ApplicationSettingsViewController: NSViewController {
                 NSLocalizedString("application.settings.general", comment: "General settings category")
             case .style:
                 NSLocalizedString("application.settings.style", comment: "Style settings category")
+            case .advanced:
+                NSLocalizedString("application.settings.advanced", comment: "Advanced settings category")
             case .about:
                 NSLocalizedString("application.settings.about", comment: "About settings category")
             }
@@ -367,6 +384,7 @@ final class ApplicationSettingsViewController: NSViewController {
             switch self {
             case .general: "gearshape"
             case .style: "paintpalette"
+            case .advanced: "slider.horizontal.3"
             case .about: "info.circle"
             }
         }
@@ -387,6 +405,7 @@ final class ApplicationSettingsViewController: NSViewController {
 
     private let launchAtLoginController: any LaunchAtLoginControlling
     private let preferencesController: any ApplicationPreferencesControlling
+    private let layoutBackupController: any ApplicationLayoutBackupControlling
     private let metadata: ApplicationMetadata
     private let applicationIcon: NSImage
     private(set) var selectedCategory = Category.general
@@ -396,11 +415,13 @@ final class ApplicationSettingsViewController: NSViewController {
     init(
         launchAtLoginController: any LaunchAtLoginControlling,
         preferencesController: any ApplicationPreferencesControlling,
+        layoutBackupController: any ApplicationLayoutBackupControlling,
         metadata: ApplicationMetadata,
         applicationIcon: NSImage
     ) {
         self.launchAtLoginController = launchAtLoginController
         self.preferencesController = preferencesController
+        self.layoutBackupController = layoutBackupController
         self.metadata = metadata
         self.applicationIcon = applicationIcon
         super.init(nibName: nil, bundle: nil)
@@ -457,6 +478,8 @@ final class ApplicationSettingsViewController: NSViewController {
             showGeneralSettings()
         case .style:
             showStyleSettings()
+        case .advanced:
+            showAdvancedSettings()
         case .about:
             showAbout()
         }
@@ -535,6 +558,74 @@ final class ApplicationSettingsViewController: NSViewController {
                 ),
             ])
         )
+    }
+
+    private func showAdvancedSettings() {
+        let title = NSTextField(labelWithString: NSLocalizedString(
+            "application.settings.backup.title",
+            comment: "Layout backup card title"
+        ))
+        title.font = .systemFont(ofSize: 13, weight: .semibold)
+
+        let detail = NSTextField(wrappingLabelWithString: NSLocalizedString(
+            "application.settings.backup.description",
+            comment: "Layout backup card description"
+        ))
+        detail.font = .systemFont(ofSize: 12)
+        detail.textColor = .secondaryLabelColor
+        detail.maximumNumberOfLines = 2
+
+        let labels = NSStackView(views: [title, detail])
+        labels.orientation = .vertical
+        labels.alignment = .leading
+        labels.spacing = 3
+        labels.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
+
+        let separator = NSBox()
+        separator.boxType = .separator
+
+        let importButton = backupButton(
+            titleKey: "application.settings.backup.import",
+            identifier: "application-settings.backup.import",
+            action: #selector(importLayout(_:))
+        )
+        let exportButton = backupButton(
+            titleKey: "application.settings.backup.export",
+            identifier: "application-settings.backup.export",
+            action: #selector(exportLayout(_:))
+        )
+        let spacer = NSView()
+        let actions = NSStackView(views: [spacer, importButton, exportButton])
+        actions.orientation = .horizontal
+        actions.alignment = .centerY
+        actions.spacing = 10
+        actions.heightAnchor.constraint(equalToConstant: 46).isActive = true
+
+        let card = ApplicationSettingsCardView(rows: [labels, separator, actions])
+        card.identifier = NSUserInterfaceItemIdentifier("application-settings.backup.card")
+        addSection(
+            title: NSLocalizedString(
+                "application.settings.backup.section",
+                comment: "Layout backup settings section"
+            ),
+            card: card
+        )
+    }
+
+    private func backupButton(titleKey: String, identifier: String, action: Selector) -> NSButton {
+        let button = NSButton(
+            title: NSLocalizedString(titleKey, comment: "Layout backup action"),
+            target: self,
+            action: action
+        )
+        button.identifier = NSUserInterfaceItemIdentifier(identifier)
+        button.controlSize = .large
+        if #available(macOS 26.0, *) {
+            button.bezelStyle = .glass
+        } else {
+            button.bezelStyle = .rounded
+        }
+        return button
     }
 
     private func iconSizeSlider() -> NSSlider {
@@ -744,6 +835,16 @@ final class ApplicationSettingsViewController: NSViewController {
             sender.state = launchAtLoginController.isEnabled ? .on : .off
             presentLaunchAtLoginError(error)
         }
+    }
+
+    @objc private func importLayout(_ sender: NSButton) {
+        guard let window = view.window else { return }
+        layoutBackupController.beginImport(from: window)
+    }
+
+    @objc private func exportLayout(_ sender: NSButton) {
+        guard let window = view.window else { return }
+        layoutBackupController.beginExport(from: window)
     }
 
     @objc private func changeIconSize(_ sender: NSSlider) {
