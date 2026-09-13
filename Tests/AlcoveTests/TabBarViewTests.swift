@@ -230,6 +230,7 @@ final class TabBarViewTests: XCTestCase {
         let folderList = try XCTUnwrap(settingsViewController.folderListView)
         XCTAssertEqual(folderList.tableView.numberOfRows, 3)
         XCTAssertEqual(folderList.tableView.draggingDestinationFeedbackStyle, .gap)
+        XCTAssertEqual(folderList.tableView.gridStyleMask, [])
         XCTAssertNotNil(folderList.tableView.dataSource?.tableView?(
             folderList.tableView,
             pasteboardWriterForRow: 0
@@ -241,6 +242,15 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertEqual(folderList.tableView.frame.height, folderList.contentView.bounds.height)
         XCTAssertEqual(firstFolderRow.frame.minX, 0, accuracy: 0.5)
         XCTAssertEqual(firstFolderRow.frame.width, folderList.tableView.bounds.width, accuracy: 0.5)
+        XCTAssertNotNil(descendants(of: firstFolderRow).first {
+            $0.identifier?.rawValue == "portal-settings.folder-row-separator"
+        })
+        let lastFolderRow = try XCTUnwrap(
+            folderList.tableView.view(atColumn: 0, row: 2, makeIfNecessary: true)
+        )
+        XCTAssertNil(descendants(of: lastFolderRow).first {
+            $0.identifier?.rawValue == "portal-settings.folder-row-separator"
+        })
         let firstFolderCard = try XCTUnwrap(cards.first)
         let folderListFrame = folderList.convert(folderList.bounds, to: firstFolderCard)
         XCTAssertEqual(folderListFrame.minX, 10, accuracy: 0.5)

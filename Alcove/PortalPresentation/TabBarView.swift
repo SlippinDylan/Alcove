@@ -875,8 +875,6 @@ final class PortalSettingsFolderListView: NSScrollView, NSTableViewDataSource, N
         tableView.rowHeight = 36
         tableView.selectionHighlightStyle = .none
         tableView.allowsEmptySelection = true
-        tableView.gridStyleMask = .solidHorizontalGridLineMask
-        tableView.gridColor = .separatorColor
         tableView.draggingDestinationFeedbackStyle = .gap
         tableView.registerForDraggedTypes([Self.pasteboardType])
         tableView.setDraggingSourceOperationMask(.move, forLocal: true)
@@ -903,7 +901,11 @@ final class PortalSettingsFolderListView: NSScrollView, NSTableViewDataSource, N
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        PortalSettingsFolderCellView(tab: tabs[row], onRemove: onRemove)
+        PortalSettingsFolderCellView(
+            tab: tabs[row],
+            showsSeparator: row < tabs.count - 1,
+            onRemove: onRemove
+        )
     }
 
     func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
@@ -957,7 +959,11 @@ private final class PortalSettingsFolderCellView: NSTableCellView {
     private let onRemove: (FolderTabID) -> Void
     private let tabID: FolderTabID
 
-    init(tab: FolderTab, onRemove: @escaping (FolderTabID) -> Void) {
+    init(
+        tab: FolderTab,
+        showsSeparator: Bool,
+        onRemove: @escaping (FolderTabID) -> Void
+    ) {
         self.onRemove = onRemove
         tabID = tab.id
         super.init(frame: .zero)
@@ -996,6 +1002,20 @@ private final class PortalSettingsFolderCellView: NSTableCellView {
         addSubview(pathLabel)
         addSubview(dragIndicator)
         addSubview(removeButton)
+        if showsSeparator {
+            let separator = NSBox()
+            separator.boxType = .separator
+            separator.identifier = NSUserInterfaceItemIdentifier(
+                "portal-settings.folder-row-separator"
+            )
+            separator.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(separator)
+            NSLayoutConstraint.activate([
+                separator.leadingAnchor.constraint(equalTo: leadingAnchor),
+                separator.trailingAnchor.constraint(equalTo: trailingAnchor),
+                separator.bottomAnchor.constraint(equalTo: bottomAnchor),
+            ])
+        }
         NSLayoutConstraint.activate([
             folderIcon.leadingAnchor.constraint(equalTo: leadingAnchor),
             folderIcon.centerYAnchor.constraint(equalTo: centerYAnchor),
