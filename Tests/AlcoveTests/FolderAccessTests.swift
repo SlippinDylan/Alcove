@@ -1,3 +1,4 @@
+import AlcoveCore
 import Foundation
 import Synchronization
 import XCTest
@@ -35,6 +36,40 @@ final class FolderAccessTests: XCTestCase {
             XCTAssertTrue(result.items.prefix(2).allSatisfy(\.isDirectory))
             XCTAssertFalse(result.items.contains(where: \.isHidden))
             XCTAssertTrue(result.itemDiagnostics.isEmpty)
+        }
+    }
+
+    func testEnumerationSortsDatesNewestFirstWithinDirectoriesAndFiles() async throws {
+        try await withTemporaryDirectory { root in
+            let olderFolder = root.appendingPathComponent("older-folder", isDirectory: true)
+            let newerFolder = root.appendingPathComponent("newer-folder", isDirectory: true)
+            let olderFile = root.appendingPathComponent("older-file")
+            let newerFile = root.appendingPathComponent("newer-file")
+            try FileManager.default.createDirectory(at: olderFolder, withIntermediateDirectories: false)
+            try FileManager.default.createDirectory(at: newerFolder, withIntermediateDirectories: false)
+            try Data().write(to: olderFile)
+            try Data().write(to: newerFile)
+            let olderDate = Date(timeIntervalSince1970: 1_000)
+            let newerDate = Date(timeIntervalSince1970: 2_000)
+            for url in [olderFolder, olderFile] {
+                try FileManager.default.setAttributes([.modificationDate: olderDate], ofItemAtPath: url.path)
+            }
+            for url in [newerFolder, newerFile] {
+                try FileManager.default.setAttributes([.modificationDate: newerDate], ofItemAtPath: url.path)
+            }
+
+            let result = try await FolderEnumerator().enumerate(
+                root: root,
+                sortOrder: .modificationDate,
+                generation: 1
+            )
+
+            XCTAssertEqual(
+                result.items.map(\.name),
+                ["newer-folder", "older-folder", "newer-file", "older-file"]
+            )
+            XCTAssertEqual(result.items[0].contentModificationDate, newerDate)
+            XCTAssertNotNil(result.items[0].creationDate)
         }
     }
 
@@ -280,6 +315,7 @@ private struct DelayedFolderEnumerator: FolderEnumerating {
     func enumerate(
         root: URL,
         showHidden: Bool,
+        sortOrder: PortalSortOrder,
         generation: UInt64
     ) async throws -> FolderEnumerationResult {
         if root.lastPathComponent == "slow" {

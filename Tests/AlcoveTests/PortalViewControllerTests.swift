@@ -358,6 +358,33 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testChangingSortOrderReloadsTheCurrentFolderWithTheNewOrder() async throws {
+        let root = URL(fileURLWithPath: "/tmp/sorted-portal")
+        let enumerator = MutableFolderEnumerator(itemsByRoot: [root: []])
+        var portal = try Portal(
+            folderURL: root,
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240),
+            display: testDisplay
+        )
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(enumerator: enumerator)
+        )
+        controller.loadView()
+        await controller.reload()
+
+        portal.updateSortOrder(.creationDate)
+        controller.updatePortal(portal)
+        for _ in 0..<100 {
+            if await enumerator.requestedSortOrders().count >= 2 { break }
+            await Task.yield()
+        }
+
+        let requestedSortOrders = await enumerator.requestedSortOrders()
+        XCTAssertEqual(requestedSortOrders, [.name, .creationDate])
+    }
+
+    @MainActor
     func testMissingFolderOffersLocateAndDispatchesSelectedTabIdentity() async throws {
         let root = URL(fileURLWithPath: "/tmp/missing-portal")
         let metadata = FolderErrorMetadata(
@@ -755,9 +782,10 @@ private struct FixedFolderEnumerator: FolderEnumerating {
     func enumerate(
         root: URL,
         showHidden: Bool,
+        sortOrder: PortalSortOrder,
         generation: UInt64
     ) async throws -> FolderEnumerationResult {
-        FolderEnumerationResult(
+        return FolderEnumerationResult(
             root: self.root,
             generation: generation,
             items: items,
@@ -772,6 +800,7 @@ private struct FailingFolderEnumerator: FolderEnumerating {
     func enumerate(
         root: URL,
         showHidden: Bool,
+        sortOrder: PortalSortOrder,
         generation: UInt64
     ) async throws -> FolderEnumerationResult {
         throw error
@@ -785,6 +814,7 @@ private struct DelayedFixedFolderEnumerator: FolderEnumerating {
     func enumerate(
         root: URL,
         showHidden: Bool,
+        sortOrder: PortalSortOrder,
         generation: UInt64
     ) async throws -> FolderEnumerationResult {
         try await Task.sleep(for: .milliseconds(50))
@@ -803,6 +833,7 @@ private struct FolderMapEnumerator: FolderEnumerating {
     func enumerate(
         root: URL,
         showHidden: Bool,
+        sortOrder: PortalSortOrder,
         generation: UInt64
     ) async throws -> FolderEnumerationResult {
         FolderEnumerationResult(
@@ -816,6 +847,7 @@ private struct FolderMapEnumerator: FolderEnumerating {
 
 private actor MutableFolderEnumerator: FolderEnumerating {
     private var itemsByRoot: [URL: [FileItem]]
+    private var sortOrders: [PortalSortOrder] = []
 
     init(itemsByRoot: [URL: [FileItem]]) {
         self.itemsByRoot = itemsByRoot
@@ -825,12 +857,18 @@ private actor MutableFolderEnumerator: FolderEnumerating {
         itemsByRoot[root] = items
     }
 
+    func requestedSortOrders() -> [PortalSortOrder] {
+        sortOrders
+    }
+
     func enumerate(
         root: URL,
         showHidden: Bool,
+        sortOrder: PortalSortOrder,
         generation: UInt64
     ) async throws -> FolderEnumerationResult {
-        FolderEnumerationResult(
+        sortOrders.append(sortOrder)
+        return FolderEnumerationResult(
             root: root,
             generation: generation,
             items: itemsByRoot[root] ?? [],

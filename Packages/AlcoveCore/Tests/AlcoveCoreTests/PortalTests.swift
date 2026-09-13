@@ -312,6 +312,30 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(portal.placement, placement)
     }
 
+    func testSortOrderAndTintDefaultAndUpdatePerPortal() throws {
+        var portal = try makePortal(path: "/tmp/folder")
+
+        XCTAssertEqual(portal.sortOrder, .name)
+        XCTAssertEqual(portal.tint, .default)
+        portal.updateSortOrder(.modificationDate)
+        portal.updateTint(.purple)
+
+        XCTAssertEqual(portal.sortOrder, .modificationDate)
+        XCTAssertEqual(portal.tint, .purple)
+        XCTAssertEqual(
+            PortalSortOrder.allCases.map(\.rawValue),
+            ["name", "modification_date", "creation_date"]
+        )
+        XCTAssertEqual(
+            PortalTint.allCases.map(\.rawValue),
+            ["default", "red", "orange", "yellow", "green", "blue", "indigo", "purple"]
+        )
+        XCTAssertNil(PortalTint.default.color)
+        XCTAssertEqual(PortalTint.blue.color?.red, 0)
+        XCTAssertEqual(PortalTint.blue.color?.green, 0.48)
+        XCTAssertEqual(PortalTint.blue.color?.blue, 1)
+    }
+
     func testIconLayoutSupportsOnlyAppSelectedSizes() throws {
         var portal = try makePortal(path: "/tmp/folder")
 

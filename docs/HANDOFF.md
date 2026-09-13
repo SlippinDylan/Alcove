@@ -166,7 +166,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.10 菜单栏与本地化
 
 - 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；Portal 名称的二级菜单只提供 Show 和 Hide。
-- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；点击后打开可复用的独立设置窗口。General 提供系统登录时自动启动、全局五档面板间距（4/8/12/16/20pt）、五档圆角（0/8/14/20/24pt）和系统阴影开关；About 使用 Icon Composer 生成的应用图标并显示应用名称、版本、构建号和版权信息。全局外观写入 `UserDefaults`，不修改 Portal v10 JSON。
+- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；点击后打开可复用的独立设置窗口。General 提供系统登录时自动启动、全局五档面板间距（4/8/12/16/20pt）、五档圆角（0/8/14/20/24pt）和系统阴影开关；About 使用 Icon Composer 生成的应用图标并显示应用名称、版本、构建号和版权信息。全局外观写入 `UserDefaults`，不复制 Portal v11 的单面板排序和颜色状态。
 - 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
 - English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
 
@@ -188,15 +188,15 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 | 文件读取 | `Alcove/FolderAccess/*` | 后台枚举、路径校验、FSEvents 和恢复 |
 | Quick Look | `Alcove/QuickLookIntegration/QuickLookIntegration.swift` | responder chain 和 `QLPreviewPanel` 所有权 |
 | placement | `Alcove/DisplayPlacement/DisplayPlacement.swift` | NSScreen 快照、拓扑通知、legacy frame 解析 |
-| 持久化 | `Alcove/Persistence/*` | v10 DTO、v1–v9 迁移、同目录临时文件和原子替换 |
+| 持久化 | `Alcove/Persistence/*` | v11 DTO、v1–v10 迁移、同目录临时文件和原子替换 |
 | 纯领域/几何 | `Packages/AlcoveCore/Sources/AlcoveCore/*` | Portal、GridCapacity、GridLayout、placement state machine、selection |
 
 ## 5. 持久化现状
 
-- 当前 envelope 版本是 v10。
+- 当前 envelope 版本是 v11；每个 Portal 持久化排序方式和内置颜色预设。
 - v6 引入的可选 `selected_tab_id` 和 v7 引入的必需 `is_pinned` 继续保留；v8 对应网格上下边距从 16pt 收紧到 8pt，v9 对应对象横向间距从 12pt 收紧到与纵向一致的 4pt。
 - v1–v4 会根据旧 frame 和当时 icon/text metrics 推导容量；v5 已包含 columns/rows。
-- v1–v9 都迁移为 v10；旧 `follow_desktop` 按最后保存的图标尺寸映射到最近的 Small/Medium/Large。迁移按当前 capacity 和 metrics 统一重算 frame，保持原顶部、右侧位置（显示器空间允许时）、容量、图钉和 Tab 顺序，并重新计算 normalized anchor。
+- v1–v10 都迁移为 v11；v10 缺少排序和颜色时使用 `.name` / `.default`。旧 `follow_desktop` 按最后保存的图标尺寸映射到最近的 Small/Medium/Large。迁移按当前 capacity 和 metrics 统一重算 frame，保持原顶部、右侧位置（显示器空间允许时）、容量、图钉和 Tab 顺序，并重新计算 normalized anchor。
 - 迁移前先写一次 `portals.vN.json.bak`；已有不同备份时停止，不能覆盖证据。
 - 当前存储路径：`~/Library/Application Support/Alcove/portals.json`。
 - 保存使用同目录临时文件后 replace/move；不要改成非原子覆盖写。
@@ -257,7 +257,7 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - Finder 风格图标网格、选择、键盘操作、打开和 Quick Look。
 - 本地固定磁盘目录校验；外置、可移除、可弹出、网络卷拒绝。
 - 后台文件枚举和 FSEvents 自动刷新。
-- v10 原子持久化及 v1–v9 迁移。
+- v11 原子持久化及 v1–v10 迁移。
 - 多显示器 placement state machine 和系统通知接入。
 - 五档 Portal 背景强度、macOS 26 Glass 与旧系统 fallback。
 - Small/Medium/Large 三档手动 icon presets；没有 Finder Automation 或外部尺寸同步。

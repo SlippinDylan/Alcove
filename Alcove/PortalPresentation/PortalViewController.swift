@@ -354,6 +354,7 @@ final class PortalViewController: NSViewController {
         let previousIconLayout = self.portal.iconLayout
         let previousGridCapacity = self.portal.gridCapacity
         let previousBackgroundStyle = self.portal.backgroundStyle
+        let previousSortOrder = self.portal.sortOrder
         let previousFolderURL = folderURL
         if isViewLoaded,
            let previousTabID,
@@ -391,6 +392,8 @@ final class PortalViewController: NSViewController {
                     startObservation()
                 }
             }
+        } else if portal.sortOrder != previousSortOrder, isViewLoaded {
+            load()
         }
     }
 
@@ -417,7 +420,8 @@ final class PortalViewController: NSViewController {
         do {
             let completion = try await loadingCoordinator.load(
                 root: folderURL,
-                showHidden: false
+                showHidden: false,
+                sortOrder: portal.sortOrder
             )
             guard !Task.isCancelled else { return }
             apply(completion)

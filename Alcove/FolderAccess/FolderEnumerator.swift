@@ -7,6 +7,7 @@ protocol FolderEnumerating: Sendable {
     func enumerate(
         root: URL,
         showHidden: Bool,
+        sortOrder: PortalSortOrder,
         generation: UInt64
     ) async throws -> FolderEnumerationResult
 }
@@ -33,6 +34,7 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
     func enumerate(
         root: URL,
         showHidden: Bool = false,
+        sortOrder: PortalSortOrder = .name,
         generation: UInt64
     ) async throws -> FolderEnumerationResult {
         let cancellation = FolderEnumerationCancellation()
@@ -47,6 +49,7 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
                             returning: try Self.enumerateSynchronously(
                                 root: root,
                                 showHidden: showHidden,
+                                sortOrder: sortOrder,
                                 generation: generation,
                                 cancellation: cancellation,
                                 progressObserver: enumerationProgressObserver
@@ -67,6 +70,7 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
     private static func enumerateSynchronously(
         root: URL,
         showHidden: Bool,
+        sortOrder: PortalSortOrder,
         generation: UInt64,
         cancellation: FolderEnumerationCancellation,
         progressObserver: @Sendable (Int) -> Void
@@ -78,7 +82,13 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
         do {
             childURLs = try FileManager.default.contentsOfDirectory(
                 at: root,
-                includingPropertiesForKeys: [.nameKey, .isDirectoryKey, .isHiddenKey],
+                includingPropertiesForKeys: [
+                    .nameKey,
+                    .isDirectoryKey,
+                    .isHiddenKey,
+                    .contentModificationDateKey,
+                    .creationDateKey,
+                ],
                 options: options
             )
         } catch let error as NSError {
@@ -103,7 +113,7 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
             progressObserver(index + 1)
         }
         try cancellation.check()
-        items.sort(by: Self.sortItems)
+        items.sort { Self.sortItems($0, $1, by: sortOrder) }
         return FolderEnumerationResult(
             root: root,
             generation: generation,
@@ -115,7 +125,13 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
     private static func makeFileItem(url: URL) throws -> FileItem {
         let standardizedURL = url.standardizedFileURL
         let values = try standardizedURL.resourceValues(
-            forKeys: [.nameKey, .isDirectoryKey, .isHiddenKey]
+            forKeys: [
+                .nameKey,
+                .isDirectoryKey,
+                .isHiddenKey,
+                .contentModificationDateKey,
+                .creationDateKey,
+            ]
         )
         guard let name = values.name,
               let isDirectory = values.isDirectory,
@@ -126,13 +142,34 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
             url: standardizedURL,
             name: name,
             isDirectory: isDirectory,
-            isHidden: isHidden
+            isHidden: isHidden,
+            contentModificationDate: values.contentModificationDate,
+            creationDate: values.creationDate
         )
     }
 
-    private static func sortItems(_ left: FileItem, _ right: FileItem) -> Bool {
+    private static func sortItems(
+        _ left: FileItem,
+        _ right: FileItem,
+        by sortOrder: PortalSortOrder
+    ) -> Bool {
         if left.isDirectory != right.isDirectory {
             return left.isDirectory
+        }
+        let dates: (Date?, Date?)
+        switch sortOrder {
+        case .name:
+            dates = (nil, nil)
+        case .modificationDate:
+            dates = (left.contentModificationDate, right.contentModificationDate)
+        case .creationDate:
+            dates = (left.creationDate, right.creationDate)
+        }
+        if let leftDate = dates.0, let rightDate = dates.1, leftDate != rightDate {
+            return leftDate > rightDate
+        }
+        if (dates.0 == nil) != (dates.1 == nil) {
+            return dates.0 != nil
         }
         let comparison = left.name.localizedStandardCompare(right.name)
         if comparison != .orderedSame {

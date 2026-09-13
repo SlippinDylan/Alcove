@@ -115,7 +115,7 @@ App entry point and global coordination.
   - Frame snap to grid metrics on move/resize end
 - `PortalWindowController` — emits placement commits only after tracked drag mouse-up or live-resize end; generic frame notifications never imply user intent
 - `PortalCoordinator` injects synchronous geometry closures into each window. Dragging uses the pointer's fresh destination display and current runtime frames of other windows; live resize validates the actual frame delivered by AppKit and restores the last legal frame. The final persistence transaction revalidates to close races.
-- A spacing preference change is preflighted per display before it is accepted. The Coordinator animates the complete derived plan through system-placement calls, retains separate unspaced base frames, and never reports those style-driven moves as user placement. Recomputing from the same bases makes spacing changes reversible without modifying v10 home placement.
+- A spacing preference change is preflighted per display before it is accepted. The Coordinator animates the complete derived plan through system-placement calls, retains separate unspaced base frames, and never reports those style-driven moves as user placement. Recomputing from the same bases makes spacing changes reversible without modifying v11 home placement.
 - Display handoff follows the pointer's containing or nearest fresh `visibleFrame`; this keeps multi-display movement available rather than permanently clamping a Portal to its source display.
 
 ### 3.4 PortalPresentation
@@ -186,11 +186,11 @@ Versioned JSON storage with atomic replacement.
 - Location: `~/Library/Application Support/Alcove/portals.json`
 - Format: JSON object with `version: Int` at top level, followed by data payload
 - Persistence uses versioned Codable DTOs and maps to validated domain models
-- Current schema is v10: v6's optional selected tab and v7's required `is_pinned` remain; v8 records compact 8pt vertical grid insets, v9 records equal 4pt tile spacing, and v10 removes Finder-following state while expanding background control to five levels
+- Current schema is v11: v6's optional selected tab and v7's required `is_pinned` remain; v8 records compact 8pt vertical grid insets, v9 records equal 4pt tile spacing, v10 removes Finder-following state while expanding background control to five levels, and v11 adds per-Portal sort order and one of the built-in tint presets
 - Persistence is infrastructure outside AlcoveCore (contains domain/layout only); `PortalStore`, `NSScreen` lookup, `DisplayIdentity` adapters, and file I/O remain app infrastructure
 - Write strategy: write to `.tmp` file, then `FileManager.replaceItemAt` for atomic swap
 - Read strategy: read file → check `version` → dispatch to appropriate decoder → return typed result or migration error
-- No Core Data or SQLite. Versioned Portal state remains JSON; `UserDefaults` is used only for application-global appearance/spacing preferences and does not alter the v10 Portal schema.
+- No Core Data or SQLite. Versioned Portal state remains JSON; `UserDefaults` is used only for application-global preferences and does not duplicate per-Portal v11 sort/tint state.
 - AppKit strings use `en`, `zh-Hans`, and `zh-Hant` bundle resources. English is the development region and fallback for every other system language
 
 ---
@@ -373,7 +373,7 @@ grid's top and bottom insets from 16pt to 8pt, and v9 reduces horizontal tile sp
 to the same 4pt used vertically. Version 10 removes `follow_desktop` from current data, maps any
 legacy followed icon size to the nearest Small/Medium/Large preset, adds the two outer background
 levels, and normalizes every migrated frame from its capacity and current metrics while preserving
-its former top-right position when the display permits. Versions 1–9 are atomically rewritten as v10.
+its former top-right position when the display permits. Versions 1–10 are atomically rewritten as v11.
 Before conversion the
 store writes the matching `portals.vN.json.bak` once and never
 replaces a different existing backup. Migrations remain explicit rather than using a
@@ -391,7 +391,7 @@ speculative generic framework.
 
 ### 5.5 Backup
 
-The v1/v2/v3/v4/v5/v6/v7/v8/v9→v10 migrations preserve the original as the matching
+The v1/v2/v3/v4/v5/v6/v7/v8/v9/v10→v11 migrations preserve the original as the matching
 `portals.vN.json.bak`. The first backup is write-once; a different existing backup stops
 migration instead of overwriting evidence.
 

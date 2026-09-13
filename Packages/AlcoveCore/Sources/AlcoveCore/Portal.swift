@@ -156,6 +156,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
     public private(set) var backgroundStyle: PortalBackgroundStyle
     public private(set) var gridCapacity: GridCapacity
     public private(set) var isPinned: Bool
+    public private(set) var sortOrder: PortalSortOrder
+    public private(set) var tint: PortalTint
 
     public var frame: CGRect { placement.homeEntry.absoluteFrame }
     public var iconSize: IconSize { iconLayout.iconSize }
@@ -173,7 +175,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
         iconLayout: PortalIconLayout = .fixed(.medium),
         backgroundStyle: PortalBackgroundStyle = .standard,
         gridCapacity: GridCapacity = .minimum,
-        isPinned: Bool = false
+        isPinned: Bool = false,
+        sortOrder: PortalSortOrder = .name,
+        tint: PortalTint = .default
     ) throws {
         let placement: PlacementRecord
         do {
@@ -189,7 +193,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
             iconLayout: iconLayout,
             backgroundStyle: backgroundStyle,
             gridCapacity: gridCapacity,
-            isPinned: isPinned
+            isPinned: isPinned,
+            sortOrder: sortOrder,
+            tint: tint
         )
     }
 
@@ -202,7 +208,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
         iconSize: IconSize = .medium,
         backgroundStyle: PortalBackgroundStyle = .standard,
         gridCapacity: GridCapacity = .minimum,
-        isPinned: Bool = false
+        isPinned: Bool = false,
+        sortOrder: PortalSortOrder = .name,
+        tint: PortalTint = .default
     ) throws {
         try self.init(
             id: id,
@@ -212,7 +220,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
             iconLayout: .fixed(iconSize),
             backgroundStyle: backgroundStyle,
             gridCapacity: gridCapacity,
-            isPinned: isPinned
+            isPinned: isPinned,
+            sortOrder: sortOrder,
+            tint: tint
         )
     }
 
@@ -225,7 +235,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
         iconLayout: PortalIconLayout,
         backgroundStyle: PortalBackgroundStyle = .standard,
         gridCapacity: GridCapacity = .minimum,
-        isPinned: Bool = false
+        isPinned: Bool = false,
+        sortOrder: PortalSortOrder = .name,
+        tint: PortalTint = .default
     ) throws {
         let tab = FolderTab(folderURL: folderURL)
         let placement: PlacementRecord
@@ -242,7 +254,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
             iconLayout: iconLayout,
             backgroundStyle: backgroundStyle,
             gridCapacity: gridCapacity,
-            isPinned: isPinned
+            isPinned: isPinned,
+            sortOrder: sortOrder,
+            tint: tint
         )
     }
 
@@ -255,7 +269,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
         iconSize: IconSize = .medium,
         backgroundStyle: PortalBackgroundStyle = .standard,
         gridCapacity: GridCapacity = .minimum,
-        isPinned: Bool = false
+        isPinned: Bool = false,
+        sortOrder: PortalSortOrder = .name,
+        tint: PortalTint = .default
     ) throws {
         try self.init(
             id: id,
@@ -265,7 +281,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
             iconLayout: .fixed(iconSize),
             backgroundStyle: backgroundStyle,
             gridCapacity: gridCapacity,
-            isPinned: isPinned
+            isPinned: isPinned,
+            sortOrder: sortOrder,
+            tint: tint
         )
     }
 
@@ -278,7 +296,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
         iconLayout: PortalIconLayout,
         backgroundStyle: PortalBackgroundStyle = .standard,
         gridCapacity: GridCapacity = .minimum,
-        isPinned: Bool = false
+        isPinned: Bool = false,
+        sortOrder: PortalSortOrder = .name,
+        tint: PortalTint = .default
     ) throws {
         var tabIDs = Set<FolderTabID>()
         for tab in tabs {
@@ -308,6 +328,8 @@ public struct Portal: Identifiable, Equatable, Sendable {
         self.backgroundStyle = backgroundStyle
         self.gridCapacity = gridCapacity
         self.isPinned = isPinned
+        self.sortOrder = sortOrder
+        self.tint = tint
     }
 
     /// Appends a tab without changing the active tab.
@@ -410,5 +432,13 @@ public struct Portal: Identifiable, Equatable, Sendable {
     /// Updates whether user-driven movement and resizing are disabled for this portal.
     public mutating func updatePinned(_ isPinned: Bool) {
         self.isPinned = isPinned
+    }
+
+    public mutating func updateSortOrder(_ sortOrder: PortalSortOrder) {
+        self.sortOrder = sortOrder
+    }
+
+    public mutating func updateTint(_ tint: PortalTint) {
+        self.tint = tint
     }
 }

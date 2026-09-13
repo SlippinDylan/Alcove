@@ -1,3 +1,4 @@
+import AlcoveCore
 import Foundation
 
 struct FolderLoadRequest: Equatable, Sendable {
@@ -22,7 +23,11 @@ actor FolderLoadingCoordinator {
         self.enumerator = enumerator
     }
 
-    func load(root: URL, showHidden: Bool = false) async throws -> FolderLoadCompletion {
+    func load(
+        root: URL,
+        showHidden: Bool = false,
+        sortOrder: PortalSortOrder = .name
+    ) async throws -> FolderLoadCompletion {
         guard currentGeneration < UInt64.max else {
             throw FolderLoadingError.generationExhausted
         }
@@ -35,6 +40,7 @@ actor FolderLoadingCoordinator {
                 try await enumerator.enumerate(
                     root: root,
                     showHidden: showHidden,
+                    sortOrder: sortOrder,
                     generation: request.generation
                 )
             )

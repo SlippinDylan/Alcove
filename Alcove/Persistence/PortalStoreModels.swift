@@ -5,6 +5,93 @@ struct PortalEnvelopeVersionDTO: Decodable {
     let version: Int
 }
 
+struct PortalEnvelopeV11DTO: Codable, Equatable {
+    static let currentVersion = 11
+
+    let version: Int
+    let portals: [PortalV11DTO]
+
+    init(portals: [Portal]) {
+        version = Self.currentVersion
+        self.portals = portals.map(PortalV11DTO.init)
+    }
+}
+
+struct PortalV11DTO: Codable, Equatable {
+    let id: UUID
+    let tabs: [FolderTabDTO]
+    let selectedTabID: UUID?
+    let placement: PlacementRecordDTO
+    let iconSize: Double
+    let backgroundStyle: String
+    let columns: Int
+    let rows: Int
+    let isPinned: Bool
+    let sortOrder: String
+    let tint: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tabs
+        case selectedTabID = "selected_tab_id"
+        case placement
+        case iconSize = "icon_size"
+        case backgroundStyle = "background_style"
+        case columns
+        case rows
+        case isPinned = "is_pinned"
+        case sortOrder = "sort_order"
+        case tint
+    }
+
+    init(_ portal: Portal) {
+        id = portal.id.rawValue
+        tabs = portal.tabs.map(FolderTabDTO.init)
+        selectedTabID = portal.selectedTabID?.rawValue
+        placement = PlacementRecordDTO(portal.placement)
+        iconSize = Double(portal.iconSize.rawValue)
+        backgroundStyle = portal.backgroundStyle.rawValue
+        columns = portal.gridCapacity.columns
+        rows = portal.gridCapacity.rows
+        isPinned = portal.isPinned
+        sortOrder = portal.sortOrder.rawValue
+        tint = portal.tint.rawValue
+    }
+
+    func domainValue() throws -> Portal {
+        guard let iconSize = IconSize(rawValue: CGFloat(iconSize)) else {
+            throw PortalStoreMappingError.invalidIconSize(self.iconSize)
+        }
+        guard let backgroundStyle = PortalBackgroundStyle(rawValue: backgroundStyle) else {
+            throw PortalStoreMappingError.invalidBackgroundStyle(self.backgroundStyle)
+        }
+        guard let sortOrder = PortalSortOrder(rawValue: sortOrder) else {
+            throw PortalStoreMappingError.invalidSortOrder(self.sortOrder)
+        }
+        guard let tint = PortalTint(rawValue: tint) else {
+            throw PortalStoreMappingError.invalidTint(self.tint)
+        }
+        let gridCapacity: GridCapacity
+        do {
+            gridCapacity = try GridCapacity(columns: columns, rows: rows)
+        } catch {
+            throw PortalStoreMappingError.invalidGridCapacity(columns: columns, rows: rows)
+        }
+        return try Portal(
+            id: PortalID(rawValue: id),
+            tabs: try tabs.map { try $0.domainValue() },
+            selectedTabID: selectedTabID.map(FolderTabID.init(rawValue:)),
+            placement: try placement.domainValue(),
+            iconSize: iconSize,
+            backgroundStyle: backgroundStyle,
+            gridCapacity: gridCapacity,
+            isPinned: isPinned,
+            sortOrder: sortOrder,
+            tint: tint
+        )
+    }
+}
+
 struct PortalEnvelopeV10DTO: Codable, Equatable {
     static let currentVersion = 10
 
@@ -922,6 +1009,8 @@ enum PortalStoreMappingError: Error, Equatable {
     case invalidTextSize(Double)
     case invalidIconLayoutMode(String)
     case invalidBackgroundStyle(String)
+    case invalidSortOrder(String)
+    case invalidTint(String)
     case invalidGridCapacity(columns: Int, rows: Int)
     case invalidFolderPath(String)
     case invalidDisplayIdentity(String)

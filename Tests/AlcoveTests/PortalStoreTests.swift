@@ -3,7 +3,7 @@ import XCTest
 @testable import Alcove
 
 final class PortalStoreTests: XCTestCase {
-    func testMissingStoreLoadsEmptyAndV10SaveRoundTrips() async throws {
+    func testMissingStoreLoadsEmptyAndV11SaveRoundTrips() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let store = PortalStore(url: storeURL)
@@ -14,12 +14,16 @@ final class PortalStoreTests: XCTestCase {
             portal.updateBackgroundStyle(.maximumTransparency)
             portal.updateGridCapacity(try GridCapacity(columns: 5, rows: 2))
             portal.updatePinned(true)
+            portal.updateSortOrder(.creationDate)
+            portal.updateTint(.indigo)
             try await store.save([portal])
             let restored = try await store.load()
             XCTAssertEqual(restored, [portal])
 
             let json = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(json.contains("\"version\" : 10"))
+            XCTAssertTrue(json.contains("\"version\" : 11"))
+            XCTAssertTrue(json.contains("\"sort_order\" : \"creation_date\""))
+            XCTAssertTrue(json.contains("\"tint\" : \"indigo\""))
             XCTAssertTrue(json.contains("\"is_pinned\" : true"))
             XCTAssertFalse(json.contains("icon_layout_mode"))
             XCTAssertFalse(json.contains("text_size"))
@@ -58,7 +62,29 @@ final class PortalStoreTests: XCTestCase {
         }
     }
 
-    func testV5MigratesToV10AndPreservesBackup() async throws {
+    func testV10MigratesToV11WithDefaultSortAndTintAndPreservesBackup() async throws {
+        try await withStoreDirectory { directory in
+            let storeURL = directory.appendingPathComponent("portals.json")
+            let portal = try makePortal(path: "/tmp/first", x: 10)
+            let legacy = try JSONEncoder().encode(PortalEnvelopeV10DTO(portals: [portal]))
+            try legacy.write(to: storeURL)
+
+            let loaded = try await PortalStore(url: storeURL).load()
+
+            XCTAssertEqual(loaded[0].sortOrder, .name)
+            XCTAssertEqual(loaded[0].tint, .default)
+            XCTAssertEqual(
+                try Data(contentsOf: directory.appendingPathComponent("portals.v10.json.bak")),
+                legacy
+            )
+            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
+            XCTAssertTrue(migrated.contains("\"version\" : 11"))
+            XCTAssertTrue(migrated.contains("\"sort_order\" : \"name\""))
+            XCTAssertTrue(migrated.contains("\"tint\" : \"default\""))
+        }
+    }
+
+    func testV5MigratesToV11AndPreservesBackup() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let portal = try makePortal(path: "/tmp/first", x: 10)
@@ -77,11 +103,11 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 10"))
+            XCTAssertTrue(migrated.contains("\"version\" : 11"))
         }
     }
 
-    func testV6MigratesToV10WithAnUnpinnedExpandedPlacement() async throws {
+    func testV6MigratesToV11WithAnUnpinnedExpandedPlacement() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let portal = try makePortal(path: "/tmp/first", x: 10)
@@ -99,12 +125,12 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 10"))
+            XCTAssertTrue(migrated.contains("\"version\" : 11"))
             XCTAssertTrue(migrated.contains("\"is_pinned\" : false"))
         }
     }
 
-    func testV7MigratesToV10PreservingPinCapacityAndTopRightEdges() async throws {
+    func testV7MigratesToV11PreservingPinCapacityAndTopRightEdges() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             var portal = try makePortal(path: "/tmp/first", x: 10)
@@ -128,11 +154,11 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 10"))
+            XCTAssertTrue(migrated.contains("\"version\" : 11"))
         }
     }
 
-    func testV8MigratesToV10PreservingPinCapacityHeightAndRightEdge() async throws {
+    func testV8MigratesToV11PreservingPinCapacityHeightAndRightEdge() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             var portal = try makePortal(path: "/tmp/first", x: 500)
@@ -152,7 +178,7 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 10"))
+            XCTAssertTrue(migrated.contains("\"version\" : 11"))
         }
     }
 
@@ -264,7 +290,7 @@ final class PortalStoreTests: XCTestCase {
             let backupURL = directory.appendingPathComponent("portals.v1.json.bak")
             XCTAssertEqual(try String(contentsOf: backupURL, encoding: .utf8), legacy)
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 10"))
+            XCTAssertTrue(migrated.contains("\"version\" : 11"))
             XCTAssertTrue(loaded.allSatisfy { $0.backgroundStyle == .standard })
             XCTAssertTrue(loaded.allSatisfy { $0.iconLayout == .fixed(.medium) })
             XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 4, rows: 2))
@@ -288,12 +314,12 @@ final class PortalStoreTests: XCTestCase {
                 XCTAssertEqual(url, storeURL)
             }
 
-            try Data("{\"version\":11,\"portals\":[]}".utf8).write(to: storeURL)
+            try Data("{\"version\":12,\"portals\":[]}".utf8).write(to: storeURL)
             do {
                 _ = try await PortalStore(url: storeURL).load()
                 XCTFail("Future version must fail")
             } catch let error as PortalStoreError {
-                XCTAssertEqual(error, .unsupportedVersion(11))
+                XCTAssertEqual(error, .unsupportedVersion(12))
             }
         }
     }
@@ -319,7 +345,7 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 10"))
+            XCTAssertTrue(migrated.contains("\"version\" : 11"))
             XCTAssertTrue(migrated.contains("\"background_style\" : \"standard\""))
             XCTAssertFalse(migrated.contains("icon_layout_mode"))
             XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 3, rows: 2))
@@ -432,7 +458,7 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 10"))
+            XCTAssertTrue(migrated.contains("\"version\" : 11"))
             XCTAssertFalse(migrated.contains("icon_layout_mode"))
             XCTAssertFalse(migrated.contains("text_size"))
             XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 3, rows: 2))
@@ -489,7 +515,7 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 10"))
+            XCTAssertTrue(migrated.contains("\"version\" : 11"))
             XCTAssertTrue(migrated.contains("\"columns\" : 3"))
             XCTAssertTrue(migrated.contains("\"rows\" : 2"))
         }
