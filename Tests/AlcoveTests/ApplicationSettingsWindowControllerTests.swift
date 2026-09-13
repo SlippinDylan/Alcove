@@ -32,11 +32,15 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         }
         controller.setPortalCornerRadius(.small)
         controller.setPortalSpacing(.maximum)
+        controller.setPortalIconSize(.large)
+        controller.setPortalBackgroundStyle(.highTransparency)
         controller.setPortalShadowEnabled(false)
         controller.setPortalShadowEnabled(false)
 
-        XCTAssertEqual(changes.count, 3)
+        XCTAssertEqual(changes.count, 5)
         let restored = ApplicationPreferencesController(userDefaults: defaults)
+        XCTAssertEqual(restored.portalAppearance.iconSize, .large)
+        XCTAssertEqual(restored.portalAppearance.backgroundStyle, .highTransparency)
         XCTAssertEqual(restored.portalAppearance.cornerRadius, .small)
         XCTAssertEqual(restored.portalAppearance.spacing, .maximum)
         XCTAssertFalse(restored.portalAppearance.shadowEnabled)
@@ -58,12 +62,13 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testGeneralSettingsExposeFiveStepRadiusAndSpacingControls() throws {
+    func testStyleSettingsExposeGlobalContentAndAppearanceControls() throws {
         let controller = ApplicationSettingsWindowController(
             launchAtLoginController: LaunchAtLoginControllerSpy(),
             metadata: ApplicationMetadata(infoDictionary: [:]),
             applicationIcon: NSImage(size: NSSize(width: 128, height: 128))
         )
+        controller.selectCategory(.style)
         let sliders = descendants(of: controller.settingsViewController.view)
             .compactMap { $0 as? NSSlider }
 
@@ -73,10 +78,20 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         let spacing = try XCTUnwrap(sliders.first {
             $0.identifier?.rawValue == "application-settings.spacing"
         })
+        let contentSize = try XCTUnwrap(sliders.first {
+            $0.identifier?.rawValue == "application-settings.content-size"
+        })
+        let transparency = try XCTUnwrap(sliders.first {
+            $0.identifier?.rawValue == "application-settings.transparency"
+        })
         XCTAssertEqual(radius.numberOfTickMarks, 5)
         XCTAssertEqual(spacing.numberOfTickMarks, 5)
         XCTAssertTrue(radius.allowsTickMarkValuesOnly)
         XCTAssertTrue(spacing.allowsTickMarkValuesOnly)
+        XCTAssertEqual(contentSize.numberOfTickMarks, 3)
+        XCTAssertEqual(transparency.numberOfTickMarks, 5)
+        XCTAssertTrue(contentSize.allowsTickMarkValuesOnly)
+        XCTAssertTrue(transparency.allowsTickMarkValuesOnly)
         controller.close()
     }
 
@@ -94,7 +109,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testSettingsWindowUsesGeneralAndAboutPreferenceCategories() throws {
+    func testSettingsWindowUsesGeneralStyleAndAboutPreferenceCategories() throws {
         let controller = ApplicationSettingsWindowController(
             launchAtLoginController: LaunchAtLoginControllerSpy(),
             metadata: ApplicationMetadata(infoDictionary: [:]),

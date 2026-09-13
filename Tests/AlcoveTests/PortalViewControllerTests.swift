@@ -193,7 +193,7 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testBackgroundSettingRequestForwardsFromTabBar() throws {
+    func testPortalSettingsDoNotExposeGlobalBackgroundControl() throws {
         let portal = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/portal"),
             frame: CGRect(x: 0, y: 0, width: 420, height: 360),
@@ -203,8 +203,6 @@ final class PortalViewControllerTests: XCTestCase {
             portal: portal,
             loadingCoordinator: FolderLoadingCoordinator()
         )
-        var requestedStyle: PortalBackgroundStyle?
-        controller.onSetBackgroundStyle = { requestedStyle = $0 }
         controller.loadView()
         let tabBar = try XCTUnwrap(
             descendants(of: controller.view).compactMap { $0 as? TabBarView }.first
@@ -214,23 +212,10 @@ final class PortalViewControllerTests: XCTestCase {
         let settingsViewController = settingsController.settingsViewController
         settingsController.selectCategory(.style)
         let settingsRoot = settingsViewController.view
-        let background = try XCTUnwrap(
-            descendants(of: settingsRoot)
-                .compactMap { $0 as? NSSlider }
-                .first { $0.identifier?.rawValue == "portal-settings.background" }
-        )
-
-        background.doubleValue = Double(try XCTUnwrap(
-            PortalBackgroundStyle.allCases.firstIndex(of: .highTransparency)
-        ))
-        NSApplication.shared.sendAction(
-            try XCTUnwrap(background.action),
-            to: background.target,
-            from: background
-        )
         settingsController.close()
-
-        XCTAssertEqual(requestedStyle, .highTransparency)
+        XCTAssertFalse(descendants(of: settingsRoot).contains {
+            $0.identifier?.rawValue == "portal-settings.background"
+        })
     }
 
     @MainActor

@@ -28,12 +28,10 @@ final class PortalCoordinatorTests: XCTestCase {
 
         try await coordinator.restorePortals()
 
-        XCTAssertEqual(coordinator.portalStates, portals)
+        XCTAssertEqual(coordinator.portalStates.map(\.id), portals.map(\.id))
+        XCTAssertTrue(coordinator.portalStates.allSatisfy { $0.backgroundStyle == .standard })
         XCTAssertEqual(factory.createdPortalIDs, portals.map(\.id))
-        XCTAssertEqual(factory.createdPortals.map(\.backgroundStyle), [
-            .highTransparency,
-            .lowTransparency,
-        ])
+        XCTAssertEqual(factory.createdPortals.map(\.backgroundStyle), [.standard, .standard])
         XCTAssertEqual(factory.windows.map(\.presentCount), [1, 1])
     }
 
@@ -1332,8 +1330,8 @@ final class PortalCoordinatorTests: XCTestCase {
             let updated = coordinator.portalStates[0]
             XCTAssertEqual(updated.tabs[0].id, portal.selectedTabID)
             XCTAssertEqual(updated.tabs[0].folderURL, replacement.standardizedFileURL)
-            XCTAssertEqual(updated.backgroundStyle, .lowTransparency)
-            XCTAssertEqual(updated.iconLayout, .fixed(.large))
+            XCTAssertEqual(updated.backgroundStyle, .standard)
+            XCTAssertEqual(updated.iconLayout, .fixed(.medium))
             XCTAssertEqual(factory.windows[0].updatedPortals.last, updated)
             let saves = await store.savedSnapshots()
             XCTAssertEqual(saves.last, [updated])

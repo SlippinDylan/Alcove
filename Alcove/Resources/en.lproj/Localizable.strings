@@ -53,11 +53,22 @@
 
 /* Application settings */
 "application.settings.general" = "General";
+"application.settings.style" = "Style";
 "application.settings.about" = "About";
 "application.settings.startup" = "Startup";
 "application.settings.launch_at_login" = "Launch at Login";
 "application.settings.launch_at_login_error" = "Unable to Change Login Setting";
 "application.settings.portal_appearance" = "Panel Appearance";
+"application.settings.content_size" = "Content Size";
+"application.settings.content_size.small" = "Small";
+"application.settings.content_size.medium" = "Medium";
+"application.settings.content_size.large" = "Large";
+"application.settings.transparency" = "Transparency";
+"application.settings.transparency.maximum" = "Maximum Transparency";
+"application.settings.transparency.high" = "High Transparency";
+"application.settings.transparency.standard" = "Standard";
+"application.settings.transparency.low" = "Low Transparency";
+"application.settings.transparency.minimum" = "Minimum Transparency";
 "application.settings.corner_radius" = "Corner Radius";
 "application.settings.spacing" = "Panel Spacing";
 "application.settings.spacing_value" = "%d points";

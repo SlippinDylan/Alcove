@@ -11,6 +11,11 @@ final class PortalCreationGridState {
         self.iconLayout = iconLayout
     }
 
+    func updateIconSize(_ iconSize: IconSize) throws {
+        grid = try CreationGrid(metrics: GridMetrics(iconSize: iconSize))
+        iconLayout = .fixed(iconSize)
+    }
+
 }
 
 @MainActor

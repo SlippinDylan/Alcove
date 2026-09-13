@@ -319,15 +319,11 @@ final class TabBarViewTests: XCTestCase {
     }
 
     @MainActor
-    func testStyleCategoryUsesFiveAndThreeStepSlidersAndInvokesCallbacks() throws {
+    func testStyleCategoryDoesNotExposeGlobalContentOrTransparencyControls() throws {
         let tab = makeTab(name: "First")
         var portal = try makePortal(tabs: [tab], selected: tab.id)
         portal.updateBackgroundStyle(.lowTransparency)
         let tabBar = TabBarView(frame: .zero)
-        var requestedStyle: PortalBackgroundStyle?
-        var requestedIconSize: IconSize?
-        tabBar.onSetBackgroundStyle = { requestedStyle = $0 }
-        tabBar.onSetIconSize = { requestedIconSize = $0 }
         defer { tabBar.closeSettingsWindow() }
 
         tabBar.configure(with: portal)
@@ -335,51 +331,10 @@ final class TabBarViewTests: XCTestCase {
         try selectCategory(.style, in: tabBar)
         let settingsViewController = try settingsController(in: tabBar).settingsViewController
         settingsViewController.view.layoutSubtreeIfNeeded()
-        let styleCards = settingsViewController.contentStack.arrangedSubviews.enumerated()
-            .compactMap { index, view in index.isMultiple(of: 2) ? nil : view }
-        XCTAssertEqual(styleCards.count, 2)
-        for card in styleCards {
-            XCTAssertLessThanOrEqual(card.frame.height, 60)
-            XCTAssertEqual(
-                card.frame.width,
-                settingsViewController.contentStack.frame.width,
-                accuracy: 0.5
-            )
-        }
-        let background = try slider(
-            identifier: "portal-settings.background",
-            in: tabBar
-        )
-        let iconSize = try slider(identifier: "portal-settings.icon-size", in: tabBar)
-        XCTAssertEqual(background.minValue, 0)
-        XCTAssertEqual(background.maxValue, 4)
-        XCTAssertEqual(background.numberOfTickMarks, 5)
-        XCTAssertTrue(background.allowsTickMarkValuesOnly)
-        XCTAssertEqual(background.doubleValue, 3)
-        XCTAssertEqual(iconSize.minValue, 0)
-        XCTAssertEqual(iconSize.maxValue, 2)
-        XCTAssertEqual(iconSize.numberOfTickMarks, 3)
-        XCTAssertTrue(iconSize.allowsTickMarkValuesOnly)
-        XCTAssertEqual(iconSize.doubleValue, 1)
-
-        background.doubleValue = 0
-        NSApplication.shared.sendAction(
-            try XCTUnwrap(background.action),
-            to: background.target,
-            from: background
-        )
-        XCTAssertEqual(requestedStyle, .maximumTransparency)
-        iconSize.doubleValue = 0
-        NSApplication.shared.sendAction(
-            try XCTUnwrap(iconSize.action),
-            to: iconSize.target,
-            from: iconSize
-        )
-        XCTAssertEqual(requestedIconSize, .small)
-
-        portal.updateBackgroundStyle(.minimumTransparency)
-        tabBar.update(with: portal)
-        XCTAssertEqual(try slider(identifier: "portal-settings.background", in: tabBar).doubleValue, 4)
+        let identifiers = descendants(of: settingsViewController.view)
+            .compactMap(\.identifier?.rawValue)
+        XCTAssertFalse(identifiers.contains("portal-settings.background"))
+        XCTAssertFalse(identifiers.contains("portal-settings.icon-size"))
     }
 
     @MainActor

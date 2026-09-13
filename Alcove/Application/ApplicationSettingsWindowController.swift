@@ -1,4 +1,5 @@
 import AppKit
+import AlcoveCore
 import ServiceManagement
 
 enum PortalCornerRadius: Int, CaseIterable, Sendable {
@@ -39,19 +40,39 @@ enum PortalSpacing: Int, CaseIterable, Sendable {
 
 struct PortalAppearancePreferences: Equatable, Sendable {
     static let defaults = PortalAppearancePreferences(
+        iconSize: .medium,
+        backgroundStyle: .standard,
         cornerRadius: .maximum,
         spacing: .medium,
         shadowEnabled: true
     )
 
+    var iconSize: IconSize
+    var backgroundStyle: PortalBackgroundStyle
     var cornerRadius: PortalCornerRadius
     var spacing: PortalSpacing
     var shadowEnabled: Bool
+
+    init(
+        iconSize: IconSize = .medium,
+        backgroundStyle: PortalBackgroundStyle = .standard,
+        cornerRadius: PortalCornerRadius,
+        spacing: PortalSpacing,
+        shadowEnabled: Bool
+    ) {
+        self.iconSize = iconSize
+        self.backgroundStyle = backgroundStyle
+        self.cornerRadius = cornerRadius
+        self.spacing = spacing
+        self.shadowEnabled = shadowEnabled
+    }
 }
 
 @MainActor
 protocol ApplicationPreferencesControlling: AnyObject {
     var portalAppearance: PortalAppearancePreferences { get }
+    @discardableResult func setPortalIconSize(_ iconSize: IconSize) -> Bool
+    @discardableResult func setPortalBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) -> Bool
     @discardableResult func setPortalCornerRadius(_ cornerRadius: PortalCornerRadius) -> Bool
     @discardableResult func setPortalSpacing(_ spacing: PortalSpacing) -> Bool
     @discardableResult func setPortalShadowEnabled(_ enabled: Bool) -> Bool
@@ -60,6 +81,8 @@ protocol ApplicationPreferencesControlling: AnyObject {
 @MainActor
 final class ApplicationPreferencesController: ApplicationPreferencesControlling {
     private enum Key {
+        static let portalIconSize = "portalAppearance.iconSize"
+        static let portalBackgroundStyle = "portalAppearance.backgroundStyle"
         static let portalCornerRadius = "portalAppearance.cornerRadius"
         static let portalSpacing = "portalAppearance.spacing"
         static let portalShadowEnabled = "portalAppearance.shadowEnabled"
@@ -73,6 +96,8 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
         self.userDefaults = userDefaults
         let defaults = PortalAppearancePreferences.defaults
         userDefaults.register(defaults: [
+            Key.portalIconSize: Double(defaults.iconSize.rawValue),
+            Key.portalBackgroundStyle: defaults.backgroundStyle.rawValue,
             Key.portalCornerRadius: defaults.cornerRadius.rawValue,
             Key.portalSpacing: defaults.spacing.rawValue,
             Key.portalShadowEnabled: defaults.shadowEnabled,
@@ -83,11 +108,40 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
         let spacing = PortalSpacing(
             rawValue: userDefaults.integer(forKey: Key.portalSpacing)
         ) ?? defaults.spacing
+        let iconSize = IconSize(
+            rawValue: CGFloat(userDefaults.double(forKey: Key.portalIconSize))
+        ) ?? defaults.iconSize
+        let backgroundStyle = userDefaults.string(forKey: Key.portalBackgroundStyle)
+            .flatMap(PortalBackgroundStyle.init(rawValue:)) ?? defaults.backgroundStyle
         portalAppearance = PortalAppearancePreferences(
+            iconSize: iconSize,
+            backgroundStyle: backgroundStyle,
             cornerRadius: cornerRadius,
             spacing: spacing,
             shadowEnabled: userDefaults.bool(forKey: Key.portalShadowEnabled)
         )
+    }
+
+    @discardableResult
+    func setPortalIconSize(_ iconSize: IconSize) -> Bool {
+        guard portalAppearance.iconSize != iconSize else { return true }
+        var updatedAppearance = portalAppearance
+        updatedAppearance.iconSize = iconSize
+        guard onPortalAppearanceChanged?(updatedAppearance) != false else { return false }
+        portalAppearance = updatedAppearance
+        userDefaults.set(Double(iconSize.rawValue), forKey: Key.portalIconSize)
+        return true
+    }
+
+    @discardableResult
+    func setPortalBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) -> Bool {
+        guard portalAppearance.backgroundStyle != backgroundStyle else { return true }
+        var updatedAppearance = portalAppearance
+        updatedAppearance.backgroundStyle = backgroundStyle
+        guard onPortalAppearanceChanged?(updatedAppearance) != false else { return false }
+        portalAppearance = updatedAppearance
+        userDefaults.set(backgroundStyle.rawValue, forKey: Key.portalBackgroundStyle)
+        return true
     }
 
     @discardableResult
@@ -295,12 +349,15 @@ extension ApplicationSettingsWindowController: NSToolbarDelegate {
 final class ApplicationSettingsViewController: NSViewController {
     enum Category: Int, CaseIterable {
         case general
+        case style
         case about
 
         var title: String {
             switch self {
             case .general:
                 NSLocalizedString("application.settings.general", comment: "General settings category")
+            case .style:
+                NSLocalizedString("application.settings.style", comment: "Style settings category")
             case .about:
                 NSLocalizedString("application.settings.about", comment: "About settings category")
             }
@@ -309,6 +366,7 @@ final class ApplicationSettingsViewController: NSViewController {
         var symbol: String {
             switch self {
             case .general: "gearshape"
+            case .style: "paintpalette"
             case .about: "info.circle"
             }
         }
@@ -397,6 +455,8 @@ final class ApplicationSettingsViewController: NSViewController {
         switch category {
         case .general:
             showGeneralSettings()
+        case .style:
+            showStyleSettings()
         case .about:
             showAbout()
         }
@@ -429,12 +489,29 @@ final class ApplicationSettingsViewController: NSViewController {
             ),
             card: ApplicationSettingsCardView(rows: [row])
         )
+    }
+
+    private func showStyleSettings() {
         addSection(
             title: NSLocalizedString(
                 "application.settings.portal_appearance",
                 comment: "Portal appearance settings section"
             ),
             card: ApplicationSettingsCardView(rows: [
+                settingRow(
+                    title: NSLocalizedString(
+                        "application.settings.content_size",
+                        comment: "Portal content size setting"
+                    ),
+                    control: iconSizeSlider()
+                ),
+                settingRow(
+                    title: NSLocalizedString(
+                        "application.settings.transparency",
+                        comment: "Portal transparency setting"
+                    ),
+                    control: backgroundStyleSlider()
+                ),
                 settingRow(
                     title: NSLocalizedString(
                         "application.settings.corner_radius",
@@ -458,6 +535,63 @@ final class ApplicationSettingsViewController: NSViewController {
                 ),
             ])
         )
+    }
+
+    private func iconSizeSlider() -> NSSlider {
+        let values: [IconSize] = [.small, .medium, .large]
+        let selectedIndex = values.firstIndex(of: preferencesController.portalAppearance.iconSize) ?? 1
+        let slider = discreteSlider(
+            identifier: "application-settings.content-size",
+            value: selectedIndex,
+            maximum: values.count - 1,
+            action: #selector(changeIconSize(_:))
+        )
+        slider.setAccessibilityLabel(NSLocalizedString(
+            "application.settings.content_size",
+            comment: "Portal content size setting"
+        ))
+        slider.setAccessibilityValue(iconSizeTitle(values[selectedIndex]))
+        return slider
+    }
+
+    private func backgroundStyleSlider() -> NSSlider {
+        let values = PortalBackgroundStyle.allCases
+        let selectedIndex = values.firstIndex(
+            of: preferencesController.portalAppearance.backgroundStyle
+        ) ?? 2
+        let slider = discreteSlider(
+            identifier: "application-settings.transparency",
+            value: selectedIndex,
+            maximum: values.count - 1,
+            action: #selector(changeBackgroundStyle(_:))
+        )
+        slider.setAccessibilityLabel(NSLocalizedString(
+            "application.settings.transparency",
+            comment: "Portal transparency setting"
+        ))
+        slider.setAccessibilityValue(backgroundStyleTitle(values[selectedIndex]))
+        return slider
+    }
+
+    private func discreteSlider(
+        identifier: String,
+        value: Int,
+        maximum: Int,
+        action: Selector
+    ) -> NSSlider {
+        let slider = NSSlider(
+            value: Double(value),
+            minValue: 0,
+            maxValue: Double(maximum),
+            target: self,
+            action: action
+        )
+        slider.identifier = NSUserInterfaceItemIdentifier(identifier)
+        slider.numberOfTickMarks = maximum + 1
+        slider.allowsTickMarkValuesOnly = true
+        slider.tickMarkPosition = .below
+        slider.widthAnchor.constraint(equalToConstant: 180).isActive = true
+        return slider
     }
 
     private func spacingSlider() -> NSSlider {
@@ -612,6 +746,34 @@ final class ApplicationSettingsViewController: NSViewController {
         }
     }
 
+    @objc private func changeIconSize(_ sender: NSSlider) {
+        let values: [IconSize] = [.small, .medium, .large]
+        let index = Int(sender.doubleValue.rounded())
+        guard values.indices.contains(index) else { return }
+        let iconSize = values[index]
+        if preferencesController.setPortalIconSize(iconSize) {
+            sender.setAccessibilityValue(iconSizeTitle(iconSize))
+        } else {
+            sender.doubleValue = Double(
+                values.firstIndex(of: preferencesController.portalAppearance.iconSize) ?? 1
+            )
+        }
+    }
+
+    @objc private func changeBackgroundStyle(_ sender: NSSlider) {
+        let values = PortalBackgroundStyle.allCases
+        let index = Int(sender.doubleValue.rounded())
+        guard values.indices.contains(index) else { return }
+        let backgroundStyle = values[index]
+        if preferencesController.setPortalBackgroundStyle(backgroundStyle) {
+            sender.setAccessibilityValue(backgroundStyleTitle(backgroundStyle))
+        } else {
+            sender.doubleValue = Double(
+                values.firstIndex(of: preferencesController.portalAppearance.backgroundStyle) ?? 2
+            )
+        }
+    }
+
     @objc private func changeCornerRadius(_ sender: NSSlider) {
         let values = PortalCornerRadius.allCases
         let index = Int(sender.doubleValue.rounded())
@@ -660,6 +822,34 @@ final class ApplicationSettingsViewController: NSViewController {
             ),
             Int(spacing.points)
         )
+    }
+
+    private func iconSizeTitle(_ iconSize: IconSize) -> String {
+        switch iconSize {
+        case .small:
+            NSLocalizedString("application.settings.content_size.small", comment: "Small content size")
+        case .medium:
+            NSLocalizedString("application.settings.content_size.medium", comment: "Medium content size")
+        case .large:
+            NSLocalizedString("application.settings.content_size.large", comment: "Large content size")
+        default:
+            NSLocalizedString("application.settings.content_size.medium", comment: "Medium content size")
+        }
+    }
+
+    private func backgroundStyleTitle(_ style: PortalBackgroundStyle) -> String {
+        switch style {
+        case .maximumTransparency:
+            NSLocalizedString("application.settings.transparency.maximum", comment: "Maximum transparency")
+        case .highTransparency:
+            NSLocalizedString("application.settings.transparency.high", comment: "High transparency")
+        case .standard:
+            NSLocalizedString("application.settings.transparency.standard", comment: "Standard transparency")
+        case .lowTransparency:
+            NSLocalizedString("application.settings.transparency.low", comment: "Low transparency")
+        case .minimumTransparency:
+            NSLocalizedString("application.settings.transparency.minimum", comment: "Minimum transparency")
+        }
     }
 
     private func presentLaunchAtLoginError(_ error: Error) {

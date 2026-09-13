@@ -77,7 +77,7 @@ Domain models and pure layout math. Zero AppKit imports.
 - `SelectionState` — per-tab selection model
 - `IconSize` — validated icon dimension value type
 - `PortalIconLayout` — an Alcove-owned fixed Small, Medium, or Large icon size with the standard label metric
-- `PortalBackgroundStyle` — ordered five-level per-portal background preference
+- `PortalBackgroundStyle` — ordered five-level background value carried by runtime Portal state but governed by the application-global preference
 - `GridCapacity` — validated visible grid columns and rows; it is the durable size intent for a portal
 - `Portal.isPinned` — persisted interaction state that disables user-driven movement and resizing without suppressing system placement directives
 - `GridLayout` — computes item frames from container size, icon size, column count, and spacing
@@ -93,7 +93,7 @@ App entry point and global coordination.
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
 - `StatusMenuController` — builds the localized New Portal / Portal Show-Hide / application Settings / Quit hierarchy and routes Settings to one reusable application settings window
-- `ApplicationSettingsWindowController` — owns the preference-style General/About window. General adapts `SMAppService.mainApp` at the system boundary for launch-at-login registration and stores global spacing, corner-radius, and shadow preferences in `UserDefaults`; About reads version metadata and the compiled Icon Composer application icon from the running app
+- `ApplicationSettingsWindowController` — owns the preference-style General/Style/About window. General adapts `SMAppService.mainApp` for launch-at-login registration; Style stores global content size, background level, spacing, corner radius, and shadow in `UserDefaults`; About reads version metadata and the compiled Icon Composer application icon
 - `NewPortalOverlay` — pointer-display overlay with a dashed `3×1` rounded frame, full-width separators, complete object tiles, half-cell candidate feedback, and whole-capacity snapping constrained to the inset `visibleFrame`; occupied candidates remain editable and cannot commit
 - Info.plist: `LSUIElement = YES`, `LSBackgroundOnly = NO`
 
@@ -123,7 +123,7 @@ App entry point and global coordination.
 Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
-- `TabBarView` — one centered, horizontally scrollable folder-name strip with capsule emphasis only on the selected tab, a fixed leading pin button, and a fixed trailing settings icon. The pin action persists through the Coordinator before the window changes its resizable/drag behavior. The settings icon presents one reusable standalone settings window centered on the Portal's current screen. A close-only standard titlebar remains above a native preference-style `NSToolbar`, which owns Folders/Style navigation and selection appearance; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering; icon/background values use discrete sliders. Settings cards use standard content material, macOS 26 text actions use the system Glass bezel, and macOS 15–25 retain rounded native controls
+- `TabBarView` — one centered, horizontally scrollable folder-name strip with capsule emphasis only on the selected tab, a fixed leading pin button, and a fixed trailing settings icon. The pin action persists through the Coordinator before the window changes its resizable/drag behavior. The settings icon presents one reusable standalone settings window centered on the Portal's current screen. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
 - `FolderPathBarView` — a plain reserved bottom row derived from the selected tab URL; it abbreviates the home directory as `~` and copies the displayed path to `NSPasteboard`
 - `PortalChromeMaterialView` — the content surface keeps an always-active `.popover`-material `NSVisualEffectView` at full strength and varies an adaptive neutral tint overlay per Portal
 - Layout: tab bar at top, a fixed path row at bottom, and the icon grid between them. Both chrome rows are included in creation, minimum-size, live-resize, and persisted-capacity geometry

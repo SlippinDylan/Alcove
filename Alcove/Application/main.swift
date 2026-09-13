@@ -6,7 +6,9 @@ let application = NSApplication.shared
 let applicationPreferencesController = ApplicationPreferencesController()
 let creationGrid: CreationGrid
 do {
-    creationGrid = try CreationGrid(metrics: GridMetrics(iconSize: .medium))
+    creationGrid = try CreationGrid(
+        metrics: GridMetrics(iconSize: applicationPreferencesController.portalAppearance.iconSize)
+    )
 } catch {
     FileHandle.standardError.write(Data("Invalid portal creation metrics: \(error)\n".utf8))
     exit(EXIT_FAILURE)
@@ -31,6 +33,12 @@ let applicationSettingsController = ApplicationSettingsWindowController(
 )
 applicationPreferencesController.onPortalAppearanceChanged = { appearance in
     guard portalCoordinator.updatePortalAppearance(appearance) else { return false }
+    do {
+        try creationGridState.updateIconSize(appearance.iconSize)
+    } catch {
+        assertionFailure("Preset icon size must produce valid creation metrics: \(error)")
+        return false
+    }
     frameSelector.updateCornerRadius(appearance.cornerRadius.points)
     frameSelector.updateSpacing(appearance.spacing.points)
     return true

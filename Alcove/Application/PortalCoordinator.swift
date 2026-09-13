@@ -36,6 +36,7 @@ final class PortalCoordinator: PortalCoordinating {
     private var nextUserPlacementGeneration: UInt64 = 0
     private var mutationTail: Task<Void, Never>?
     private var mutationGeneration: UInt64 = 0
+    private var pendingMutationCount = 0
     private var folderSelectionTask: Task<Void, Never>?
     private var tabMutationTasks: [UUID: Task<Void, Never>] = [:]
     private var hasLoadedPersistentState = false
@@ -84,7 +85,25 @@ final class PortalCoordinator: PortalCoordinating {
     func restorePortals() async throws {
         try await performMutation { [weak self] in
             guard let self else { return }
-            let portals = try await store.load()
+            let storedPortals = try await store.load()
+            let currentSnapshot = try? displaySnapshotProvider().get()
+            var portals = storedPortals
+            for index in portals.indices {
+                let iconSizeChanged = portals[index].iconSize != portalAppearance.iconSize
+                if iconSizeChanged {
+                    portals[index].updateIconSize(portalAppearance.iconSize)
+                }
+                portals[index].updateBackgroundStyle(portalAppearance.backgroundStyle)
+                if iconSizeChanged {
+                    portals[index] = try portalSnappingFrame(
+                        portals[index],
+                        currentSnapshot: currentSnapshot
+                    )
+                }
+            }
+            if portals != storedPortals {
+                try await store.save(portals)
+            }
             portalStates = portals
             hasLoadedPersistentState = true
             publishPortalMenu()
@@ -99,6 +118,7 @@ final class PortalCoordinator: PortalCoordinating {
         gridCapacity: GridCapacity = .minimum,
         iconLayout: PortalIconLayout = .fixed(.medium)
     ) async throws {
+        let iconLayout = PortalIconLayout.fixed(portalAppearance.iconSize)
         let validatedFolderURL: URL?
         if let folderURL {
             validatedFolderURL = try await locationValidator.validate(folderURL)
@@ -138,6 +158,7 @@ final class PortalCoordinator: PortalCoordinating {
                     frame: initialFrame,
                     display: display,
                     iconLayout: iconLayout,
+                    backgroundStyle: portalAppearance.backgroundStyle,
                     gridCapacity: gridCapacity
                 )
             } else {
@@ -145,6 +166,7 @@ final class PortalCoordinator: PortalCoordinating {
                     frame: initialFrame,
                     display: display,
                     iconLayout: iconLayout,
+                    backgroundStyle: portalAppearance.backgroundStyle,
                     gridCapacity: gridCapacity
                 )
             }
@@ -166,11 +188,16 @@ final class PortalCoordinator: PortalCoordinating {
 
     @discardableResult
     func updatePortalAppearance(_ appearance: PortalAppearancePreferences) -> Bool {
+        guard pendingMutationCount == 0,
+              pendingUserPlacements.isEmpty,
+              !windows.values.contains(where: \.isUserPlacementInteractionActive),
+              case .success(let snapshot) = displaySnapshotProvider() else {
+            return false
+        }
         let spacingChanged = portalAppearance.spacing != appearance.spacing
         let spacingPlan: [PortalID: NSRect]?
         if spacingChanged {
-            guard case .success(let snapshot) = displaySnapshotProvider(),
-                  let plan = portalSpacingLayoutPlan(
+            guard let plan = portalSpacingLayoutPlan(
                       snapshot: snapshot,
                       spacing: appearance.spacing.points
                   ) else {
@@ -180,12 +207,54 @@ final class PortalCoordinator: PortalCoordinating {
         } else {
             spacingPlan = nil
         }
+
+        let iconSizeChanged = portalAppearance.iconSize != appearance.iconSize
+        let sizePlan: [PortalID: NSRect]?
+        if iconSizeChanged {
+            guard let plan = portalIconSizeLayoutPlan(
+                snapshot: snapshot,
+                iconSize: appearance.iconSize,
+                spacing: appearance.spacing.points,
+                baseFrames: spacingPlan
+            ) else {
+                return false
+            }
+            sizePlan = plan
+        } else {
+            sizePlan = nil
+        }
+
+        var updatedPortals = portalStates
+        do {
+            for index in updatedPortals.indices {
+                updatedPortals[index].updateBackgroundStyle(appearance.backgroundStyle)
+                guard iconSizeChanged else { continue }
+                updatedPortals[index].updateIconSize(appearance.iconSize)
+                updatedPortals[index] = try portalSnappingFrame(
+                    updatedPortals[index],
+                    currentSnapshot: snapshot
+                )
+            }
+        } catch {
+            return false
+        }
+
         portalAppearance = appearance
+        portalStates = updatedPortals
+        for portal in portalStates {
+            windows[portal.id]?.updatePortal(portal)
+            if iconSizeChanged {
+                placementSessions[portal.id] = try? placementSession(for: portal)
+            }
+        }
         for window in windows.values {
             window.updateAppearance(appearance)
         }
-        if let spacingPlan {
-            applyPortalSpacingLayout(spacingPlan, animated: true)
+        if let framePlan = sizePlan ?? spacingPlan {
+            applyPortalSpacingLayout(framePlan, animated: true)
+            for (portalID, frame) in framePlan {
+                spacingLayoutBaseFrames[portalID] = frame
+            }
         }
         return true
     }
@@ -550,7 +619,9 @@ final class PortalCoordinator: PortalCoordinating {
     ) -> Task<Void, Error> {
         let previous = mutationTail
         mutationGeneration += 1
+        pendingMutationCount += 1
         let mutation = Task { @MainActor in
+            defer { pendingMutationCount -= 1 }
             await previous?.value
             try Task.checkCancellation()
             try await operation()
@@ -1043,6 +1114,60 @@ final class PortalCoordinator: PortalCoordinating {
             }
             for (entry, frame) in zip(entries, reflowedFrames) {
                 plan[entry.id] = frame
+            }
+        }
+        return plan
+    }
+
+    private func portalIconSizeLayoutPlan(
+        snapshot: DisplaySnapshot,
+        iconSize: IconSize,
+        spacing: CGFloat,
+        baseFrames: [PortalID: NSRect]?
+    ) -> [PortalID: NSRect]? {
+        let iconLayout = PortalIconLayout.fixed(iconSize)
+        var plan: [PortalID: NSRect] = [:]
+        var displays: [PortalID: DisplayDescriptor] = [:]
+
+        for portal in portalStates {
+            guard let currentFrame = baseFrames?[portal.id]
+                    ?? windows[portal.id]?.presentedFrame else {
+                continue
+            }
+            guard let display = try? LegacyFrameDisplayResolver.resolve(
+                frame: currentFrame,
+                in: snapshot
+            ) else {
+                return nil
+            }
+            let contentSize = PortalViewController.contentSize(
+                for: portal.gridCapacity,
+                iconLayout: iconLayout
+            )
+            let frameSize = NSWindow.frameRect(
+                forContentRect: NSRect(origin: .zero, size: contentSize),
+                styleMask: [.resizable]
+            ).size
+            plan[portal.id] = NSRect(
+                x: currentFrame.minX,
+                y: currentFrame.maxY - frameSize.height,
+                width: frameSize.width,
+                height: frameSize.height
+            )
+            displays[portal.id] = display
+        }
+
+        for (portalID, frame) in plan {
+            guard let display = displays[portalID],
+                  (try? PortalFrameConstraints.isValidPlacement(
+                    frame: frame,
+                    visibleFrame: display.visibleFrame,
+                    otherPortalFrames: plan.compactMap { id, frame in
+                        id == portalID ? nil : frame
+                    },
+                    minimumGap: spacing
+                  )) == true else {
+                return nil
             }
         }
         return plan

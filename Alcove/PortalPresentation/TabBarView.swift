@@ -655,27 +655,7 @@ final class PortalSettingsViewController: NSViewController {
                 card: PortalSettingsCardView(rows: [removePortalRow()])
             )
         case .style:
-            addSection(
-                title: NSLocalizedString("portal.settings.icon_size", comment: "Icon size section"),
-                card: PortalSettingsCardView(rows: [
-                    styleRow(
-                        title: NSLocalizedString("portal.settings.size", comment: "Size setting"),
-                        control: iconSizeSlider()
-                    ),
-                ])
-            )
-            addSection(
-                title: NSLocalizedString("portal.settings.appearance", comment: "Appearance section"),
-                card: PortalSettingsCardView(rows: [
-                    styleRow(
-                        title: NSLocalizedString(
-                            "portal.settings.background",
-                            comment: "Background setting"
-                        ),
-                        control: backgroundSlider()
-                    ),
-                ])
-            )
+            break
         }
         layoutSettingsContent()
     }

@@ -53,11 +53,22 @@
 
 /* Application settings */
 "application.settings.general" = "一般";
+"application.settings.style" = "樣式";
 "application.settings.about" = "關於";
 "application.settings.startup" = "啟動";
 "application.settings.launch_at_login" = "登入時自動啟動";
 "application.settings.launch_at_login_error" = "無法更改登入啟動設定";
 "application.settings.portal_appearance" = "面板外觀";
+"application.settings.content_size" = "內容大小";
+"application.settings.content_size.small" = "小";
+"application.settings.content_size.medium" = "中";
+"application.settings.content_size.large" = "大";
+"application.settings.transparency" = "透明程度";
+"application.settings.transparency.maximum" = "最高透明度";
+"application.settings.transparency.high" = "高透明度";
+"application.settings.transparency.standard" = "標準";
+"application.settings.transparency.low" = "低透明度";
+"application.settings.transparency.minimum" = "最低透明度";
 "application.settings.corner_radius" = "圓角";
 "application.settings.spacing" = "面板間距";
 "application.settings.spacing_value" = "%d 點";

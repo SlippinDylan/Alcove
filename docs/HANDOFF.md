@@ -133,7 +133,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 使用原生 titled/closable `NSWindow`；最顶部的独立标题栏显示红色关闭按钮，隐藏最小化和缩放按钮。
 - 标题栏下使用原生 preference-style `NSToolbar` 承载 Folders、Style 分类导航和选中状态，并以显式系统分割线隔开下方内容。
 - Folders 使用 `NSTableView` 列表卡片：Glass Add Folder 位于章节标题右侧，每行显示 `~` 缩写路径，右侧提供拖拽提示和无边框删除按钮；原生拖放显示 gap 反馈并执行一次原子排序。Remove Panel 位于同页最下方带主副标题的独立危险操作卡片。
-- Style 使用三档图标尺寸滑块和五档背景强度滑块。
+- 单面板设置不再提供图标尺寸和背景强度；两者由全局 Settings → Style 统一控制。
 - 内容使用接近系统设置的“章节标题 + 圆角分组卡片”结构。
 - 不再存在 Other 分类或 Follow Desktop 选项。
 - 同一 Portal 重复点击设置图标时复用并前置同一个设置窗口；Portal 关闭时设置窗口同步关闭。
@@ -166,7 +166,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.10 菜单栏与本地化
 
 - 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；Portal 名称的二级菜单只提供 Show 和 Hide。
-- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；点击后打开可复用的独立设置窗口。General 提供系统登录时自动启动、全局五档面板间距（4/8/12/16/20pt）、五档圆角（0/8/14/20/24pt）和系统阴影开关；About 使用 Icon Composer 生成的应用图标并显示应用名称、版本、构建号和版权信息。全局外观写入 `UserDefaults`，不复制 Portal v11 的单面板排序和颜色状态。
+- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / About。General 只提供系统登录时自动启动；Style 统一控制三档内容大小、五档背景透明度、五档面板间距、五档圆角和系统阴影；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观写入 `UserDefaults`，不复制 Portal v11 的单面板排序和颜色状态。
 - 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
 - English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
 
@@ -264,7 +264,7 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - 3×1 最小容量、创建/缩放半格阈值、capacity 驱动的 row-major 回流。
 - mini overlay 自动隐藏滚动条。
 - 原生 preference toolbar 设置窗口、原生表格文件夹排序、离散样式滑块及完整 Coordinator 动作链路。
-- 可持久化图钉、底部路径与复制按钮、菜单栏 Show/Hide，以及包含 General/About 的全局 Settings 窗口。
+- 可持久化图钉、底部路径与复制按钮、菜单栏 Show/Hide，以及包含 General/Style/About 的全局 Settings 窗口。
 - English、简体中文、繁体中文完整 bundle 本地化，其他系统语言回退 English。
 
 ### 7.2 最近验证结果

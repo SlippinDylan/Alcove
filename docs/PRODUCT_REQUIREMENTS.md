@@ -116,7 +116,7 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 | Click tab | Switch to that tab's folder |
 | Settings → Folders → Add Folder… | Add a new tab (opens folder chooser) |
 | Settings → Folders → Remove current folder | Remove the selected tab; if last tab, prompt to remove the portal (never silently destroy it) |
-| Settings → Style | Choose Small, Medium, or Large with a three-step slider while preserving the Portal's grid capacity and top-left position, and choose one of five background levels with a five-step slider |
+| Application Settings → Style | Choose a global Small, Medium, or Large content size while preserving every Portal's grid capacity and top-left position, and choose one global five-step background level |
 | Settings → Folders → Remove Panel | Remove the complete Portal from the destructive action card at the bottom |
 | Tab title | Defaults to the mapped folder name |
 
@@ -176,7 +176,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-09 | Multiple portals supported simultaneously | MVP |
 | FR-10 | Multiple displays supported | MVP |
 | FR-11 | Menu-bar icon with portal management menu | MVP |
-| FR-12 | Each portal independently selects and persists one of five background levels on an always-active frosted content material; lightweight separators distinguish the top controls and bottom path row without additional capsule materials | MVP |
+| FR-12 | All Portals share one global content-size preset and one global five-step background level on always-active frosted content materials; changing size is preflighted for every Portal before any frame changes. Lightweight separators distinguish the top controls and bottom path row without additional capsule materials. | MVP |
 | FR-13 | NSVisualEffectView fallback on macOS 15–25 | MVP |
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
@@ -185,7 +185,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 | FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
 | FR-21 | Show the selected folder path in a reserved bottom row separated from the file grid, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
-| FR-22 | The menu bar lists New Portal, each Portal with Show/Hide commands, application Settings, and Quit. Application Settings provides General and About categories; General controls launch at login plus global five-step panel spacing (`4/8/12/16/20pt`), five-step corner radius (`0/8/14/20/24pt`), and the system window-shadow toggle. About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
+| FR-22 | The menu bar lists New Portal, each Portal with Show/Hide commands, application Settings, and Quit. Application Settings provides General, Style, and About categories; General controls launch at login, Style owns global content size, transparency, spacing (`4/8/12/16/20pt`), corner radius (`0/8/14/20/24pt`), and system shadow, and About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
 | FR-23 | New placement, user dragging, live resizing, and icon-preset resizing must not overlap another Portal and must honor the selected edge/inter-Portal spacing. Portals attached within the five-step spacing range to a screen edge or another Portal use the selected value as their exact runtime gap, so increasing and decreasing the setting moves them in both directions. Unattached free placements remain separate. This style-driven reflow does not overwrite durable home placement. | MVP |
 
 ### Non-Functional Requirements

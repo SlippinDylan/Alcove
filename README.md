@@ -17,7 +17,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 > Slices 1–10 now provide the tested universal AppKit shell, multi-tab portals,
 > Finder-style interaction and icon tiles, transactional empty-portal creation, Quick Look, v11 portal
 > persistence, multi-display recovery, automatic FSEvents folder refresh,
-> menu-bar portal management, persisted per-portal Small/Medium/Large icon presets, five-step frosted-background control, global five-step panel spacing and corner radius, a system-shadow toggle, collision-safe placement, adaptive macOS 26
+> menu-bar portal management, global Small/Medium/Large content sizing and five-step frosted-background control, global five-step panel spacing and corner radius, a system-shadow toggle, collision-safe placement, adaptive macOS 26
 > Glass/macOS 15 fallback chrome, accessibility display-option handling, and
 > explicit recovery from missing, replaced, permission, read, and persistence
 > failures. Portals can be pinned against user movement and resizing, expose the selected folder path with copy support, and localize all user-facing UI into English, Simplified Chinese, or Traditional Chinese. The menu bar provides portal show/hide commands and a reserved application-settings entry. Three production-wide code review passes are complete, and CI tests
@@ -38,7 +38,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 ## Key Design Decisions
 
 - **Native AppKit**, not WidgetKit
-- **Adaptive native material** with five persisted per-portal background levels on an always-active frosted surface; lightweight separators divide the top controls and bottom path row from file content, while macOS 26 Glass remains limited to suitable settings actions
+- **Adaptive native material** with one global five-step background level on always-active frosted surfaces; lightweight separators divide the top controls and bottom path row from file content, while macOS 26 Glass remains limited to suitable settings actions
 - **Finder-consistent interaction**: click selects, Command-click toggles, Shift-click ranges, arrow keys navigate, Command-A selects all, Space for Quick Look, Command-Down or Command-O opens selection
 - **Finder-style icon tiles**: separate icon/title selection regions, two-line labels, a durable integer-capacity grid shared by rendering, keyboard navigation, creation, and live resizing, and persisted Small/Medium/Large icon presets
 - **Internal local folders only**: folder selection rejects removable, ejectable, and network-volume locations
