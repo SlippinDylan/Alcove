@@ -184,6 +184,7 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertEqual(settingsWindow.toolbarStyle, .preference)
         XCTAssertEqual(settingsWindow.toolbar?.displayMode, .iconAndLabel)
         XCTAssertNotNil(settingsWindow.toolbar)
+        XCTAssertEqual(settingsWindow.titlebarSeparatorStyle, .line)
         XCTAssertTrue(settingsWindow.titlebarAppearsTransparent)
         XCTAssertTrue(settingsWindow.styleMask.contains(.titled))
         XCTAssertTrue(settingsWindow.styleMask.contains(.closable))
@@ -216,7 +217,11 @@ final class TabBarViewTests: XCTestCase {
                 settingsViewController.contentStack.frame.width,
                 accuracy: 0.5
             )
-            XCTAssertEqual((card as? NSVisualEffectView)?.material, .contentBackground)
+            card.updateLayer()
+            XCTAssertEqual(
+                card.layer?.backgroundColor,
+                NSColor.quinarySystemFill.cgColor
+            )
         }
         let folderList = try XCTUnwrap(settingsViewController.folderListView)
         XCTAssertEqual(folderList.tableView.numberOfRows, 3)

@@ -351,6 +351,7 @@ final class PortalSettingsWindowController: NSWindowController {
         settingsToolbar.autosavesConfiguration = false
         window.toolbarStyle = .preference
         window.toolbar = settingsToolbar
+        window.titlebarSeparatorStyle = .line
         settingsToolbar.selectedItemIdentifier = PortalSettingsViewController.Category.folders
             .toolbarItemIdentifier
     }
@@ -1040,12 +1041,11 @@ private final class PortalSettingsDragIndicatorView: NSImageView {
 }
 
 @MainActor
-private final class PortalSettingsCardView: NSVisualEffectView {
+private final class PortalSettingsCardView: NSView {
+    override var wantsUpdateLayer: Bool { true }
+
     init(rows: [NSView]) {
         super.init(frame: .zero)
-        material = .contentBackground
-        blendingMode = .withinWindow
-        state = .active
         wantsLayer = true
         layer?.cornerRadius = 12
         layer?.masksToBounds = true
@@ -1080,6 +1080,12 @@ private final class PortalSettingsCardView: NSVisualEffectView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         nil
+    }
+
+    override func updateLayer() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = NSColor.quinarySystemFill.cgColor
+        }
     }
 
 }
