@@ -124,8 +124,9 @@ Tabs appear as small folder-name capsules inside one larger, horizontally
 centered capsule without dividers. The selected folder receives the inner
 capsule emphasis. Per-tab close and add buttons are intentionally omitted;
 editing actions open from the fixed trailing settings icon in a separate centered
-settings window. A native preference-style toolbar presents the Folders and Style categories
-above the lower content. The Folders section shows a Glass Add Folder button in its heading and
+settings window. A standard close-only titlebar remains above a native preference-style toolbar;
+an explicit system separator divides the Folders and Style navigation from the lower content.
+The Folders section shows a Glass Add Folder button in its heading and
 one abbreviated folder path per native table row, with a trailing drag indicator and borderless
 remove action. Dropping a row performs one atomic reorder with native gap feedback. Remove Panel
 lives in a separate descriptive destructive card at the bottom of the same page.

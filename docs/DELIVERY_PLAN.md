@@ -284,8 +284,8 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Deliverables:**
 - A centered scrollable outer capsule containing divider-free folder-title
   capsules, with direct switching and a fixed trailing settings icon. The icon
-  opens a centered standalone settings window with a native preference-style
-  Folders/Style toolbar.
+  opens a centered standalone settings window with a close-only titlebar, a native
+  preference-style Folders/Style toolbar, and an explicit separator above content.
 - The Folders page lists each tab's abbreviated path with trailing drag and remove controls,
   keeps a Glass Add Folder action in the section heading, and places Remove Panel in a
   descriptive danger card using the standard content material.

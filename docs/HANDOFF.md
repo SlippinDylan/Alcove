@@ -127,8 +127,8 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - Portal 右上角使用 SF Symbol `gearshape`，不再使用 `slider.horizontal.3` 或 `•••`。
 - 点击后打开独立设置窗口，**不是 `NSPopover` 气泡**。
 - 窗口外框固定为约 `400×572pt`，每次打开在当前 Portal 所在屏幕的 visible frame 水平、垂直居中。
-- 使用原生 titled/closable `NSWindow`；显示红色关闭按钮，隐藏最小化和缩放按钮。
-- 使用原生 preference-style `NSToolbar` 承载 Folders、Style 分类导航、选中状态和底部分割层级。
+- 使用原生 titled/closable `NSWindow`；最顶部的独立标题栏显示红色关闭按钮，隐藏最小化和缩放按钮。
+- 标题栏下使用原生 preference-style `NSToolbar` 承载 Folders、Style 分类导航和选中状态，并以显式系统分割线隔开下方内容。
 - Folders 使用 `NSTableView` 列表卡片：Glass Add Folder 位于章节标题右侧，每行显示 `~` 缩写路径，右侧提供拖拽提示和无边框删除按钮；原生拖放显示 gap 反馈并执行一次原子排序。Remove Panel 位于同页最下方带主副标题的独立危险操作卡片。
 - Style 使用三档图标尺寸滑块和五档背景强度滑块。
 - 内容使用接近系统设置的“章节标题 + 圆角分组卡片”结构。

@@ -292,15 +292,15 @@ final class PortalSettingsWindowController: NSWindowController {
         )
         self.settingsViewController = settingsViewController
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 478),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 450),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
         window.contentViewController = settingsViewController
-        window.setContentSize(NSSize(width: 400, height: 478))
-        window.title = NSLocalizedString("portal.settings.title", comment: "Portal settings title")
-        window.titleVisibility = .hidden
+        window.setContentSize(NSSize(width: 400, height: 450))
+        window.title = ""
+        window.titleVisibility = .visible
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
@@ -351,7 +351,7 @@ final class PortalSettingsWindowController: NSWindowController {
         settingsToolbar.autosavesConfiguration = false
         window.toolbarStyle = .preference
         window.toolbar = settingsToolbar
-        window.titlebarSeparatorStyle = .line
+        window.titlebarSeparatorStyle = .none
         settingsToolbar.selectedItemIdentifier = PortalSettingsViewController.Category.folders
             .toolbarItemIdentifier
     }
@@ -449,6 +449,7 @@ final class PortalSettingsViewController: NSViewController {
     private let onSetBackgroundStyle: (PortalBackgroundStyle) -> Void
     private let onRemovePortal: () -> Void
     private(set) var selectedCategory = Category.folders
+    private(set) var contentSeparator = NSBox()
     private(set) var scrollView = NSScrollView()
     private(set) var contentStack: NSStackView = PortalSettingsContentStackView()
     private(set) var folderListView: PortalSettingsFolderListView?
@@ -482,6 +483,10 @@ final class PortalSettingsViewController: NSViewController {
         let root = NSView()
         root.userInterfaceLayoutDirection = .leftToRight
 
+        contentSeparator.boxType = .separator
+        contentSeparator.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(contentSeparator)
+
         contentStack.orientation = .vertical
         contentStack.alignment = .width
         contentStack.distribution = .fill
@@ -504,9 +509,12 @@ final class PortalSettingsViewController: NSViewController {
         root.addSubview(scrollView)
 
         NSLayoutConstraint.activate([
+            contentSeparator.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            contentSeparator.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            contentSeparator.topAnchor.constraint(equalTo: root.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: root.topAnchor),
+            scrollView.topAnchor.constraint(equalTo: contentSeparator.bottomAnchor),
             scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
         ])
         view = root
@@ -861,6 +869,7 @@ final class PortalSettingsFolderListView: NSScrollView, NSTableViewDataSource, N
         column.resizingMask = .autoresizingMask
         tableView.addTableColumn(column)
         tableView.headerView = nil
+        tableView.style = .plain
         tableView.backgroundColor = .clear
         tableView.intercellSpacing = .zero
         tableView.rowHeight = 36
