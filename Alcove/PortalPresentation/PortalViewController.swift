@@ -120,17 +120,17 @@ final class PortalViewController: NSViewController {
     var onMoveTab: ((FolderTabID, Int) -> Void)? {
         didSet { tabBarView.onMoveTab = onMoveTab }
     }
-    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? {
-        didSet { tabBarView.onSetBackgroundStyle = onSetBackgroundStyle }
-    }
-    var onSetIconSize: ((IconSize) -> Void)? {
-        didSet { tabBarView.onSetIconSize = onSetIconSize }
-    }
     var onRemovePortal: (() -> Void)? {
         didSet { tabBarView.onRemovePortal = onRemovePortal }
     }
     var onSetPinned: ((Bool) -> Void)? {
         didSet { tabBarView.onSetPinned = onSetPinned }
+    }
+    var onSetSortOrder: ((PortalSortOrder) -> Void)? {
+        didSet { tabBarView.onSetSortOrder = onSetSortOrder }
+    }
+    var onSetTint: ((PortalTint) -> Void)? {
+        didSet { tabBarView.onSetTint = onSetTint }
     }
     var onQuickLookRequested: (([URL]) -> Void)?
     var onQuickLookSelectionChanged: (([URL]) -> Void)?
@@ -156,7 +156,8 @@ final class PortalViewController: NSViewController {
         portalMaterialView = PortalChromeMaterialView(
             contentView: NSView(),
             role: .surface,
-            backgroundStyle: portal.backgroundStyle
+            backgroundStyle: portal.backgroundStyle,
+            portalTint: portal.tint
         )
         if let gridViewController {
             gridViewController.updateGridCapacity(portal.gridCapacity)
@@ -191,9 +192,6 @@ final class PortalViewController: NSViewController {
         tabBarView.onSelect = { [weak self] id in self?.onSelectTab?(id) }
         tabBarView.onAdd = { [weak self] in self?.onAddTab?() }
         tabBarView.onClose = { [weak self] id in self?.onCloseTab?(id) }
-        tabBarView.onSetBackgroundStyle = { [weak self] style in
-            self?.onSetBackgroundStyle?(style)
-        }
         tabBarView.configure(with: portal)
         rootView.addSubview(tabBarView)
 
@@ -355,6 +353,7 @@ final class PortalViewController: NSViewController {
         let previousGridCapacity = self.portal.gridCapacity
         let previousBackgroundStyle = self.portal.backgroundStyle
         let previousSortOrder = self.portal.sortOrder
+        let previousTint = self.portal.tint
         let previousFolderURL = folderURL
         if isViewLoaded,
            let previousTabID,
@@ -374,6 +373,9 @@ final class PortalViewController: NSViewController {
         }
         if portal.backgroundStyle != previousBackgroundStyle {
             portalMaterialView.updateBackgroundStyle(portal.backgroundStyle)
+        }
+        if portal.tint != previousTint {
+            portalMaterialView.updatePortalTint(portal.tint)
         }
         runtimeStates = runtimeStates.filter { id, _ in
             portal.tabs.contains(where: { $0.id == id })

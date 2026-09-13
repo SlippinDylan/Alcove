@@ -72,7 +72,7 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testPinButtonForwardsTheNextPersistentState() throws {
+    func testManagementMenuForwardsTheNextPersistentPinnedState() throws {
         var portal = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/portal"),
             frame: CGRect(x: 0, y: 0, width: 420, height: 360),
@@ -89,14 +89,15 @@ final class PortalViewControllerTests: XCTestCase {
             descendants(of: controller.view).compactMap { $0 as? TabBarView }.first
         )
 
-        tabBar.pinButton.performClick(nil)
+        tabBar.makeManagementMenu().performActionForItem(at: 0)
         portal.updatePinned(true)
         controller.updatePortal(portal)
-        tabBar.pinButton.performClick(nil)
+        let pinnedMenu = tabBar.makeManagementMenu()
+        pinnedMenu.performActionForItem(at: 0)
 
         XCTAssertEqual(requestedStates, [true, false])
         XCTAssertEqual(
-            tabBar.pinButton.accessibilityLabel(),
+            pinnedMenu.items[0].title,
             NSLocalizedString("portal.pin.unpin", comment: "")
         )
     }
@@ -207,7 +208,7 @@ final class PortalViewControllerTests: XCTestCase {
         let tabBar = try XCTUnwrap(
             descendants(of: controller.view).compactMap { $0 as? TabBarView }.first
         )
-        tabBar.managementButton.performClick(nil)
+        tabBar.showSettingsWindow()
         let settingsController = try XCTUnwrap(tabBar.settingsWindowController)
         let settingsViewController = settingsController.settingsViewController
         settingsController.selectCategory(.style)

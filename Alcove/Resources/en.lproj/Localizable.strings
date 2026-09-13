@@ -95,9 +95,13 @@
 "portal.settings.label" = "Portal settings";
 "portal.settings.help" = "Configure folders, style, and portal actions";
 "portal.settings.title" = "Portal Settings";
+"portal.settings.general" = "General";
 "portal.settings.folders" = "Folders";
 "portal.settings.folders.empty" = "No folders yet. Use Add Folder to add one.";
 "portal.settings.style" = "Style";
+"portal.settings.open" = "Panel Settings…";
+"portal.settings.sorting" = "Sorting";
+"portal.settings.tint" = "Color";
 "portal.settings.add_folder" = "Add Folder";
 "portal.settings.reorder_folder" = "Drag to reorder folder";
 "portal.settings.remove_folder_action" = "Remove Folder";
@@ -117,6 +121,23 @@
 "portal.settings.standard" = "Standard";
 "portal.settings.low_transparency" = "Low Transparency";
 "portal.settings.minimum_transparency" = "Minimum Transparency";
+"portal.sort.title" = "Sort By";
+"portal.sort.name" = "Name";
+"portal.sort.modification_date" = "Date Modified";
+"portal.sort.creation_date" = "Date Created";
+"portal.tint.default" = "Default";
+"portal.tint.red" = "Red";
+"portal.tint.orange" = "Orange";
+"portal.tint.yellow" = "Yellow";
+"portal.tint.green" = "Green";
+"portal.tint.blue" = "Blue";
+"portal.tint.indigo" = "Indigo";
+"portal.tint.purple" = "Purple";
+"portal.remove.menu" = "Delete Panel…";
+"portal.remove.confirm.title" = "Delete This Panel?";
+"portal.remove.confirm.detail" = "This removes the panel from Alcove. It does not delete any files or folders.";
+"portal.remove.confirm.action" = "Delete Panel";
+"action.cancel" = "Cancel";
 
 /* Portal content states */
 "portal.choose" = "Choose Folder…";

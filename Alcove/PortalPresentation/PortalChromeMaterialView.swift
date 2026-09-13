@@ -51,6 +51,7 @@ final class PortalChromeMaterialView: NSView {
     private let supportsGlass: Bool
     private let notificationCenter: NotificationCenter
     private var backgroundStyle: PortalBackgroundStyle
+    private var portalTint: PortalTint
     private var surfaceCornerRadius: CGFloat
     private var observation: PortalMaterialObservation?
     private var observationGeneration: UInt64 = 0
@@ -66,6 +67,7 @@ final class PortalChromeMaterialView: NSView {
         contentView: NSView,
         role: PortalChromeMaterialRole = .controlGroup,
         backgroundStyle: PortalBackgroundStyle = .standard,
+        portalTint: PortalTint = .default,
         cornerRadius: CGFloat = 24,
         accessibilityProvider: @escaping AccessibilityProvider = {
             PortalAccessibilityOptions.current()
@@ -79,6 +81,7 @@ final class PortalChromeMaterialView: NSView {
         self.supportsGlass = supportsGlass
         self.notificationCenter = notificationCenter
         self.backgroundStyle = backgroundStyle
+        self.portalTint = portalTint
         surfaceCornerRadius = cornerRadius
         accessibility = accessibilityProvider()
         materialPath = PortalChromeMaterialResolver.resolve(
@@ -151,6 +154,12 @@ final class PortalChromeMaterialView: NSView {
     func updateBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) {
         guard role == .surface else { return }
         self.backgroundStyle = backgroundStyle
+        applySurfaceStyle()
+    }
+
+    func updatePortalTint(_ portalTint: PortalTint) {
+        guard role == .surface, self.portalTint != portalTint else { return }
+        self.portalTint = portalTint
         applySurfaceStyle()
     }
 
@@ -290,6 +299,14 @@ final class PortalChromeMaterialView: NSView {
     }
 
     private var surfaceTintColor: NSColor {
+        if let color = portalTint.color {
+            return NSColor(
+                srgbRed: color.red,
+                green: color.green,
+                blue: color.blue,
+                alpha: 1
+            )
+        }
         if effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
             return .black
         }

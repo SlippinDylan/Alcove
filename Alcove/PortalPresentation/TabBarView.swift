@@ -14,16 +14,42 @@ final class TabBarView: NSView {
     var onSelect: ((FolderTabID) -> Void)?
     var onClose: ((FolderTabID) -> Void)?
     var onAdd: (() -> Void)?
-    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)?
-    var onSetIconSize: ((IconSize) -> Void)?
     var onMoveTab: ((FolderTabID, Int) -> Void)?
     var onRemovePortal: (() -> Void)?
     var onSetPinned: ((Bool) -> Void)?
+    var onSetSortOrder: ((PortalSortOrder) -> Void)?
+    var onSetTint: ((PortalTint) -> Void)?
+    var removalConfirmationPresenter: ((NSWindow?, @escaping (Bool) -> Void) -> Void) = {
+        window, completion in
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = NSLocalizedString(
+            "portal.remove.confirm.title",
+            comment: "Remove portal confirmation title"
+        )
+        alert.informativeText = NSLocalizedString(
+            "portal.remove.confirm.detail",
+            comment: "Remove portal confirmation detail"
+        )
+        alert.addButton(withTitle: NSLocalizedString(
+            "portal.remove.confirm.action",
+            comment: "Remove portal confirmation action"
+        ))
+        alert.addButton(withTitle: NSLocalizedString("action.cancel", comment: "Cancel"))
+        alert.buttons.first?.hasDestructiveAction = true
+        if let window {
+            alert.beginSheetModal(for: window) { response in
+                completion(response == .alertFirstButtonReturn)
+            }
+        } else {
+            completion(alert.runModal() == .alertFirstButtonReturn)
+        }
+    }
 
     private(set) var scrollView = NSScrollView()
     private let stackView = NSStackView()
     private(set) var managementButton = NSButton()
-    private(set) var pinButton = NSButton()
+    private(set) var managementMenu: NSMenu?
     private(set) var settingsWindowController: PortalSettingsWindowController?
     private var actionTargets: [TabActionTarget] = []
     private var portal: Portal?
@@ -77,7 +103,6 @@ final class TabBarView: NSView {
 
     func update(with portal: Portal) {
         self.portal = portal
-        updatePinButton(for: portal)
         tabOrder = portal.tabs.map(\.id)
         selectedTabID = portal.selectedTabID
         tabButtons.removeAll(keepingCapacity: true)
@@ -114,14 +139,6 @@ final class TabBarView: NSView {
 
         addSubview(scrollView)
 
-        pinButton.imageScaling = .scaleProportionallyDown
-        pinButton.imagePosition = .imageOnly
-        pinButton.isBordered = false
-        pinButton.target = self
-        pinButton.action = #selector(togglePinned)
-        pinButton.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(pinButton)
-
         managementButton.image = NSImage(
             systemSymbolName: "gearshape",
             accessibilityDescription: nil
@@ -130,7 +147,7 @@ final class TabBarView: NSView {
         managementButton.imagePosition = .imageOnly
         managementButton.isBordered = false
         managementButton.target = self
-        managementButton.action = #selector(showSettingsWindow)
+        managementButton.action = #selector(showManagementMenu)
         managementButton.setAccessibilityLabel(
             NSLocalizedString("portal.settings.label", comment: "Portal settings")
         )
@@ -145,11 +162,7 @@ final class TabBarView: NSView {
         updateManagementButtonAppearance()
 
         NSLayoutConstraint.activate([
-            pinButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            pinButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            pinButton.widthAnchor.constraint(equalToConstant: 30),
-            pinButton.heightAnchor.constraint(equalToConstant: 30),
-            managementButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            managementButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -9),
             managementButton.centerYAnchor.constraint(equalTo: centerYAnchor),
             managementButton.widthAnchor.constraint(equalToConstant: 30),
             managementButton.heightAnchor.constraint(equalToConstant: 30),
@@ -179,7 +192,6 @@ final class TabBarView: NSView {
     private func updateManagementButtonAppearance() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
             managementButton.contentTintColor = activeLabelColor
-            pinButton.contentTintColor = activeLabelColor
         }
     }
 
@@ -189,7 +201,71 @@ final class TabBarView: NSView {
             : .black
     }
 
-    @objc private func showSettingsWindow() {
+    @objc private func showManagementMenu() {
+        let menu = makeManagementMenu()
+        managementMenu = menu
+        menu.popUp(
+            positioning: nil,
+            at: NSPoint(x: managementButton.bounds.maxX, y: managementButton.bounds.minY),
+            in: managementButton
+        )
+    }
+
+    func makeManagementMenu() -> NSMenu {
+        let menu = NSMenu()
+        guard let portal else { return menu }
+
+        let pinItem = NSMenuItem(
+            title: portal.isPinned
+                ? NSLocalizedString("portal.pin.unpin", comment: "Unpin a portal")
+                : NSLocalizedString("portal.pin.pin", comment: "Pin a portal"),
+            action: #selector(togglePinned),
+            keyEquivalent: ""
+        )
+        pinItem.target = self
+        menu.addItem(pinItem)
+
+        let sortMenu = NSMenu()
+        for (index, sortOrder) in PortalSortOrder.allCases.enumerated() {
+            let item = NSMenuItem(
+                title: sortOrderTitle(sortOrder),
+                action: #selector(selectSortOrder(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.tag = index
+            item.state = sortOrder == portal.sortOrder ? .on : .off
+            sortMenu.addItem(item)
+        }
+        let sortItem = NSMenuItem(
+            title: NSLocalizedString("portal.sort.title", comment: "Sort submenu"),
+            action: nil,
+            keyEquivalent: ""
+        )
+        sortItem.submenu = sortMenu
+        menu.addItem(sortItem)
+
+        let settingsItem = NSMenuItem(
+            title: NSLocalizedString("portal.settings.open", comment: "Open panel settings"),
+            action: #selector(showSettingsWindow),
+            keyEquivalent: ""
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        menu.addItem(.separator())
+
+        let removeItem = NSMenuItem(
+            title: NSLocalizedString("portal.remove.menu", comment: "Remove portal menu item"),
+            action: #selector(confirmPortalRemoval),
+            keyEquivalent: ""
+        )
+        removeItem.target = self
+        removeItem.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+        menu.addItem(removeItem)
+        return menu
+    }
+
+    @objc func showSettingsWindow() {
         guard let portal else { return }
         let controller = settingsWindowController ?? makeSettingsWindowController(for: portal)
         settingsWindowController = controller
@@ -202,27 +278,27 @@ final class TabBarView: NSView {
         onSetPinned?(!portal.isPinned)
     }
 
-    private func updatePinButton(for portal: Portal) {
-        let title = portal.isPinned
-            ? NSLocalizedString("portal.pin.unpin", comment: "Unpin a portal")
-            : NSLocalizedString("portal.pin.pin", comment: "Pin a portal")
-        pinButton.image = NSImage(
-            systemSymbolName: portal.isPinned ? "pin.fill" : "pin",
-            accessibilityDescription: nil
-        )
-        pinButton.setAccessibilityLabel(title)
-        pinButton.setAccessibilityHelp(
-            portal.isPinned
-                ? NSLocalizedString(
-                    "portal.pin.unpin.help",
-                    comment: "Accessibility help for unpinning a portal"
-                )
-                : NSLocalizedString(
-                    "portal.pin.pin.help",
-                    comment: "Accessibility help for pinning a portal"
-                )
-        )
-        pinButton.toolTip = title
+    @objc private func selectSortOrder(_ sender: NSMenuItem) {
+        guard PortalSortOrder.allCases.indices.contains(sender.tag) else { return }
+        onSetSortOrder?(PortalSortOrder.allCases[sender.tag])
+    }
+
+    @objc private func confirmPortalRemoval() {
+        removalConfirmationPresenter(window) { [weak self] confirmed in
+            guard confirmed else { return }
+            self?.onRemovePortal?()
+        }
+    }
+
+    private func sortOrderTitle(_ sortOrder: PortalSortOrder) -> String {
+        switch sortOrder {
+        case .name:
+            NSLocalizedString("portal.sort.name", comment: "Sort by name")
+        case .modificationDate:
+            NSLocalizedString("portal.sort.modification_date", comment: "Sort by modification date")
+        case .creationDate:
+            NSLocalizedString("portal.sort.creation_date", comment: "Sort by creation date")
+        }
     }
 
     private func makeSettingsWindowController(
@@ -233,11 +309,8 @@ final class TabBarView: NSView {
             onAddFolder: { [weak self] in self?.onAdd?() },
             onCloseFolder: { [weak self] id in self?.onClose?(id) },
             onMoveFolder: { [weak self] id, index in self?.onMoveTab?(id, index) },
-            onSetIconSize: { [weak self] size in self?.onSetIconSize?(size) },
-            onSetBackgroundStyle: { [weak self] style in
-                self?.onSetBackgroundStyle?(style)
-            },
-            onRemovePortal: { [weak self] in self?.onRemovePortal?() }
+            onSetSortOrder: { [weak self] order in self?.onSetSortOrder?(order) },
+            onSetTint: { [weak self] tint in self?.onSetTint?(tint) }
         )
     }
 
@@ -264,9 +337,8 @@ final class PortalSettingsWindowController: NSWindowController {
         onAddFolder: @escaping () -> Void,
         onCloseFolder: @escaping (FolderTabID) -> Void,
         onMoveFolder: @escaping (FolderTabID, Int) -> Void,
-        onSetIconSize: @escaping (IconSize) -> Void,
-        onSetBackgroundStyle: @escaping (PortalBackgroundStyle) -> Void,
-        onRemovePortal: @escaping () -> Void
+        onSetSortOrder: @escaping (PortalSortOrder) -> Void,
+        onSetTint: @escaping (PortalTint) -> Void
     ) {
         self.portal = portal
         let settingsViewController = PortalSettingsViewController(
@@ -274,9 +346,8 @@ final class PortalSettingsWindowController: NSWindowController {
             onAddFolder: onAddFolder,
             onCloseFolder: onCloseFolder,
             onMoveFolder: onMoveFolder,
-            onSetIconSize: onSetIconSize,
-            onSetBackgroundStyle: onSetBackgroundStyle,
-            onRemovePortal: onRemovePortal
+            onSetSortOrder: onSetSortOrder,
+            onSetTint: onSetTint
         )
         self.settingsViewController = settingsViewController
         let window = NSWindow(
@@ -340,7 +411,7 @@ final class PortalSettingsWindowController: NSWindowController {
         window.toolbarStyle = .preference
         window.toolbar = settingsToolbar
         window.titlebarSeparatorStyle = .none
-        settingsToolbar.selectedItemIdentifier = PortalSettingsViewController.Category.folders
+        settingsToolbar.selectedItemIdentifier = PortalSettingsViewController.Category.general
             .toolbarItemIdentifier
     }
 
@@ -396,11 +467,14 @@ extension PortalSettingsWindowController: NSToolbarDelegate {
 @MainActor
 final class PortalSettingsViewController: NSViewController {
     enum Category: Int, CaseIterable {
+        case general
         case folders
         case style
 
         var title: String {
             switch self {
+            case .general:
+                NSLocalizedString("portal.settings.general", comment: "General settings category")
             case .folders:
                 NSLocalizedString("portal.settings.folders", comment: "Folders settings category")
             case .style:
@@ -410,6 +484,7 @@ final class PortalSettingsViewController: NSViewController {
 
         var symbol: String {
             switch self {
+            case .general: "gearshape"
             case .folders: "folder"
             case .style: "paintpalette"
             }
@@ -433,14 +508,15 @@ final class PortalSettingsViewController: NSViewController {
     private let onAddFolder: () -> Void
     private let onCloseFolder: (FolderTabID) -> Void
     private let onMoveFolder: (FolderTabID, Int) -> Void
-    private let onSetIconSize: (IconSize) -> Void
-    private let onSetBackgroundStyle: (PortalBackgroundStyle) -> Void
-    private let onRemovePortal: () -> Void
-    private(set) var selectedCategory = Category.folders
+    private let onSetSortOrder: (PortalSortOrder) -> Void
+    private let onSetTint: (PortalTint) -> Void
+    private(set) var selectedCategory = Category.general
     private(set) var contentSeparator = NSBox()
     private(set) var scrollView = NSScrollView()
     private(set) var contentStack: NSStackView = PortalSettingsContentStackView()
     private(set) var folderListView: PortalSettingsFolderListView?
+    private(set) var sortPopUpButton: NSPopUpButton?
+    private(set) var tintPopUpButton: NSPopUpButton?
     private let documentView = PortalSettingsDocumentView()
 
     init(
@@ -448,17 +524,15 @@ final class PortalSettingsViewController: NSViewController {
         onAddFolder: @escaping () -> Void,
         onCloseFolder: @escaping (FolderTabID) -> Void,
         onMoveFolder: @escaping (FolderTabID, Int) -> Void,
-        onSetIconSize: @escaping (IconSize) -> Void,
-        onSetBackgroundStyle: @escaping (PortalBackgroundStyle) -> Void,
-        onRemovePortal: @escaping () -> Void
+        onSetSortOrder: @escaping (PortalSortOrder) -> Void,
+        onSetTint: @escaping (PortalTint) -> Void
     ) {
         self.portal = portal
         self.onAddFolder = onAddFolder
         self.onCloseFolder = onCloseFolder
         self.onMoveFolder = onMoveFolder
-        self.onSetIconSize = onSetIconSize
-        self.onSetBackgroundStyle = onSetBackgroundStyle
-        self.onRemovePortal = onRemovePortal
+        self.onSetSortOrder = onSetSortOrder
+        self.onSetTint = onSetTint
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -623,8 +697,20 @@ final class PortalSettingsViewController: NSViewController {
             view.removeFromSuperview()
         }
         folderListView = nil
+        sortPopUpButton = nil
+        tintPopUpButton = nil
 
         switch category {
+        case .general:
+            let popUp = makeSortPopUpButton()
+            sortPopUpButton = popUp
+            addSection(
+                title: NSLocalizedString("portal.settings.sorting", comment: "Sorting section"),
+                card: PortalSettingsCardView(rows: [styleRow(
+                    title: NSLocalizedString("portal.sort.title", comment: "Sort order"),
+                    control: popUp
+                )])
+            )
         case .folders:
             let folderContent: NSView
             if portal.tabs.isEmpty {
@@ -650,103 +736,38 @@ final class PortalSettingsViewController: NSViewController {
                 accessory: addButton,
                 card: PortalSettingsCardView(rows: [folderContent])
             )
-            addSection(
-                title: NSLocalizedString("portal.settings.panel", comment: "Panel settings section"),
-                card: PortalSettingsCardView(rows: [removePortalRow()])
-            )
         case .style:
-            break
+            let popUp = makeTintPopUpButton()
+            tintPopUpButton = popUp
+            addSection(
+                title: NSLocalizedString("portal.settings.appearance", comment: "Appearance section"),
+                card: PortalSettingsCardView(rows: [styleRow(
+                    title: NSLocalizedString("portal.settings.tint", comment: "Panel tint"),
+                    control: popUp
+                )])
+            )
         }
         layoutSettingsContent()
     }
 
-    private func iconSizeSlider() -> NSSlider {
-        let sizes: [IconSize] = [.small, .medium, .large]
-        let selectedIndex = sizes.enumerated().min { lhs, rhs in
-            abs(lhs.element.rawValue - portal.iconSize.rawValue)
-                < abs(rhs.element.rawValue - portal.iconSize.rawValue)
-        }?.offset ?? 1
-        let slider = discreteSlider(
-            identifier: "portal-settings.icon-size",
-            value: selectedIndex,
-            maximum: sizes.count - 1,
-            action: #selector(changeIconSize(_:))
-        )
-        slider.setAccessibilityLabel(
-            NSLocalizedString("portal.settings.icon_size", comment: "Icon size slider")
-        )
-        slider.setAccessibilityValue(iconSizeTitle(sizes[selectedIndex]))
-        return slider
+    private func makeSortPopUpButton() -> NSPopUpButton {
+        let popUp = NSPopUpButton()
+        popUp.identifier = NSUserInterfaceItemIdentifier("portal-settings.sort-order")
+        PortalSortOrder.allCases.forEach { popUp.addItem(withTitle: sortOrderTitle($0)) }
+        popUp.selectItem(at: PortalSortOrder.allCases.firstIndex(of: portal.sortOrder) ?? 0)
+        popUp.target = self
+        popUp.action = #selector(changeSortOrder(_:))
+        return popUp
     }
 
-    private func backgroundSlider() -> NSSlider {
-        let styles = PortalBackgroundStyle.allCases
-        let slider = discreteSlider(
-            identifier: "portal-settings.background",
-            value: styles.firstIndex(of: portal.backgroundStyle) ?? 2,
-            maximum: styles.count - 1,
-            action: #selector(changeBackground(_:))
-        )
-        slider.setAccessibilityLabel(
-            NSLocalizedString("portal.settings.background", comment: "Background slider")
-        )
-        slider.setAccessibilityValue(backgroundStyleTitle(styles[Int(slider.doubleValue)]))
-        return slider
-    }
-
-    private func discreteSlider(
-        identifier: String,
-        value: Int,
-        maximum: Int,
-        action: Selector
-    ) -> NSSlider {
-        let slider = NSSlider(
-            value: Double(value),
-            minValue: 0,
-            maxValue: Double(maximum),
-            target: self,
-            action: action
-        )
-        slider.identifier = NSUserInterfaceItemIdentifier(identifier)
-        slider.numberOfTickMarks = maximum + 1
-        slider.allowsTickMarkValuesOnly = true
-        slider.tickMarkPosition = .below
-        slider.widthAnchor.constraint(equalToConstant: 180).isActive = true
-        return slider
-    }
-
-    private func removePortalRow() -> NSView {
-        let title = NSTextField(labelWithString: NSLocalizedString(
-            "portal.settings.remove_portal_title",
-            comment: "Remove portal setting title"
-        ))
-        title.font = .systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
-        let detail = NSTextField(wrappingLabelWithString: NSLocalizedString(
-            "portal.settings.remove_portal_detail",
-            comment: "Remove portal setting detail"
-        ))
-        detail.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        detail.textColor = .secondaryLabelColor
-        let labels = NSStackView(views: [title, detail])
-        labels.orientation = .vertical
-        labels.alignment = .leading
-        labels.spacing = 2
-        labels.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-        let button = actionButton(
-            title: NSLocalizedString("portal.settings.remove_portal", comment: "Remove portal"),
-            symbol: nil,
-            bezelColor: .systemRed,
-            hasDestructiveAction: true,
-            action: #selector(removePortal)
-        )
-        let row = NSStackView(views: [labels, button])
-        row.orientation = .horizontal
-        row.distribution = .fill
-        row.alignment = .centerY
-        row.spacing = 12
-        row.heightAnchor.constraint(greaterThanOrEqualToConstant: 48).isActive = true
-        return row
+    private func makeTintPopUpButton() -> NSPopUpButton {
+        let popUp = NSPopUpButton()
+        popUp.identifier = NSUserInterfaceItemIdentifier("portal-settings.tint")
+        PortalTint.allCases.forEach { popUp.addItem(withTitle: tintTitle($0)) }
+        popUp.selectItem(at: PortalTint.allCases.firstIndex(of: portal.tint) ?? 0)
+        popUp.target = self
+        popUp.action = #selector(changeTint(_:))
+        return popUp
     }
 
     func reorderFolder(_ id: FolderTabID, to targetIndex: Int) {
@@ -779,48 +800,37 @@ final class PortalSettingsViewController: NSViewController {
         onAddFolder()
     }
 
-    @objc private func changeIconSize(_ sender: NSSlider) {
-        let sizes: [IconSize] = [.small, .medium, .large]
-        let index = Int(sender.doubleValue.rounded())
-        guard sizes.indices.contains(index) else { return }
-        sender.setAccessibilityValue(iconSizeTitle(sizes[index]))
-        onSetIconSize(sizes[index])
+    @objc private func changeSortOrder(_ sender: NSPopUpButton) {
+        guard PortalSortOrder.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
+        onSetSortOrder(PortalSortOrder.allCases[sender.indexOfSelectedItem])
     }
 
-    @objc private func changeBackground(_ sender: NSSlider) {
-        let styles = PortalBackgroundStyle.allCases
-        let index = Int(sender.doubleValue.rounded())
-        guard styles.indices.contains(index) else { return }
-        sender.setAccessibilityValue(backgroundStyleTitle(styles[index]))
-        onSetBackgroundStyle(styles[index])
+    @objc private func changeTint(_ sender: NSPopUpButton) {
+        guard PortalTint.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
+        onSetTint(PortalTint.allCases[sender.indexOfSelectedItem])
     }
 
-    private func iconSizeTitle(_ iconSize: IconSize) -> String {
-        switch iconSize {
-        case .small: NSLocalizedString("portal.settings.small", comment: "Small icon size")
-        case .medium: NSLocalizedString("portal.settings.medium", comment: "Medium icon size")
-        case .large: NSLocalizedString("portal.settings.large", comment: "Large icon size")
-        default: NSLocalizedString("portal.settings.medium", comment: "Medium icon size")
+    private func sortOrderTitle(_ sortOrder: PortalSortOrder) -> String {
+        switch sortOrder {
+        case .name: NSLocalizedString("portal.sort.name", comment: "Sort by name")
+        case .modificationDate:
+            NSLocalizedString("portal.sort.modification_date", comment: "Sort by modification date")
+        case .creationDate:
+            NSLocalizedString("portal.sort.creation_date", comment: "Sort by creation date")
         }
     }
 
-    private func backgroundStyleTitle(_ style: PortalBackgroundStyle) -> String {
-        switch style {
-        case .maximumTransparency:
-            NSLocalizedString("portal.settings.maximum_transparency", comment: "Maximum transparency")
-        case .highTransparency:
-            NSLocalizedString("portal.settings.high_transparency", comment: "High transparency")
-        case .standard:
-            NSLocalizedString("portal.settings.standard", comment: "Standard background")
-        case .lowTransparency:
-            NSLocalizedString("portal.settings.low_transparency", comment: "Low transparency")
-        case .minimumTransparency:
-            NSLocalizedString("portal.settings.minimum_transparency", comment: "Minimum transparency")
+    private func tintTitle(_ tint: PortalTint) -> String {
+        switch tint {
+        case .default: NSLocalizedString("portal.tint.default", comment: "Default tint")
+        case .red: NSLocalizedString("portal.tint.red", comment: "Red tint")
+        case .orange: NSLocalizedString("portal.tint.orange", comment: "Orange tint")
+        case .yellow: NSLocalizedString("portal.tint.yellow", comment: "Yellow tint")
+        case .green: NSLocalizedString("portal.tint.green", comment: "Green tint")
+        case .blue: NSLocalizedString("portal.tint.blue", comment: "Blue tint")
+        case .indigo: NSLocalizedString("portal.tint.indigo", comment: "Indigo tint")
+        case .purple: NSLocalizedString("portal.tint.purple", comment: "Purple tint")
         }
-    }
-
-    @objc private func removePortal() {
-        onRemovePortal()
     }
 }
 

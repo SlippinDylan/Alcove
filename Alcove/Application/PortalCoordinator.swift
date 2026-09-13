@@ -410,6 +410,40 @@ final class PortalCoordinator: PortalCoordinating {
         }
     }
 
+    func setSortOrder(_ sortOrder: PortalSortOrder, for portalID: PortalID) async {
+        do {
+            try await performMutation { [weak self] in
+                guard let self,
+                      let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
+                    return
+                }
+                var portal = portalStates[index]
+                portal.updateSortOrder(sortOrder)
+                try await commit(portal, at: index)
+            }
+            persistenceError = nil
+        } catch {
+            presentPersistenceError(error)
+        }
+    }
+
+    func setTint(_ tint: PortalTint, for portalID: PortalID) async {
+        do {
+            try await performMutation { [weak self] in
+                guard let self,
+                      let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
+                    return
+                }
+                var portal = portalStates[index]
+                portal.updateTint(tint)
+                try await commit(portal, at: index)
+            }
+            persistenceError = nil
+        } catch {
+            presentPersistenceError(error)
+        }
+    }
+
     private func present(_ portal: Portal, transition: PlacementTransition) {
         placementSessions[portal.id] = transition.session
         let window = windowFactory.makeWindow(for: portal)
@@ -465,16 +499,6 @@ final class PortalCoordinator: PortalCoordinating {
                 await self?.relocateTab(tabID, in: portal.id)
             }
         }
-        window.onSetBackgroundStyle = { [weak self] backgroundStyle in
-            self?.startTabMutationTask {
-                await self?.setBackgroundStyle(backgroundStyle, for: portal.id)
-            }
-        }
-        window.onSetIconSize = { [weak self] iconSize in
-            self?.startTabMutationTask {
-                await self?.setIconSize(iconSize, for: portal.id)
-            }
-        }
         window.onRemovePortal = { [weak self] in
             self?.startTabMutationTask {
                 await self?.removePortal(portal.id)
@@ -483,6 +507,16 @@ final class PortalCoordinator: PortalCoordinating {
         window.onSetPinned = { [weak self] isPinned in
             self?.startTabMutationTask {
                 await self?.setPinned(isPinned, for: portal.id)
+            }
+        }
+        window.onSetSortOrder = { [weak self] sortOrder in
+            self?.startTabMutationTask {
+                await self?.setSortOrder(sortOrder, for: portal.id)
+            }
+        }
+        window.onSetTint = { [weak self] tint in
+            self?.startTabMutationTask {
+                await self?.setTint(tint, for: portal.id)
             }
         }
         windows[portal.id] = window
@@ -1264,7 +1298,9 @@ final class PortalCoordinator: PortalCoordinating {
             iconLayout: portal.iconLayout,
             backgroundStyle: portal.backgroundStyle,
             gridCapacity: portal.gridCapacity,
-            isPinned: portal.isPinned
+            isPinned: portal.isPinned,
+            sortOrder: portal.sortOrder,
+            tint: portal.tint
         )
     }
 

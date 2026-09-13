@@ -298,6 +298,30 @@ final class PortalChromeMaterialViewTests: XCTestCase {
     }
 
     @MainActor
+    func testPortalTintChangesHueWithoutReplacingTheMaterial() throws {
+        let surface = PortalChromeMaterialView(
+            contentView: NSView(),
+            role: .surface,
+            backgroundStyle: .lowTransparency,
+            portalTint: .red,
+            accessibilityProvider: { .standard },
+            supportsGlass: false,
+            notificationCenter: NotificationCenter()
+        )
+        let material = surface.materialView
+
+        let red = try tintColor(of: surface)
+        XCTAssertGreaterThan(red.redComponent, red.greenComponent)
+        XCTAssertEqual(red.alphaComponent, 0.26, accuracy: 0.001)
+
+        surface.updatePortalTint(.blue)
+
+        let blue = try tintColor(of: surface)
+        XCTAssertGreaterThan(blue.blueComponent, blue.redComponent)
+        XCTAssertTrue(surface.materialView === material)
+    }
+
+    @MainActor
     private func tintColor(of surface: PortalChromeMaterialView) throws -> NSColor {
         let color = try XCTUnwrap(surface.surfaceTintView?.layer?.backgroundColor)
         return try XCTUnwrap(NSColor(cgColor: color)?.usingColorSpace(.sRGB))

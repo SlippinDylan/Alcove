@@ -95,9 +95,13 @@
 "portal.settings.label" = "面板设置";
 "portal.settings.help" = "配置文件夹、样式和面板操作";
 "portal.settings.title" = "面板设置";
+"portal.settings.general" = "通用";
 "portal.settings.folders" = "文件夹";
 "portal.settings.folders.empty" = "暂无文件夹，请点击“添加文件夹”。";
 "portal.settings.style" = "样式";
+"portal.settings.open" = "面板设置…";
+"portal.settings.sorting" = "排序";
+"portal.settings.tint" = "颜色";
 "portal.settings.add_folder" = "添加文件夹";
 "portal.settings.reorder_folder" = "拖动以调整文件夹顺序";
 "portal.settings.remove_folder_action" = "移除文件夹";
@@ -117,6 +121,23 @@
 "portal.settings.standard" = "标准";
 "portal.settings.low_transparency" = "低透明度";
 "portal.settings.minimum_transparency" = "最低透明度";
+"portal.sort.title" = "排序方式";
+"portal.sort.name" = "文件名称";
+"portal.sort.modification_date" = "修改时间";
+"portal.sort.creation_date" = "创建时间";
+"portal.tint.default" = "默认";
+"portal.tint.red" = "红色";
+"portal.tint.orange" = "橙色";
+"portal.tint.yellow" = "黄色";
+"portal.tint.green" = "绿色";
+"portal.tint.blue" = "蓝色";
+"portal.tint.indigo" = "靛蓝色";
+"portal.tint.purple" = "紫色";
+"portal.remove.menu" = "删除面板…";
+"portal.remove.confirm.title" = "要删除此面板吗？";
+"portal.remove.confirm.detail" = "此操作只会从 Alcove 中移除面板，不会删除任何文件或文件夹。";
+"portal.remove.confirm.action" = "删除面板";
+"action.cancel" = "取消";
 
 /* Portal content states */
 "portal.choose" = "选择文件夹…";

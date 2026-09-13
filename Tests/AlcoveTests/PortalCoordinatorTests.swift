@@ -971,7 +971,7 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testInPortalSettingsCanChangeManualIconSizePinAndRemovePortal() async throws {
+    func testPortalMenuCanChangeSortTintPinAndRemovePortal() async throws {
         let portal = try makePortal(path: "/tmp/first", x: 10)
         let factory = PortalWindowFactorySpy()
         let coordinator = PortalCoordinator(
@@ -980,9 +980,13 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         try await coordinator.restorePortals()
 
-        factory.windows[0].onSetIconSize?(.small)
+        factory.windows[0].onSetSortOrder?(.modificationDate)
         await coordinator.waitForTabMutationForTesting()
-        XCTAssertEqual(coordinator.portalStates[0].iconLayout, .fixed(.small))
+        XCTAssertEqual(coordinator.portalStates[0].sortOrder, .modificationDate)
+
+        factory.windows[0].onSetTint?(.indigo)
+        await coordinator.waitForTabMutationForTesting()
+        XCTAssertEqual(coordinator.portalStates[0].tint, .indigo)
 
         factory.windows[0].onSetPinned?(true)
         await coordinator.waitForTabMutationForTesting()
@@ -1004,8 +1008,7 @@ final class PortalCoordinatorTests: XCTestCase {
         let coordinator = PortalCoordinator(store: store, windowFactory: factory)
         try await coordinator.restorePortals()
 
-        factory.windows[1].onSetBackgroundStyle?(.lowTransparency)
-        await coordinator.waitForTabMutationForTesting()
+        await coordinator.setBackgroundStyle(.lowTransparency, for: second.id)
 
         XCTAssertEqual(coordinator.portalStates[0].backgroundStyle, .standard)
         XCTAssertEqual(coordinator.portalStates[1].backgroundStyle, .lowTransparency)
@@ -1031,8 +1034,7 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         try await coordinator.restorePortals()
 
-        factory.windows[0].onSetBackgroundStyle?(.highTransparency)
-        await coordinator.waitForTabMutationForTesting()
+        await coordinator.setBackgroundStyle(.highTransparency, for: portal.id)
 
         XCTAssertEqual(coordinator.portalStates, [portal])
         XCTAssertEqual(factory.windows[0].updateCount, 0)
@@ -1564,6 +1566,8 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var onSetIconSize: ((IconSize) -> Void)?
     var onRemovePortal: (() -> Void)?
     var onSetPinned: ((Bool) -> Void)?
+    var onSetSortOrder: ((PortalSortOrder) -> Void)?
+    var onSetTint: ((PortalTint) -> Void)?
     private(set) var presentCount = 0
     private(set) var hideCount = 0
     private(set) var updateCount = 0

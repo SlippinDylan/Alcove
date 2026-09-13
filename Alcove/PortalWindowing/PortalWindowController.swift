@@ -27,17 +27,17 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     var onLocateFolder: ((FolderTabID) -> Void)? {
         didSet { portalViewController.onLocateFolderRequested = onLocateFolder }
     }
-    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? {
-        didSet { portalViewController.onSetBackgroundStyle = onSetBackgroundStyle }
-    }
-    var onSetIconSize: ((IconSize) -> Void)? {
-        didSet { portalViewController.onSetIconSize = onSetIconSize }
-    }
     var onRemovePortal: (() -> Void)? {
         didSet { portalViewController.onRemovePortal = onRemovePortal }
     }
     var onSetPinned: ((Bool) -> Void)? {
         didSet { portalViewController.onSetPinned = onSetPinned }
+    }
+    var onSetSortOrder: ((PortalSortOrder) -> Void)? {
+        didSet { portalViewController.onSetSortOrder = onSetSortOrder }
+    }
+    var onSetTint: ((PortalTint) -> Void)? {
+        didSet { portalViewController.onSetTint = onSetTint }
     }
     private let portalViewController: PortalViewController
     private let quickLookIntegration: QuickLookIntegration

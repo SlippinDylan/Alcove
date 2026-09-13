@@ -70,6 +70,7 @@ final class TabBarViewTests: XCTestCase {
         tabBar.onClose = { closedID = $0 }
         tabBar.configure(with: portal)
         defer { tabBar.closeSettingsWindow() }
+        try selectCategory(.folders, in: tabBar)
 
         tabBar.tabButtons[second.id]?.performClick(nil)
         try folderActionButton(
@@ -104,11 +105,9 @@ final class TabBarViewTests: XCTestCase {
         var addCount = 0
         var closedIDs: [FolderTabID] = []
         var moveRequests: [(FolderTabID, Int)] = []
-        var removePortalCount = 0
         tabBar.onAdd = { addCount += 1 }
         tabBar.onClose = { closedIDs.append($0) }
         tabBar.onMoveTab = { moveRequests.append(($0, $1)) }
-        tabBar.onRemovePortal = { removePortalCount += 1 }
         defer { tabBar.closeSettingsWindow() }
 
         let settingsController = try settingsController(in: tabBar)
@@ -117,13 +116,15 @@ final class TabBarViewTests: XCTestCase {
         settingsRoot.layoutSubtreeIfNeeded()
         XCTAssertEqual(
             Set(settingsController.categoryItems.keys),
-            [.folders, .style]
+            [.general, .folders, .style]
         )
-        XCTAssertEqual(settingsViewController.selectedCategory, .folders)
+        XCTAssertEqual(settingsViewController.selectedCategory, .general)
         XCTAssertEqual(
             settingsController.window?.toolbar?.selectedItemIdentifier,
-            PortalSettingsViewController.Category.folders.toolbarItemIdentifier
+            PortalSettingsViewController.Category.general.toolbarItemIdentifier
         )
+
+        settingsController.selectCategory(.folders)
 
         let addButton = try settingsButton(
             titled: NSLocalizedString("portal.settings.add_folder", comment: ""),
@@ -150,33 +151,11 @@ final class TabBarViewTests: XCTestCase {
             for: "Third",
             in: tabBar
         ).performClick(nil)
-        let removePortalButton = try settingsButton(
-            titled: NSLocalizedString("portal.settings.remove_portal", comment: ""),
-            in: tabBar
-        )
-        XCTAssertEqual(removePortalButton.bezelColor, .systemRed)
-        XCTAssertEqual(
-            removePortalButton.attributedTitle.attribute(
-                .foregroundColor,
-                at: 0,
-                effectiveRange: nil
-            ) as? NSColor,
-            .alternateSelectedControlTextColor
-        )
-        XCTAssertTrue(removePortalButton.hasDestructiveAction)
-        if #available(macOS 26.0, *) {
-            XCTAssertEqual(removePortalButton.bezelStyle, .glass)
-            XCTAssertEqual(removePortalButton.tintProminence, .primary)
-            XCTAssertEqual(removePortalButton.borderShape, .capsule)
-        }
-        removePortalButton.performClick(nil)
-
         XCTAssertEqual(addCount, 1)
         XCTAssertEqual(closedIDs, [third.id])
         XCTAssertEqual(moveRequests.count, 1)
         XCTAssertEqual(moveRequests[0].0, first.id)
         XCTAssertEqual(moveRequests[0].1, 2)
-        XCTAssertEqual(removePortalCount, 1)
         XCTAssertEqual(
             tabBar.managementButton.accessibilityLabel(),
             NSLocalizedString("portal.settings.label", comment: "")
@@ -280,7 +259,7 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertLessThanOrEqual(dragFrame.maxX, removeFrame.minX)
         XCTAssertEqual(removeFrame.maxX, firstFolderRow.bounds.maxX, accuracy: 0.5)
         XCTAssertFalse(removeFolder.isBordered)
-        XCTAssertNotNil(
+        XCTAssertNil(
             descendants(of: settingsRoot).compactMap { $0 as? NSTextField }.first {
                 $0.stringValue == NSLocalizedString(
                     "portal.settings.remove_portal_detail",
@@ -304,6 +283,7 @@ final class TabBarViewTests: XCTestCase {
         defer { tabBar.closeSettingsWindow() }
 
         let settings = try settingsController(in: tabBar).settingsViewController
+        settings.selectCategory(.folders)
         let emptyRow = try XCTUnwrap(
             descendants(of: settings.view)
                 .compactMap { $0 as? PortalSettingsEmptyFolderRowView }
@@ -335,6 +315,73 @@ final class TabBarViewTests: XCTestCase {
             .compactMap(\.identifier?.rawValue)
         XCTAssertFalse(identifiers.contains("portal-settings.background"))
         XCTAssertFalse(identifiers.contains("portal-settings.icon-size"))
+        XCTAssertTrue(identifiers.contains("portal-settings.tint"))
+    }
+
+    @MainActor
+    func testManagementMenuExposesPinSortSettingsAndConfirmedDelete() throws {
+        let tab = makeTab(name: "First")
+        var portal = try makePortal(tabs: [tab], selected: tab.id)
+        portal.updateSortOrder(.modificationDate)
+        let tabBar = TabBarView(frame: .zero)
+        var pinnedStates: [Bool] = []
+        var sortOrders: [PortalSortOrder] = []
+        var removeCount = 0
+        tabBar.onSetPinned = { pinnedStates.append($0) }
+        tabBar.onSetSortOrder = { sortOrders.append($0) }
+        tabBar.onRemovePortal = { removeCount += 1 }
+        tabBar.configure(with: portal)
+
+        let menu = tabBar.makeManagementMenu()
+        XCTAssertEqual(menu.items.count, 5)
+        XCTAssertEqual(menu.items[0].title, NSLocalizedString("portal.pin.pin", comment: ""))
+        let sortMenu = try XCTUnwrap(menu.items[1].submenu)
+        XCTAssertEqual(sortMenu.items.count, 3)
+        XCTAssertEqual(sortMenu.items.map(\.state), [.off, .on, .off])
+        XCTAssertEqual(menu.items[2].title, NSLocalizedString("portal.settings.open", comment: ""))
+        XCTAssertTrue(menu.items[3].isSeparatorItem)
+        XCTAssertEqual(menu.items[4].title, NSLocalizedString("portal.remove.menu", comment: ""))
+
+        menu.performActionForItem(at: 0)
+        sortMenu.performActionForItem(at: 2)
+        tabBar.removalConfirmationPresenter = { _, completion in completion(false) }
+        menu.performActionForItem(at: 4)
+        tabBar.removalConfirmationPresenter = { _, completion in completion(true) }
+        menu.performActionForItem(at: 4)
+
+        XCTAssertEqual(pinnedStates, [true])
+        XCTAssertEqual(sortOrders, [.creationDate])
+        XCTAssertEqual(removeCount, 1)
+    }
+
+    @MainActor
+    func testGeneralAndStyleSettingsForwardPortalPreferences() throws {
+        let tab = makeTab(name: "First")
+        var portal = try makePortal(tabs: [tab], selected: tab.id)
+        portal.updateSortOrder(.creationDate)
+        portal.updateTint(.green)
+        let tabBar = TabBarView(frame: .zero)
+        var sortOrders: [PortalSortOrder] = []
+        var tints: [PortalTint] = []
+        tabBar.onSetSortOrder = { sortOrders.append($0) }
+        tabBar.onSetTint = { tints.append($0) }
+        tabBar.configure(with: portal)
+        defer { tabBar.closeSettingsWindow() }
+
+        let settings = try settingsController(in: tabBar).settingsViewController
+        let sortPopUp = try XCTUnwrap(settings.sortPopUpButton)
+        XCTAssertEqual(sortPopUp.indexOfSelectedItem, 2)
+        sortPopUp.selectItem(at: 0)
+        NSApp.sendAction(try XCTUnwrap(sortPopUp.action), to: sortPopUp.target, from: sortPopUp)
+
+        settings.selectCategory(.style)
+        let tintPopUp = try XCTUnwrap(settings.tintPopUpButton)
+        XCTAssertEqual(tintPopUp.indexOfSelectedItem, 4)
+        tintPopUp.selectItem(at: 5)
+        NSApp.sendAction(try XCTUnwrap(tintPopUp.action), to: tintPopUp.target, from: tintPopUp)
+
+        XCTAssertEqual(sortOrders, [.name])
+        XCTAssertEqual(tints, [.blue])
     }
 
     @MainActor
@@ -436,7 +483,7 @@ final class TabBarViewTests: XCTestCase {
         in tabBar: TabBarView
     ) throws -> PortalSettingsWindowController {
         if tabBar.settingsWindowController == nil {
-            tabBar.managementButton.performClick(nil)
+            tabBar.showSettingsWindow()
         }
         return try XCTUnwrap(tabBar.settingsWindowController)
     }

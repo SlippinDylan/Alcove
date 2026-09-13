@@ -13,10 +13,10 @@ protocol PortalWindowPresenting: AnyObject {
     var onCloseTab: ((FolderTabID) -> Void)? { get set }
     var onMoveTab: ((FolderTabID, Int) -> Void)? { get set }
     var onLocateFolder: ((FolderTabID) -> Void)? { get set }
-    var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? { get set }
-    var onSetIconSize: ((IconSize) -> Void)? { get set }
     var onRemovePortal: (() -> Void)? { get set }
     var onSetPinned: ((Bool) -> Void)? { get set }
+    var onSetSortOrder: ((PortalSortOrder) -> Void)? { get set }
+    var onSetTint: ((PortalTint) -> Void)? { get set }
     func present()
     func hide()
     func updatePortal(_ portal: Portal)

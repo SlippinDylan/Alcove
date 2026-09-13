@@ -440,7 +440,7 @@ final class PortalWindowConfigurationTests: XCTestCase {
         let tabBar = try XCTUnwrap(
             allDescendants(of: contentView).compactMap { $0 as? TabBarView }.first
         )
-        tabBar.managementButton.performClick(nil)
+        tabBar.showSettingsWindow()
         let settingsController = try XCTUnwrap(tabBar.settingsWindowController)
         let settingsViewController = settingsController.settingsViewController
         settingsController.selectCategory(.style)
