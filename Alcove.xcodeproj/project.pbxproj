@@ -58,6 +58,8 @@
 		100000000000000000000031 /* ApplicationSettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000035 /* ApplicationSettingsWindowController.swift */; };
 		100000000000000000000032 /* ApplicationSettingsWindowControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000036 /* ApplicationSettingsWindowControllerTests.swift */; };
 		100000000000000000000033 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000037 /* PrivacyInfo.xcprivacy */; };
+		BA0000000000000000000001 /* AlcoveLayoutBackupCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000003 /* AlcoveLayoutBackupCodec.swift */; };
+		BA0000000000000000000002 /* AlcoveLayoutBackupCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000004 /* AlcoveLayoutBackupCodecTests.swift */; };
 		BE2637E43056904F005587C8 /* Alcove.icon in Resources */ = {isa = PBXBuildFile; fileRef = BE2637E33056904F005587C8 /* Alcove.icon */; };
 /* End PBXBuildFile section */
 
@@ -127,6 +129,8 @@
 		200000000000000000000035 /* ApplicationSettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSettingsWindowController.swift; sourceTree = "<group>"; };
 		200000000000000000000036 /* ApplicationSettingsWindowControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSettingsWindowControllerTests.swift; sourceTree = "<group>"; };
 		200000000000000000000037 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		BA0000000000000000000003 /* AlcoveLayoutBackupCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlcoveLayoutBackupCodec.swift; sourceTree = "<group>"; };
+		BA0000000000000000000004 /* AlcoveLayoutBackupCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlcoveLayoutBackupCodecTests.swift; sourceTree = "<group>"; };
 		BE2637E33056904F005587C8 /* Alcove.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Alcove.icon; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -213,6 +217,7 @@
 		700000000000000000000006 /* AlcoveTests */ = {
 			isa = PBXGroup;
 			children = (
+				BA0000000000000000000004 /* AlcoveLayoutBackupCodecTests.swift */,
 				200000000000000000000036 /* ApplicationSettingsWindowControllerTests.swift */,
 				200000000000000000000005 /* AppDelegateTests.swift */,
 				20000000000000000000002D /* DisplayPlacementTests.swift */,
@@ -309,6 +314,7 @@
 		70000000000000000000000E /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
+				BA0000000000000000000003 /* AlcoveLayoutBackupCodec.swift */,
 				200000000000000000000023 /* PortalStore.swift */,
 				200000000000000000000022 /* PortalStoreFileSystem.swift */,
 				200000000000000000000021 /* PortalStoreModels.swift */,
@@ -441,6 +447,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BA0000000000000000000001 /* AlcoveLayoutBackupCodec.swift in Sources */,
 				100000000000000000000031 /* ApplicationSettingsWindowController.swift in Sources */,
 				100000000000000000000001 /* AppDelegate.swift in Sources */,
 				100000000000000000000009 /* PortalCoordinator.swift in Sources */,
@@ -478,6 +485,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BA0000000000000000000002 /* AlcoveLayoutBackupCodecTests.swift in Sources */,
 				100000000000000000000032 /* ApplicationSettingsWindowControllerTests.swift in Sources */,
 				100000000000000000000005 /* AppDelegateTests.swift in Sources */,
 				10000000000000000000002B /* DisplayPlacementTests.swift in Sources */,
