@@ -56,6 +56,17 @@ final class PortalCreationErrorPresenter: PortalCreationErrorPresenting {
     func present(_ error: Error) {
         let alert = NSAlert()
         alert.alertStyle = .warning
+        if let coordinatorError = error as? PortalCoordinatorError,
+           coordinatorError == .placementUnavailable {
+            alert.messageText = NSLocalizedString(
+                "portal.placement.unavailable.title",
+                comment: "Portal placement error title"
+            )
+            alert.informativeText = coordinatorError.localizedDescription
+            alert.addButton(withTitle: NSLocalizedString("OK", comment: "Confirmation button"))
+            alert.runModal()
+            return
+        }
         alert.messageText = NSLocalizedString(
             "Unable to use this folder",
             comment: "Alert title shown when a folder cannot be used"
@@ -83,14 +94,23 @@ final class PortalPersistenceErrorPresenter: PortalPersistenceErrorPresenting {
     func present(_ error: Error) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = NSLocalizedString(
-            "Unable to save Alcove changes",
-            comment: "Alert title shown when Alcove changes cannot be saved"
-        )
-        alert.informativeText = NSLocalizedString(
-            "persistence.save.error.detail",
-            comment: "Details shown when Alcove changes cannot be saved"
-        )
+        if let coordinatorError = error as? PortalCoordinatorError,
+           coordinatorError == .placementUnavailable {
+            alert.messageText = NSLocalizedString(
+                "portal.placement.unavailable.title",
+                comment: "Portal placement error title"
+            )
+            alert.informativeText = coordinatorError.localizedDescription
+        } else {
+            alert.messageText = NSLocalizedString(
+                "Unable to save Alcove changes",
+                comment: "Alert title shown when Alcove changes cannot be saved"
+            )
+            alert.informativeText = NSLocalizedString(
+                "persistence.save.error.detail",
+                comment: "Details shown when Alcove changes cannot be saved"
+            )
+        }
         alert.addButton(withTitle: NSLocalizedString("OK", comment: "Confirmation button"))
         alert.runModal()
     }

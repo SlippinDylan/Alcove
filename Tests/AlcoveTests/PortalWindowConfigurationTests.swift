@@ -31,6 +31,25 @@ final class PortalWindowConfigurationTests: XCTestCase {
     }
 
     @MainActor
+    func testWindowAppearanceTogglesTheSystemShadow() {
+        let window = makeWindow()
+
+        window.updateAppearance(PortalAppearancePreferences(
+            cornerRadius: .small,
+            spacing: .medium,
+            shadowEnabled: false
+        ))
+        XCTAssertFalse(window.hasShadow)
+
+        window.updateAppearance(PortalAppearancePreferences(
+            cornerRadius: .maximum,
+            spacing: .medium,
+            shadowEnabled: true
+        ))
+        XCTAssertTrue(window.hasShadow)
+    }
+
+    @MainActor
     func testKeyEligibilityIsAnIndependentStrategyDimension() {
         let strategy = PortalWindowStrategy(
             level: .normal,
@@ -130,6 +149,50 @@ final class PortalWindowConfigurationTests: XCTestCase {
         XCTAssertFalse(window.isUserPlacementInteractionActive)
         XCTAssertTrue(window.applySystemPlacement(frame: NSRect(x: 100, y: 100, width: 560, height: 480)))
         XCTAssertEqual(window.frame, NSRect(x: 100, y: 100, width: 560, height: 480))
+    }
+
+    @MainActor
+    func testUserDragDisplaysAndCommitsTheConstrainedFrame() throws {
+        let pointer = PointerLocation(NSPoint(x: 10, y: 10))
+        let window = makeWindow(pointerLocationProvider: { pointer.location })
+        let constrainedFrame = window.frame.offsetBy(dx: 12, dy: 18)
+        var commits: [NSRect] = []
+        window.constrainUserDragFrame = { _, _, _ in constrainedFrame }
+        window.onUserPlacementCommit = { commits.append($0) }
+        window.beginUserDrag(at: pointer.location)
+
+        pointer.location = NSPoint(x: 200, y: 200)
+        window.handleUserDragEvent(try event(.leftMouseDragged, at: .zero, in: window))
+        window.handleUserDragEvent(try event(.leftMouseUp, at: .zero, in: window))
+
+        XCTAssertEqual(window.frame, constrainedFrame)
+        XCTAssertEqual(commits, [constrainedFrame])
+    }
+
+    @MainActor
+    func testLiveResizeRestoresTheLastValidFrame() {
+        let window = makeWindow()
+        let initialFrame = window.frame
+        window.isValidUserPlacement = { $0.width <= initialFrame.width + 20 }
+        window.beginUserResize()
+
+        let validFrame = NSRect(
+            origin: initialFrame.origin,
+            size: NSSize(width: initialFrame.width + 20, height: initialFrame.height)
+        )
+        window.setFrame(validFrame, display: false)
+        window.enforceLiveResizeConstraint()
+        window.setFrame(
+            NSRect(
+                origin: initialFrame.origin,
+                size: NSSize(width: initialFrame.width + 80, height: initialFrame.height)
+            ),
+            display: false
+        )
+        window.enforceLiveResizeConstraint()
+
+        XCTAssertEqual(window.frame, validFrame)
+        window.cancelUserPlacementInteraction(notify: false)
     }
 
     @MainActor

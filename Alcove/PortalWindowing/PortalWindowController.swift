@@ -7,6 +7,8 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         (window as? PortalWindow)?.isUserPlacementInteractionActive ?? false
     }
 
+    var presentedFrame: NSRect? { window?.frame }
+
     var onUserPlacementCommit: ((NSRect) -> Void)?
     var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)?
     var onUserPlacementInteractionCancelled: (() -> Void)?
@@ -128,6 +130,20 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         portalViewController.reloadSelectedFolder()
     }
 
+    func updateAppearance(_ appearance: PortalAppearancePreferences) {
+        portalViewController.updateAppearance(appearance)
+        (window as? PortalWindow)?.updateAppearance(appearance)
+    }
+
+    func configureUserPlacementConstraints(
+        constrainDrag: @escaping (NSRect, NSRect, NSPoint) -> NSRect,
+        isValidFrame: @escaping (NSRect) -> Bool
+    ) {
+        guard let portalWindow = window as? PortalWindow else { return }
+        portalWindow.constrainUserDragFrame = constrainDrag
+        portalWindow.isValidUserPlacement = isValidFrame
+    }
+
     func applySystemPlacement(frame: NSRect) -> Bool {
         guard let portalWindow = window as? PortalWindow else {
             return false
@@ -185,6 +201,10 @@ extension PortalWindowController: NSWindowDelegate {
         return sender.frameRect(
             forContentRect: NSRect(origin: .zero, size: snappedContentSize)
         ).size
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        (window as? PortalWindow)?.enforceLiveResizeConstraint()
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {

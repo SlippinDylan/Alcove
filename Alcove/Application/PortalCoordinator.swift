@@ -25,6 +25,7 @@ final class PortalCoordinator: PortalCoordinating {
     private let lastTabRemovalConfirmer: any LastTabRemovalConfirming
     private let displaySnapshotProvider: DisplayPlacementObserver.SnapshotProvider
     private let displayNotificationCenter: NotificationCenter
+    private var portalAppearance: PortalAppearancePreferences
     private var windows: [PortalID: any PortalWindowPresenting] = [:]
     private var placementSessions: [PortalID: PlacementSession] = [:]
     private var deferredTopologyPortals = Set<PortalID>()
@@ -58,6 +59,7 @@ final class PortalCoordinator: PortalCoordinating {
         errorPresenter: any PortalCreationErrorPresenting = PortalCreationErrorPresenter(),
         persistenceErrorPresenter: any PortalPersistenceErrorPresenting = PortalPersistenceErrorPresenter(),
         lastTabRemovalConfirmer: any LastTabRemovalConfirming = LastTabRemovalConfirmer(),
+        portalAppearance: PortalAppearancePreferences = .defaults,
         displayNotificationCenter: NotificationCenter = .default,
         displaySnapshotProvider: @escaping DisplayPlacementObserver.SnapshotProvider = {
             DisplaySnapshot.captureResult()
@@ -72,6 +74,7 @@ final class PortalCoordinator: PortalCoordinating {
         self.errorPresenter = errorPresenter
         self.persistenceErrorPresenter = persistenceErrorPresenter
         self.lastTabRemovalConfirmer = lastTabRemovalConfirmer
+        self.portalAppearance = portalAppearance
         self.displayNotificationCenter = displayNotificationCenter
         self.displaySnapshotProvider = displaySnapshotProvider
     }
@@ -116,8 +119,16 @@ final class PortalCoordinator: PortalCoordinating {
                 requestedFrame,
                 iconLayout: iconLayout,
                 visibleFrame: display.visibleFrame,
-                gridCapacity: gridCapacity
+                gridCapacity: gridCapacity,
+                spacing: portalAppearance.spacing.points
             )
+            guard try isValidPortalFrame(
+                initialFrame,
+                in: snapshot,
+                excluding: nil
+            ) else {
+                throw PortalCoordinatorError.placementUnavailable
+            }
             let portal: Portal
             if let validatedFolderURL {
                 portal = try Portal(
@@ -149,6 +160,17 @@ final class PortalCoordinator: PortalCoordinating {
 
     func waitForTabMutationForTesting() async {
         await waitForTabTasks()
+    }
+
+    func updatePortalAppearance(_ appearance: PortalAppearancePreferences) {
+        portalAppearance = appearance
+        for window in windows.values {
+            window.updateAppearance(appearance)
+        }
+    }
+
+    func occupiedPortalFrames() -> [NSRect] {
+        runtimePortalFrames(excluding: nil)
     }
 
     func stop() {
@@ -206,10 +228,23 @@ final class PortalCoordinator: PortalCoordinating {
                       let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
                     return
                 }
+                let currentSnapshot: DisplaySnapshot? = switch displaySnapshotProvider() {
+                case .success(let snapshot): snapshot
+                case .failure: nil
+                }
                 let previousFrame = portalStates[index].frame
                 var portal = portalStates[index]
                 portal.updateIconSize(iconSize)
-                portal = try portalSnappingFrame(portal)
+                portal = try portalSnappingFrame(portal, currentSnapshot: currentSnapshot)
+                if let currentSnapshot,
+                   currentSnapshot.display(with: portal.placement.homeDisplay) != nil,
+                   try !isValidIconResizeFrame(
+                       portal.frame,
+                       snapshot: currentSnapshot,
+                       portalID: portalID
+                   ) {
+                    throw PortalCoordinatorError.placementUnavailable
+                }
                 try await commit(portal, at: index)
                 if portal.frame != previousFrame {
                     placementSessions[portalID] = try placementSession(for: portal)
@@ -222,18 +257,26 @@ final class PortalCoordinator: PortalCoordinating {
         }
     }
 
-    private func portalSnappingFrame(_ portal: Portal) throws -> Portal {
+    private func portalSnappingFrame(
+        _ portal: Portal,
+        currentSnapshot: DisplaySnapshot?
+    ) throws -> Portal {
         var portal = portal
         let homeEntry = portal.placement.homeEntry
-        let homeDisplay = DisplayDescriptor(
+        let rememberedHomeDisplay = DisplayDescriptor(
             identity: portal.placement.homeDisplay,
             visibleFrame: homeEntry.referenceVisibleFrame
         )
+        // A current home descriptor can be unavailable during snapshot capture or
+        // while disconnected; its durable placement must still accept the preference.
+        let homeDisplay = currentSnapshot?.display(with: portal.placement.homeDisplay)
+            ?? rememberedHomeDisplay
         let adjustedFrame = Self.frameFittingCapacity(
             portal.frame,
             iconLayout: portal.iconLayout,
             visibleFrame: homeDisplay.visibleFrame,
-            gridCapacity: portal.gridCapacity
+            gridCapacity: portal.gridCapacity,
+            anchor: .topLeft
         )
         guard adjustedFrame != portal.frame else { return portal }
         try portal.recordUserPlacement(frame: adjustedFrame, display: homeDisplay)
@@ -280,6 +323,20 @@ final class PortalCoordinator: PortalCoordinating {
     private func present(_ portal: Portal, transition: PlacementTransition) {
         placementSessions[portal.id] = transition.session
         let window = windowFactory.makeWindow(for: portal)
+        window.updateAppearance(portalAppearance)
+        window.configureUserPlacementConstraints(
+            constrainDrag: { [weak self] currentFrame, proposedFrame, pointer in
+                self?.constrainedUserDragFrame(
+                    currentFrame: currentFrame,
+                    proposedFrame: proposedFrame,
+                    pointer: pointer,
+                    portalID: portal.id
+                ) ?? currentFrame
+            },
+            isValidFrame: { [weak self] frame in
+                self?.isValidUserFrame(frame, portalID: portal.id) ?? false
+            }
+        )
         window.onUserPlacementCommit = { [weak self] frame in
             self?.recordUserPlacement(frame, portalID: portal.id)
         }
@@ -399,6 +456,18 @@ final class PortalCoordinator: PortalCoordinating {
                     currentVisibleFrame: display.visibleFrame,
                     gridSpacing: placementGridSpacing(for: portal)
                 )
+                guard try isValidPortalFrame(
+                    committedFrame,
+                    in: displaySnapshot,
+                    excluding: portalID
+                ) else {
+                    clearPendingUserPlacement(
+                        portalID: portalID,
+                        generation: pending.generation
+                    )
+                    reconcile(portalID: portalID, with: displaySnapshot)
+                    throw PortalCoordinatorError.placementUnavailable
+                }
                 try portal.recordUserPlacement(frame: committedFrame, display: display)
                 var updatedPortals = portalStates
                 updatedPortals[index] = portal
@@ -812,6 +881,126 @@ final class PortalCoordinator: PortalCoordinating {
         try displaySnapshotProvider().get()
     }
 
+    private func constrainedUserDragFrame(
+        currentFrame: NSRect,
+        proposedFrame: NSRect,
+        pointer: NSPoint,
+        portalID: PortalID
+    ) -> NSRect {
+        guard case .success(let snapshot) = displaySnapshotProvider() else {
+            return currentFrame
+        }
+        let destination = Self.display(containingOrNearestTo: pointer, in: snapshot)
+        let otherFrames = runtimePortalFrames(excluding: portalID)
+        let spacing = portalAppearance.spacing.points
+
+        if destination.visibleFrame.contains(currentFrame) {
+            do {
+                return try PortalFrameConstraints.constrainedDragFrame(
+                    initialFrame: currentFrame,
+                    proposedFrame: proposedFrame,
+                    visibleFrame: destination.visibleFrame,
+                    otherPortalFrames: otherFrames,
+                    minimumGap: spacing
+                )
+            } catch {
+                // A layout created before spacing constraints may start invalid.
+                // It may leave that state, but no new invalid frame is committed.
+            }
+        }
+
+        let candidate = Self.frameClampedToVisibleBounds(
+            proposedFrame,
+            visibleFrame: destination.visibleFrame,
+            spacing: spacing
+        )
+        return (try? PortalFrameConstraints.isValidPlacement(
+            frame: candidate,
+            visibleFrame: destination.visibleFrame,
+            otherPortalFrames: otherFrames,
+            minimumGap: spacing
+        )) == true ? candidate : currentFrame
+    }
+
+    private func isValidUserFrame(_ frame: NSRect, portalID: PortalID) -> Bool {
+        guard case .success(let snapshot) = displaySnapshotProvider() else { return false }
+        return (try? isValidPortalFrame(frame, in: snapshot, excluding: portalID)) == true
+    }
+
+    private func isValidPortalFrame(
+        _ frame: NSRect,
+        in snapshot: DisplaySnapshot,
+        excluding portalID: PortalID?
+    ) throws -> Bool {
+        let display = try LegacyFrameDisplayResolver.resolve(frame: frame, in: snapshot)
+        return try PortalFrameConstraints.isValidPlacement(
+            frame: frame,
+            visibleFrame: display.visibleFrame,
+            otherPortalFrames: runtimePortalFrames(excluding: portalID),
+            minimumGap: portalAppearance.spacing.points
+        )
+    }
+
+    private func isValidIconResizeFrame(
+        _ frame: NSRect,
+        snapshot: DisplaySnapshot,
+        portalID: PortalID
+    ) throws -> Bool {
+        let display = try LegacyFrameDisplayResolver.resolve(frame: frame, in: snapshot)
+        let spacing = portalAppearance.spacing.points
+        // Existing layouts may predate the screen-edge spacing preference. Icon
+        // changes preserve their top-left anchor, while still enforcing screen
+        // containment and the full gap from every other portal.
+        return try PortalFrameConstraints.isValidPlacement(
+            frame: frame,
+            visibleFrame: display.visibleFrame.insetBy(dx: -spacing, dy: -spacing),
+            otherPortalFrames: runtimePortalFrames(excluding: portalID),
+            minimumGap: spacing
+        )
+    }
+
+    private func runtimePortalFrames(excluding portalID: PortalID?) -> [NSRect] {
+        portalStates.compactMap { portal in
+            guard portal.id != portalID else { return nil }
+            return windows[portal.id]?.presentedFrame ?? portal.frame
+        }
+    }
+
+    private static func display(
+        containingOrNearestTo point: NSPoint,
+        in snapshot: DisplaySnapshot
+    ) -> DisplayDescriptor {
+        snapshot.displays.min { first, second in
+            squaredDistance(from: point, to: first.visibleFrame)
+                < squaredDistance(from: point, to: second.visibleFrame)
+        } ?? snapshot.primaryDescriptor
+    }
+
+    private static func squaredDistance(from point: NSPoint, to frame: NSRect) -> CGFloat {
+        let dx = max(max(frame.minX - point.x, 0), point.x - frame.maxX)
+        let dy = max(max(frame.minY - point.y, 0), point.y - frame.maxY)
+        return dx * dx + dy * dy
+    }
+
+    private static func frameClampedToVisibleBounds(
+        _ frame: NSRect,
+        visibleFrame: NSRect,
+        spacing: CGFloat
+    ) -> NSRect {
+        let usableFrame = spacing == 0
+            ? visibleFrame
+            : visibleFrame.insetBy(dx: spacing, dy: spacing)
+        guard frame.width <= usableFrame.width, frame.height <= usableFrame.height else {
+            return frame
+        }
+        return NSRect(
+            x: min(max(frame.minX, usableFrame.minX), usableFrame.maxX - frame.width),
+            y: min(max(frame.minY, usableFrame.minY), usableFrame.maxY - frame.height),
+            width: frame.width,
+            height: frame.height
+        )
+    }
+
     private func presentPersistenceError(_ error: Error) {
         guard !(error is CancellationError) else { return }
         persistenceError = error
@@ -871,8 +1060,11 @@ final class PortalCoordinator: PortalCoordinating {
         _ frame: NSRect,
         iconLayout: PortalIconLayout,
         visibleFrame: NSRect,
-        gridCapacity: GridCapacity
+        gridCapacity: GridCapacity,
+        anchor: FrameResizeAnchor = .bottomLeft,
+        spacing: CGFloat = 0
     ) -> NSRect {
+        let usableFrame = visibleFrame.insetBy(dx: spacing, dy: spacing)
         let styleMask: NSWindow.StyleMask = [.resizable]
         let snappedContentSize = PortalViewController.contentSize(
             for: gridCapacity,
@@ -883,15 +1075,24 @@ final class PortalCoordinator: PortalCoordinating {
             styleMask: styleMask
         ).size
         let size = NSSize(
-            width: min(snappedFrameSize.width, visibleFrame.width),
-            height: min(snappedFrameSize.height, visibleFrame.height)
+            width: min(snappedFrameSize.width, usableFrame.width),
+            height: min(snappedFrameSize.height, usableFrame.height)
         )
+        let proposedY = switch anchor {
+        case .bottomLeft: frame.minY
+        case .topLeft: frame.maxY - size.height
+        }
         let origin = NSPoint(
-            x: min(max(frame.minX, visibleFrame.minX), visibleFrame.maxX - size.width),
-            y: min(max(frame.minY, visibleFrame.minY), visibleFrame.maxY - size.height)
+            x: min(max(frame.minX, usableFrame.minX), usableFrame.maxX - size.width),
+            y: min(max(proposedY, usableFrame.minY), usableFrame.maxY - size.height)
         )
         return NSRect(origin: origin, size: size)
     }
+}
+
+private enum FrameResizeAnchor {
+    case bottomLeft
+    case topLeft
 }
 
 private struct PendingUserPlacement {
@@ -902,6 +1103,24 @@ private struct PendingUserPlacement {
 
 enum PortalCoordinatorError: Error, Equatable {
     case persistentStateNotLoaded
+    case placementUnavailable
+}
+
+extension PortalCoordinatorError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .persistentStateNotLoaded:
+            NSLocalizedString(
+                "portal.state.not_loaded",
+                comment: "Portal state unavailable error"
+            )
+        case .placementUnavailable:
+            NSLocalizedString(
+                "portal.placement.unavailable.detail",
+                comment: "Portal placement conflict detail"
+            )
+        }
+    }
 }
 
 enum StartupFolderResolver {

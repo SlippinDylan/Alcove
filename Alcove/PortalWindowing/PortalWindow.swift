@@ -31,6 +31,10 @@ struct PortalWindowUserPlacementTracker {
         return frame
     }
 
+    mutating func accept(_ frame: NSRect) {
+        latestFrame = frame
+    }
+
     mutating func finish() -> NSRect? {
         let committedFrame: NSRect?
         if receivedDragEvent, latestFrame != initialFrame {
@@ -62,11 +66,17 @@ final class PortalWindow: NSWindow {
     private var placementTracker = PortalWindowUserPlacementTracker()
     private var isPerformingLiveResize = false
     private var initialLiveResizeFrame: NSRect?
+    private var lastValidLiveResizeFrame: NSRect?
+    private var isRestoringLiveResizeFrame = false
+    private var appliedCornerRadius: CGFloat = PortalAppearancePreferences.defaults
+        .cornerRadius.points
     private(set) var isPinned = false
 
     var onUserPlacementCommit: ((NSRect) -> Void)?
     var onUserResizeCommit: ((NSRect) -> Void)?
     var onUserPlacementInteractionCancelled: (() -> Void)?
+    var constrainUserDragFrame: ((NSRect, NSRect, NSPoint) -> NSRect)?
+    var isValidUserPlacement: ((NSRect) -> Bool)?
 
     var isUserPlacementInteractionActive: Bool {
         placementTracker.isTracking || isPerformingLiveResize
@@ -102,6 +112,15 @@ final class PortalWindow: NSWindow {
         isReleasedWhenClosed = false
         minSize = NSSize(width: 240, height: 240)
         self.contentViewController = contentViewController
+    }
+
+    func updateAppearance(_ appearance: PortalAppearancePreferences) {
+        let shapeChanged = appliedCornerRadius != appearance.cornerRadius.points
+        appliedCornerRadius = appearance.cornerRadius.points
+        hasShadow = appearance.shadowEnabled
+        if shapeChanged, hasShadow {
+            invalidateShadow()
+        }
     }
 
     override var canBecomeKey: Bool {
@@ -154,6 +173,7 @@ final class PortalWindow: NSWindow {
         guard !isPinned else { return }
         isPerformingLiveResize = true
         initialLiveResizeFrame = frame
+        lastValidLiveResizeFrame = frame
     }
 
     func beginUserDrag(at pointer: NSPoint) {
@@ -168,6 +188,7 @@ final class PortalWindow: NSWindow {
         isPerformingLiveResize = false
         let changedFrame = initialLiveResizeFrame != frame
         initialLiveResizeFrame = nil
+        lastValidLiveResizeFrame = nil
         if changedFrame {
             onUserResizeCommit?(frame)
         } else {
@@ -180,6 +201,7 @@ final class PortalWindow: NSWindow {
         placementTracker.cancel()
         isPerformingLiveResize = false
         initialLiveResizeFrame = nil
+        lastValidLiveResizeFrame = nil
         if notify, wasActive {
             onUserPlacementInteractionCancelled?()
         }
@@ -219,9 +241,13 @@ final class PortalWindow: NSWindow {
         }
         switch event.type {
         case .leftMouseDragged:
-            guard let updatedFrame = placementTracker.drag(to: pointerLocationProvider()) else {
+            let pointer = pointerLocationProvider()
+            guard let proposedFrame = placementTracker.drag(to: pointer) else {
                 return
             }
+            let updatedFrame = constrainUserDragFrame?(frame, proposedFrame, pointer)
+                ?? proposedFrame
+            placementTracker.accept(updatedFrame)
             setFrame(updatedFrame, display: true)
 
         case .leftMouseUp:
@@ -234,5 +260,17 @@ final class PortalWindow: NSWindow {
         default:
             return
         }
+    }
+
+    func enforceLiveResizeConstraint() {
+        guard isPerformingLiveResize, !isRestoringLiveResizeFrame else { return }
+        guard isValidUserPlacement?(frame) == false else {
+            lastValidLiveResizeFrame = frame
+            return
+        }
+        guard let lastValidLiveResizeFrame else { return }
+        isRestoringLiveResizeFrame = true
+        setFrame(lastValidLiveResizeFrame, display: true)
+        isRestoringLiveResizeFrame = false
     }
 }

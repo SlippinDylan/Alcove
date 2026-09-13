@@ -110,6 +110,109 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testCreateRejectsAFrameOccupiedByAnotherPortal() async throws {
+        let existing = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/existing"),
+            frame: NSRect(x: 100, y: 100, width: 320, height: 240),
+            display: coordinatorTestDisplay
+        )
+        let store = PortalStoreSpy(portals: [existing])
+        let factory = PortalWindowFactorySpy()
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+
+        do {
+            try await coordinator.createPortal(for: nil, frame: existing.frame)
+            XCTFail("Creation must reject an occupied frame")
+        } catch let error as PortalCoordinatorError {
+            XCTAssertEqual(error, .placementUnavailable)
+        }
+
+        XCTAssertEqual(coordinator.portalStates, [existing])
+        let saves = await store.savedSnapshots()
+        XCTAssertTrue(saves.isEmpty)
+    }
+
+    @MainActor
+    func testRuntimeDragConstraintStopsAtAnotherPresentedPortal() async throws {
+        let first = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/first"),
+            frame: NSRect(x: 100, y: 100, width: 320, height: 240),
+            display: coordinatorTestDisplay
+        )
+        let second = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/second"),
+            frame: NSRect(x: 600, y: 100, width: 320, height: 240),
+            display: coordinatorTestDisplay
+        )
+        let factory = PortalWindowFactorySpy()
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: PortalStoreSpy(portals: [first, second]),
+            windowFactory: factory,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+        let constrainDrag = try XCTUnwrap(factory.windows[0].constrainDrag)
+
+        let result = constrainDrag(
+            first.frame,
+            first.frame.offsetBy(dx: 700, dy: 0),
+            NSPoint(x: 800, y: 200)
+        )
+
+        XCTAssertEqual(result.maxX, second.frame.minX - PortalSpacing.medium.points)
+    }
+
+    @MainActor
+    func testRuntimeDragConstraintHandsOffToThePointerDisplay() async throws {
+        let destinationDisplay = DisplayDescriptor(
+            identity: DisplayIdentity(rawValue: "destination-display"),
+            visibleFrame: NSRect(x: 1440, y: 40, width: 1200, height: 800)
+        )
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/first"),
+            frame: NSRect(x: 100, y: 100, width: 320, height: 240),
+            display: coordinatorTestDisplay
+        )
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay, destinationDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(
+            store: PortalStoreSpy(portals: [portal]),
+            windowFactory: factory,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+        let constrainDrag = try XCTUnwrap(factory.windows[0].constrainDrag)
+
+        let result = constrainDrag(
+            portal.frame,
+            NSRect(x: 1500, y: 100, width: 320, height: 240),
+            NSPoint(x: 1600, y: 200)
+        )
+
+        XCTAssertTrue(
+            destinationDisplay.visibleFrame
+                .insetBy(dx: PortalSpacing.medium.points, dy: PortalSpacing.medium.points)
+                .contains(result)
+        )
+    }
+
+    @MainActor
     func testEmptyPortalPersistsThenChoosesItsFirstFolderInsideTheWindow() async throws {
         try await withPortalDirectory { folder in
             let store = PortalStoreSpy(portals: [])
@@ -941,6 +1044,56 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testIconPresetExpansionIsRejectedWhenItWouldHitAnotherPortal() async throws {
+        let first = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/first"),
+            frame: NSRect(x: 100, y: 300, width: 320, height: 240),
+            display: coordinatorTestDisplay
+        )
+        let largeContentSize = PortalViewController.contentSize(
+            for: first.gridCapacity,
+            iconLayout: .fixed(.large)
+        )
+        let largeFrameSize = NSWindow.frameRect(
+            forContentRect: NSRect(origin: .zero, size: largeContentSize),
+            styleMask: [.resizable]
+        ).size
+        let second = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/second"),
+            frame: NSRect(
+                x: first.frame.minX + largeFrameSize.width + 5,
+                y: 300,
+                width: 320,
+                height: 240
+            ),
+            display: coordinatorTestDisplay
+        )
+        let store = PortalStoreSpy(portals: [first, second])
+        let errors = PersistenceErrorPresenterSpy()
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: PortalWindowFactorySpy(),
+            persistenceErrorPresenter: errors,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+
+        await coordinator.setIconSize(.large, for: first.id)
+
+        XCTAssertEqual(coordinator.portalStates[0], first)
+        XCTAssertEqual(
+            errors.errors.compactMap { $0 as? PortalCoordinatorError },
+            [.placementUnavailable]
+        )
+        let saves = await store.savedSnapshots()
+        XCTAssertTrue(saves.isEmpty)
+    }
+
+    @MainActor
     func testIconLayoutChangePreservesCapacityAndFitsNewMetrics() async throws {
         let portal = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/first"),
@@ -969,6 +1122,82 @@ final class PortalCoordinatorTests: XCTestCase {
         ).size
         XCTAssertEqual(updatedContentSize, expectedContentSize)
         XCTAssertEqual(coordinator.portalStates[0].gridCapacity, portal.gridCapacity)
+    }
+
+    @MainActor
+    func testIconPresetChangesKeepThePortalTopLeftCornerFixed() async throws {
+        let capacity = try GridCapacity(columns: 4, rows: 2)
+        let mediumContentSize = PortalViewController.contentSize(
+            for: capacity,
+            iconLayout: .fixed(.medium)
+        )
+        let mediumFrameSize = NSWindow.frameRect(
+            forContentRect: NSRect(origin: .zero, size: mediumContentSize),
+            styleMask: [.resizable]
+        ).size
+        let visibleFrame = coordinatorTestDisplay.visibleFrame
+        let initialFrame = NSRect(
+            x: visibleFrame.minX,
+            y: visibleFrame.maxY - mediumFrameSize.height,
+            width: mediumFrameSize.width,
+            height: mediumFrameSize.height
+        )
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/first"),
+            frame: initialFrame,
+            display: coordinatorTestDisplay,
+            iconLayout: .fixed(.medium),
+            gridCapacity: capacity
+        )
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: PortalStoreSpy(portals: [portal]),
+            windowFactory: PortalWindowFactorySpy(),
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+
+        for iconSize: IconSize in [.large, .medium, .small] {
+            await coordinator.setIconSize(iconSize, for: portal.id)
+            let frame = coordinator.portalStates[0].frame
+            XCTAssertEqual(frame.minX, initialFrame.minX)
+            XCTAssertEqual(frame.maxY, initialFrame.maxY)
+        }
+    }
+
+    @MainActor
+    func testIconPresetChangeUsesTheCurrentHomeDisplayVisibleFrame() async throws {
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/first"),
+            frame: NSRect(x: 0, y: 500, width: 560, height: 400),
+            display: coordinatorTestDisplay
+        )
+        let currentDisplay = DisplayDescriptor(
+            identity: coordinatorTestDisplay.identity,
+            visibleFrame: NSRect(x: 0, y: 0, width: 1280, height: 760)
+        )
+        let snapshot = try DisplaySnapshot(
+            displays: [currentDisplay],
+            primaryDisplay: currentDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: PortalStoreSpy(portals: [portal]),
+            windowFactory: PortalWindowFactorySpy(),
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+
+        await coordinator.setIconSize(.large, for: portal.id)
+
+        let updated = coordinator.portalStates[0]
+        XCTAssertEqual(updated.frame.maxY, currentDisplay.visibleFrame.maxY)
+        XCTAssertEqual(
+            updated.placement.homeEntry.referenceVisibleFrame,
+            currentDisplay.visibleFrame
+        )
     }
 
     @MainActor
@@ -1255,6 +1484,7 @@ private final class PortalWindowFactorySpy: PortalWindowBuilding {
         createdPortalIDs.append(portal.id)
         createdPortals.append(portal)
         let window = PortalWindowPresenterSpy()
+        window.presentedFrame = portal.frame
         windows.append(window)
         return window
     }
@@ -1263,6 +1493,7 @@ private final class PortalWindowFactorySpy: PortalWindowBuilding {
 @MainActor
 private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var isUserPlacementInteractionActive = false
+    var presentedFrame: NSRect?
     var onUserPlacementCommit: ((NSRect) -> Void)?
     var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)?
     var onUserPlacementInteractionCancelled: (() -> Void)?
@@ -1280,8 +1511,11 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     private(set) var updateCount = 0
     private(set) var closeCount = 0
     private(set) var updatedPortals: [Portal] = []
+    private(set) var updatedAppearances: [PortalAppearancePreferences] = []
     private(set) var systemFrames: [NSRect] = []
     private(set) var selectedFolderReloadCount = 0
+    private(set) var constrainDrag: ((NSRect, NSRect, NSPoint) -> NSRect)?
+    private(set) var isValidFrame: ((NSRect) -> Bool)?
     var acceptsSystemPlacement = true
 
     func present() {
@@ -1297,6 +1531,18 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
         updatedPortals.append(portal)
     }
 
+    func updateAppearance(_ appearance: PortalAppearancePreferences) {
+        updatedAppearances.append(appearance)
+    }
+
+    func configureUserPlacementConstraints(
+        constrainDrag: @escaping (NSRect, NSRect, NSPoint) -> NSRect,
+        isValidFrame: @escaping (NSRect) -> Bool
+    ) {
+        self.constrainDrag = constrainDrag
+        self.isValidFrame = isValidFrame
+    }
+
     func reloadSelectedFolder() {
         selectedFolderReloadCount += 1
     }
@@ -1304,6 +1550,7 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     func applySystemPlacement(frame: NSRect) -> Bool {
         guard acceptsSystemPlacement else { return false }
         systemFrames.append(frame)
+        presentedFrame = frame
         return true
     }
 

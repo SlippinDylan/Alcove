@@ -16,14 +16,43 @@ final class PortalCreationGridState {
 @MainActor
 final class PortalFrameSelector: PortalFrameSelecting {
     private let gridState: PortalCreationGridState
+    private let occupiedFramesProvider: () -> [NSRect]
     private var activeOverlay: PortalCreationOverlayController?
+    private var cornerRadius: CGFloat
+    private var spacing: CGFloat
 
-    init(grid: CreationGrid) {
+    init(
+        grid: CreationGrid,
+        cornerRadius: CGFloat = PortalCreationSkeletonGeometry.defaultCornerRadius,
+        spacing: CGFloat = PortalFrameConstraints.defaultMinimumGap,
+        occupiedFramesProvider: @escaping () -> [NSRect] = { [] }
+    ) {
         gridState = PortalCreationGridState(grid: grid)
+        self.cornerRadius = PortalCreationSkeletonGeometry.validatedCornerRadius(cornerRadius)
+        self.spacing = max(0, spacing)
+        self.occupiedFramesProvider = occupiedFramesProvider
     }
 
-    init(gridState: PortalCreationGridState) {
+    init(
+        gridState: PortalCreationGridState,
+        cornerRadius: CGFloat = PortalCreationSkeletonGeometry.defaultCornerRadius,
+        spacing: CGFloat = PortalFrameConstraints.defaultMinimumGap,
+        occupiedFramesProvider: @escaping () -> [NSRect] = { [] }
+    ) {
         self.gridState = gridState
+        self.cornerRadius = PortalCreationSkeletonGeometry.validatedCornerRadius(cornerRadius)
+        self.spacing = max(0, spacing)
+        self.occupiedFramesProvider = occupiedFramesProvider
+    }
+
+    func updateCornerRadius(_ cornerRadius: CGFloat) {
+        self.cornerRadius = PortalCreationSkeletonGeometry.validatedCornerRadius(cornerRadius)
+        activeOverlay?.updateCornerRadius(self.cornerRadius)
+    }
+
+    func updateSpacing(_ spacing: CGFloat) {
+        self.spacing = max(0, spacing)
+        activeOverlay?.updateSpacing(self.spacing)
     }
 
     func selectFrame() async -> PortalFrameSelection? {
@@ -37,7 +66,10 @@ final class PortalFrameSelector: PortalFrameSelecting {
             let overlay = PortalCreationOverlayController(
                 screen: screen,
                 grid: gridState.grid,
-                iconLayout: gridState.iconLayout
+                iconLayout: gridState.iconLayout,
+                cornerRadius: cornerRadius,
+                spacing: spacing,
+                occupiedFrames: occupiedFramesProvider()
             ) {
                 [weak self] frame in
                 self?.activeOverlay = nil
@@ -61,6 +93,9 @@ private final class PortalCreationOverlayController: NSWindowController {
         screen: NSScreen,
         grid: CreationGrid,
         iconLayout: PortalIconLayout,
+        cornerRadius: CGFloat,
+        spacing: CGFloat,
+        occupiedFrames: [NSRect],
         completion: @escaping (PortalFrameSelection?) -> Void
     ) {
         self.completion = completion
@@ -68,7 +103,10 @@ private final class PortalCreationOverlayController: NSWindowController {
             screenFrame: screen.frame,
             visibleFrame: screen.visibleFrame,
             grid: grid,
-            iconLayout: iconLayout
+            iconLayout: iconLayout,
+            cornerRadius: cornerRadius,
+            spacing: spacing,
+            occupiedFrames: occupiedFrames
         )
         let window = PortalCreationOverlayWindow(
             contentRect: screen.frame,
@@ -103,6 +141,14 @@ private final class PortalCreationOverlayController: NSWindowController {
         finish(nil)
     }
 
+    func updateCornerRadius(_ cornerRadius: CGFloat) {
+        (window?.contentView as? PortalCreationOverlayView)?.updateCornerRadius(cornerRadius)
+    }
+
+    func updateSpacing(_ spacing: CGFloat) {
+        (window?.contentView as? PortalCreationOverlayView)?.updateSpacing(spacing)
+    }
+
     private func finish(_ selection: PortalFrameSelection?) {
         guard let completion else { return }
         self.completion = nil
@@ -115,6 +161,86 @@ private final class PortalCreationOverlayWindow: NSWindow {
     override var canBecomeKey: Bool { true }
 }
 
+struct PortalCreationSkeletonGeometry {
+    static let defaultCornerRadius: CGFloat = 24
+
+    let frame: NSRect
+    let capacity: GridCapacity
+    let cornerRadius: CGFloat
+    let topSeparatorStart: NSPoint
+    let topSeparatorEnd: NSPoint
+    let bottomSeparatorStart: NSPoint
+    let bottomSeparatorEnd: NSPoint
+    let tileFrames: [NSRect]
+
+    init(
+        frame: NSRect,
+        capacity: GridCapacity,
+        grid: CreationGrid,
+        cornerRadius: CGFloat = Self.defaultCornerRadius
+    ) {
+        self.frame = frame
+        self.capacity = capacity
+        self.cornerRadius = min(
+            Self.validatedCornerRadius(cornerRadius),
+            min(frame.width, frame.height) / 2
+        )
+        gridHorizontalSpacing = grid.metrics.horizontalSpacing
+        gridVerticalSpacing = grid.metrics.verticalSpacing
+
+        let topSeparatorY = frame.maxY - PortalLayoutMetrics.tabBarHeight
+        topSeparatorStart = NSPoint(x: frame.minX, y: topSeparatorY)
+        topSeparatorEnd = NSPoint(x: frame.maxX, y: topSeparatorY)
+
+        let bottomSeparatorY = frame.minY + PortalLayoutMetrics.pathBarHeight
+        bottomSeparatorStart = NSPoint(x: frame.minX, y: bottomSeparatorY)
+        bottomSeparatorEnd = NSPoint(x: frame.maxX, y: bottomSeparatorY)
+
+        tileFrames = (0..<capacity.rows).flatMap { row in
+            (0..<capacity.columns).map { column in
+                Self.makeTileFrame(row: row, column: column, frame: frame, grid: grid)
+            }
+        }
+    }
+
+    func tileFrame(row: Int, column: Int) -> NSRect {
+        guard let firstTile = tileFrames.first else { return .zero }
+        let columnStep = firstTile.width + gridHorizontalSpacing
+        return NSRect(
+            x: firstTile.minX + CGFloat(column) * columnStep,
+            y: firstTile.maxY - CGFloat(row + 1) * firstTile.height - CGFloat(row) * gridVerticalSpacing,
+            width: firstTile.width,
+            height: firstTile.height
+        )
+    }
+
+    static func validatedCornerRadius(_ cornerRadius: CGFloat) -> CGFloat {
+        guard cornerRadius.isFinite else { return defaultCornerRadius }
+        return max(0, cornerRadius)
+    }
+
+    private let gridHorizontalSpacing: CGFloat
+    private let gridVerticalSpacing: CGFloat
+
+    private static func makeTileFrame(
+        row: Int,
+        column: Int,
+        frame: NSRect,
+        grid: CreationGrid
+    ) -> NSRect {
+        let metrics = grid.metrics
+        let bodyTop = frame.maxY - PortalLayoutMetrics.tabBarHeight
+        return NSRect(
+            x: frame.minX + metrics.contentInsets.leading
+                + CGFloat(column) * grid.columnIncrement,
+            y: bodyTop - metrics.contentInsets.top - metrics.itemSize.height
+                - CGFloat(row) * grid.rowIncrement,
+            width: metrics.itemSize.width,
+            height: metrics.itemSize.height
+        )
+    }
+}
+
 @MainActor
 final class PortalCreationOverlayView: NSView {
     var onCompletion: ((PortalFrameSelection?) -> Void)?
@@ -123,6 +249,9 @@ final class PortalCreationOverlayView: NSView {
     private let visibleFrame: NSRect
     private let grid: CreationGrid
     private let iconLayout: PortalIconLayout
+    private let occupiedFrames: [NSRect]
+    private var cornerRadius: CGFloat
+    private var spacing: CGFloat
     private var mouseDownPoint: NSPoint?
     private(set) var selectedRectangle: CreationRectangle?
     private var didDrag = false
@@ -133,12 +262,18 @@ final class PortalCreationOverlayView: NSView {
         screenFrame: NSRect,
         visibleFrame: NSRect,
         grid: CreationGrid,
-        iconLayout: PortalIconLayout = .fixed(.medium)
+        iconLayout: PortalIconLayout = .fixed(.medium),
+        cornerRadius: CGFloat = PortalCreationSkeletonGeometry.defaultCornerRadius,
+        spacing: CGFloat = PortalFrameConstraints.defaultMinimumGap,
+        occupiedFrames: [NSRect] = []
     ) {
         self.screenFrame = screenFrame
         self.visibleFrame = visibleFrame
         self.grid = grid
         self.iconLayout = iconLayout
+        self.occupiedFrames = occupiedFrames
+        self.cornerRadius = PortalCreationSkeletonGeometry.validatedCornerRadius(cornerRadius)
+        self.spacing = max(0, spacing)
         super.init(frame: NSRect(origin: .zero, size: screenFrame.size))
         wantsLayer = true
         setAccessibilityElement(true)
@@ -170,14 +305,33 @@ final class PortalCreationOverlayView: NSView {
             dx: -screenFrame.minX,
             dy: -screenFrame.minY
         )
-        NSColor.controlAccentColor.withAlphaComponent(0.15).setFill()
-        localFrame.fill()
-        let path = NSBezierPath(rect: localFrame)
-        path.lineWidth = 2
-        path.setLineDash([8, 5], count: 2, phase: 0)
-        NSColor.controlAccentColor.setStroke()
-        path.stroke()
-        drawSkeleton(in: localFrame, capacity: selectedRectangle.capacity)
+        let skeleton = PortalCreationSkeletonGeometry(
+            frame: localFrame,
+            capacity: selectedRectangle.capacity,
+            grid: grid,
+            cornerRadius: cornerRadius
+        )
+        let selectionPath = NSBezierPath(
+            roundedRect: skeleton.frame,
+            xRadius: skeleton.cornerRadius,
+            yRadius: skeleton.cornerRadius
+        )
+        let isValid = isValidPlacement(selectedRectangle.frame)
+        let selectionColor = isValid ? NSColor.controlAccentColor : NSColor.systemRed
+        selectionColor.withAlphaComponent(0.15).setFill()
+        selectionPath.fill()
+        strokeDashed(
+            skeleton.frame,
+            cornerRadius: skeleton.cornerRadius,
+            alpha: 1,
+            lineWidth: 2,
+            color: selectionColor
+        )
+        drawSkeleton(
+            skeleton,
+            selectedRectangle: selectedRectangle,
+            color: selectionColor
+        )
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -199,7 +353,7 @@ final class PortalCreationOverlayView: NSView {
             selectedRectangle = try CreationGeometry.rectangle(
                 mouseDown: mouseDownPoint,
                 currentPoint: currentPoint,
-                visibleFrame: visibleFrame,
+                visibleFrame: selectionBounds,
                 grid: grid
             )
             needsDisplay = true
@@ -210,11 +364,15 @@ final class PortalCreationOverlayView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         guard didDrag else {
-            finish(selectedRectangle)
+            if let selectedRectangle, isValidPlacement(selectedRectangle.frame) {
+                finish(selectedRectangle)
+            }
             return
         }
         mouseDragged(with: event)
-        finish(selectedRectangle)
+        if let selectedRectangle, isValidPlacement(selectedRectangle.frame) {
+            finish(selectedRectangle)
+        }
     }
 
     override func keyDown(with event: NSEvent) {
@@ -240,15 +398,30 @@ final class PortalCreationOverlayView: NSView {
             selectedRectangle = try CreationGeometry.rectangle(
                 mouseDown: CGPoint(x: center.x - halfWidth, y: center.y - halfHeight),
                 currentPoint: CGPoint(x: center.x + halfWidth, y: center.y + halfHeight),
-                visibleFrame: visibleFrame,
+                visibleFrame: selectionBounds,
                 grid: grid
             )
+            guard let selectedRectangle, isValidPlacement(selectedRectangle.frame) else {
+                needsDisplay = true
+                return false
+            }
             finish(selectedRectangle)
             return true
         } catch {
             finish(nil)
             return false
         }
+    }
+
+    func updateCornerRadius(_ cornerRadius: CGFloat) {
+        self.cornerRadius = PortalCreationSkeletonGeometry.validatedCornerRadius(cornerRadius)
+        needsDisplay = true
+    }
+
+    func updateSpacing(_ spacing: CGFloat) {
+        self.spacing = max(0, spacing)
+        selectedRectangle = nil
+        needsDisplay = true
     }
 
     private func defaultRectangle(around point: NSPoint) -> CreationRectangle? {
@@ -262,7 +435,7 @@ final class PortalCreationOverlayView: NSView {
                     x: point.x + grid.minimumSize.width / 2,
                     y: point.y + grid.minimumSize.height / 2
                 ),
-                visibleFrame: visibleFrame,
+                visibleFrame: selectionBounds,
                 grid: grid
             )
         } catch {
@@ -270,108 +443,85 @@ final class PortalCreationOverlayView: NSView {
         }
     }
 
-    private func drawSkeleton(in frame: NSRect, capacity: GridCapacity) {
-        let titleWidth = min(160, max(48, frame.width - 32))
-        let titleFrame = NSRect(
-            x: frame.midX - titleWidth / 2,
-            y: frame.maxY - 34,
-            width: titleWidth,
-            height: 28
-        )
-        strokeDashed(titleFrame, cornerRadius: 14, alpha: 0.9)
-
-        let pathWidth = min(260, max(80, frame.width - 32))
-        let pathFrame = NSRect(
-            x: frame.midX - pathWidth / 2,
-            y: frame.minY + 6,
-            width: pathWidth,
-            height: 28
-        )
-        strokeDashed(pathFrame, cornerRadius: 14, alpha: 0.9)
-
-        for row in 0..<capacity.rows {
-            for column in 0..<capacity.columns {
-                drawSlot(
-                    row: row,
-                    column: column,
-                    in: frame,
-                    alpha: 0.9
-                )
-            }
-        }
-
-        let columnProgress = selectedRectangle?.ghostColumnProgress ?? 0
-        if columnProgress > 0 {
-            let ghostColumn = growsPositiveX ? capacity.columns : -1
-            for row in 0..<capacity.rows {
-                drawSlot(
-                    row: row,
-                    column: ghostColumn,
-                    in: frame,
-                    alpha: 0.15 + columnProgress * 0.65
-                )
-            }
-        }
-
-        let rowProgress = selectedRectangle?.ghostRowProgress ?? 0
-        if rowProgress > 0 {
-            let row = growsPositiveY ? -1 : capacity.rows
-            for column in 0..<capacity.columns {
-                drawSlot(
-                    row: row,
-                    column: column,
-                    in: frame,
-                    alpha: 0.15 + rowProgress * 0.65
-                )
-            }
-        }
-    }
-
-    private func drawSlot(
-        row: Int,
-        column: Int,
-        in frame: NSRect,
-        alpha: CGFloat
+    private func drawSkeleton(
+        _ skeleton: PortalCreationSkeletonGeometry,
+        selectedRectangle: CreationRectangle,
+        color: NSColor
     ) {
-        let metrics = grid.metrics
-        let bodyTop = frame.maxY - PortalLayoutMetrics.tabBarHeight
-        let tileFrame = NSRect(
-            x: frame.minX + metrics.contentInsets.leading
-                + CGFloat(column) * grid.columnIncrement,
-            y: bodyTop - metrics.contentInsets.top - metrics.itemSize.height
-                - CGFloat(row) * grid.rowIncrement,
-            width: metrics.itemSize.width,
-            height: metrics.itemSize.height
+        strokeDashedLine(
+            from: skeleton.topSeparatorStart,
+            to: skeleton.topSeparatorEnd,
+            alpha: 0.9,
+            color: color
         )
-        let iconFrame = NSRect(
-            x: tileFrame.midX - metrics.iconSelectionSize.width / 2,
-            y: tileFrame.maxY - metrics.iconSelectionSize.height,
-            width: metrics.iconSelectionSize.width,
-            height: metrics.iconSelectionSize.height
+        strokeDashedLine(
+            from: skeleton.bottomSeparatorStart,
+            to: skeleton.bottomSeparatorEnd,
+            alpha: 0.9,
+            color: color
         )
-        let labelFrame = NSRect(
-            x: tileFrame.minX + 6,
-            y: tileFrame.minY + 2,
-            width: max(1, tileFrame.width - 12),
-            height: max(8, metrics.labelHeight - 4)
-        )
-        strokeDashed(iconFrame, cornerRadius: 10, alpha: alpha)
-        strokeDashed(labelFrame, cornerRadius: 6, alpha: alpha)
+
+        skeleton.tileFrames.forEach {
+            strokeDashed($0, cornerRadius: 12, alpha: 0.9, color: color)
+        }
+
+        let columnProgress = selectedRectangle.ghostColumnProgress
+        if columnProgress > 0 {
+            let ghostColumn = growsPositiveX ? skeleton.capacity.columns : -1
+            for row in 0..<skeleton.capacity.rows {
+                strokeDashed(
+                    skeleton.tileFrame(row: row, column: ghostColumn),
+                    cornerRadius: 12,
+                    alpha: 0.15 + columnProgress * 0.65,
+                    color: color
+                )
+            }
+        }
+
+        let rowProgress = selectedRectangle.ghostRowProgress
+        if rowProgress > 0 {
+            let row = growsPositiveY ? -1 : skeleton.capacity.rows
+            for column in 0..<skeleton.capacity.columns {
+                strokeDashed(
+                    skeleton.tileFrame(row: row, column: column),
+                    cornerRadius: 12,
+                    alpha: 0.15 + rowProgress * 0.65,
+                    color: color
+                )
+            }
+        }
     }
 
     private func strokeDashed(
         _ rect: NSRect,
         cornerRadius: CGFloat,
-        alpha: CGFloat
+        alpha: CGFloat,
+        lineWidth: CGFloat = 1.5,
+        color: NSColor = .controlAccentColor
     ) {
         let path = NSBezierPath(
             roundedRect: rect,
             xRadius: cornerRadius,
             yRadius: cornerRadius
         )
+        path.lineWidth = lineWidth
+        path.setLineDash([6, 4], count: 2, phase: 0)
+        color.withAlphaComponent(alpha).setStroke()
+        path.stroke()
+    }
+
+    private func strokeDashedLine(
+        from start: NSPoint,
+        to end: NSPoint,
+        alpha: CGFloat,
+        color: NSColor
+    ) {
+        let path = NSBezierPath()
+        path.move(to: start)
+        path.line(to: end)
         path.lineWidth = 1.5
         path.setLineDash([6, 4], count: 2, phase: 0)
-        NSColor.controlAccentColor.withAlphaComponent(alpha).setStroke()
+        color.withAlphaComponent(alpha).setStroke()
         path.stroke()
     }
 
@@ -381,6 +531,19 @@ final class PortalCreationOverlayView: NSView {
             x: localPoint.x + screenFrame.minX,
             y: localPoint.y + screenFrame.minY
         )
+    }
+
+    private var selectionBounds: NSRect {
+        visibleFrame.insetBy(dx: spacing, dy: spacing)
+    }
+
+    private func isValidPlacement(_ frame: NSRect) -> Bool {
+        (try? PortalFrameConstraints.isValidPlacement(
+            frame: frame,
+            visibleFrame: visibleFrame,
+            otherPortalFrames: occupiedFrames,
+            minimumGap: spacing
+        )) == true
     }
 
     private func finish(_ rectangle: CreationRectangle?) {

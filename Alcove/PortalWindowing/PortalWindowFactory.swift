@@ -4,6 +4,7 @@ import AppKit
 @MainActor
 protocol PortalWindowPresenting: AnyObject {
     var isUserPlacementInteractionActive: Bool { get }
+    var presentedFrame: NSRect? { get }
     var onUserPlacementCommit: ((NSRect) -> Void)? { get set }
     var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)? { get set }
     var onUserPlacementInteractionCancelled: (() -> Void)? { get set }
@@ -19,6 +20,11 @@ protocol PortalWindowPresenting: AnyObject {
     func present()
     func hide()
     func updatePortal(_ portal: Portal)
+    func updateAppearance(_ appearance: PortalAppearancePreferences)
+    func configureUserPlacementConstraints(
+        constrainDrag: @escaping (NSRect, NSRect, NSPoint) -> NSRect,
+        isValidFrame: @escaping (NSRect) -> Bool
+    )
     func reloadSelectedFolder()
     func applySystemPlacement(frame: NSRect) -> Bool
     func close()
