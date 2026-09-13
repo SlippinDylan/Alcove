@@ -70,7 +70,7 @@
 "portal.settings.title" = "面板设置";
 "portal.settings.folders" = "文件夹";
 "portal.settings.style" = "样式";
-"portal.settings.add_folder" = "添加文件夹…";
+"portal.settings.add_folder" = "添加文件夹";
 "portal.settings.reorder_folder" = "拖动以调整文件夹顺序";
 "portal.settings.remove_folder_action" = "移除文件夹";
 "portal.settings.panel" = "面板";

@@ -551,12 +551,14 @@ final class PortalSettingsViewController: NSViewController {
         symbol: String?,
         bezelColor: NSColor,
         hasDestructiveAction: Bool = false,
+        controlSize: NSControl.ControlSize = .small,
         action: Selector
     ) -> NSButton {
         let button = NSButton(title: title, target: self, action: action)
         if let symbol {
             button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
             button.imagePosition = .imageLeading
+            button.imageHugsTitle = true
         }
         if #available(macOS 26.0, *) {
             button.bezelStyle = .glass
@@ -565,9 +567,15 @@ final class PortalSettingsViewController: NSViewController {
         } else {
             button.bezelStyle = .rounded
         }
-        button.controlSize = .small
+        button.controlSize = controlSize
         button.bezelColor = bezelColor
-        button.contentTintColor = .white
+        button.attributedTitle = NSAttributedString(
+            string: title,
+            attributes: [
+                .font: button.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
+                .foregroundColor: NSColor.alternateSelectedControlTextColor,
+            ]
+        )
         button.hasDestructiveAction = hasDestructiveAction
         button.userInterfaceLayoutDirection = .leftToRight
         return button
@@ -640,6 +648,7 @@ final class PortalSettingsViewController: NSViewController {
                 title: NSLocalizedString("portal.settings.add_folder", comment: "Add folder"),
                 symbol: "folder.badge.plus",
                 bezelColor: .controlAccentColor,
+                controlSize: .regular,
                 action: #selector(addFolder)
             )
             addSection(

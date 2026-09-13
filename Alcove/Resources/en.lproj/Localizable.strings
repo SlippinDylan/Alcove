@@ -70,7 +70,7 @@
 "portal.settings.title" = "Portal Settings";
 "portal.settings.folders" = "Folders";
 "portal.settings.style" = "Style";
-"portal.settings.add_folder" = "Add Folder…";
+"portal.settings.add_folder" = "Add Folder";
 "portal.settings.reorder_folder" = "Drag to reorder folder";
 "portal.settings.remove_folder_action" = "Remove Folder";
 "portal.settings.panel" = "Panel";

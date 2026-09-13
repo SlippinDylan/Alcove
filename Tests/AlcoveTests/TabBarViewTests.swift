@@ -154,7 +154,13 @@ final class TabBarViewTests: XCTestCase {
         )
         XCTAssertTrue(addButton.isBordered)
         XCTAssertEqual(addButton.bezelColor, .controlAccentColor)
-        XCTAssertEqual(addButton.contentTintColor, .white)
+        XCTAssertEqual(addButton.controlSize, .regular)
+        XCTAssertTrue(addButton.imageHugsTitle)
+        XCTAssertEqual(
+            addButton.attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil)
+                as? NSColor,
+            .alternateSelectedControlTextColor
+        )
         if #available(macOS 26.0, *) {
             XCTAssertEqual(addButton.bezelStyle, .glass)
             XCTAssertEqual(addButton.tintProminence, .primary)
@@ -172,7 +178,14 @@ final class TabBarViewTests: XCTestCase {
             in: tabBar
         )
         XCTAssertEqual(removePortalButton.bezelColor, .systemRed)
-        XCTAssertEqual(removePortalButton.contentTintColor, .white)
+        XCTAssertEqual(
+            removePortalButton.attributedTitle.attribute(
+                .foregroundColor,
+                at: 0,
+                effectiveRange: nil
+            ) as? NSColor,
+            .alternateSelectedControlTextColor
+        )
         XCTAssertTrue(removePortalButton.hasDestructiveAction)
         if #available(macOS 26.0, *) {
             XCTAssertEqual(removePortalButton.bezelStyle, .glass)
