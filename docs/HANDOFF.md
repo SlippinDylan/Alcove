@@ -121,7 +121,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - live resize 仅在 `windowDidEndLiveResize` 提交。
 - 系统显示器恢复、Spaces 或 Stage Manager 导致的 frame 变化不修改用户记住的 home placement。
 - 用户拖动使用 swept-AABB 阻止快速穿透，live resize 在实际 frame 形成后回退到上一合法 frame；两者均使用窗口当前 runtime frame 作为障碍，并按指针位置保留跨显示器 handoff。
-- 全局间距变化会按显示器从保存位置派生完整 runtime 布局并平滑移动现有 Portal：调大时推到最近合法位置，调小时可回到保存位置。重排预检失败时拒绝档位变化，不产生半套布局；自动移动不写入 durable home placement。
+- 全局间距变化会按显示器从保存位置派生完整 runtime 布局并平滑移动现有 Portal：处于最大 20pt 范围内的贴屏边或相邻关系使用当前档位作为精确间距，因此调大时推开、调小时也会拉回；距离较远的自由布局不会被吸到一起。重排预检失败时拒绝档位变化，不产生半套布局；自动移动不写入 durable home placement。
 - placement 保存 display UUID、绝对 frame、保存时 visible frame、preferred size 和 normalized anchor。
 - 显示器断开时可以临时迁移到主屏，但原 home placement 必须保留；显示器回来后恢复。
 

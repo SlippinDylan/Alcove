@@ -41,12 +41,12 @@ final class PortalCoordinatorTests: XCTestCase {
     func testSpacingPreferenceReflowsExistingPortalsAndReturnsToSavedFrames() async throws {
         let upper = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/upper"),
-            frame: NSRect(x: 4, y: 496, width: 500, height: 400),
+            frame: NSRect(x: 12, y: 488, width: 500, height: 400),
             display: coordinatorTestDisplay
         )
         let lower = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/lower"),
-            frame: NSRect(x: 4, y: 192, width: 500, height: 300),
+            frame: NSRect(x: 12, y: 176, width: 500, height: 300),
             display: coordinatorTestDisplay
         )
         let snapshot = try DisplaySnapshot(
@@ -67,6 +67,10 @@ final class PortalCoordinatorTests: XCTestCase {
             displaySnapshotProvider: { .success(snapshot) }
         )
         try await coordinator.restorePortals()
+        let minimumFrames = try factory.windows.map { try XCTUnwrap($0.presentedFrame) }
+        XCTAssertEqual(minimumFrames[0].minX, 4)
+        XCTAssertEqual(minimumFrames[0].maxY, coordinatorTestDisplay.visibleFrame.maxY - 4)
+        XCTAssertEqual(minimumFrames[0].minY - minimumFrames[1].maxY, 4)
 
         var maximumAppearance = minimumAppearance
         maximumAppearance.spacing = .maximum
@@ -80,7 +84,7 @@ final class PortalCoordinatorTests: XCTestCase {
 
         XCTAssertTrue(coordinator.updatePortalAppearance(minimumAppearance))
         let restoredFrames = try factory.windows.map { try XCTUnwrap($0.presentedFrame) }
-        XCTAssertEqual(restoredFrames, [upper.frame, lower.frame])
+        XCTAssertEqual(restoredFrames, minimumFrames)
         let saves = await store.savedSnapshots()
         XCTAssertTrue(saves.isEmpty)
     }
@@ -438,11 +442,13 @@ final class PortalCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(coordinator.portalStates[0].placement, originalPlacement)
         XCTAssertEqual(saves, [])
-        XCTAssertEqual(factory.windows[0].systemFrames.count, 3)
-        XCTAssertEqual(
-            factory.windows[0].systemFrames.last,
-            try snappedPlacementFrame(portal.frame)
-        )
+        let returnedFrame = try XCTUnwrap(factory.windows[0].systemFrames.last)
+        XCTAssertTrue(try PortalFrameConstraints.isValidPlacement(
+            frame: returnedFrame,
+            visibleFrame: coordinatorTestDisplay.visibleFrame,
+            otherPortalFrames: [],
+            minimumGap: PortalSpacing.medium.points
+        ))
     }
 
     @MainActor

@@ -84,7 +84,7 @@ Domain models and pure layout math. Zero AppKit imports.
 - `PlacementGeometry` — captures and restores per-display frames with normalized movable-range anchors
 - `PlacementStateMachine` — preserves user-confirmed home placement while emitting transient topology directives
 - `PortalFrameConstraints` — pure validation and swept-AABB drag geometry for display-edge and inter-Portal spacing; fast pointer motion cannot tunnel through another Portal
-- `PortalFrameReflow` — deterministically derives fixed-size runtime frames from saved frames, current `visibleFrame`, stable Portal order, and the selected spacing. It clamps earlier Portals first and places each later Portal at its nearest legal candidate; failure leaves the existing layout and preference unchanged.
+- `PortalFrameReflow` — deterministically derives fixed-size runtime frames from saved frames, current `visibleFrame`, stable Portal order, and the selected spacing. Screen-edge and inter-Portal gaps within the maximum 20pt attachment range are normalized to the selected exact value; unrelated free placements remain at their intended coordinates. It clamps earlier Portals first and places each later Portal at its nearest legal candidate; failure leaves the existing layout and preference unchanged.
 
 ### 3.2 AlcoveApp
 
