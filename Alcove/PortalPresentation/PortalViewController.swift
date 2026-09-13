@@ -115,7 +115,7 @@ final class PortalViewController: NSViewController {
         didSet { tabBarView.onAdd = onAddTab }
     }
     var onCloseTab: ((FolderTabID) -> Void)?
-    var onMoveTab: ((FolderTabID, PortalTabMoveDirection) -> Void)? {
+    var onMoveTab: ((FolderTabID, Int) -> Void)? {
         didSet { tabBarView.onMoveTab = onMoveTab }
     }
     var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? {

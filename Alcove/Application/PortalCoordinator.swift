@@ -308,9 +308,9 @@ final class PortalCoordinator: PortalCoordinating {
                 await self?.closeTab(tabID, in: portal.id)
             }
         }
-        window.onMoveTab = { [weak self] tabID, direction in
+        window.onMoveTab = { [weak self] tabID, targetIndex in
             self?.startTabMutationTask {
-                try await self?.moveTab(tabID, toward: direction, in: portal.id)
+                try await self?.moveTab(tabID, to: targetIndex, in: portal.id)
             }
         }
         window.onLocateFolder = { [weak self] tabID in
@@ -532,18 +532,26 @@ final class PortalCoordinator: PortalCoordinating {
         }
     }
 
-    func moveTab(
-        _ tabID: FolderTabID,
-        toward direction: PortalTabMoveDirection,
-        in portalID: PortalID
-    ) async throws {
+    func moveTab(_ tabID: FolderTabID, to targetIndex: Int, in portalID: PortalID) async throws {
         try await performMutation { [weak self] in
             guard let self,
                   let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
                 return
             }
             var portal = portalStates[index]
-            try portal.moveTab(tabID, toward: direction)
+            guard var currentIndex = portal.tabs.firstIndex(where: { $0.id == tabID }),
+                  portal.tabs.indices.contains(targetIndex),
+                  currentIndex != targetIndex else {
+                return
+            }
+            while currentIndex > targetIndex {
+                try portal.moveTab(tabID, toward: .up)
+                currentIndex -= 1
+            }
+            while currentIndex < targetIndex {
+                try portal.moveTab(tabID, toward: .down)
+                currentIndex += 1
+            }
             try await commit(portal, at: index)
         }
     }

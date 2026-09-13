@@ -16,7 +16,7 @@ final class TabBarView: NSView {
     var onAdd: (() -> Void)?
     var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)?
     var onSetIconSize: ((IconSize) -> Void)?
-    var onMoveTab: ((FolderTabID, PortalTabMoveDirection) -> Void)?
+    var onMoveTab: ((FolderTabID, Int) -> Void)?
     var onRemovePortal: (() -> Void)?
     var onSetPinned: ((Bool) -> Void)?
 
@@ -244,7 +244,7 @@ final class TabBarView: NSView {
             portal: portal,
             onAddFolder: { [weak self] in self?.onAdd?() },
             onCloseFolder: { [weak self] id in self?.onClose?(id) },
-            onMoveFolder: { [weak self] id, direction in self?.onMoveTab?(id, direction) },
+            onMoveFolder: { [weak self] id, index in self?.onMoveTab?(id, index) },
             onSetIconSize: { [weak self] size in self?.onSetIconSize?(size) },
             onSetBackgroundStyle: { [weak self] style in
                 self?.onSetBackgroundStyle?(style)
@@ -275,7 +275,7 @@ final class PortalSettingsWindowController: NSWindowController {
         portal: Portal,
         onAddFolder: @escaping () -> Void,
         onCloseFolder: @escaping (FolderTabID) -> Void,
-        onMoveFolder: @escaping (FolderTabID, PortalTabMoveDirection) -> Void,
+        onMoveFolder: @escaping (FolderTabID, Int) -> Void,
         onSetIconSize: @escaping (IconSize) -> Void,
         onSetBackgroundStyle: @escaping (PortalBackgroundStyle) -> Void,
         onRemovePortal: @escaping () -> Void
@@ -443,21 +443,21 @@ final class PortalSettingsViewController: NSViewController {
     private var portal: Portal
     private let onAddFolder: () -> Void
     private let onCloseFolder: (FolderTabID) -> Void
-    private let onMoveFolder: (FolderTabID, PortalTabMoveDirection) -> Void
+    private let onMoveFolder: (FolderTabID, Int) -> Void
     private let onSetIconSize: (IconSize) -> Void
     private let onSetBackgroundStyle: (PortalBackgroundStyle) -> Void
     private let onRemovePortal: () -> Void
     private(set) var selectedCategory = Category.folders
     private(set) var scrollView = NSScrollView()
     private(set) var contentStack: NSStackView = PortalSettingsContentStackView()
+    private(set) var folderListView: PortalSettingsFolderListView?
     private let documentView = PortalSettingsDocumentView()
-    private var actionTargets: [PortalSettingsActionTarget] = []
 
     init(
         portal: Portal,
         onAddFolder: @escaping () -> Void,
         onCloseFolder: @escaping (FolderTabID) -> Void,
-        onMoveFolder: @escaping (FolderTabID, PortalTabMoveDirection) -> Void,
+        onMoveFolder: @escaping (FolderTabID, Int) -> Void,
         onSetIconSize: @escaping (IconSize) -> Void,
         onSetBackgroundStyle: @escaping (PortalBackgroundStyle) -> Void,
         onRemovePortal: @escaping () -> Void
@@ -491,7 +491,7 @@ final class PortalSettingsViewController: NSViewController {
         NSLayoutConstraint.activate([
             contentStack.leadingAnchor.constraint(equalTo: documentView.leadingAnchor, constant: 20),
             contentStack.trailingAnchor.constraint(equalTo: documentView.trailingAnchor, constant: -20),
-            contentStack.topAnchor.constraint(equalTo: documentView.topAnchor, constant: 22),
+            contentStack.topAnchor.constraint(equalTo: documentView.topAnchor, constant: 12),
         ])
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
@@ -537,15 +537,20 @@ final class PortalSettingsViewController: NSViewController {
         return label
     }
 
-    private func actionButton(title: String, symbol: String, action: Selector) -> NSButton {
+    private func actionButton(title: String, symbol: String?, action: Selector) -> NSButton {
         let button = NSButton(title: title, target: self, action: action)
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-        button.imagePosition = .imageLeading
-        button.isBordered = false
+        if let symbol {
+            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+            button.imagePosition = .imageLeading
+        }
+        if #available(macOS 26.0, *) {
+            button.bezelStyle = .glass
+        } else {
+            button.bezelStyle = .rounded
+        }
+        button.controlSize = .small
         button.contentTintColor = .labelColor
-        button.alignment = .left
         button.userInterfaceLayoutDirection = .leftToRight
-        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
         return button
     }
 
@@ -559,18 +564,42 @@ final class PortalSettingsViewController: NSViewController {
         row.alignment = .centerY
         row.spacing = 12
         row.userInterfaceLayoutDirection = .leftToRight
-        row.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        row.heightAnchor.constraint(equalToConstant: 40).isActive = true
         return row
     }
 
-    private func addSection(title: String, card: PortalSettingsCardView) {
+    private func addSection(
+        title: String,
+        accessory: NSView? = nil,
+        card: PortalSettingsCardView
+    ) {
         let label = sectionLabel(title)
-        contentStack.addArrangedSubview(label)
-        label.widthAnchor.constraint(equalTo: contentStack.widthAnchor).isActive = true
-        contentStack.setCustomSpacing(8, after: label)
+        let header = NSView()
+        header.addSubview(label)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        var constraints = [
+            label.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 10),
+            label.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            header.heightAnchor.constraint(greaterThanOrEqualToConstant: 24),
+        ]
+        if let accessory {
+            header.addSubview(accessory)
+            accessory.translatesAutoresizingMaskIntoConstraints = false
+            constraints += [
+                accessory.leadingAnchor.constraint(greaterThanOrEqualTo: label.trailingAnchor, constant: 12),
+                accessory.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -10),
+                accessory.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            ]
+        } else {
+            constraints.append(label.trailingAnchor.constraint(lessThanOrEqualTo: header.trailingAnchor, constant: -10))
+        }
+        NSLayoutConstraint.activate(constraints)
+        contentStack.addArrangedSubview(header)
+        header.widthAnchor.constraint(equalTo: contentStack.widthAnchor).isActive = true
+        contentStack.setCustomSpacing(6, after: header)
         contentStack.addArrangedSubview(card)
         card.widthAnchor.constraint(equalTo: contentStack.widthAnchor).isActive = true
-        contentStack.setCustomSpacing(24, after: card)
+        contentStack.setCustomSpacing(18, after: card)
     }
 
     private func showCategory(_ category: Category) {
@@ -578,31 +607,29 @@ final class PortalSettingsViewController: NSViewController {
             contentStack.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
-        actionTargets.removeAll(keepingCapacity: true)
+        folderListView = nil
 
         switch category {
         case .folders:
-            var folderRows = portal.tabs.enumerated().map { index, tab in
-                folderRow(tab: tab, index: index, count: portal.tabs.count)
-            }
-            folderRows.append(actionButton(
+            let folderListView = PortalSettingsFolderListView(
+                tabs: portal.tabs,
+                onRemove: onCloseFolder,
+                onMove: onMoveFolder
+            )
+            self.folderListView = folderListView
+            let addButton = actionButton(
                 title: NSLocalizedString("portal.settings.add_folder", comment: "Add folder"),
                 symbol: "folder.badge.plus",
                 action: #selector(addFolder)
-            ))
+            )
             addSection(
                 title: NSLocalizedString("portal.settings.folders", comment: "Folders section"),
-                card: PortalSettingsCardView(rows: folderRows)
+                accessory: addButton,
+                card: PortalSettingsCardView(rows: [folderListView])
             )
-            let removeButton = actionButton(
-                title: NSLocalizedString("portal.settings.remove_portal", comment: "Remove portal"),
-                symbol: "trash",
-                action: #selector(removePortal)
-            )
-            removeButton.contentTintColor = .systemRed
             addSection(
                 title: NSLocalizedString("portal.settings.panel", comment: "Panel settings section"),
-                card: PortalSettingsCardView(rows: [removeButton])
+                card: PortalSettingsCardView(rows: [removePortalRow()])
             )
         case .style:
             addSection(
@@ -685,51 +712,50 @@ final class PortalSettingsViewController: NSViewController {
         return slider
     }
 
-    private func folderRow(tab: FolderTab, index: Int, count: Int) -> NSView {
-        let icon = NSImageView()
-        icon.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
-        icon.contentTintColor = .secondaryLabelColor
-        icon.widthAnchor.constraint(equalToConstant: 18).isActive = true
-        icon.heightAnchor.constraint(equalToConstant: 18).isActive = true
+    private func removePortalRow() -> NSView {
+        let title = NSTextField(labelWithString: NSLocalizedString(
+            "portal.settings.remove_portal_title",
+            comment: "Remove portal setting title"
+        ))
+        title.font = .systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        let detail = NSTextField(wrappingLabelWithString: NSLocalizedString(
+            "portal.settings.remove_portal_detail",
+            comment: "Remove portal setting detail"
+        ))
+        detail.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        detail.textColor = .secondaryLabelColor
+        let labels = NSStackView(views: [title, detail])
+        labels.orientation = .vertical
+        labels.alignment = .leading
+        labels.spacing = 2
+        labels.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let label = NSTextField(labelWithString: tab.folderURL.lastPathComponent)
-        label.lineBreakMode = .byTruncatingMiddle
-        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-        let moveUp = iconActionButton(
-            symbol: "chevron.up",
-            label: NSLocalizedString("portal.settings.move_up", comment: "Move folder up"),
-            enabled: index > 0
-        ) { [onMoveFolder] in
-            onMoveFolder(tab.id, .up)
-        }
-        let moveDown = iconActionButton(
-            symbol: "chevron.down",
-            label: NSLocalizedString("portal.settings.move_down", comment: "Move folder down"),
-            enabled: index < count - 1
-        ) { [onMoveFolder] in
-            onMoveFolder(tab.id, .down)
-        }
-        let remove = iconActionButton(
-            symbol: "trash",
-            label: NSLocalizedString("portal.settings.remove_folder_action", comment: "Remove folder"),
-            enabled: true
-        ) { [onCloseFolder] in
-            onCloseFolder(tab.id)
-        }
-        remove.contentTintColor = .systemRed
-
-        let row = NSStackView(views: [icon, label, moveUp, moveDown, remove])
+        let button = actionButton(
+            title: NSLocalizedString("portal.settings.remove_portal", comment: "Remove portal"),
+            symbol: nil,
+            action: #selector(removePortal)
+        )
+        button.contentTintColor = .systemRed
+        let row = NSStackView(views: [labels, button])
         row.orientation = .horizontal
+        row.distribution = .fill
         row.alignment = .centerY
-        row.spacing = 8
-        row.userInterfaceLayoutDirection = .leftToRight
-        row.heightAnchor.constraint(equalToConstant: 40).isActive = true
+        row.spacing = 12
+        row.heightAnchor.constraint(greaterThanOrEqualToConstant: 48).isActive = true
         return row
     }
 
+    func reorderFolder(_ id: FolderTabID, to targetIndex: Int) {
+        guard let sourceIndex = portal.tabs.firstIndex(where: { $0.id == id }),
+              portal.tabs.indices.contains(targetIndex),
+              sourceIndex != targetIndex else {
+            return
+        }
+        onMoveFolder(id, targetIndex)
+    }
+
     private func layoutSettingsContent() {
-        let verticalInset: CGFloat = 22
+        let verticalInset: CGFloat = 12
         let viewportWidth = scrollView.contentSize.width
         guard viewportWidth > 0 else { return }
 
@@ -743,28 +769,6 @@ final class PortalSettingsViewController: NSViewController {
             height: contentHeight + verticalInset * 2
         )
         documentView.layoutSubtreeIfNeeded()
-    }
-
-    private func iconActionButton(
-        symbol: String,
-        label: String,
-        enabled: Bool,
-        action: @escaping () -> Void
-    ) -> NSButton {
-        let target = PortalSettingsActionTarget(action: action)
-        actionTargets.append(target)
-        let button = NSButton()
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-        button.imagePosition = .imageOnly
-        button.isBordered = false
-        button.target = target
-        button.action = #selector(PortalSettingsActionTarget.performAction(_:))
-        button.isEnabled = enabled
-        button.toolTip = label
-        button.setAccessibilityLabel(label)
-        button.widthAnchor.constraint(equalToConstant: 24).isActive = true
-        button.heightAnchor.constraint(equalToConstant: 24).isActive = true
-        return button
     }
 
     @objc private func addFolder() {
@@ -827,23 +831,52 @@ private final class PortalSettingsDocumentView: NSView {
 }
 
 @MainActor
-final class PortalSettingsCategoryButton: NSButton {
-    let category: PortalSettingsViewController.Category
+final class PortalSettingsFolderListView: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
+    static let pasteboardType = NSPasteboard.PasteboardType(
+        "com.dylanwang.Alcove.portal-settings-folder"
+    )
 
-    init(category: PortalSettingsViewController.Category) {
-        self.category = category
+    private let tabs: [FolderTab]
+    private let onRemove: (FolderTabID) -> Void
+    private let onMove: (FolderTabID, Int) -> Void
+    private(set) var tableView = NSTableView()
+
+    init(
+        tabs: [FolderTab],
+        onRemove: @escaping (FolderTabID) -> Void,
+        onMove: @escaping (FolderTabID, Int) -> Void
+    ) {
+        self.tabs = tabs
+        self.onRemove = onRemove
+        self.onMove = onMove
         super.init(frame: .zero)
-        title = category.title
-        image = NSImage(
-            systemSymbolName: category.symbol,
-            accessibilityDescription: category.title
-        )?.withSymbolConfiguration(.init(pointSize: 23, weight: .regular))
-        imagePosition = .imageAbove
-        isBordered = false
-        font = .systemFont(ofSize: 13, weight: .medium)
-        widthAnchor.constraint(equalToConstant: 76).isActive = true
-        heightAnchor.constraint(equalToConstant: 70).isActive = true
-        setAccessibilityLabel(category.title)
+
+        drawsBackground = false
+        borderType = .noBorder
+        hasVerticalScroller = false
+        hasHorizontalScroller = false
+
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("folder"))
+        column.resizingMask = .autoresizingMask
+        tableView.addTableColumn(column)
+        tableView.headerView = nil
+        tableView.backgroundColor = .clear
+        tableView.intercellSpacing = .zero
+        tableView.rowHeight = 36
+        tableView.selectionHighlightStyle = .none
+        tableView.allowsEmptySelection = true
+        tableView.gridStyleMask = .solidHorizontalGridLineMask
+        tableView.gridColor = .separatorColor
+        tableView.draggingDestinationFeedbackStyle = .gap
+        tableView.registerForDraggedTypes([Self.pasteboardType])
+        tableView.setDraggingSourceOperationMask(.move, forLocal: true)
+        tableView.setDraggingSourceOperationMask([], forLocal: false)
+        tableView.dataSource = self
+        tableView.delegate = self
+        documentView = tableView
+        heightAnchor.constraint(
+            equalToConstant: max(CGFloat(tabs.count) * tableView.rowHeight, 6)
+        ).isActive = true
     }
 
     @available(*, unavailable)
@@ -851,44 +884,171 @@ final class PortalSettingsCategoryButton: NSButton {
         nil
     }
 
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        updateAppearance()
+    func numberOfRows(in tableView: NSTableView) -> Int {
+        tabs.count
     }
 
-    func setSelected(_ selected: Bool) {
-        state = selected ? .on : .off
-        updateAppearance()
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
+        false
     }
 
-    private func updateAppearance() {
-        effectiveAppearance.performAsCurrentDrawingAppearance {
-            contentTintColor = state == .on ? .controlAccentColor : .secondaryLabelColor
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        PortalSettingsFolderCellView(tab: tabs[row], onRemove: onRemove)
+    }
+
+    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
+        let item = NSPasteboardItem()
+        item.setString(tabs[row].id.rawValue.uuidString, forType: Self.pasteboardType)
+        return item
+    }
+
+    func tableView(
+        _ tableView: NSTableView,
+        validateDrop info: any NSDraggingInfo,
+        proposedRow row: Int,
+        proposedDropOperation dropOperation: NSTableView.DropOperation
+    ) -> NSDragOperation {
+        guard draggedFolderID(from: info) != nil else { return [] }
+        tableView.setDropRow(row, dropOperation: .above)
+        return .move
+    }
+
+    func tableView(
+        _ tableView: NSTableView,
+        acceptDrop info: any NSDraggingInfo,
+        row: Int,
+        dropOperation: NSTableView.DropOperation
+    ) -> Bool {
+        guard let id = draggedFolderID(from: info),
+              let sourceIndex = tabs.firstIndex(where: { $0.id == id }) else {
+            return false
         }
+        var targetIndex = min(max(row, 0), tabs.count)
+        if targetIndex > sourceIndex {
+            targetIndex -= 1
+        }
+        guard targetIndex != sourceIndex else { return false }
+        onMove(id, targetIndex)
+        return true
+    }
+
+    private func draggedFolderID(from info: any NSDraggingInfo) -> FolderTabID? {
+        guard let value = info.draggingPasteboard.string(forType: Self.pasteboardType),
+              let rawValue = UUID(uuidString: value),
+              tabs.contains(where: { $0.id.rawValue == rawValue }) else {
+            return nil
+        }
+        return FolderTabID(rawValue: rawValue)
     }
 }
 
 @MainActor
-private final class PortalSettingsActionTarget: NSObject {
-    private let action: () -> Void
+private final class PortalSettingsFolderCellView: NSTableCellView {
+    private let onRemove: (FolderTabID) -> Void
+    private let tabID: FolderTabID
 
-    init(action: @escaping () -> Void) {
-        self.action = action
+    init(tab: FolderTab, onRemove: @escaping (FolderTabID) -> Void) {
+        self.onRemove = onRemove
+        tabID = tab.id
+        super.init(frame: .zero)
+
+        let folderIcon = NSImageView()
+        folderIcon.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+        folderIcon.contentTintColor = .secondaryLabelColor
+        folderIcon.translatesAutoresizingMaskIntoConstraints = false
+
+        let pathLabel = NSTextField(
+            labelWithString: (tab.folderURL.path as NSString).abbreviatingWithTildeInPath
+        )
+        pathLabel.lineBreakMode = .byTruncatingMiddle
+        pathLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        pathLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        pathLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let dragIndicator = PortalSettingsDragIndicatorView()
+        dragIndicator.translatesAutoresizingMaskIntoConstraints = false
+
+        let removeButton = NSButton()
+        removeButton.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+        removeButton.imagePosition = .imageOnly
+        removeButton.isBordered = false
+        removeButton.contentTintColor = .systemRed
+        removeButton.target = self
+        removeButton.action = #selector(removeFolder)
+        removeButton.toolTip = NSLocalizedString(
+            "portal.settings.remove_folder_action",
+            comment: "Remove folder"
+        )
+        removeButton.setAccessibilityLabel(removeButton.toolTip)
+        removeButton.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(folderIcon)
+        addSubview(pathLabel)
+        addSubview(dragIndicator)
+        addSubview(removeButton)
+        NSLayoutConstraint.activate([
+            folderIcon.leadingAnchor.constraint(equalTo: leadingAnchor),
+            folderIcon.centerYAnchor.constraint(equalTo: centerYAnchor),
+            folderIcon.widthAnchor.constraint(equalToConstant: 18),
+            folderIcon.heightAnchor.constraint(equalToConstant: 18),
+            pathLabel.leadingAnchor.constraint(equalTo: folderIcon.trailingAnchor, constant: 8),
+            pathLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            dragIndicator.leadingAnchor.constraint(greaterThanOrEqualTo: pathLabel.trailingAnchor, constant: 8),
+            dragIndicator.centerYAnchor.constraint(equalTo: centerYAnchor),
+            dragIndicator.widthAnchor.constraint(equalToConstant: 24),
+            dragIndicator.heightAnchor.constraint(equalToConstant: 24),
+            removeButton.leadingAnchor.constraint(equalTo: dragIndicator.trailingAnchor, constant: 4),
+            removeButton.trailingAnchor.constraint(equalTo: trailingAnchor),
+            removeButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            removeButton.widthAnchor.constraint(equalToConstant: 24),
+            removeButton.heightAnchor.constraint(equalToConstant: 24),
+        ])
     }
 
-    @objc func performAction(_ sender: Any?) {
-        action()
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    @objc private func removeFolder() {
+        onRemove(tabID)
     }
 }
 
 @MainActor
-private final class PortalSettingsCardView: NSView {
-    override var wantsUpdateLayer: Bool { true }
+private final class PortalSettingsDragIndicatorView: NSImageView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        image = NSImage(systemSymbolName: "line.3.horizontal", accessibilityDescription: nil)
+        contentTintColor = .secondaryLabelColor
+        toolTip = NSLocalizedString(
+            "portal.settings.reorder_folder",
+            comment: "Reorder folder by dragging"
+        )
+        setAccessibilityElement(true)
+        setAccessibilityLabel(toolTip)
+    }
 
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+}
+
+@MainActor
+private final class PortalSettingsCardView: NSVisualEffectView {
     init(rows: [NSView]) {
         super.init(frame: .zero)
+        material = .contentBackground
+        blendingMode = .withinWindow
+        state = .active
         wantsLayer = true
         layer?.cornerRadius = 12
+        layer?.masksToBounds = true
         setContentHuggingPriority(.required, for: .vertical)
 
         var arrangedViews: [NSView] = []
@@ -910,10 +1070,10 @@ private final class PortalSettingsCardView: NSView {
             row.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 4),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 3),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -3),
         ])
     }
 
@@ -922,12 +1082,6 @@ private final class PortalSettingsCardView: NSView {
         nil
     }
 
-    override func updateLayer() {
-        effectiveAppearance.performAsCurrentDrawingAppearance {
-            layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.055).cgColor
-            layer?.borderWidth = 0
-        }
-    }
 }
 
 @MainActor

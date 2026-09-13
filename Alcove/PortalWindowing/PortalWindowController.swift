@@ -19,7 +19,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
     var onCloseTab: ((FolderTabID) -> Void)? {
         didSet { portalViewController.onCloseTab = onCloseTab }
     }
-    var onMoveTab: ((FolderTabID, PortalTabMoveDirection) -> Void)? {
+    var onMoveTab: ((FolderTabID, Int) -> Void)? {
         didSet { portalViewController.onMoveTab = onMoveTab }
     }
     var onLocateFolder: ((FolderTabID) -> Void)? {

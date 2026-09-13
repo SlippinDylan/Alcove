@@ -126,7 +126,7 @@ final class TabBarViewTests: XCTestCase {
         ))
         var addCount = 0
         var closedIDs: [FolderTabID] = []
-        var moveRequests: [(FolderTabID, PortalTabMoveDirection)] = []
+        var moveRequests: [(FolderTabID, Int)] = []
         var removePortalCount = 0
         tabBar.onAdd = { addCount += 1 }
         tabBar.onClose = { closedIDs.append($0) }
@@ -148,26 +148,16 @@ final class TabBarViewTests: XCTestCase {
             PortalSettingsViewController.Category.folders.toolbarItemIdentifier
         )
 
-        try settingsButton(
+        let addButton = try settingsButton(
             titled: NSLocalizedString("portal.settings.add_folder", comment: ""),
             in: tabBar
-        ).performClick(nil)
-        let firstMoveUp = try folderActionButton(
-            labeled: NSLocalizedString("portal.settings.move_up", comment: ""),
-            for: "First",
-            in: tabBar
         )
-        XCTAssertFalse(firstMoveUp.isEnabled)
-        try folderActionButton(
-            labeled: NSLocalizedString("portal.settings.move_down", comment: ""),
-            for: "First",
-            in: tabBar
-        ).performClick(nil)
-        try folderActionButton(
-            labeled: NSLocalizedString("portal.settings.move_up", comment: ""),
-            for: "Second",
-            in: tabBar
-        ).performClick(nil)
+        XCTAssertTrue(addButton.isBordered)
+        if #available(macOS 26.0, *) {
+            XCTAssertEqual(addButton.bezelStyle, .glass)
+        }
+        addButton.performClick(nil)
+        settingsViewController.reorderFolder(first.id, to: 2)
         try folderActionButton(
             labeled: NSLocalizedString("portal.settings.remove_folder_action", comment: ""),
             for: "Third",
@@ -180,11 +170,9 @@ final class TabBarViewTests: XCTestCase {
 
         XCTAssertEqual(addCount, 1)
         XCTAssertEqual(closedIDs, [third.id])
-        XCTAssertEqual(moveRequests.count, 2)
+        XCTAssertEqual(moveRequests.count, 1)
         XCTAssertEqual(moveRequests[0].0, first.id)
-        XCTAssertEqual(moveRequests[0].1, .down)
-        XCTAssertEqual(moveRequests[1].0, second.id)
-        XCTAssertEqual(moveRequests[1].1, .up)
+        XCTAssertEqual(moveRequests[0].1, 2)
         XCTAssertEqual(removePortalCount, 1)
         XCTAssertEqual(
             tabBar.managementButton.accessibilityLabel(),
@@ -228,19 +216,52 @@ final class TabBarViewTests: XCTestCase {
                 settingsViewController.contentStack.frame.width,
                 accuracy: 0.5
             )
+            XCTAssertEqual((card as? NSVisualEffectView)?.material, .contentBackground)
         }
+        let folderList = try XCTUnwrap(settingsViewController.folderListView)
+        XCTAssertEqual(folderList.tableView.numberOfRows, 3)
+        XCTAssertEqual(folderList.tableView.draggingDestinationFeedbackStyle, .gap)
+        XCTAssertNotNil(folderList.tableView.dataSource?.tableView?(
+            folderList.tableView,
+            pasteboardWriterForRow: 0
+        ))
         let firstFolderRow = try XCTUnwrap(
-            descendants(of: settingsRoot)
-                .compactMap { $0 as? NSStackView }
-                .first { row in
-                    row.subviews.compactMap { $0 as? NSTextField }
-                        .contains { $0.stringValue == "First" }
-                }
+            folderList.tableView.view(atColumn: 0, row: 0, makeIfNecessary: true)
         )
         let firstFolderCard = try XCTUnwrap(cards.first)
-        let firstFolderRowFrame = firstFolderRow.convert(firstFolderRow.bounds, to: firstFolderCard)
-        XCTAssertEqual(firstFolderRowFrame.minX, 16, accuracy: 0.5)
-        XCTAssertEqual(firstFolderRowFrame.maxX, firstFolderCard.bounds.maxX - 16, accuracy: 0.5)
+        let folderListFrame = folderList.convert(folderList.bounds, to: firstFolderCard)
+        XCTAssertEqual(folderListFrame.minX, 10, accuracy: 0.5)
+        XCTAssertEqual(folderListFrame.maxX, firstFolderCard.bounds.maxX - 10, accuracy: 0.5)
+        XCTAssertTrue(
+            descendants(of: firstFolderRow).compactMap { $0 as? NSTextField }
+                .contains { $0.stringValue == "/tmp/First" }
+        )
+        let dragHandle = try XCTUnwrap(
+            descendants(of: firstFolderRow).first {
+                $0.accessibilityLabel() == NSLocalizedString(
+                    "portal.settings.reorder_folder",
+                    comment: ""
+                )
+            }
+        )
+        let removeFolder = try folderActionButton(
+            labeled: NSLocalizedString("portal.settings.remove_folder_action", comment: ""),
+            for: "First",
+            in: tabBar
+        )
+        let dragFrame = dragHandle.convert(dragHandle.bounds, to: firstFolderRow)
+        let removeFrame = removeFolder.convert(removeFolder.bounds, to: firstFolderRow)
+        XCTAssertLessThanOrEqual(dragFrame.maxX, removeFrame.minX)
+        XCTAssertEqual(removeFrame.maxX, firstFolderRow.bounds.maxX, accuracy: 0.5)
+        XCTAssertFalse(removeFolder.isBordered)
+        XCTAssertNotNil(
+            descendants(of: settingsRoot).compactMap { $0 as? NSTextField }.first {
+                $0.stringValue == NSLocalizedString(
+                    "portal.settings.remove_portal_detail",
+                    comment: ""
+                )
+            }
+        )
     }
 
     @MainActor
@@ -459,18 +480,20 @@ final class TabBarViewTests: XCTestCase {
         for folderName: String,
         in tabBar: TabBarView
     ) throws -> NSButton {
-        let folderRow = try XCTUnwrap(
-            descendants(of: try settingsRoot(in: tabBar))
-                .compactMap { $0 as? NSStackView }
-                .first { row in
-                    row.subviews.compactMap { $0 as? NSTextField }
-                        .contains { $0.stringValue == folderName }
-                }
+        let pathLabel = try XCTUnwrap(
+            descendants(of: try settingsRoot(in: tabBar)).compactMap { $0 as? NSTextField }
+                .first { $0.stringValue == "/tmp/\(folderName)" }
         )
-        return try XCTUnwrap(
-            folderRow.subviews.compactMap { $0 as? NSButton }
-                .first { $0.accessibilityLabel() == label }
-        )
+        var container = pathLabel.superview
+        while let view = container {
+            if let button = descendants(of: view).compactMap({ $0 as? NSButton }).first(where: {
+                $0.accessibilityLabel() == label
+            }) {
+                return button
+            }
+            container = view.superview
+        }
+        throw TestError.missingFolderAction
     }
 
     @MainActor
@@ -494,5 +517,9 @@ final class TabBarViewTests: XCTestCase {
                 )
             )
         )
+    }
+
+    private enum TestError: Error {
+        case missingFolderAction
     }
 }

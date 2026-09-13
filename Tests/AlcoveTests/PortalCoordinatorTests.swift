@@ -647,20 +647,24 @@ final class PortalCoordinatorTests: XCTestCase {
     func testSettingsTabMovePersistsOrderAndPreservesSelection() async throws {
         var portal = try makePortal(path: "/tmp/first", x: 10)
         let secondID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
+        let thirdID = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/third"))
         let selectedID = try XCTUnwrap(portal.selectedTabID)
         let store = PortalStoreSpy(portals: [portal])
         let factory = PortalWindowFactorySpy()
         let coordinator = PortalCoordinator(store: store, windowFactory: factory)
         try await coordinator.restorePortals()
 
-        factory.windows[0].onMoveTab?(secondID, .up)
+        factory.windows[0].onMoveTab?(thirdID, 0)
         await coordinator.waitForTabMutationForTesting()
 
-        XCTAssertEqual(coordinator.portalStates[0].tabs.map(\.id), [secondID, selectedID])
+        XCTAssertEqual(coordinator.portalStates[0].tabs.map(\.id), [thirdID, selectedID, secondID])
         XCTAssertEqual(coordinator.portalStates[0].selectedTabID, selectedID)
-        XCTAssertEqual(factory.windows[0].updatedPortals.last?.tabs.map(\.id), [secondID, selectedID])
+        XCTAssertEqual(
+            factory.windows[0].updatedPortals.last?.tabs.map(\.id),
+            [thirdID, selectedID, secondID]
+        )
         let saves = await store.savedSnapshots()
-        XCTAssertEqual(saves.last?.first?.tabs.map(\.id), [secondID, selectedID])
+        XCTAssertEqual(saves.last?.first?.tabs.map(\.id), [thirdID, selectedID, secondID])
     }
 
     @MainActor
@@ -1265,7 +1269,7 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var onSelectTab: ((FolderTabID) -> Void)?
     var onAddTab: (() -> Void)?
     var onCloseTab: ((FolderTabID) -> Void)?
-    var onMoveTab: ((FolderTabID, PortalTabMoveDirection) -> Void)?
+    var onMoveTab: ((FolderTabID, Int) -> Void)?
     var onLocateFolder: ((FolderTabID) -> Void)?
     var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)?
     var onSetIconSize: ((IconSize) -> Void)?

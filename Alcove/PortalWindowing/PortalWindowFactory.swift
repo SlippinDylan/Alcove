@@ -10,7 +10,7 @@ protocol PortalWindowPresenting: AnyObject {
     var onSelectTab: ((FolderTabID) -> Void)? { get set }
     var onAddTab: (() -> Void)? { get set }
     var onCloseTab: ((FolderTabID) -> Void)? { get set }
-    var onMoveTab: ((FolderTabID, PortalTabMoveDirection) -> Void)? { get set }
+    var onMoveTab: ((FolderTabID, Int) -> Void)? { get set }
     var onLocateFolder: ((FolderTabID) -> Void)? { get set }
     var onSetBackgroundStyle: ((PortalBackgroundStyle) -> Void)? { get set }
     var onSetIconSize: ((IconSize) -> Void)? { get set }
