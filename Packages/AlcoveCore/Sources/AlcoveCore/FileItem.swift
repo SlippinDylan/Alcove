@@ -9,6 +9,8 @@ public struct FileItem: Identifiable, Sendable, Hashable {
     public let url: URL
     public let name: String
     public let isDirectory: Bool
+    public let isPackage: Bool
+    public let isSymbolicLink: Bool
     public let isHidden: Bool
     public let contentModificationDate: Date?
     public let creationDate: Date?
@@ -17,6 +19,8 @@ public struct FileItem: Identifiable, Sendable, Hashable {
         url: URL,
         name: String,
         isDirectory: Bool,
+        isPackage: Bool = false,
+        isSymbolicLink: Bool = false,
         isHidden: Bool,
         contentModificationDate: Date? = nil,
         creationDate: Date? = nil
@@ -26,8 +30,14 @@ public struct FileItem: Identifiable, Sendable, Hashable {
         self.url = standardizedURL
         self.name = name
         self.isDirectory = isDirectory
+        self.isPackage = isPackage
+        self.isSymbolicLink = isSymbolicLink
         self.isHidden = isHidden
         self.contentModificationDate = contentModificationDate
         self.creationDate = creationDate
+    }
+
+    public var isNavigableDirectory: Bool {
+        isDirectory && !isPackage && !isSymbolicLink
     }
 }

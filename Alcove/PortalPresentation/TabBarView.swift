@@ -19,6 +19,7 @@ final class TabBarView: NSView {
     var onSetPinned: ((Bool) -> Void)?
     var onSetSortOrder: ((PortalSortOrder) -> Void)?
     var onSetTint: ((PortalTint) -> Void)?
+    var onNavigateBack: (() -> Void)?
     var removalConfirmationPresenter: ((NSWindow?, @escaping (Bool) -> Void) -> Void) = {
         window, completion in
         let alert = NSAlert()
@@ -49,6 +50,7 @@ final class TabBarView: NSView {
     private(set) var scrollView = NSScrollView()
     private let stackView = NSStackView()
     private(set) var managementButton = NSButton()
+    private(set) var backButton = NSButton()
     private(set) var managementMenu: NSMenu?
     private(set) var settingsWindowController: PortalSettingsWindowController?
     private var actionTargets: [TabActionTarget] = []
@@ -65,7 +67,8 @@ final class TabBarView: NSView {
 
     override func layout() {
         super.layout()
-        let reservedSideWidth: CGFloat = 52
+        let backButtonWidth = backButton.isHidden ? 0 : backButton.fittingSize.width + 16
+        let reservedSideWidth = max(52, backButtonWidth)
         let maximumGroupWidth = max(1, bounds.width - reservedSideWidth * 2)
         let groupWidth = min(stackView.fittingSize.width, maximumGroupWidth)
         let tabFrame = NSRect(
@@ -123,6 +126,11 @@ final class TabBarView: NSView {
         needsLayout = true
     }
 
+    func updateNavigation(canGoBack: Bool) {
+        backButton.isHidden = !canGoBack
+        needsLayout = true
+    }
+
     private func configureView() {
         stackView.orientation = .horizontal
         stackView.alignment = .centerY
@@ -138,6 +146,24 @@ final class TabBarView: NSView {
         scrollView.documentView = stackView
 
         addSubview(scrollView)
+
+        backButton.title = NSLocalizedString("portal.navigation.back", comment: "Back")
+        backButton.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil)
+        backButton.imagePosition = .imageLeading
+        backButton.target = self
+        backButton.action = #selector(navigateBack)
+        backButton.controlSize = .small
+        if #available(macOS 26.0, *) {
+            backButton.bezelStyle = .glass
+        } else {
+            backButton.bezelStyle = .rounded
+        }
+        backButton.setAccessibilityLabel(
+            NSLocalizedString("portal.navigation.back", comment: "Back")
+        )
+        backButton.translatesAutoresizingMaskIntoConstraints = false
+        backButton.isHidden = true
+        addSubview(backButton)
 
         managementButton.image = NSImage(
             systemSymbolName: "gearshape",
@@ -162,11 +188,18 @@ final class TabBarView: NSView {
         updateManagementButtonAppearance()
 
         NSLayoutConstraint.activate([
+            backButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            backButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            backButton.heightAnchor.constraint(equalToConstant: 30),
             managementButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -9),
             managementButton.centerYAnchor.constraint(equalTo: centerYAnchor),
             managementButton.widthAnchor.constraint(equalToConstant: 30),
             managementButton.heightAnchor.constraint(equalToConstant: 30),
         ])
+    }
+
+    @objc private func navigateBack() {
+        onNavigateBack?()
     }
 
     private func makeTabButton(for tab: FolderTab, selected: Bool) -> PortalTabButton {

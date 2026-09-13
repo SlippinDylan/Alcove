@@ -94,6 +94,43 @@ final class FileGridViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testOnlyOrdinaryDirectoriesNavigateInsideThePanel() {
+        let opener = WorkspaceOpenerSpy()
+        let controller = FileGridViewController(workspaceOpener: opener)
+        controller.loadView()
+        let folder = FileItem(
+            url: URL(fileURLWithPath: "/tmp/Folder"),
+            name: "Folder",
+            isDirectory: true,
+            isHidden: false
+        )
+        let package = FileItem(
+            url: URL(fileURLWithPath: "/tmp/App.app"),
+            name: "App.app",
+            isDirectory: true,
+            isPackage: true,
+            isHidden: false
+        )
+        let symlink = FileItem(
+            url: URL(fileURLWithPath: "/tmp/Link"),
+            name: "Link",
+            isDirectory: true,
+            isSymbolicLink: true,
+            isHidden: false
+        )
+        var navigated: [URL] = []
+        controller.onNavigateDirectory = { navigated.append($0.url) }
+        controller.setItems([folder, package, symlink])
+
+        controller.handleClick(index: 0, modifiers: [], clickCount: 2)
+        controller.handleClick(index: 1, modifiers: [], clickCount: 2)
+        controller.handleClick(index: 2, modifiers: [], clickCount: 2)
+
+        XCTAssertEqual(navigated, [folder.url])
+        XCTAssertEqual(opener.openedURLs, [package.url, symlink.url])
+    }
+
+    @MainActor
     func testRuntimeSelectionCanBeCapturedAndRestoredForATab() {
         let items = makeItems(count: 4)
         let firstController = FileGridViewController()

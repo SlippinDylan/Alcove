@@ -90,6 +90,12 @@
 /* Folder path */
 "portal.path.label" = "資料夾路徑";
 "portal.path.copy" = "複製路徑";
+"portal.path.terminal" = "在終端機中打開";
+"portal.path.finder_failed" = "無法在訪達中打開資料夾";
+"portal.path.terminal_unavailable" = "終端機不可用";
+"portal.path.terminal_failed" = "無法在終端機中打開資料夾";
+"portal.navigation.back" = "返回";
+"portal.item.folder.navigate.help" = "資料夾。按兩下可在此面板中打開。";
 
 /* Portal settings */
 "portal.settings.label" = "面板設定";

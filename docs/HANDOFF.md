@@ -22,7 +22,7 @@
 
 Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通应用窗口之下展示可移动、可缩放的文件夹 Portal；每个 Portal 可以包含多个文件夹 Tab，并提供 Finder 风格的图标网格、选择、打开、Quick Look、自动刷新和多显示器恢复。
 
-它不是 Finder 替代品。MVP 是只读视图，不提供重命名、删除文件、新建文件夹、复制、移动或拖入写操作。
+它不是 Finder 替代品。每个 Tab 可在映射根目录内进行运行时导航，但映射根路径不随浏览改变；当前阶段仍不提供重命名、新建文件夹或文件写操作。
 
 ## 3. 已确认的产品范围
 
@@ -100,15 +100,16 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 每个完整对象空间使用细边框显示实际 tile 边界；图标和标题的选中区域仍彼此独立。
 - 当前布局基于 Finder 桌面尺寸语义，不能把 64pt 图标、12pt 文字写死为唯一配置。
 - 单击选择；Command-click 切换；Shift-click 范围选择；方向键移动；Command-A 全选。
-- 双击、Command-Down 或 Command-O 打开；文件夹通过 `NSWorkspace` 在 Finder 中打开。
+- 双击普通目录在当前 Tab 内进入；Package 和符号链接交给系统默认 App。每个 Tab 独立保留运行时 currentURL、返回历史、选择和滚动位置，重启回到映射根目录。
+- 子目录中顶部左侧显示原生返回按钮；底部路径栏跟随 currentURL，路径可在 Finder 打开，并提供 Apple Terminal 与最右侧绝对路径复制按钮。
 - Space 使用 `QLPreviewPanel` 打开或关闭 Quick Look。
 - 选中标题文字为白色；图标和标题有各自的 Finder 风格选中区域。
 - 默认排序为目录优先，再按 localized standard name。
-- 当前 Tab 的文件夹路径显示在网格下方的固定行中，底部路径行与文件网格之间使用轻分割线，不使用胶囊、额外材质、填充或描边。用户目录缩写为 `~`；复制按钮把显示路径写入剪贴板。空 Portal 隐藏路径内容但保留布局高度。
+- 当前浏览路径显示在网格下方的固定行中，底部路径行与文件网格之间使用轻分割线，不使用胶囊、额外材质、填充或描边。用户目录缩写为 `~`；Finder、Terminal 和复制操作都使用真实 currentURL，复制写入绝对路径。空 Portal 隐藏路径内容但保留布局高度。
 
 ### 3.7 图标尺寸
 
-- 每个 Portal 独立选择并持久化 Small、Medium 或 Large，设置界面使用三档离散滑块。
+- 所有 Portal 共享全局 Small、Medium 或 Large 内容尺寸，设置界面使用三档离散滑块。
 - 不读取 Finder 设置，不发送 Apple Events，也不申请 Finder Automation 权限。
 - 图标尺寸改变时保持 `GridCapacity` 和 Portal 左上角不变，按所选 preset 向右、向下重算像素 frame；优先使用当前 home display 的 `visibleFrame`，无法取得当前 descriptor 时使用其记住的 reference frame。
 - 新建 Portal 的骨架和最终 Portal 都使用 Medium。
@@ -167,7 +168,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.10 菜单栏与本地化
 
 - 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；Portal 名称的二级菜单只提供 Show 和 Hide。
-- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / About。General 只提供系统登录时自动启动；Style 统一控制三档内容大小、五档背景透明度、五档面板间距、五档圆角和系统阴影；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观写入 `UserDefaults`，不复制 Portal v11 的单面板排序和颜色状态。
+- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / Advanced / About。General 只提供系统登录时自动启动；Style 统一控制三档内容大小、五档背景透明度、五档面板间距、五档圆角和系统阴影；Advanced 通过独立的布局备份 v1 JSON 执行完整导入/导出；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观写入 `UserDefaults`，不复制 Portal v11 的单面板排序和颜色状态。
 - 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
 - English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
 
@@ -190,6 +191,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 | Quick Look | `Alcove/QuickLookIntegration/QuickLookIntegration.swift` | responder chain 和 `QLPreviewPanel` 所有权 |
 | placement | `Alcove/DisplayPlacement/DisplayPlacement.swift` | NSScreen 快照、拓扑通知、legacy frame 解析 |
 | 持久化 | `Alcove/Persistence/*` | v11 DTO、v1–v10 迁移、同目录临时文件和原子替换 |
+| 布局备份 | `Alcove/Application/ApplicationLayoutBackupController.swift`、`Alcove/Persistence/AlcoveLayoutBackupCodec.swift` | JSON 面板、后台原子 I/O、公开 v1 codec 和替换式导入 |
 | 纯领域/几何 | `Packages/AlcoveCore/Sources/AlcoveCore/*` | Portal、GridCapacity、GridLayout、placement state machine、selection |
 
 ## 5. 持久化现状
@@ -201,6 +203,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 迁移前先写一次 `portals.vN.json.bak`；已有不同备份时停止，不能覆盖证据。
 - 当前存储路径：`~/Library/Application Support/Alcove/portals.json`。
 - 保存使用同目录临时文件后 replace/move；不要改成非原子覆盖写。
+- 布局备份是独立的 `com.alcove.layout-backup` v1 公共格式，不直接导出内部 v11 JSON。导入只支持完整替换：严格解码并预演主显示器布局，单次持久化成功后才关闭旧窗口；失败不改变运行时状态。开机自启动不进入备份。
 
 ## 6. 已踩过的坑及禁止回退的错误方案
 

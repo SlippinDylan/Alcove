@@ -4,7 +4,7 @@
 
 Alcove is a native macOS menu-bar utility that creates movable, resizable desktop-layer folder portals. Each portal displays the contents of a mapped directory on the Mac's internal, fixed local storage as a scrollable native icon grid. Portals support multiple tabs, Finder-consistent selection and interaction, and Quick Look integration.
 
-Alcove is **not** a Finder replacement. It does not provide directory navigation, file management mutations, or a full desktop shell. It is a focused read-only view into folders the user chooses, displayed on the desktop layer below normal application windows.
+Alcove is **not** a Finder replacement or a full desktop shell. It is a focused view into folders the user chooses, displayed on the desktop layer below normal application windows, with bounded in-Portal navigation.
 
 ---
 
@@ -22,7 +22,7 @@ Alcove is **not** a Finder replacement. It does not provide directory navigation
 
 | ID | Non-Goal | Rationale |
 |----|----------|-----------|
-| NG-1 | In-portal directory navigation | Folders open in Finder; Alcove is a viewport, not a file browser |
+| NG-1 | Unbounded filesystem browsing | Navigation is scoped to each mapped folder's runtime history and never changes the durable mapped root |
 | NG-2 | File mutations (rename, trash, new folder, move, copy) | Read-only MVP; reduces scope and permission surface |
 | NG-3 | Drag-in file imports | Mutation; deferred to post-MVP |
 | NG-4 | Drag-out from portals | Under investigation; deferred |
@@ -83,7 +83,8 @@ Return is reserved by Finder for rename; since Alcove MVP is read-only, Return i
 | Action | Behavior |
 |--------|----------|
 | Double-click file | Open with default application via `NSWorkspace` |
-| Double-click folder | Open in Finder via `NSWorkspace.open(folderURL)` |
+| Double-click ordinary folder | Enter it in the current Portal tab; packages and symbolic links continue through the system default application |
+| Back | Return through the current tab's runtime history without crossing its mapped root |
 | ⌘↓ (Command-Down) | Open selected item — same as double-click |
 | ⌘O (Command-O) | Open selected item — same as double-click |
 
@@ -169,7 +170,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-02 | Display folder contents as Finder-style icon tiles with one outlined object space containing padded icon and title regions, separate icon/title selection treatments, and a title that wraps to at most two lines; default ordering is directories first, then localized standard name. Layout is continuous row-major order: widening pulls the next lower-row items into the preceding row, and narrowing pushes trailing items into following rows. | MVP |
 | FR-03 | Support adding, switching, closing, and moving folder tabs up or down per portal; persist the resulting order and the currently selected tab. Closing the last tab prompts to remove the portal. | MVP |
 | FR-04 | Finder-consistent selection (single, Command, Shift, keyboard) | MVP |
-| FR-05 | Double-click file opens with default app; double-click folder opens in Finder via NSWorkspace.open(folderURL) | MVP |
+| FR-05 | Double-click files/packages/symbolic links opens with the default app; double-click an ordinary directory enters it in the current Portal tab; Back restores that tab's prior directory, selection, and scroll position | MVP |
 | FR-06 | Quick Look via Space key through responder chain | MVP |
 | FR-07 | Portal frames persist across app restarts | MVP |
 | FR-08 | Portal frames restore correctly after display topology changes | MVP |
@@ -185,9 +186,10 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 | FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
 | FR-21 | Show the selected folder path in a reserved bottom row separated from the file grid, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
-| FR-22 | The menu bar lists New Portal, each Portal with Show/Hide commands, application Settings, and Quit. Application Settings provides General, Style, and About categories; General controls launch at login, Style owns global content size, transparency, spacing (`4/8/12/16/20pt`), corner radius (`0/8/14/20/24pt`), and system shadow, and About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
+| FR-22 | The menu bar lists New Portal, each Portal with Show/Hide commands, application Settings, and Quit. Application Settings provides General, Style, Advanced, and About categories; General controls launch at login, Style owns global content size, transparency, spacing (`4/8/12/16/20pt`), corner radius (`0/8/14/20/24pt`), and system shadow, Advanced imports or exports the complete layout, and About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
 | FR-23 | New placement, user dragging, live resizing, and icon-preset resizing must not overlap another Portal and must honor the selected edge/inter-Portal spacing. Portals attached within the five-step spacing range to a screen edge or another Portal use the selected value as their exact runtime gap, so increasing and decreasing the setting moves them in both directions. Unattached free placements remain separate. This style-driven reflow does not overwrite durable home placement. | MVP |
 | FR-24 | Each Portal persists its own name/modified/created sort order and one built-in neutral or rainbow tint. The gear opens a native menu for pinning, sorting, Portal settings, and confirmed Portal removal; global content size and transparency are not duplicated in Portal settings. | MVP |
+| FR-25 | Advanced settings exports a stable versioned JSON layout backup containing global Portal appearance and portable per-Portal layout state, but never launch-at-login. Import strictly validates the whole document and, after confirmation, replaces rather than merges the current layout. The replacement is preflighted against the fresh primary display and persisted once before runtime windows change; any validation or save failure leaves the current runtime layout untouched. | MVP |
 
 ### Non-Functional Requirements
 
@@ -284,7 +286,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-01 | User can create a portal by dragging a rectangle on the desktop and choosing a folder | FR-01 |
 | AC-02 | Portal displays folder contents as an icon grid with file names and icons | FR-02 |
 | AC-03 | Single-click selects; Command-click toggles; Shift-click extends range | FR-04 |
-| AC-04 | Double-click file opens with default app; double-click folder opens in Finder via NSWorkspace.open(folderURL) | FR-05 |
+| AC-04 | Double-click file opens with its default app; an ordinary directory navigates within the tab; Back never crosses the mapped root | FR-05 |
 | AC-05 | Space invokes Quick Look for selected items | FR-06 |
 | AC-06 | Portal supports adding, switching, closing, and moving multiple tabs; each tab maps one folder, the resulting order and selected tab survive restart, and closing the last tab prompts before removing the portal | FR-03 |
 | AC-07 | Portal frame persists across app restart and restores to the correct display | FR-07, FR-10 |

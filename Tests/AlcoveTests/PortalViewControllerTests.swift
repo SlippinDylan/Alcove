@@ -124,10 +124,10 @@ final class PortalViewControllerTests: XCTestCase {
             descendants(of: controller.view).compactMap { $0 as? FolderPathBarView }.first
         )
         XCTAssertEqual(pathBar.displayedPath, "~/Repo/First")
-        XCTAssertEqual(pathBar.contentView.frame.minX, 8, accuracy: 0.5)
+        XCTAssertEqual(pathBar.contentView.frame.minX, 0, accuracy: 0.5)
         XCTAssertEqual(
             pathBar.contentView.frame.width,
-            pathBar.bounds.width - 16,
+            pathBar.bounds.width,
             accuracy: 0.5
         )
 
@@ -136,7 +136,79 @@ final class PortalViewControllerTests: XCTestCase {
         pathBar.copyButton.performClick(nil)
 
         XCTAssertEqual(pathBar.displayedPath, "~/Repo/Second")
-        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "~/Repo/Second")
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), secondURL.path)
+    }
+
+    @MainActor
+    func testFolderNavigationUsesRuntimeHistoryAndRestoresRootSelection() async throws {
+        let root = URL(fileURLWithPath: "/tmp/root")
+        let child = root.appendingPathComponent("Child", isDirectory: true)
+        let folder = FileItem(
+            url: child,
+            name: "Child",
+            isDirectory: true,
+            isHidden: false
+        )
+        let childFile = FileItem(
+            url: child.appendingPathComponent("file.txt"),
+            name: "file.txt",
+            isDirectory: false,
+            isHidden: false
+        )
+        let grid = FileGridViewController()
+        let controller = PortalViewController(
+            portal: try Portal(
+                folderURL: root,
+                frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+                display: testDisplay
+            ),
+            loadingCoordinator: FolderLoadingCoordinator(
+                enumerator: FolderMapEnumerator(itemsByRoot: [root: [folder], child: [childFile]])
+            ),
+            gridViewController: grid
+        )
+        controller.loadView()
+        await controller.reload()
+
+        grid.handleClick(index: 0, modifiers: [], clickCount: 2)
+        controller.stopObservation()
+        await controller.reload()
+
+        let pathBar = try XCTUnwrap(
+            descendants(of: controller.view).compactMap { $0 as? FolderPathBarView }.first
+        )
+        let tabBar = try XCTUnwrap(
+            descendants(of: controller.view).compactMap { $0 as? TabBarView }.first
+        )
+        XCTAssertEqual(pathBar.displayedPath, "/tmp/root/Child")
+        XCTAssertFalse(tabBar.backButton.isHidden)
+        XCTAssertEqual(grid.item(at: 0), childFile)
+
+        tabBar.backButton.performClick(nil)
+        controller.stopObservation()
+        await controller.reload()
+
+        XCTAssertEqual(pathBar.displayedPath, "/tmp/root")
+        XCTAssertTrue(tabBar.backButton.isHidden)
+        XCTAssertEqual(grid.selectionState.selectedIDs, [folder.id])
+    }
+
+    @MainActor
+    func testPathActionsUseCurrentAbsoluteFolderURL() {
+        let opener = FolderPathOpenerSpy()
+        let failures = FolderPathFailurePresenterSpy()
+        let pathBar = FolderPathBarView(pathOpener: opener, failurePresenter: failures)
+        let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Repo")
+        pathBar.update(folderURL: url)
+
+        pathBar.openInFinder()
+        pathBar.openInTerminal()
+        pathBar.copyButton.performClick(nil)
+
+        XCTAssertEqual(opener.finderURLs, [url])
+        XCTAssertEqual(opener.terminalURLs, [url])
+        XCTAssertTrue(failures.failures.isEmpty)
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), url.path)
     }
 
     @MainActor
@@ -754,6 +826,34 @@ private func withObservedPortalDirectory(
 
 private enum PortalViewObservationTestError: Error {
     case bodyAndCleanup(body: String, cleanup: String)
+}
+
+@MainActor
+private final class FolderPathOpenerSpy: FolderPathOpening {
+    private(set) var finderURLs: [URL] = []
+    private(set) var terminalURLs: [URL] = []
+
+    func openInFinder(_ url: URL) -> Bool {
+        finderURLs.append(url)
+        return true
+    }
+
+    func openInTerminal(
+        _ url: URL,
+        completion: @escaping @MainActor @Sendable (FolderPathOpenError?) -> Void
+    ) {
+        terminalURLs.append(url)
+        completion(nil)
+    }
+}
+
+@MainActor
+private final class FolderPathFailurePresenterSpy: FolderPathOpenFailurePresenting {
+    private(set) var failures: [(FolderPathOpenError, URL)] = []
+
+    func present(_ error: FolderPathOpenError, for url: URL) {
+        failures.append((error, url))
+    }
 }
 
 private let testDisplay = DisplayDescriptor(

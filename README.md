@@ -6,7 +6,7 @@ A native macOS menu-bar utility that creates movable, resizable desktop-layer fo
 
 Alcove is designed to place lightweight portal windows on the desktop layer — each portal maps a local directory and displays its contents as a scrollable native icon grid. The target behavior is below normal application windows and above desktop icons, with multiple tabs, Finder-consistent selection, Quick Look, and placement recovery across display changes, Spaces, sleep/wake, and resolution adjustments. Phase 0 spikes must validate the system-dependent window and display behavior before the architecture is locked.
 
-**Alcove is not a Finder replacement.** It is a focused read-only view into folders you care about.
+**Alcove is not a Finder replacement.** It is a focused desktop surface for folders you care about.
 
 ## Status
 

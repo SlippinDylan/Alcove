@@ -93,7 +93,8 @@ App entry point and global coordination.
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
 - `StatusMenuController` — builds the localized New Portal / Portal Show-Hide / application Settings / Quit hierarchy and routes Settings to one reusable application settings window
-- `ApplicationSettingsWindowController` — owns the preference-style General/Style/About window. General adapts `SMAppService.mainApp` for launch-at-login registration; Style stores global content size, background level, spacing, corner radius, and shadow in `UserDefaults`; About reads version metadata and the compiled Icon Composer application icon
+- `ApplicationSettingsWindowController` — owns the preference-style General/Style/Advanced/About window. General adapts `SMAppService.mainApp` for launch-at-login registration; Style stores global content size, background level, spacing, corner radius, and shadow in `UserDefaults`; Advanced presents the layout backup import/export workflow; About reads version metadata and the compiled Icon Composer application icon
+- `ApplicationLayoutBackupController` — presents JSON-constrained `NSOpenPanel`/`NSSavePanel` sheets, performs blocking read/atomic write on an actor, confirms replace-only imports, and reports errors as sheets
 - `NewPortalOverlay` — pointer-display overlay with a dashed `3×1` rounded frame, full-width separators, complete object tiles, half-cell candidate feedback, and whole-capacity snapping constrained to the inset `visibleFrame`; occupied candidates remain editable and cannot commit
 - Info.plist: `LSUIElement = YES`, `LSBackgroundOnly = NO`
 
@@ -138,6 +139,7 @@ Visual chrome inside each portal window.
 `NSCollectionView`-based icon grid.
 
 - `FileGridViewController` — owns `NSScrollView` + `NSCollectionView`
+- `PortalViewController` keeps a runtime-only navigation state per `FolderTabID`: the durable `FolderTab.folderURL` remains the root, while `currentURL`, back history, selection, and scroll position follow in-Portal navigation. Loading, FSEvents observation, the path bar, Finder, Terminal, and future drop destinations all consume the same current URL.
 - The controller explicitly keeps the document collection width equal to the scroll viewport width during layout. `GridCapacity.columns` is authoritative for the pure row-major `GridLayout`; window-border or clip-view rounding must never derive a different column count. Live-resize capacity changes invalidate the layout immediately, so items reflow in sequence in both directions.
 - Vertical overflow uses AppKit's mini overlay scroller with automatic hiding, so it does not reserve horizontal content space and retains native scrolling/accessibility behavior.
 - `FileItemCell` — one accessible tile with a thin outline exposing its complete object bounds, containing a padded system icon, a two-line title, and separate Finder-style icon/title selection regions
@@ -191,6 +193,8 @@ Versioned JSON storage with atomic replacement.
 - Write strategy: write to `.tmp` file, then `FileManager.replaceItemAt` for atomic swap
 - Read strategy: read file → check `version` → dispatch to appropriate decoder → return typed result or migration error
 - No Core Data or SQLite. Versioned Portal state remains JSON; `UserDefaults` is used only for application-global preferences and does not duplicate per-Portal v11 sort/tint state.
+- The public layout-backup envelope has its own `com.alcove.layout-backup` format marker and version lifecycle. Version 1 stores semantic global appearance values plus each Portal's normalized anchor, capacity, sort, tint, pin, and home-relative/absolute folder paths. It excludes launch-at-login and does not expose the machine-specific internal v11 placement envelope.
+- Import maps every Portal to a fresh primary-display placement, derives physical size from imported capacity and global icon metrics, reflows the complete layout at the imported spacing, and calls `PortalStore.save` once before replacing any runtime windows. Import never merges and accepts missing folder paths so the existing recoverable missing-folder state remains authoritative.
 - AppKit strings use `en`, `zh-Hans`, and `zh-Hant` bundle resources. English is the development region and fallback for every other system language
 
 ---

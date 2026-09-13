@@ -126,6 +126,8 @@ final class FolderAccessTests: XCTestCase {
             let result = try await FolderEnumerator().enumerate(root: observed, generation: 1)
 
             XCTAssertEqual(result.items.map(\.name), ["linked-target"])
+            XCTAssertTrue(result.items[0].isSymbolicLink)
+            XCTAssertFalse(result.items[0].isNavigableDirectory)
             XCTAssertFalse(result.items.contains(where: { $0.name == "target-child" }))
         }
     }

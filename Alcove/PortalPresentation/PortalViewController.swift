@@ -28,6 +28,18 @@ struct PortalErrorPresentation: Equatable {
     let action: PortalRecoveryAction
 }
 
+private struct FolderNavigationHistoryEntry {
+    let url: URL
+    let gridState: FileGridRuntimeState
+}
+
+private struct FolderTabNavigationState {
+    let rootURL: URL
+    var currentURL: URL
+    var backStack: [FolderNavigationHistoryEntry] = []
+    var gridState: FileGridRuntimeState?
+}
+
 @MainActor
 final class PortalViewController: NSViewController {
     static let tabBarHeight = PortalLayoutMetrics.tabBarHeight
@@ -109,7 +121,8 @@ final class PortalViewController: NSViewController {
     private let resizeCapacityOverlay = PortalResizeCapacityOverlay()
     private var loadTask: Task<Void, Never>?
     private var observationTask: Task<Void, Never>?
-    private var runtimeStates: [FolderTabID: FileGridRuntimeState] = [:]
+    private var navigationStates: [FolderTabID: FolderTabNavigationState] = [:]
+    private var pendingGridState: FileGridRuntimeState?
     private var presentedTabID: FolderTabID?
     private(set) var presentationState: PortalPresentationState = .loading
     var onSelectTab: ((FolderTabID) -> Void)?
@@ -192,6 +205,7 @@ final class PortalViewController: NSViewController {
         tabBarView.onSelect = { [weak self] id in self?.onSelectTab?(id) }
         tabBarView.onAdd = { [weak self] in self?.onAddTab?() }
         tabBarView.onClose = { [weak self] id in self?.onCloseTab?(id) }
+        tabBarView.onNavigateBack = { [weak self] in self?.navigateBack() }
         tabBarView.configure(with: portal)
         rootView.addSubview(tabBarView)
 
@@ -201,6 +215,9 @@ final class PortalViewController: NSViewController {
         }
         gridViewController.onSelectionChanged = { [weak self] urls in
             self?.onQuickLookSelectionChanged?(urls)
+        }
+        gridViewController.onNavigateDirectory = { [weak self] item in
+            self?.navigate(into: item.url)
         }
         let gridView = gridViewController.view
         gridView.translatesAutoresizingMaskIntoConstraints = false
@@ -298,7 +315,7 @@ final class PortalViewController: NSViewController {
             resizeCapacityOverlay.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
         ])
         view = rootView
-        pathBarView.update(folderURL: portal.selectedTab?.folderURL)
+        updateNavigationChrome()
         if portal.tabs.isEmpty {
             showEmptyPortal()
         }
@@ -335,7 +352,7 @@ final class PortalViewController: NSViewController {
     }
 
     func load() {
-        guard folderURL != nil else {
+        guard currentFolderURL != nil else {
             showEmptyPortal()
             return
         }
@@ -354,12 +371,12 @@ final class PortalViewController: NSViewController {
         let previousBackgroundStyle = self.portal.backgroundStyle
         let previousSortOrder = self.portal.sortOrder
         let previousTint = self.portal.tint
-        let previousFolderURL = folderURL
+        let previousFolderURL = currentFolderURL
         if isViewLoaded,
            let previousTabID,
            portal.selectedTabID != previousTabID,
            presentedTabID == previousTabID {
-            runtimeStates[previousTabID] = gridViewController.captureRuntimeState()
+            saveGridState(for: previousTabID)
         }
         self.portal = portal
         if portal.iconLayout != previousIconLayout {
@@ -377,14 +394,18 @@ final class PortalViewController: NSViewController {
         if portal.tint != previousTint {
             portalMaterialView.updatePortalTint(portal.tint)
         }
-        runtimeStates = runtimeStates.filter { id, _ in
+        navigationStates = navigationStates.filter { id, state in
             portal.tabs.contains(where: { $0.id == id })
+                && portal.tabs.first(where: { $0.id == id })?.folderURL == state.rootURL
+        }
+        if portal.selectedTabID != previousTabID || currentFolderURL != previousFolderURL {
+            pendingGridState = portal.selectedTabID.flatMap { navigationStates[$0]?.gridState }
         }
         if isViewLoaded {
             tabBarView.configure(with: portal)
-            pathBarView.update(folderURL: portal.selectedTab?.folderURL)
+            updateNavigationChrome()
         }
-        if portal.selectedTabID != previousTabID || folderURL != previousFolderURL {
+        if portal.selectedTabID != previousTabID || currentFolderURL != previousFolderURL {
             onSelectionInvalidated?()
             if isViewLoaded {
                 if portal.tabs.isEmpty {
@@ -413,7 +434,7 @@ final class PortalViewController: NSViewController {
     }
 
     func reload(showLoadingIndicator: Bool = true) async {
-        guard let folderURL else {
+        guard let folderURL = currentFolderURL else {
             showEmptyPortal()
             return
         }
@@ -451,7 +472,7 @@ final class PortalViewController: NSViewController {
         loadTask = nil
         observationTask?.cancel()
         observationCoordinator.stop()
-        guard let root = folderURL else {
+        guard let root = currentFolderURL else {
             showEmptyPortal()
             return
         }
@@ -500,10 +521,10 @@ final class PortalViewController: NSViewController {
             switch outcome {
             case .contents(let result):
                 let items = result.items
-                let runtimeState = portal.selectedTabID.flatMap {
-                    runtimeStates.removeValue(forKey: $0)
-                }
+                let runtimeState = pendingGridState
+                pendingGridState = nil
                 if items.isEmpty {
+                    pendingGridState = nil
                     showState(NSLocalizedString(
                         "portal.empty",
                         comment: "Empty folder message"
@@ -667,7 +688,7 @@ final class PortalViewController: NSViewController {
     func reloadSelectedFolder() {
         onSelectionInvalidated?()
         guard isViewLoaded else { return }
-        guard folderURL != nil else {
+        guard currentFolderURL != nil else {
             showEmptyPortal()
             return
         }
@@ -679,8 +700,63 @@ final class PortalViewController: NSViewController {
         onAddTab?()
     }
 
-    private var folderURL: URL? {
-        portal.selectedTab?.folderURL
+    private var currentFolderURL: URL? {
+        guard let tab = portal.selectedTab else { return nil }
+        return navigationStates[tab.id]?.currentURL ?? tab.folderURL
+    }
+
+    private func saveGridState(for tabID: FolderTabID) {
+        guard let tab = portal.tabs.first(where: { $0.id == tabID }) else { return }
+        var state = navigationStates[tabID] ?? FolderTabNavigationState(
+            rootURL: tab.folderURL,
+            currentURL: tab.folderURL
+        )
+        state.gridState = gridViewController.captureRuntimeState()
+        navigationStates[tabID] = state
+    }
+
+    private func navigate(into url: URL) {
+        guard let tab = portal.selectedTab else { return }
+        var state = navigationStates[tab.id] ?? FolderTabNavigationState(
+            rootURL: tab.folderURL,
+            currentURL: tab.folderURL
+        )
+        let previousGridState = gridViewController.captureRuntimeState()
+        state.backStack.append(FolderNavigationHistoryEntry(
+            url: state.currentURL,
+            gridState: previousGridState
+        ))
+        state.currentURL = url.standardizedFileURL
+        state.gridState = nil
+        navigationStates[tab.id] = state
+        pendingGridState = nil
+        transitionToCurrentFolder()
+    }
+
+    private func navigateBack() {
+        guard let tabID = portal.selectedTabID,
+              var state = navigationStates[tabID],
+              let previous = state.backStack.popLast() else { return }
+        state.currentURL = previous.url
+        state.gridState = previous.gridState
+        navigationStates[tabID] = state
+        pendingGridState = previous.gridState
+        transitionToCurrentFolder()
+    }
+
+    private func transitionToCurrentFolder() {
+        onSelectionInvalidated?()
+        updateNavigationChrome()
+        showLoading()
+        startObservation()
+    }
+
+    private func updateNavigationChrome() {
+        pathBarView.update(folderURL: currentFolderURL)
+        let canGoBack = portal.selectedTabID.flatMap {
+            navigationStates[$0]?.backStack.isEmpty == false
+        } ?? false
+        tabBarView.updateNavigation(canGoBack: canGoBack)
     }
 }
 
@@ -689,10 +765,26 @@ final class FolderPathBarView: NSView {
     private(set) var contentView = NSView()
     private let pathIcon = NSImageView()
     private(set) var pathLabel = NSTextField(labelWithString: "")
+    private(set) var terminalButton = NSButton()
     private(set) var copyButton = NSButton()
     private(set) var displayedPath: String?
+    private(set) var folderURL: URL?
+    private let pathOpener: any FolderPathOpening
+    private let failurePresenter: any FolderPathOpenFailurePresenting
+
+    init(
+        pathOpener: any FolderPathOpening,
+        failurePresenter: any FolderPathOpenFailurePresenting
+    ) {
+        self.pathOpener = pathOpener
+        self.failurePresenter = failurePresenter
+        super.init(frame: .zero)
+        configureView()
+    }
 
     override init(frame frameRect: NSRect) {
+        pathOpener = SystemFolderPathOpener()
+        failurePresenter = FolderPathOpenFailurePresenter()
         super.init(frame: frameRect)
         configureView()
     }
@@ -705,12 +797,15 @@ final class FolderPathBarView: NSView {
     func update(folderURL: URL?) {
         guard let folderURL else {
             displayedPath = nil
+            self.folderURL = nil
             contentView.isHidden = true
             return
         }
+        let standardizedURL = folderURL.standardizedFileURL
         let path = NSString(
-            string: folderURL.standardizedFileURL.path
+            string: standardizedURL.path
         ).abbreviatingWithTildeInPath
+        self.folderURL = standardizedURL
         displayedPath = path
         pathLabel.stringValue = path
         pathLabel.toolTip = path
@@ -727,6 +822,10 @@ final class FolderPathBarView: NSView {
         )
         pathIcon.contentTintColor = .secondaryLabelColor
         pathIcon.translatesAutoresizingMaskIntoConstraints = false
+        pathIcon.addGestureRecognizer(NSClickGestureRecognizer(
+            target: self,
+            action: #selector(openInFinder)
+        ))
 
         pathLabel.lineBreakMode = .byTruncatingMiddle
         pathLabel.maximumNumberOfLines = 1
@@ -735,6 +834,25 @@ final class FolderPathBarView: NSView {
         pathLabel.setAccessibilityLabel(
             NSLocalizedString("portal.path.label", comment: "Folder path accessibility label")
         )
+        pathLabel.addGestureRecognizer(NSClickGestureRecognizer(
+            target: self,
+            action: #selector(openInFinder)
+        ))
+
+        terminalButton.image = NSImage(
+            systemSymbolName: "terminal",
+            accessibilityDescription: nil
+        )
+        terminalButton.imagePosition = .imageOnly
+        terminalButton.isBordered = false
+        terminalButton.contentTintColor = .secondaryLabelColor
+        terminalButton.target = self
+        terminalButton.action = #selector(openInTerminal)
+        terminalButton.toolTip = NSLocalizedString(
+            "portal.path.terminal",
+            comment: "Open folder in Terminal"
+        )
+        terminalButton.setAccessibilityLabel(terminalButton.toolTip ?? "")
 
         copyButton.image = NSImage(
             systemSymbolName: "doc.on.doc",
@@ -748,7 +866,7 @@ final class FolderPathBarView: NSView {
         copyButton.toolTip = NSLocalizedString("portal.path.copy", comment: "Copy folder path")
         copyButton.setAccessibilityLabel(copyButton.toolTip ?? "")
 
-        let stack = NSStackView(views: [pathIcon, pathLabel, copyButton])
+        let stack = NSStackView(views: [pathIcon, pathLabel, terminalButton, copyButton])
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.spacing = 8
@@ -756,26 +874,43 @@ final class FolderPathBarView: NSView {
         contentView.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            contentView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            contentView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            contentView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: trailingAnchor),
             contentView.topAnchor.constraint(equalTo: topAnchor, constant: 5),
             contentView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
-            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
-            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-            stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 3),
-            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -3),
+            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            stack.topAnchor.constraint(equalTo: contentView.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
             pathIcon.widthAnchor.constraint(equalToConstant: 16),
             pathIcon.heightAnchor.constraint(equalToConstant: 16),
+            terminalButton.widthAnchor.constraint(equalToConstant: 28),
+            terminalButton.heightAnchor.constraint(equalToConstant: 28),
             copyButton.widthAnchor.constraint(equalToConstant: 24),
             copyButton.heightAnchor.constraint(equalToConstant: 24),
         ])
     }
 
+    @objc func openInFinder() {
+        guard let folderURL else { return }
+        if !pathOpener.openInFinder(folderURL) {
+            failurePresenter.present(.finderLaunchFailed, for: folderURL)
+        }
+    }
+
+    @objc func openInTerminal() {
+        guard let folderURL else { return }
+        pathOpener.openInTerminal(folderURL) { [weak self] error in
+            guard let self, let error else { return }
+            self.failurePresenter.present(error, for: folderURL)
+        }
+    }
+
     @objc private func copyPath() {
-        guard let displayedPath else { return }
+        guard let folderURL else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(displayedPath, forType: .string)
+        pasteboard.setString(folderURL.path, forType: .string)
     }
 }
 

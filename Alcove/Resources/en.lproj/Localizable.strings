@@ -90,6 +90,12 @@
 /* Folder path */
 "portal.path.label" = "Folder path";
 "portal.path.copy" = "Copy Path";
+"portal.path.terminal" = "Open in Terminal";
+"portal.path.finder_failed" = "Unable to Open Folder in Finder";
+"portal.path.terminal_unavailable" = "Terminal Is Unavailable";
+"portal.path.terminal_failed" = "Unable to Open Folder in Terminal";
+"portal.navigation.back" = "Back";
+"portal.item.folder.navigate.help" = "Folder. Double-click to open in this panel.";
 
 /* Portal settings */
 "portal.settings.label" = "Portal settings";

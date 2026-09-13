@@ -82,6 +82,7 @@ final class FileGridViewController: NSViewController {
     private(set) var lastKeyboardScrollPosition: NSCollectionView.ScrollPosition?
     var onQuickLookRequested: (([URL]) -> Void)?
     var onSelectionChanged: (([URL]) -> Void)?
+    var onNavigateDirectory: ((FileItem) -> Void)?
 
     init(
         workspaceOpener: any WorkspaceOpening = SystemWorkspaceOpener(),
@@ -299,13 +300,19 @@ final class FileGridViewController: NSViewController {
 
     private func openSelection() {
         failedOpenURLs = []
-        for item in items where selectionState.selectedIDs.contains(item.id) {
-            open(item)
+        let selectedItems = items.filter { selectionState.selectedIDs.contains($0.id) }
+        let allowsNavigation = selectedItems.count == 1
+        for item in selectedItems {
+            open(item, allowsNavigation: allowsNavigation)
         }
     }
 
     @discardableResult
-    private func open(_ item: FileItem) -> Bool {
+    private func open(_ item: FileItem, allowsNavigation: Bool = true) -> Bool {
+        if allowsNavigation, item.isNavigableDirectory, let onNavigateDirectory {
+            onNavigateDirectory(item)
+            return true
+        }
         let didOpen = workspaceOpener.open(item.url)
         if !didOpen {
             failedOpenURLs.append(item.url)
@@ -353,6 +360,7 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
             metrics: metrics,
             position: indexPath.item + 1,
             itemCount: items.count,
+            opensDirectoryInPanel: onNavigateDirectory != nil,
             onOpen: { [weak self] in self?.open(item) ?? false }
         )
         return fileCell

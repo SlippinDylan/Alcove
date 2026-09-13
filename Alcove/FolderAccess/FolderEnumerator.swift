@@ -85,6 +85,8 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
                 includingPropertiesForKeys: [
                     .nameKey,
                     .isDirectoryKey,
+                    .isPackageKey,
+                    .isSymbolicLinkKey,
                     .isHiddenKey,
                     .contentModificationDateKey,
                     .creationDateKey,
@@ -128,6 +130,8 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
             forKeys: [
                 .nameKey,
                 .isDirectoryKey,
+                .isPackageKey,
+                .isSymbolicLinkKey,
                 .isHiddenKey,
                 .contentModificationDateKey,
                 .creationDateKey,
@@ -135,6 +139,8 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
         )
         guard let name = values.name,
               let isDirectory = values.isDirectory,
+              let isPackage = values.isPackage,
+              let isSymbolicLink = values.isSymbolicLink,
               let isHidden = values.isHidden else {
             throw FolderItemMetadataError.incomplete(url: standardizedURL)
         }
@@ -142,6 +148,8 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
             url: standardizedURL,
             name: name,
             isDirectory: isDirectory,
+            isPackage: isPackage,
+            isSymbolicLink: isSymbolicLink,
             isHidden: isHidden,
             contentModificationDate: values.contentModificationDate,
             creationDate: values.creationDate
@@ -153,8 +161,8 @@ struct FolderEnumerator: FolderEnumerating, Sendable {
         _ right: FileItem,
         by sortOrder: PortalSortOrder
     ) -> Bool {
-        if left.isDirectory != right.isDirectory {
-            return left.isDirectory
+        if left.isNavigableDirectory != right.isNavigableDirectory {
+            return left.isNavigableDirectory
         }
         let dates: (Date?, Date?)
         switch sortOrder {

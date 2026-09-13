@@ -102,6 +102,7 @@ final class FileItemCell: NSCollectionViewItem {
         metrics: GridMetrics,
         position: Int,
         itemCount: Int,
+        opensDirectoryInPanel: Bool = false,
         onOpen: @escaping () -> Bool
     ) {
         representedObject = item
@@ -124,12 +125,15 @@ final class FileItemCell: NSCollectionViewItem {
         view.setAccessibilityLabel(item.name)
         updateAccessibilityValue()
         updateSelectionAppearance()
-        let accessibilityHelp = item.isDirectory
+        let accessibilityHelp = item.isNavigableDirectory && opensDirectoryInPanel
             ? NSLocalizedString(
+                "portal.item.folder.navigate.help",
+                comment: "Accessibility help for a navigable folder item"
+            )
+            : item.isDirectory ? NSLocalizedString(
                 "Folder. Double-click to open in Finder.",
                 comment: "Accessibility help for a folder item"
-            )
-            : NSLocalizedString(
+            ) : NSLocalizedString(
                 "File. Double-click to open.",
                 comment: "Accessibility help for a file item"
             )
