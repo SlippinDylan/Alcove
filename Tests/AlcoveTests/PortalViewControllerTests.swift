@@ -36,7 +36,7 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testPortalSeparatesBackgroundMaterialFromControlGroupGlass() throws {
+    func testPortalUsesOneBackgroundMaterialAndTwoSectionSeparators() throws {
         let controller = PortalViewController(
             portal: try Portal(
                 folderURL: URL(fileURLWithPath: "/tmp/portal"),
@@ -47,14 +47,28 @@ final class PortalViewControllerTests: XCTestCase {
         )
 
         controller.loadView()
+        controller.view.frame = NSRect(x: 0, y: 0, width: 420, height: 360)
+        controller.view.layoutSubtreeIfNeeded()
 
         let materials = descendants(of: controller.view)
             .compactMap { $0 as? PortalChromeMaterialView }
         let surface = try XCTUnwrap(materials.first { $0.role == .surface })
-        let controlGroup = try XCTUnwrap(materials.first { $0.role == .controlGroup })
         XCTAssertNotNil(surface.materialView)
-        XCTAssertNotNil(controlGroup.materialView)
-        XCTAssertFalse(controlGroup.isDescendant(of: try XCTUnwrap(surface.materialView)))
+        XCTAssertEqual(materials.count, 1)
+        XCTAssertEqual(controller.topSeparator.boxType, .separator)
+        XCTAssertEqual(controller.bottomSeparator.boxType, .separator)
+        XCTAssertEqual(controller.topSeparator.frame.minX, 0, accuracy: 0.5)
+        XCTAssertEqual(controller.bottomSeparator.frame.minX, 0, accuracy: 0.5)
+        XCTAssertEqual(
+            controller.topSeparator.frame.width,
+            controller.view.bounds.width,
+            accuracy: 0.5
+        )
+        XCTAssertEqual(
+            controller.bottomSeparator.frame.width,
+            controller.view.bounds.width,
+            accuracy: 0.5
+        )
     }
 
     @MainActor
@@ -109,9 +123,9 @@ final class PortalViewControllerTests: XCTestCase {
             descendants(of: controller.view).compactMap { $0 as? FolderPathBarView }.first
         )
         XCTAssertEqual(pathBar.displayedPath, "~/Repo/First")
-        XCTAssertEqual(pathBar.capsuleView.frame.minX, 8, accuracy: 0.5)
+        XCTAssertEqual(pathBar.contentView.frame.minX, 8, accuracy: 0.5)
         XCTAssertEqual(
-            pathBar.capsuleView.frame.width,
+            pathBar.contentView.frame.width,
             pathBar.bounds.width - 16,
             accuracy: 0.5
         )
@@ -122,6 +136,16 @@ final class PortalViewControllerTests: XCTestCase {
 
         XCTAssertEqual(pathBar.displayedPath, "~/Repo/Second")
         XCTAssertEqual(NSPasteboard.general.string(forType: .string), "~/Repo/Second")
+    }
+
+    @MainActor
+    func testPathBarUsesPlainContentWithoutACapsuleOrNestedMaterial() {
+        let pathBar = FolderPathBarView()
+        pathBar.update(folderURL: URL(fileURLWithPath: "/Users/example/Folder"))
+
+        XCTAssertFalse(pathBar.contentView is NSVisualEffectView)
+        XCTAssertNil(pathBar.contentView.layer)
+        XCTAssertNil(pathBar.contentView.layer?.backgroundColor)
     }
 
     @MainActor

@@ -46,38 +46,15 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertEqual(tabBar.scrollView.documentView?.subviews.count, 1)
         XCTAssertEqual(tabBar.tabButtons[tab.id]?.title, "Only")
         XCTAssertTrue(tabBar.bounds.contains(managementButtonFrame(in: tabBar)))
-        XCTAssertEqual(tabBar.groupMaterialView.frame.midX, tabBar.bounds.midX, accuracy: 0.5)
         let tabButton = try XCTUnwrap(tabBar.tabButtons[tab.id])
         let tabFrame = tabButton.convert(tabButton.bounds, to: tabBar)
-        let material = try XCTUnwrap(tabBar.groupMaterialView.materialView)
         XCTAssertGreaterThan(tabButton.bounds.width, 0)
         XCTAssertGreaterThan(tabButton.bounds.height, 0)
-        XCTAssertGreaterThan(material.frame.width, 0)
-        XCTAssertGreaterThan(material.frame.height, 0)
-        XCTAssertFalse(tabButton.isDescendant(of: material))
-        XCTAssertFalse(tabButton.isDescendant(of: tabBar.groupMaterialView))
         XCTAssertTrue(tabButton.isDescendant(of: tabBar.scrollView))
-        tabBar.groupBackdropView.updateLayer()
-        XCTAssertGreaterThan(tabBar.groupBackdropView.layer?.backgroundColor?.alpha ?? 0, 0)
-        let backdropIndex = try XCTUnwrap(
-            tabBar.subviews.firstIndex(of: tabBar.groupBackdropView)
-        )
-        let materialIndex = try XCTUnwrap(tabBar.subviews.firstIndex(of: tabBar.groupMaterialView))
-        let scrollIndex = try XCTUnwrap(
-            tabBar.subviews.firstIndex(of: tabBar.scrollView)
-        )
-        XCTAssertLessThan(materialIndex, backdropIndex)
-        XCTAssertLessThan(backdropIndex, scrollIndex)
-
-        tabBar.groupMaterialView.rebuildMaterial()
-        let rebuiltScrollIndex = try XCTUnwrap(
-            tabBar.subviews.firstIndex(of: tabBar.scrollView)
-        )
-        XCTAssertLessThan(backdropIndex, rebuiltScrollIndex)
-        XCTAssertTrue(tabButton.isDescendant(of: tabBar.scrollView))
+        XCTAssertEqual(tabBar.scrollView.frame.midX, tabBar.bounds.midX, accuracy: 0.5)
         XCTAssertTrue(
             tabBar.bounds.contains(tabFrame),
-            "Expected visible tab frame; group=\(tabBar.groupMaterialView.frame), tab=\(tabFrame)"
+            "Expected visible tab frame; strip=\(tabBar.scrollView.frame), tab=\(tabFrame)"
         )
     }
 
@@ -417,34 +394,23 @@ final class TabBarViewTests: XCTestCase {
         let lastFrame = lastButton.convert(lastButton.bounds, to: tabBar.scrollView.contentView)
         XCTAssertTrue(tabBar.scrollView.contentView.bounds.contains(lastFrame))
         XCTAssertTrue(tabBar.bounds.contains(managementButtonFrame(in: tabBar)))
-        XCTAssertEqual(tabBar.groupMaterialView.frame.midX, tabBar.bounds.midX, accuracy: 0.5)
+        XCTAssertEqual(tabBar.scrollView.frame.midX, tabBar.bounds.midX, accuracy: 0.5)
     }
 
     @MainActor
-    func testControlGroupUsesOneOuterCapsuleWithTheResolvedMaterial() throws {
+    func testTabStripHasNoOuterMaterialCapsule() throws {
         let tab = makeTab(name: "Only")
         let tabBar = TabBarView(frame: NSRect(x: 0, y: 0, width: 300, height: 40))
 
         tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
 
-        let material = try XCTUnwrap(tabBar.groupMaterialView.materialView)
-        let expectedPath = PortalChromeMaterialResolver.resolve(
-            role: .controlGroup,
-            supportsGlass: {
-                if #available(macOS 26.0, *) { return true }
-                return false
-            }(),
-            accessibility: PortalAccessibilityOptions.current()
+        XCTAssertTrue(
+            tabBar.subviews.compactMap { $0 as? PortalChromeMaterialView }.isEmpty
         )
-        XCTAssertEqual(tabBar.groupMaterialView.materialPath, expectedPath)
-        XCTAssertEqual(tabBar.groupMaterialView.layer?.cornerRadius, 999)
-        if let effect = material as? NSVisualEffectView {
-            XCTAssertEqual(effect.state, .active)
-        }
-        XCTAssertFalse(try XCTUnwrap(tabBar.tabButtons[tab.id]).isDescendant(of: material))
-        XCTAssertEqual(tabBar.groupMaterialView.layer?.backgroundColor?.alpha ?? 0, 0)
-        tabBar.groupBackdropView.updateLayer()
-        XCTAssertGreaterThan(tabBar.groupBackdropView.layer?.backgroundColor?.alpha ?? 0, 0)
+        XCTAssertGreaterThan(
+            try XCTUnwrap(tabBar.tabButtons[tab.id]).layer?.backgroundColor?.alpha ?? 0,
+            0
+        )
     }
 
     @MainActor

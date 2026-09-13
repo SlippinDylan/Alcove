@@ -20,8 +20,6 @@ final class TabBarView: NSView {
     var onRemovePortal: (() -> Void)?
     var onSetPinned: ((Bool) -> Void)?
 
-    private(set) var groupBackdropView = PortalTabGroupBackdropView()
-    let groupMaterialView: PortalChromeMaterialView
     private(set) var scrollView = NSScrollView()
     private let stackView = NSStackView()
     private(set) var managementButton = NSButton()
@@ -35,10 +33,6 @@ final class TabBarView: NSView {
     private(set) var tabButtons: [FolderTabID: PortalTabButton] = [:]
 
     override init(frame frameRect: NSRect) {
-        groupMaterialView = PortalChromeMaterialView(
-            contentView: NSView(),
-            role: .controlGroup
-        )
         super.init(frame: frameRect)
         configureView()
     }
@@ -47,17 +41,14 @@ final class TabBarView: NSView {
         super.layout()
         let reservedSideWidth: CGFloat = 52
         let maximumGroupWidth = max(1, bounds.width - reservedSideWidth * 2)
-        let groupWidth = min(stackView.fittingSize.width + 16, maximumGroupWidth)
-        let groupFrame = NSRect(
+        let groupWidth = min(stackView.fittingSize.width, maximumGroupWidth)
+        let tabFrame = NSRect(
             x: bounds.midX - groupWidth / 2,
-            y: 2,
+            y: 6,
             width: groupWidth,
-            height: max(1, bounds.height - 4)
+            height: max(1, bounds.height - 12)
         )
-        groupBackdropView.frame = groupFrame
-        groupMaterialView.frame = groupFrame
-        groupMaterialView.materialView?.frame = groupMaterialView.bounds
-        scrollView.frame = groupFrame.insetBy(dx: 8, dy: 3)
+        scrollView.frame = tabFrame
 
         let viewportSize = scrollView.contentSize
         let fittingSize = stackView.fittingSize
@@ -68,7 +59,6 @@ final class TabBarView: NSView {
                 height: max(viewportSize.height, fittingSize.height)
             )
         )
-        groupMaterialView.layoutSubtreeIfNeeded()
     }
 
     @available(*, unavailable)
@@ -122,8 +112,6 @@ final class TabBarView: NSView {
         scrollView.autohidesScrollers = true
         scrollView.documentView = stackView
 
-        addSubview(groupMaterialView)
-        addSubview(groupBackdropView)
         addSubview(scrollView)
 
         pinButton.imageScaling = .scaleProportionallyDown
@@ -1138,33 +1126,6 @@ private final class PortalSettingsCardView: NSView {
         }
     }
 
-}
-
-@MainActor
-final class PortalTabGroupBackdropView: NSView {
-    override var wantsUpdateLayer: Bool { true }
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 999
-        layer?.masksToBounds = true
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        nil
-    }
-
-    override func updateLayer() {
-        effectiveAppearance.performAsCurrentDrawingAppearance {
-            layer?.backgroundColor = NSColor.windowBackgroundColor
-                .withAlphaComponent(0.55)
-                .cgColor
-            layer?.borderWidth = 0.5
-            layer?.borderColor = NSColor.separatorColor.cgColor
-        }
-    }
 }
 
 @MainActor

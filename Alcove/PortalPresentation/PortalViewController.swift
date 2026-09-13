@@ -100,6 +100,8 @@ final class PortalViewController: NSViewController {
     private let portalMaterialView: PortalChromeMaterialView
     private let gridViewController: FileGridViewController
     private let pathBarView = FolderPathBarView()
+    private(set) var topSeparator = NSBox()
+    private(set) var bottomSeparator = NSBox()
     private let stateLabel = NSTextField(labelWithString: "")
     private let recoveryButton = NSButton()
     private let progressIndicator = NSProgressIndicator()
@@ -209,6 +211,11 @@ final class PortalViewController: NSViewController {
         pathBarView.translatesAutoresizingMaskIntoConstraints = false
         rootView.addSubview(pathBarView)
 
+        configureSeparator(topSeparator, identifier: "portal.top-separator")
+        configureSeparator(bottomSeparator, identifier: "portal.bottom-separator")
+        rootView.addSubview(topSeparator)
+        rootView.addSubview(bottomSeparator)
+
         stateLabel.alignment = .center
         stateLabel.textColor = .secondaryLabelColor
         stateLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -271,6 +278,12 @@ final class PortalViewController: NSViewController {
             pathBarView.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
             pathBarView.bottomAnchor.constraint(equalTo: rootView.bottomAnchor),
             pathBarView.heightAnchor.constraint(equalToConstant: Self.pathBarHeight),
+            topSeparator.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            topSeparator.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            topSeparator.centerYAnchor.constraint(equalTo: tabBarView.bottomAnchor),
+            bottomSeparator.leadingAnchor.constraint(equalTo: rootView.leadingAnchor),
+            bottomSeparator.trailingAnchor.constraint(equalTo: rootView.trailingAnchor),
+            bottomSeparator.centerYAnchor.constraint(equalTo: pathBarView.topAnchor),
             stateLabel.centerXAnchor.constraint(equalTo: rootView.centerXAnchor),
             stateLabel.centerYAnchor.constraint(equalTo: rootView.centerYAnchor),
             stateLabel.leadingAnchor.constraint(greaterThanOrEqualTo: rootView.leadingAnchor, constant: 24),
@@ -291,6 +304,12 @@ final class PortalViewController: NSViewController {
         if portal.tabs.isEmpty {
             showEmptyPortal()
         }
+    }
+
+    private func configureSeparator(_ separator: NSBox, identifier: String) {
+        separator.boxType = .separator
+        separator.identifier = NSUserInterfaceItemIdentifier(identifier)
+        separator.translatesAutoresizingMaskIntoConstraints = false
     }
 
     func showResizeCapacityPreview(_ preview: GridCapacityPreview) {
@@ -373,6 +392,10 @@ final class PortalViewController: NSViewController {
                 }
             }
         }
+    }
+
+    func updateAppearance(_ appearance: PortalAppearancePreferences) {
+        portalMaterialView.updateCornerRadius(appearance.cornerRadius.points)
     }
 
     func stopObservation() {
@@ -656,7 +679,7 @@ final class PortalViewController: NSViewController {
 
 @MainActor
 final class FolderPathBarView: NSView {
-    private(set) var capsuleView = NSVisualEffectView()
+    private(set) var contentView = NSView()
     private let pathIcon = NSImageView()
     private(set) var pathLabel = NSTextField(labelWithString: "")
     private(set) var copyButton = NSButton()
@@ -675,7 +698,7 @@ final class FolderPathBarView: NSView {
     func update(folderURL: URL?) {
         guard let folderURL else {
             displayedPath = nil
-            capsuleView.isHidden = true
+            contentView.isHidden = true
             return
         }
         let path = NSString(
@@ -684,18 +707,12 @@ final class FolderPathBarView: NSView {
         displayedPath = path
         pathLabel.stringValue = path
         pathLabel.toolTip = path
-        capsuleView.isHidden = false
+        contentView.isHidden = false
     }
 
     private func configureView() {
-        capsuleView.material = .popover
-        capsuleView.blendingMode = .withinWindow
-        capsuleView.state = .active
-        capsuleView.wantsLayer = true
-        capsuleView.layer?.cornerRadius = 14
-        capsuleView.layer?.masksToBounds = true
-        capsuleView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(capsuleView)
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(contentView)
 
         pathIcon.image = NSImage(
             systemSymbolName: "folder",
@@ -706,6 +723,7 @@ final class FolderPathBarView: NSView {
 
         pathLabel.lineBreakMode = .byTruncatingMiddle
         pathLabel.maximumNumberOfLines = 1
+        pathLabel.textColor = .secondaryLabelColor
         pathLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         pathLabel.setAccessibilityLabel(
             NSLocalizedString("portal.path.label", comment: "Folder path accessibility label")
@@ -717,6 +735,7 @@ final class FolderPathBarView: NSView {
         )
         copyButton.imagePosition = .imageOnly
         copyButton.isBordered = false
+        copyButton.contentTintColor = .secondaryLabelColor
         copyButton.target = self
         copyButton.action = #selector(copyPath)
         copyButton.toolTip = NSLocalizedString("portal.path.copy", comment: "Copy folder path")
@@ -727,17 +746,17 @@ final class FolderPathBarView: NSView {
         stack.alignment = .centerY
         stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
-        capsuleView.addSubview(stack)
+        contentView.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            capsuleView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            capsuleView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            capsuleView.topAnchor.constraint(equalTo: topAnchor, constant: 5),
-            capsuleView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
-            stack.leadingAnchor.constraint(equalTo: capsuleView.leadingAnchor, constant: 12),
-            stack.trailingAnchor.constraint(equalTo: capsuleView.trailingAnchor, constant: -8),
-            stack.topAnchor.constraint(equalTo: capsuleView.topAnchor, constant: 3),
-            stack.bottomAnchor.constraint(equalTo: capsuleView.bottomAnchor, constant: -3),
+            contentView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            contentView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            contentView.topAnchor.constraint(equalTo: topAnchor, constant: 5),
+            contentView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
+            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
+            stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 3),
+            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -3),
             pathIcon.widthAnchor.constraint(equalToConstant: 16),
             pathIcon.heightAnchor.constraint(equalToConstant: 16),
             copyButton.widthAnchor.constraint(equalToConstant: 24),
