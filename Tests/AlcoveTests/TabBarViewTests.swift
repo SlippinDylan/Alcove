@@ -205,7 +205,7 @@ final class TabBarViewTests: XCTestCase {
         let settingsWindow = try XCTUnwrap(settingsController.window)
         XCTAssertEqual(settingsWindow.contentView?.bounds.size, NSSize(width: 400, height: 544))
         XCTAssertNil(settingsWindow.toolbar)
-        XCTAssertFalse(settingsWindow.titlebarAppearsTransparent)
+        XCTAssertTrue(settingsWindow.titlebarAppearsTransparent)
         XCTAssertTrue(settingsWindow.styleMask.contains(.titled))
         XCTAssertTrue(settingsWindow.styleMask.contains(.closable))
         if let visibleFrame = settingsWindow.screen?.visibleFrame {
@@ -221,6 +221,35 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertTrue(
             try XCTUnwrap(settingsWindow.standardWindowButton(.zoomButton)).isHidden
         )
+
+        settingsRoot.layoutSubtreeIfNeeded()
+        XCTAssertEqual(settingsViewController.contentStack.frame.minX, 20, accuracy: 0.5)
+        XCTAssertEqual(
+            settingsViewController.contentStack.frame.width,
+            settingsViewController.scrollView.contentSize.width - 40,
+            accuracy: 0.5
+        )
+        let cards = settingsViewController.contentStack.arrangedSubviews.enumerated()
+            .compactMap { index, view in index.isMultiple(of: 2) ? nil : view }
+        for card in cards {
+            XCTAssertEqual(
+                card.frame.width,
+                settingsViewController.contentStack.frame.width,
+                accuracy: 0.5
+            )
+        }
+        let firstFolderRow = try XCTUnwrap(
+            descendants(of: settingsRoot)
+                .compactMap { $0 as? NSStackView }
+                .first { row in
+                    row.subviews.compactMap { $0 as? NSTextField }
+                        .contains { $0.stringValue == "First" }
+                }
+        )
+        let firstFolderCard = try XCTUnwrap(cards.first)
+        let firstFolderRowFrame = firstFolderRow.convert(firstFolderRow.bounds, to: firstFolderCard)
+        XCTAssertEqual(firstFolderRowFrame.minX, 16, accuracy: 0.5)
+        XCTAssertEqual(firstFolderRowFrame.maxX, firstFolderCard.bounds.maxX - 16, accuracy: 0.5)
     }
 
     @MainActor
@@ -238,6 +267,19 @@ final class TabBarViewTests: XCTestCase {
         tabBar.configure(with: portal)
 
         try selectCategory(.style, in: tabBar)
+        let settingsViewController = try settingsController(in: tabBar).settingsViewController
+        settingsViewController.view.layoutSubtreeIfNeeded()
+        let styleCards = settingsViewController.contentStack.arrangedSubviews.enumerated()
+            .compactMap { index, view in index.isMultiple(of: 2) ? nil : view }
+        XCTAssertEqual(styleCards.count, 2)
+        for card in styleCards {
+            XCTAssertLessThanOrEqual(card.frame.height, 60)
+            XCTAssertEqual(
+                card.frame.width,
+                settingsViewController.contentStack.frame.width,
+                accuracy: 0.5
+            )
+        }
         let background = try slider(
             identifier: "portal-settings.background",
             in: tabBar

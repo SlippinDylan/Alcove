@@ -299,7 +299,7 @@ final class PortalSettingsWindowController: NSWindowController {
         window.setContentSize(NSSize(width: 400, height: 544))
         window.title = NSLocalizedString("portal.settings.title", comment: "Portal settings title")
         window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = false
+        window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
@@ -371,8 +371,9 @@ final class PortalSettingsViewController: NSViewController {
     private(set) var selectedCategory = Category.folders
     private(set) var categoryButtons: [Category: PortalSettingsCategoryButton] = [:]
     private(set) var separatorView = NSBox()
-    private let scrollView = NSScrollView()
-    private let contentStack = PortalSettingsContentStackView()
+    private(set) var scrollView = NSScrollView()
+    private(set) var contentStack: NSStackView = PortalSettingsContentStackView()
+    private let documentView = PortalSettingsDocumentView()
     private var actionTargets: [PortalSettingsActionTarget] = []
 
     init(
@@ -401,6 +402,7 @@ final class PortalSettingsViewController: NSViewController {
 
     override func loadView() {
         let root = NSView()
+        root.userInterfaceLayoutDirection = .leftToRight
         let navigationView = NSView()
         navigationView.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(navigationView)
@@ -416,7 +418,7 @@ final class PortalSettingsViewController: NSViewController {
         let navigationStack = NSStackView(views: buttons)
         navigationStack.orientation = .horizontal
         navigationStack.alignment = .centerY
-        navigationStack.spacing = 12
+        navigationStack.spacing = 20
         navigationStack.translatesAutoresizingMaskIntoConstraints = false
         navigationView.addSubview(navigationStack)
 
@@ -426,15 +428,22 @@ final class PortalSettingsViewController: NSViewController {
 
         contentStack.orientation = .vertical
         contentStack.alignment = .width
-        contentStack.spacing = 14
-        contentStack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
-        contentStack.frame = NSRect(x: 0, y: 0, width: 400, height: 460)
+        contentStack.distribution = .fill
+        contentStack.spacing = 12
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+        documentView.frame = NSRect(x: 0, y: 0, width: 400, height: 1)
+        documentView.addSubview(contentStack)
+        NSLayoutConstraint.activate([
+            contentStack.leadingAnchor.constraint(equalTo: documentView.leadingAnchor, constant: 20),
+            contentStack.trailingAnchor.constraint(equalTo: documentView.trailingAnchor, constant: -20),
+            contentStack.topAnchor.constraint(equalTo: documentView.topAnchor, constant: 22),
+        ])
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
         scrollView.scrollerStyle = .overlay
         scrollView.autohidesScrollers = true
         scrollView.verticalScroller?.controlSize = .mini
-        scrollView.documentView = contentStack
+        scrollView.documentView = documentView
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(scrollView)
 
@@ -442,7 +451,7 @@ final class PortalSettingsViewController: NSViewController {
             navigationView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             navigationView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             navigationView.topAnchor.constraint(equalTo: root.topAnchor),
-            navigationView.heightAnchor.constraint(equalToConstant: 64),
+            navigationView.heightAnchor.constraint(equalToConstant: 82),
             navigationStack.centerXAnchor.constraint(equalTo: navigationView.centerXAnchor),
             navigationStack.centerYAnchor.constraint(equalTo: navigationView.centerYAnchor),
             separatorView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
@@ -460,9 +469,7 @@ final class PortalSettingsViewController: NSViewController {
 
     override func viewDidLayout() {
         super.viewDidLayout()
-        let viewport = scrollView.contentSize
-        let height = max(viewport.height, contentStack.fittingSize.height)
-        contentStack.frame = NSRect(x: 0, y: 0, width: viewport.width, height: height)
+        layoutSettingsContent()
     }
 
     func update(_ portal: Portal) {
@@ -486,8 +493,9 @@ final class PortalSettingsViewController: NSViewController {
 
     private func sectionLabel(_ title: String) -> NSTextField {
         let label = NSTextField(labelWithString: title)
-        label.font = .systemFont(ofSize: 11, weight: .semibold)
-        label.textColor = .secondaryLabelColor
+        label.font = .systemFont(ofSize: 13, weight: .semibold)
+        label.textColor = .labelColor
+        label.alignment = .left
         return label
     }
 
@@ -498,20 +506,33 @@ final class PortalSettingsViewController: NSViewController {
         button.isBordered = false
         button.contentTintColor = .labelColor
         button.alignment = .left
+        button.userInterfaceLayoutDirection = .leftToRight
         button.heightAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
         return button
     }
 
     private func styleRow(title: String, control: NSView) -> NSStackView {
         let label = NSTextField(labelWithString: title)
+        label.alignment = .left
         label.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let row = NSStackView(views: [label, control])
         row.orientation = .horizontal
         row.distribution = .fill
         row.alignment = .centerY
         row.spacing = 12
-        row.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+        row.userInterfaceLayoutDirection = .leftToRight
+        row.heightAnchor.constraint(equalToConstant: 44).isActive = true
         return row
+    }
+
+    private func addSection(title: String, card: PortalSettingsCardView) {
+        let label = sectionLabel(title)
+        contentStack.addArrangedSubview(label)
+        label.widthAnchor.constraint(equalTo: contentStack.widthAnchor).isActive = true
+        contentStack.setCustomSpacing(8, after: label)
+        contentStack.addArrangedSubview(card)
+        card.widthAnchor.constraint(equalTo: contentStack.widthAnchor).isActive = true
+        contentStack.setCustomSpacing(24, after: card)
     }
 
     private func showCategory(_ category: Category) {
@@ -523,9 +544,6 @@ final class PortalSettingsViewController: NSViewController {
 
         switch category {
         case .folders:
-            contentStack.addArrangedSubview(sectionLabel(
-                NSLocalizedString("portal.settings.folders", comment: "Folders section")
-            ))
             var folderRows = portal.tabs.enumerated().map { index, tab in
                 folderRow(tab: tab, index: index, count: portal.tabs.count)
             }
@@ -534,41 +552,44 @@ final class PortalSettingsViewController: NSViewController {
                 symbol: "folder.badge.plus",
                 action: #selector(addFolder)
             ))
-            contentStack.addArrangedSubview(PortalSettingsCardView(rows: folderRows))
-            contentStack.addArrangedSubview(sectionLabel(
-                NSLocalizedString("portal.settings.panel", comment: "Panel settings section")
-            ))
+            addSection(
+                title: NSLocalizedString("portal.settings.folders", comment: "Folders section"),
+                card: PortalSettingsCardView(rows: folderRows)
+            )
             let removeButton = actionButton(
                 title: NSLocalizedString("portal.settings.remove_portal", comment: "Remove portal"),
                 symbol: "trash",
                 action: #selector(removePortal)
             )
             removeButton.contentTintColor = .systemRed
-            contentStack.addArrangedSubview(PortalSettingsCardView(rows: [removeButton]))
+            addSection(
+                title: NSLocalizedString("portal.settings.panel", comment: "Panel settings section"),
+                card: PortalSettingsCardView(rows: [removeButton])
+            )
         case .style:
-            contentStack.addArrangedSubview(sectionLabel(
-                NSLocalizedString("portal.settings.icon_size", comment: "Icon size section")
-            ))
-            contentStack.addArrangedSubview(PortalSettingsCardView(rows: [
-                styleRow(
-                    title: NSLocalizedString("portal.settings.size", comment: "Size setting"),
-                    control: iconSizeSlider()
-                ),
-            ]))
-            contentStack.addArrangedSubview(sectionLabel(
-                NSLocalizedString("portal.settings.appearance", comment: "Appearance section")
-            ))
-            contentStack.addArrangedSubview(PortalSettingsCardView(rows: [
-                styleRow(
-                    title: NSLocalizedString(
-                        "portal.settings.background",
-                        comment: "Background setting"
+            addSection(
+                title: NSLocalizedString("portal.settings.icon_size", comment: "Icon size section"),
+                card: PortalSettingsCardView(rows: [
+                    styleRow(
+                        title: NSLocalizedString("portal.settings.size", comment: "Size setting"),
+                        control: iconSizeSlider()
                     ),
-                    control: backgroundSlider()
-                ),
-            ]))
+                ])
+            )
+            addSection(
+                title: NSLocalizedString("portal.settings.appearance", comment: "Appearance section"),
+                card: PortalSettingsCardView(rows: [
+                    styleRow(
+                        title: NSLocalizedString(
+                            "portal.settings.background",
+                            comment: "Background setting"
+                        ),
+                        control: backgroundSlider()
+                    ),
+                ])
+            )
         }
-        view.needsLayout = true
+        layoutSettingsContent()
     }
 
     private func iconSizeSlider() -> NSSlider {
@@ -664,8 +685,26 @@ final class PortalSettingsViewController: NSViewController {
         row.orientation = .horizontal
         row.alignment = .centerY
         row.spacing = 8
-        row.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
+        row.userInterfaceLayoutDirection = .leftToRight
+        row.heightAnchor.constraint(equalToConstant: 40).isActive = true
         return row
+    }
+
+    private func layoutSettingsContent() {
+        let verticalInset: CGFloat = 22
+        let viewportWidth = scrollView.contentSize.width
+        guard viewportWidth > 0 else { return }
+
+        documentView.frame.size.width = viewportWidth
+        documentView.layoutSubtreeIfNeeded()
+        let contentHeight = contentStack.fittingSize.height
+        documentView.frame = NSRect(
+            x: 0,
+            y: 0,
+            width: viewportWidth,
+            height: contentHeight + verticalInset * 2
+        )
+        documentView.layoutSubtreeIfNeeded()
     }
 
     private func iconActionButton(
@@ -745,6 +784,11 @@ private final class PortalSettingsContentStackView: NSStackView {
 }
 
 @MainActor
+private final class PortalSettingsDocumentView: NSView {
+    override var isFlipped: Bool { true }
+}
+
+@MainActor
 final class PortalSettingsCategoryButton: NSButton {
     let category: PortalSettingsViewController.Category
 
@@ -755,13 +799,12 @@ final class PortalSettingsCategoryButton: NSButton {
         image = NSImage(
             systemSymbolName: category.symbol,
             accessibilityDescription: category.title
-        )
+        )?.withSymbolConfiguration(.init(pointSize: 23, weight: .regular))
         imagePosition = .imageAbove
         isBordered = false
-        wantsLayer = true
-        layer?.cornerRadius = 10
-        widthAnchor.constraint(equalToConstant: 68).isActive = true
-        heightAnchor.constraint(equalToConstant: 56).isActive = true
+        font = .systemFont(ofSize: 13, weight: .medium)
+        widthAnchor.constraint(equalToConstant: 76).isActive = true
+        heightAnchor.constraint(equalToConstant: 70).isActive = true
         setAccessibilityLabel(category.title)
     }
 
@@ -783,9 +826,6 @@ final class PortalSettingsCategoryButton: NSButton {
     private func updateAppearance() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
             contentTintColor = state == .on ? .controlAccentColor : .secondaryLabelColor
-            layer?.backgroundColor = state == .on
-                ? NSColor.controlAccentColor.withAlphaComponent(0.10).cgColor
-                : NSColor.clear.cgColor
         }
     }
 }
@@ -811,6 +851,7 @@ private final class PortalSettingsCardView: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.cornerRadius = 12
+        setContentHuggingPriority(.required, for: .vertical)
 
         var arrangedViews: [NSView] = []
         for (index, row) in rows.enumerated() {
@@ -827,11 +868,14 @@ private final class PortalSettingsCardView: NSView {
         stack.spacing = 0
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
+        for row in rows {
+            row.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        }
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 10),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
         ])
     }
 
@@ -842,11 +886,8 @@ private final class PortalSettingsCardView: NSView {
 
     override func updateLayer() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            layer?.backgroundColor = NSColor.controlBackgroundColor
-                .withAlphaComponent(0.68)
-                .cgColor
-            layer?.borderWidth = 0.5
-            layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.25).cgColor
+            layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.055).cgColor
+            layer?.borderWidth = 0
         }
     }
 }
