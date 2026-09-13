@@ -1113,6 +1113,24 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testFailedSortAndTintPersistenceRestoresSettingsPresentation() async throws {
+        let portal = try makePortal(path: "/tmp/first", x: 10)
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(
+            store: PortalStoreSpy(portals: [portal], saveError: .rejected),
+            windowFactory: factory,
+            persistenceErrorPresenter: PersistenceErrorPresenterSpy()
+        )
+        try await coordinator.restorePortals()
+
+        await coordinator.setSortOrder(.modificationDate, for: portal.id)
+        await coordinator.setTint(.purple, for: portal.id)
+
+        XCTAssertEqual(coordinator.portalStates, [portal])
+        XCTAssertEqual(factory.windows[0].updatedPortals, [portal, portal])
+    }
+
+    @MainActor
     func testPortalMenuCanChangeSortTintPinAndRemovePortal() async throws {
         let portal = try makePortal(path: "/tmp/first", x: 10)
         let factory = PortalWindowFactorySpy()

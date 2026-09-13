@@ -541,6 +541,7 @@ final class PortalCoordinator: PortalCoordinating {
             }
             persistenceError = nil
         } catch {
+            restorePortalPresentation(portalID)
             presentPersistenceError(error)
         }
     }
@@ -558,8 +559,14 @@ final class PortalCoordinator: PortalCoordinating {
             }
             persistenceError = nil
         } catch {
+            restorePortalPresentation(portalID)
             presentPersistenceError(error)
         }
+    }
+
+    private func restorePortalPresentation(_ portalID: PortalID) {
+        guard let portal = portalStates.first(where: { $0.id == portalID }) else { return }
+        windows[portalID]?.updatePortal(portal)
     }
 
     private func present(_ portal: Portal, transition: PlacementTransition) {
