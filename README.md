@@ -20,7 +20,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 > menu-bar portal management, global Small/Medium/Large content sizing and five-step frosted-background control, global five-step panel spacing and corner radius, a system-shadow toggle, collision-safe placement, adaptive macOS 26
 > Glass/macOS 15 fallback chrome, accessibility display-option handling, and
 > explicit recovery from missing, replaced, permission, read, and persistence
-> failures. Portals can be pinned against user movement and resizing, expose the selected folder path with copy support, and localize all user-facing UI into English, Simplified Chinese, or Traditional Chinese. The menu bar provides portal show/hide commands and a reserved application-settings entry. Three production-wide code review passes are complete, and CI tests
+> failures. Portals can be pinned against user movement and resizing, browse mapped subdirectories, expose Finder/Terminal/path actions, and localize all user-facing UI into English, Simplified Chinese, or Traditional Chinese. The menu bar provides portal show/hide commands and an application-settings window for global style and layout backup. Three production-wide code review passes are complete, and CI tests
 > and publishes an unsigned universal verification artifact. Manual system
 > behavior and the separate signing release gate remain open.
 
@@ -38,7 +38,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 ## Key Design Decisions
 
 - **Native AppKit**, not WidgetKit
-- **Adaptive native material** with one global five-step background level on always-active frosted surfaces; lightweight separators divide the top controls and bottom path row from file content, while macOS 26 Glass remains limited to suitable settings actions
+- **Adaptive native material** with one global five-step background level on always-active frosted surfaces; lightweight separators divide chrome from file content, while macOS 26 Glass is limited to suitable navigation and action controls
 - **Finder-consistent interaction**: click/Command/Shift and empty-space marquee selection, arrow navigation, Command-A, Quick Look, open, Trash, and native file-URL drag in/out
 - **Finder-style icon tiles**: separate icon/title selection regions, two-line labels, a durable integer-capacity grid shared by rendering, keyboard navigation, creation, and live resizing, and persisted Small/Medium/Large icon presets
 - **Internal local folders only**: folder selection rejects removable, ejectable, and network-volume locations

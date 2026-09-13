@@ -108,7 +108,7 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 | Drag from Finder to empty Portal grid space | Copy all dropped items into that tab's current browsed directory |
 | Command-drag from Finder to empty Portal grid space | Move all dropped items into that tab's current browsed directory when the source permits move |
 
-Before a drop begins, Alcove validates the complete source snapshot. An item already in the destination, a duplicate or existing destination name, and a directory transferred into its own descendant are rejected. Alcove never overwrites. Accepted work runs outside the main actor under `NSFileCoordinator`; FSEvents and an explicit reload converge the grid after completion. A multi-item failure reports how many preceding items completed rather than hiding partial progress.
+Before any file mutation, Alcove validates the complete source snapshot off the main actor. An item already in the destination, a duplicate or existing destination name, and a directory transferred into its own descendant are rejected. Alcove never overwrites. Accepted work runs outside the main actor under `NSFileCoordinator`; FSEvents and an explicit reload converge the grid after completion. A multi-item failure reports how many preceding items completed rather than hiding partial progress.
 
 ### 5.5 Portal Creation Flow
 
@@ -145,7 +145,7 @@ one abbreviated folder path per native table row, with a trailing drag indicator
 remove action. Dropping a row performs one atomic reorder with native gap feedback. Remove Panel
 lives in a separate descriptive destructive card at the bottom of the same page.
 
-The fixed leading pin button persists per Portal. Pinning disables user-driven dragging and
+The trailing gear menu's Pin command persists per Portal. Pinning disables user-driven dragging and
 resizing while leaving tab, file, Quick Look, settings, and display-recovery
 interactions available. A dedicated bottom row reserves space below the file grid and shows the
 selected folder's path, abbreviating the current home directory as `~`; its copy button writes the
@@ -337,7 +337,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 ### Deferred (Post-MVP)
 - Tab drag-to-reorder
 - Custom icon size slider (beyond Small/Medium/Large presets)
-- Sorting UI (beyond default directories-first, localized-name ordering)
+- Additional sorting modes beyond name, modification date, and creation date
 - Rename, new folder, conflict replacement/Keep Both, and file-operation undo
 - Cloud drive sync status
 - Custom grid layouts beyond icon grid

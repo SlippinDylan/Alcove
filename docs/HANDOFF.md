@@ -187,7 +187,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 | Portal 窗口 | `Alcove/PortalWindowing/PortalWindow.swift` | 自定义拖动、用户交互边界、系统 placement 抑制 |
 | 窗口控制 | `Alcove/PortalWindowing/PortalWindowController.swift` | live resize 量化、容量提交、Quick Look/设置窗口生命周期 |
 | Portal 内容 | `Alcove/PortalPresentation/PortalViewController.swift` | Tab、分区线、网格、底部路径行、空态、加载/错误态、设置动作转发 |
-| Tab 与设置 | `Alcove/PortalPresentation/TabBarView.swift` | 左侧图钉、顶部 Tab 胶囊、设置图标、双行窗口 chrome、文件夹管理和离散样式滑块 |
+| Tab 与设置 | `Alcove/PortalPresentation/TabBarView.swift` | 原生 Glass/旧系统回退 Tab、齿轮管理菜单、单面板 General/Folders/Style 设置 |
 | 材质 | `Alcove/PortalPresentation/PortalChromeMaterialView.swift` | macOS 26 Glass / macOS 15 fallback、始终 active 的表面材质 |
 | 文件网格 | `Alcove/FileGrid/FileGridViewController.swift` | collection view、row-major 布局接入、选择和键盘行为 |
 | 文件单元 | `Alcove/FileGrid/FileItemCell.swift` | Finder 风格对象、两行标题、选中视觉和无障碍 |
@@ -273,7 +273,7 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - 3×1 最小容量、创建/缩放半格阈值、capacity 驱动的 row-major 回流。
 - mini overlay 自动隐藏滚动条。
 - 原生 preference toolbar 设置窗口、原生表格文件夹排序、离散样式滑块及完整 Coordinator 动作链路。
-- 可持久化图钉、底部路径与复制按钮、菜单栏 Show/Hide，以及包含 General/Style/About 的全局 Settings 窗口。
+- 可持久化图钉、排序与 tint，底部 Finder/Terminal/复制路径按钮，菜单栏 Show/Hide，以及包含 General/Style/Advanced/About 的全局 Settings 窗口。
 - English、简体中文、繁体中文完整 bundle 本地化，其他系统语言回退 English。
 
 ### 7.2 最近验证结果
