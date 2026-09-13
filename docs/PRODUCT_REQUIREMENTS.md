@@ -124,11 +124,11 @@ Tabs appear as small folder-name capsules inside one larger, horizontally
 centered capsule without dividers. The selected folder receives the inner
 capsule emphasis. Per-tab close and add buttons are intentionally omitted;
 editing actions open from the fixed trailing settings icon in a separate centered
-settings window. The standard title bar contains only the close control; a separate navigation
-row below it keeps Folders and Style fixed above a full-width separator, and the lower content
-switches to the selected category. The Folders card shows one folder per row with remove and
-adjacent up/down ordering actions, followed by Add Folder; Remove Panel lives in a separate
-destructive card at the bottom of the same page.
+settings window. A native preference-style toolbar presents the Folders and Style categories
+above the lower content. The Folders section shows a Glass Add Folder button in its heading and
+one abbreviated folder path per native table row, with a trailing drag indicator and borderless
+remove action. Dropping a row performs one atomic reorder with native gap feedback. Remove Panel
+lives in a separate descriptive destructive card at the bottom of the same page.
 
 The fixed leading pin button persists per Portal. Pinning disables user-driven dragging and
 resizing while leaving tab, file, Quick Look, settings, and display-recovery

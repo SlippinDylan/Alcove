@@ -284,14 +284,16 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Deliverables:**
 - A centered scrollable outer capsule containing divider-free folder-title
   capsules, with direct switching and a fixed trailing settings icon. The icon
-  opens a centered standalone settings window whose standard title bar is separate
-  from a Folders/Style category row and divider.
-- The Folders page lists every tab with adjacent up/down and remove actions, keeps
-  Add Folder at the bottom of the list card, and places Remove Panel in a separate danger card.
+  opens a centered standalone settings window with a native preference-style
+  Folders/Style toolbar.
+- The Folders page lists each tab's abbreviated path with trailing drag and remove controls,
+  keeps a Glass Add Folder action in the section heading, and places Remove Panel in a
+  descriptive danger card using the standard content material.
 - Closing the last tab prompts to remove the portal; it never silently destroys it.
 - One reusable grid controller per portal; tab switches replace its model.
 - Per-tab runtime selection and scroll state.
-- Persist the current tab order and selected tab; adjacent up/down actions reorder tabs.
+- Persist the current tab order and selected tab; the native table drop interaction provides gap
+  feedback and performs one atomic reorder.
 
 **Tests:**
 - Unit: add, switch, close, reorder, selected-tab validation, order preservation, and last-tab prompt decision.

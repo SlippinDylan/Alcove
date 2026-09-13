@@ -128,22 +128,22 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 点击后打开独立设置窗口，**不是 `NSPopover` 气泡**。
 - 窗口外框固定为约 `400×572pt`，每次打开在当前 Portal 所在屏幕的 visible frame 水平、垂直居中。
 - 使用原生 titled/closable `NSWindow`；显示红色关闭按钮，隐藏最小化和缩放按钮。
-- 标准标题栏只放关闭按钮；其下是独立的 Folders、Style 分类导航行和全宽分割线，再下方才是内容。
-- Folders 使用可滚动列表卡片：每行一个文件夹，右侧提供上移、下移和删除，卡片底部提供 Add Folder；Remove Panel 位于同页最下方的独立危险操作卡片。
+- 使用原生 preference-style `NSToolbar` 承载 Folders、Style 分类导航、选中状态和底部分割层级。
+- Folders 使用 `NSTableView` 列表卡片：Glass Add Folder 位于章节标题右侧，每行显示 `~` 缩写路径，右侧提供拖拽提示和无边框删除按钮；原生拖放显示 gap 反馈并执行一次原子排序。Remove Panel 位于同页最下方带主副标题的独立危险操作卡片。
 - Style 使用三档图标尺寸滑块和五档背景强度滑块。
 - 内容使用接近系统设置的“章节标题 + 圆角分组卡片”结构。
 - 不再存在 Other 分类或 Follow Desktop 选项。
 - 同一 Portal 重复点击设置图标时复用并前置同一个设置窗口；Portal 关闭时设置窗口同步关闭。
 - 提交 `9cd71a3` 曾错误实现为气泡 Popover，已被 `e73385b` 的独立窗口方案取代。后续不要恢复 Popover。
 
-视觉目标接近用户给出的原生设置参考：选中分类的 icon/label 使用系统强调色，未选分类使用次要文字色，独立分类栏下有细分隔线；内容区有 20–24pt 级别的外边距、章节标题和接近全宽的圆角分组卡片。概念线框如下：
+视觉目标接近用户给出的原生设置参考：原生 preference toolbar 管理分类 icon/label、选中背景和分割层级；内容区使用统一文字基线、标准内容材质和接近全宽的圆角分组卡片。概念线框如下：
 
 ```text
 ┌──────────────────────────────┐  400pt
 │ ●                            │  标准标题栏
 ├──────────────────────────────┤
 │       [icon]      [icon]     │
-│       Folders      Style     │  独立分类栏
+│       Folders      Style     │  原生 preference toolbar
 ├──────────────────────────────┤
 │                              │
 │   Section title              │
@@ -230,7 +230,7 @@ Tab 从左侧改为水平居中后，布局时机和材质层级共同导致单�
 
 ### 6.8 设置入口不是菜单或气泡
 
-设置入口先后出现过 `NSMenu` 和自定义 `NSPopover`。用户明确要求参考原生设置界面的独立窗口。当前实现使用标准标题栏加内容内独立分类导航；不要回退为箭头气泡，也不要把分类重新合并进标题栏。
+设置入口先后出现过 `NSMenu` 和自定义 `NSPopover`。用户明确要求参考原生设置界面的独立窗口。当前实现使用带 preference-style `NSToolbar` 的独立窗口；不要回退为箭头气泡或内容内自定义分类栏。
 
 ### 6.9 用户移动和系统移动不能共用持久化回调
 
@@ -260,7 +260,7 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - Small/Medium/Large 三档手动 icon presets；没有 Finder Automation 或外部尺寸同步。
 - 3×1 最小容量、创建/缩放半格阈值、capacity 驱动的 row-major 回流。
 - mini overlay 自动隐藏滚动条。
-- 标题栏/分类栏分离的设置窗口、文件夹顺序管理、离散样式滑块及完整 Coordinator 动作链路。
+- 原生 preference toolbar 设置窗口、原生表格文件夹排序、离散样式滑块及完整 Coordinator 动作链路。
 - 可持久化图钉、底部路径与复制按钮、菜单栏 Show/Hide 和全局 Settings 占位。
 - English、简体中文、繁体中文完整 bundle 本地化，其他系统语言回退 English。
 
@@ -329,7 +329,7 @@ Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
 ### 7.3 仍需人工验证或尚未封闭
 
 - 最新独立设置窗口的视觉结果尚未收到用户截图确认；这是下一次 UI 对话最可能的第一项工作。
-- 设置窗口需人工核对：400×572 外框、当前屏幕居中、独立标题栏只显示红色关闭按钮、下方分类栏与分割线、圆角卡片比例、滑块、字体和间距是否足够接近参考图。
+- 设置窗口需人工核对：约 400×572 外框、当前屏幕居中、preference toolbar 的分类 icon/label 与选中背景、圆角卡片比例、Glass 按钮、滑块、字体和间距是否足够接近参考图。
 - Portal 的 desktop-level 窗口在 macOS 15/26、多个显示器、Spaces、Stage Manager、全屏应用、睡眠唤醒和缩放切换下仍需要真实系统矩阵。
 - 显示器 UUID 跨断开/重连的稳定性不是 Apple 的通用保证，仍需真实硬件证据。
 - Quick Look 的 desktop-level 单项/多项行为仍需人工验证。
@@ -389,7 +389,7 @@ e73385b fix: present portal settings in a window
 如果用户继续调整设置界面：
 
 1. 让用户用当前本地 HEAD 在 Xcode `Cmd + R` 打开设置窗口并提供截图。
-2. 以截图逐项核对窗口大小、居中、标题栏与分类栏高度、分类 icon/label、分割线、内容卡片宽度/圆角/间距和 dark/light appearance。
+2. 以截图逐项核对窗口大小、居中、preference toolbar、分类 icon/label、分割线、内容卡片宽度/圆角/间距和 dark/light appearance。
 3. 只修明确偏差；不要再次替换交互形态。
 4. 跑 `TabBarViewTests`、`PortalViewControllerTests`、`PortalWindowConfigurationTests`、`PortalCoordinatorTests`，再按风险决定是否跑全套。
 5. 只本地 commit，保留 `project.pbxproj`，不 push。
