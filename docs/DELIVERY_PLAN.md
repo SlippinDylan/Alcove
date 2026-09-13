@@ -282,8 +282,9 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Entry Gate:** Slice 5 exit gate passed.
 
 **Deliverables:**
-- A centered scrollable outer capsule containing divider-free folder-title
-  capsules, with direct switching and a fixed trailing settings icon. The icon
+- A centered scrollable folder-title strip with capsule emphasis on the selected
+  tab, direct switching, and a fixed trailing settings icon. Full-width separators
+  divide the top controls and bottom path row from the file grid. The icon
   opens a centered standalone settings window with a close-only titlebar, a native
   preference-style Folders/Style toolbar, and an explicit separator above content.
 - The Folders page lists each tab's abbreviated path with trailing drag and remove controls,
@@ -414,6 +415,7 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - Final loading, empty, missing-folder, and permission states plus unsupported-folder-location selection feedback.
 - Per-portal Small/Medium/Large icon sizing, fixed equal tile spacing, resize snap, and 3×1 minimum.
 - Per-portal five-step frosted-background control, persisted independently with an accessibility-driven opaque override.
+- Application-global five-step edge/inter-Portal spacing and corner radius, plus a system-shadow toggle; creation, dragging, live resize, and icon-preset resize reject collisions without moving neighboring Portals.
 - Evidence-backed Liquid Glass chrome on macOS 26 and `NSVisualEffectView` fallback on macOS 15–25.
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
 - Performance validation for defined NFR directory sizes.

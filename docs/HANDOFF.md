@@ -46,7 +46,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 - 支持多个 Portal、多个显示器和每个 Portal 多个 Tab。
 - Tab 按创建顺序持久化；当前选中 Tab 持久化。
-- Tab 是顶部大胶囊内的小文件夹名称胶囊，整体水平居中，无分割线。
+- Tab 位于顶部水平居中的可滚动条带中，当前文件夹使用小胶囊强调；顶部控制区与文件网格之间使用轻分割线。
 - 单个 Tab 只显示一个小胶囊；Tab 上不放加号或关闭叉号。
 - Tab 编辑集中在右上角设置入口。
 - 左上角图钉按 Portal 持久化；钉住后禁止用户拖动和缩放，但不阻断显示器恢复或内容交互。
@@ -56,7 +56,8 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.4 新建流程
 
 - 菜单栏 New Portal 打开当前指针屏幕上的透明绘制层。
-- 鼠标按下后立即显示虚线 Portal 骨架，包括外框、标题区和对象位置。
+- 鼠标按下后立即显示虚线 Portal 骨架，包括圆角外框、上下通长分割线和完整对象格；不再显示旧标题/路径胶囊，也不拆成 icon 与名称两个框。
+- 新建选区必须与 `visibleFrame` 边缘及其他 Portal 保持全局间距；冲突候选显示为红色并留在 overlay 中继续选择，Coordinator 保存前再次校验。
 - 默认/最小容量是 3 列 × 1 行。
 - 拖动按半个对象单元作为阈值切换整数列数和行数：例如 3.2 仍是 3 列并显示候选反馈，3.5 切为 4 列。
 - 鼠标松开后立即创建并保存空 Portal，**不再立刻弹文件夹选择器**。
@@ -102,13 +103,13 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - Space 使用 `QLPreviewPanel` 打开或关闭 Quick Look。
 - 选中标题文字为白色；图标和标题有各自的 Finder 风格选中区域。
 - 默认排序为目录优先，再按 localized standard name。
-- 当前 Tab 的文件夹路径显示在网格下方占满可用行宽的胶囊中，用户目录缩写为 `~`；复制按钮把显示路径写入剪贴板。空 Portal 隐藏路径胶囊但保留布局高度。
+- 当前 Tab 的文件夹路径显示在网格下方的固定行中，底部路径行与文件网格之间使用轻分割线，不使用胶囊、额外材质、填充或描边。用户目录缩写为 `~`；复制按钮把显示路径写入剪贴板。空 Portal 隐藏路径内容但保留布局高度。
 
 ### 3.7 图标尺寸
 
 - 每个 Portal 独立选择并持久化 Small、Medium 或 Large，设置界面使用三档离散滑块。
 - 不读取 Finder 设置，不发送 Apple Events，也不申请 Finder Automation 权限。
-- 图标尺寸改变时保持 `GridCapacity` 不变，按所选 preset 重算 Portal 像素 frame。
+- 图标尺寸改变时保持 `GridCapacity` 和 Portal 左上角不变，按所选 preset 向右、向下重算像素 frame；优先使用当前 home display 的 `visibleFrame`，无法取得当前 descriptor 时使用其记住的 reference frame。
 - 新建 Portal 的骨架和最终 Portal 都使用 Medium。
 
 ### 3.8 窗口、显示器与系统行为
@@ -119,6 +120,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - `windowDidMove`、`windowDidResize`、`windowDidChangeScreen` 等普通通知不能单独证明用户意图，也不能直接持久化。
 - live resize 仅在 `windowDidEndLiveResize` 提交。
 - 系统显示器恢复、Spaces 或 Stage Manager 导致的 frame 变化不修改用户记住的 home placement。
+- 用户拖动使用 swept-AABB 阻止快速穿透，live resize 在实际 frame 形成后回退到上一合法 frame；两者均使用窗口当前 runtime frame 作为障碍，并按指针位置保留跨显示器 handoff。
 - placement 保存 display UUID、绝对 frame、保存时 visible frame、preferred size 和 normalized anchor。
 - 显示器断开时可以临时迁移到主屏，但原 home placement 必须保留；显示器回来后恢复。
 
@@ -163,7 +165,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.10 菜单栏与本地化
 
 - 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；Portal 名称的二级菜单只提供 Show 和 Hide。
-- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；点击后打开可复用的独立设置窗口。General 提供系统登录时自动启动开关，About 使用 Icon Composer 生成的应用图标并显示应用名称、版本、构建号和版权信息。
+- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；点击后打开可复用的独立设置窗口。General 提供系统登录时自动启动、全局五档面板间距（4/8/12/16/20pt）、五档圆角（0/8/14/20/24pt）和系统阴影开关；About 使用 Icon Composer 生成的应用图标并显示应用名称、版本、构建号和版权信息。全局外观写入 `UserDefaults`，不修改 Portal v10 JSON。
 - 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
 - English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
 
@@ -177,7 +179,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 | 新建事务 | `Alcove/PortalCreation/PortalCreationCoordinator.swift` | 选择 frame 后创建空 Portal |
 | Portal 窗口 | `Alcove/PortalWindowing/PortalWindow.swift` | 自定义拖动、用户交互边界、系统 placement 抑制 |
 | 窗口控制 | `Alcove/PortalWindowing/PortalWindowController.swift` | live resize 量化、容量提交、Quick Look/设置窗口生命周期 |
-| Portal 内容 | `Alcove/PortalPresentation/PortalViewController.swift` | Tab、网格、底部路径胶囊、空态、加载/错误态、设置动作转发 |
+| Portal 内容 | `Alcove/PortalPresentation/PortalViewController.swift` | Tab、分区线、网格、底部路径行、空态、加载/错误态、设置动作转发 |
 | Tab 与设置 | `Alcove/PortalPresentation/TabBarView.swift` | 左侧图钉、顶部 Tab 胶囊、设置图标、双行窗口 chrome、文件夹管理和离散样式滑块 |
 | 材质 | `Alcove/PortalPresentation/PortalChromeMaterialView.swift` | macOS 26 Glass / macOS 15 fallback、始终 active 的表面材质 |
 | 文件网格 | `Alcove/FileGrid/FileGridViewController.swift` | collection view、row-major 布局接入、选择和键盘行为 |
@@ -202,7 +204,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 ### 6.1 Glass 中控件完全透明
 
-在 desktop-level 窗口中，把可点击 Tab 控件放入小型 `NSGlassEffectView.contentView` 曾出现“可以点击但完全透明”。最终结构是材质、可见 backdrop 和控件作为有序 sibling，而不是把控件嵌套进 Glass。不要为了追求层级纯粹再次把控件塞回材质 content view。
+在 desktop-level 窗口中，把可点击 Tab 控件放入小型 `NSGlassEffectView.contentView` 曾出现“可以点击但完全透明”。当前 Portal 已取消顶部 control-group Glass 和外层胶囊，改为普通可滚动 Tab 条带与上下轻分割线；不要重新引入该不可见的嵌套 Glass 结构。
 
 ### 6.2 Tab 一度不可见
 

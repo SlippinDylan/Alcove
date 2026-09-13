@@ -101,9 +101,9 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 
 1. User activates portal creation from the menu bar (clicks Alcove icon → "New Portal")
 2. A transparent overlay appears on the pointer's current display
-3. A dashed `3×1` portal appears immediately. Its card, title control, item slots, and bottom path row are previewed as dashed outlines using the Medium preset.
+3. A dashed `3×1` portal appears immediately. It previews the rounded outer frame, two full-width separators, and complete object tiles using the Medium preset; it does not recreate the removed title/path capsules or split an object into separate icon and name boxes.
 4. Dragging changes columns and rows at half-cell thresholds: partial progress remains a translucent candidate until the next whole capacity is committed.
-5. On mouse-up, Alcove immediately persists and presents an empty Portal; creation does not open a folder chooser.
+5. A candidate that violates the configured screen-edge or inter-Portal spacing is shown as invalid and is not submitted. On a valid mouse-up, Alcove revalidates, persists, and presents an empty Portal; creation does not open a folder chooser.
 6. The empty Portal shows a Choose Folder action in its content area. That action opens the standard directory-only `NSOpenPanel`.
 7. Alcove validates that the selected folder is on the Mac's internal, fixed local storage; removable, ejectable, and network-volume locations are rejected with an explanation.
 8. An eligible folder becomes the first selected tab. Cancelling or rejecting the choice leaves the empty Portal intact.
@@ -116,13 +116,13 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 | Click tab | Switch to that tab's folder |
 | Settings → Folders → Add Folder… | Add a new tab (opens folder chooser) |
 | Settings → Folders → Remove current folder | Remove the selected tab; if last tab, prompt to remove the portal (never silently destroy it) |
-| Settings → Style | Choose Small, Medium, or Large with a three-step slider, and choose one of five background levels with a five-step slider |
+| Settings → Style | Choose Small, Medium, or Large with a three-step slider while preserving the Portal's grid capacity and top-left position, and choose one of five background levels with a five-step slider |
 | Settings → Folders → Remove Panel | Remove the complete Portal from the destructive action card at the bottom |
 | Tab title | Defaults to the mapped folder name |
 
-Tabs appear as small folder-name capsules inside one larger, horizontally
-centered capsule without dividers. The selected folder receives the inner
-capsule emphasis. Per-tab close and add buttons are intentionally omitted;
+Tabs appear as small folder-name controls in one horizontally centered,
+scrollable strip. The selected folder receives capsule emphasis. Per-tab close
+and add buttons are intentionally omitted;
 editing actions open from the fixed trailing settings icon in a separate centered
 settings window. A standard close-only titlebar remains above a native preference-style toolbar;
 an explicit system separator divides the Folders and Style navigation from the lower content.
@@ -134,9 +134,9 @@ lives in a separate descriptive destructive card at the bottom of the same page.
 The fixed leading pin button persists per Portal. Pinning disables user-driven dragging and
 resizing while leaving tab, file, Quick Look, settings, and display-recovery
 interactions available. A dedicated bottom row reserves space below the file grid and shows the
-selected folder's path in a capsule spanning the row's available width, abbreviating the current home directory as `~`; its copy
-button writes the displayed path to the clipboard. Empty Portals keep the row's layout space but
-do not display a path capsule.
+selected folder's path, abbreviating the current home directory as `~`; its copy button writes the
+displayed path to the clipboard. Subtle separators divide the top controls and bottom path row from
+the file grid. Empty Portals keep the row's layout space but hide the path content.
 
 ### 5.6 Portal Window Behavior
 
@@ -150,6 +150,7 @@ do not display a path capsule.
 | Inactive appearance | Portal material and folder controls retain their active visual contrast when another app becomes active |
 | Frame snap | Columns and rows switch at half-cell thresholds and always settle on a whole `columns × rows` capacity; that committed column count directly controls item wrapping and is never re-derived from a slightly smaller content rectangle |
 | Min size | 3 columns × 1 row |
+| Placement bounds | User dragging and resizing remain inside the current display's fresh `visibleFrame`, including the configured edge spacing; other Portals are fixed obstacles with the same spacing |
 
 The file grid uses 8pt top and bottom content insets. These insets are part of the
 capacity-to-frame calculation, so existing persisted placements are migrated when they change.
@@ -175,7 +176,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-09 | Multiple portals supported simultaneously | MVP |
 | FR-10 | Multiple displays supported | MVP |
 | FR-11 | Menu-bar icon with portal management menu | MVP |
-| FR-12 | Liquid Glass on macOS 26 for the centered folder-tab control group; each portal independently selects and persists one of five background levels on the same always-active frosted content material | MVP |
+| FR-12 | Each portal independently selects and persists one of five background levels on an always-active frosted content material; lightweight separators distinguish the top controls and bottom path row without additional capsule materials | MVP |
 | FR-13 | NSVisualEffectView fallback on macOS 15–25 | MVP |
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
@@ -183,8 +184,9 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-17 | Drag-out from portals | Investigate |
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 | FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
-| FR-21 | Show the selected folder path in a reserved bottom capsule, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
-| FR-22 | The menu bar lists New Portal, each Portal with Show/Hide commands, application Settings, and Quit. Application Settings provides General and About categories; General controls launch at login, and About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
+| FR-21 | Show the selected folder path in a reserved bottom row separated from the file grid, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
+| FR-22 | The menu bar lists New Portal, each Portal with Show/Hide commands, application Settings, and Quit. Application Settings provides General and About categories; General controls launch at login plus global five-step panel spacing (`4/8/12/16/20pt`), five-step corner radius (`0/8/14/20/24pt`), and the system window-shadow toggle. About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
+| FR-23 | New placement, user dragging, live resizing, and icon-preset resizing must not overlap another Portal and must honor the selected edge/inter-Portal spacing. Existing legacy placements are not automatically repacked when the preference changes; user interaction may move them into a legal state. | MVP |
 
 ### Non-Functional Requirements
 

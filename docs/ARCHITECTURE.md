@@ -83,6 +83,7 @@ Domain models and pure layout math. Zero AppKit imports.
 - `GridLayout` — computes item frames from container size, icon size, column count, and spacing
 - `PlacementGeometry` — captures and restores per-display frames with normalized movable-range anchors
 - `PlacementStateMachine` — preserves user-confirmed home placement while emitting transient topology directives
+- `PortalFrameConstraints` — pure validation and swept-AABB drag geometry for display-edge and inter-Portal spacing; fast pointer motion cannot tunnel through another Portal
 
 ### 3.2 AlcoveApp
 
@@ -91,8 +92,8 @@ App entry point and global coordination.
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
 - `StatusMenuController` — builds the localized New Portal / Portal Show-Hide / application Settings / Quit hierarchy and routes Settings to one reusable application settings window
-- `ApplicationSettingsWindowController` — owns the preference-style General/About window. General adapts `SMAppService.mainApp` at the system boundary for launch-at-login registration; About reads version metadata and the compiled Icon Composer application icon from the running app
-- `NewPortalOverlay` — pointer-display overlay with a dashed `3×1` default card, title/item skeletons, half-cell candidate feedback, and whole-capacity snapping constrained to `visibleFrame`
+- `ApplicationSettingsWindowController` — owns the preference-style General/About window. General adapts `SMAppService.mainApp` at the system boundary for launch-at-login registration and stores global spacing, corner-radius, and shadow preferences in `UserDefaults`; About reads version metadata and the compiled Icon Composer application icon from the running app
+- `NewPortalOverlay` — pointer-display overlay with a dashed `3×1` rounded frame, full-width separators, complete object tiles, half-cell candidate feedback, and whole-capacity snapping constrained to the inset `visibleFrame`; occupied candidates remain editable and cannot commit
 - Info.plist: `LSUIElement = YES`, `LSBackgroundOnly = NO`
 
 ### 3.3 PortalWindowing
@@ -112,26 +113,23 @@ App entry point and global coordination.
   - Standard resize from edges/corners
   - Frame snap to grid metrics on move/resize end
 - `PortalWindowController` — emits placement commits only after tracked drag mouse-up or live-resize end; generic frame notifications never imply user intent
+- `PortalCoordinator` injects synchronous geometry closures into each window. Dragging uses the pointer's fresh destination display and current runtime frames of other windows; live resize validates the actual frame delivered by AppKit and restores the last legal frame. The final persistence transaction revalidates to close races.
+- Display handoff follows the pointer's containing or nearest fresh `visibleFrame`; this keeps multi-display movement available rather than permanently clamping a Portal to its source display.
 
 ### 3.4 PortalPresentation
 
 Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
-- `TabBarView` — one centered, horizontally scrollable outer capsule containing divider-free folder-name capsules, a fixed leading pin button, and a fixed trailing settings icon. The pin action persists through the Coordinator before the window changes its resizable/drag behavior. The settings icon presents one reusable standalone settings window centered on the Portal's current screen. A close-only standard titlebar remains above a native preference-style `NSToolbar`, which owns Folders/Style navigation and selection appearance; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering; icon/background values use discrete sliders. Settings cards use standard content material, macOS 26 text actions use the system Glass bezel, and macOS 15–25 retain rounded native controls
-- `FolderPathBarView` — a reserved bottom row derived from the selected tab URL; its capsule spans the row's available width, abbreviates the home directory as `~`, and copies the displayed path to `NSPasteboard`
-- `PortalChromeMaterialView` — role-aware compatibility boundary: the content surface keeps an always-active `.popover`-material `NSVisualEffectView` at full strength and varies an adaptive neutral tint overlay per Portal, while the centered control group uses `NSGlassEffectView` on macOS 26+ and an always-active `NSVisualEffectView` on 15–25
+- `TabBarView` — one centered, horizontally scrollable folder-name strip with capsule emphasis only on the selected tab, a fixed leading pin button, and a fixed trailing settings icon. The pin action persists through the Coordinator before the window changes its resizable/drag behavior. The settings icon presents one reusable standalone settings window centered on the Portal's current screen. A close-only standard titlebar remains above a native preference-style `NSToolbar`, which owns Folders/Style navigation and selection appearance; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering; icon/background values use discrete sliders. Settings cards use standard content material, macOS 26 text actions use the system Glass bezel, and macOS 15–25 retain rounded native controls
+- `FolderPathBarView` — a plain reserved bottom row derived from the selected tab URL; it abbreviates the home directory as `~` and copies the displayed path to `NSPasteboard`
+- `PortalChromeMaterialView` — the content surface keeps an always-active `.popover`-material `NSVisualEffectView` at full strength and varies an adaptive neutral tint overlay per Portal
 - Layout: tab bar at top, a fixed path row at bottom, and the icon grid between them. Both chrome rows are included in creation, minimum-size, live-resize, and persisted-capacity geometry
-- Portal size intent is `GridCapacity`, not a remembered pixel size. Creation and manual icon-size changes derive the content frame from the same `GridMetrics`; changing Small/Medium/Large preserves capacity and recomputes the physical frame. New Portal creation starts at Medium.
-- Rendering hierarchy: the background material, file grid, and top control row
-  are sibling layers in a plain root container. The control-group
-  `NSGlassEffectView` must not be nested inside the background
-  `NSVisualEffectView`. At the selected desktop window level, controls installed
-  in the small Glass `contentView` were hit-testable but rendered fully
-  transparent, so the TabBar keeps the Glass backing, a guaranteed visible
-  capsule backdrop, and the scrollable folder controls as ordered sibling
-  layers. The controls use the same direct TabBar hierarchy that previously
-  rendered successfully.
+- Portal size intent is `GridCapacity`, not a remembered pixel size. Creation and manual icon-size changes derive the content frame from the same `GridMetrics`; changing Small/Medium/Large preserves capacity and the Portal's top-left position while recomputing the physical frame toward the trailing and bottom edges. The resize uses the current home-display `visibleFrame` when available and falls back to its remembered reference frame when a current descriptor is unavailable. New Portal creation starts at Medium.
+- Rendering hierarchy: the background material, file grid, top control row,
+  bottom path row, and two full-width separators are sibling layers in a plain root
+  container. The top and bottom rows add no full-width capsule material; only
+  the selected folder tab draws a compact selection capsule.
 
 ### 3.5 FileGrid
 
@@ -190,7 +188,7 @@ Versioned JSON storage with atomic replacement.
 - Persistence is infrastructure outside AlcoveCore (contains domain/layout only); `PortalStore`, `NSScreen` lookup, `DisplayIdentity` adapters, and file I/O remain app infrastructure
 - Write strategy: write to `.tmp` file, then `FileManager.replaceItemAt` for atomic swap
 - Read strategy: read file → check `version` → dispatch to appropriate decoder → return typed result or migration error
-- No Core Data, no SQLite, no UserDefaults for portal state
+- No Core Data or SQLite. Versioned Portal state remains JSON; `UserDefaults` is used only for application-global appearance/spacing preferences and does not alter the v10 Portal schema.
 - AppKit strings use `en`, `zh-Hans`, and `zh-Hant` bundle resources. English is the development region and fallback for every other system language
 
 ---
@@ -630,28 +628,18 @@ PortalWindowController / NSApplication
 
 ---
 
-## 11. Liquid Glass Compatibility Boundary
+## 11. Material Compatibility Boundary
 
 | macOS Version | Material API | Scope |
 |---------------|-------------|-------|
-| 26+ | `NSGlassEffectView` for the centered navigation capsule; active `NSVisualEffectView` for the content surface | Glass at the top-level navigation layer, stable background contrast |
-| 15–25 | Active `NSVisualEffectView` | Same layout and persistent active appearance, visual approximation |
+| 26+ | Active `NSVisualEffectView` for the content surface; system Glass bezels for suitable settings actions | Stable Portal background contrast with native settings controls |
+| 15–25 | Active `NSVisualEffectView`; rounded native settings controls | Same Portal layout and persistent active appearance |
 
-The portal uses a plain root container whose surface material, file grid, and
-tab bar are siblings. This is an invariant: the control-group Glass must never
-be placed inside an `NSVisualEffectView` content hierarchy, because that legacy
-material prevents the nested Glass from rendering correctly.
-
-Apple normally requires custom Glass content to use `NSGlassEffectView.contentView`.
-Alcove has a verified exception at `desktopIconWindow + 1`: a small Glass view's
-content remained interactive but was completely transparent. The TabBar
-therefore places an empty Glass backing at the bottom, a nontransparent capsule
-backdrop above it, and the scrollable controls above both as direct siblings.
-The controls use explicit adaptive text and selection colors.
-This fallback must remain until a future window strategy proves the standard
-`contentView` path visibly renders on the supported system matrix.
-
-`NSGlassEffectView` exposes `contentView`, `cornerRadius`, `tintColor`, and `style`, but no public active-state override. Alcove therefore does not falsify `NSWindow.isKeyWindow`. The content background uses `NSVisualEffectView.state = .active`; the folder labels and selected inner capsule use explicit appearance-aware drawing that does not dim when another app becomes active.
+The portal uses a plain root container whose surface material, file grid, top
+control row, bottom path row, and separators are siblings. The Portal itself has
+no secondary control-group material. Its content background uses
+`NSVisualEffectView.state = .active`; folder labels and the selected Tab use
+explicit appearance-aware colors that do not dim when another app is active.
 
 The file grid remains ordinary content on the portal's active frosted surface. AppKit does
 not expose the private Notification Center material as a public semantic material, so the
@@ -905,15 +893,13 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 ### 16.4 Liquid Glass and Compatibility Material — Spike 0.4
 
-**Provisional claim:** A centered `NSGlassEffectView` can render the folder navigation group on macOS 26, while an always-active `NSVisualEffectView` preserves portal-background contrast and the macOS 15–25 fallback.
+**Current scope:** The Portal uses an always-active `NSVisualEffectView` surface on supported macOS versions. The former centered control-group Glass is removed from production in favor of a plain Tab strip and separators; Glass remains limited to suitable settings actions.
 
 **Gate criteria:**
 
-- Verify both material paths at the selected desktop window level.
-- Verify Reduce Transparency, Increase Contrast, readability, and equivalent control layout.
-- Verify the centered control-group glass keeps the file grid readable beneath
-  it, while the content surface and individual cells remain non-glass AppKit
-  content.
+- Verify the active surface at the selected desktop window level.
+- Verify Reduce Transparency, Increase Contrast, readability, and separator visibility.
+- Verify settings Glass actions and their native fallback without applying Glass to Portal content.
 
 **If gate fails:** Revise the material boundary or visual scope explicitly; do not describe an untested fallback as validated compatibility.
 
