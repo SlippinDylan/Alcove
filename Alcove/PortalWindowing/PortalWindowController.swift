@@ -144,11 +144,11 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         portalWindow.isValidUserPlacement = isValidFrame
     }
 
-    func applySystemPlacement(frame: NSRect) -> Bool {
+    func applySystemPlacement(frame: NSRect, animated: Bool) -> Bool {
         guard let portalWindow = window as? PortalWindow else {
             return false
         }
-        return portalWindow.applySystemPlacement(frame: frame)
+        return portalWindow.applySystemPlacement(frame: frame, animated: animated)
     }
 }
 

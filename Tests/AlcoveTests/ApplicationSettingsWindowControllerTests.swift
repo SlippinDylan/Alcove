@@ -26,7 +26,10 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertEqual(PortalSpacing.allCases.map(\.points), [4, 8, 12, 16, 20])
 
         var changes: [PortalAppearancePreferences] = []
-        controller.onPortalAppearanceChanged = { changes.append($0) }
+        controller.onPortalAppearanceChanged = {
+            changes.append($0)
+            return true
+        }
         controller.setPortalCornerRadius(.small)
         controller.setPortalSpacing(.maximum)
         controller.setPortalShadowEnabled(false)
@@ -37,6 +40,21 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertEqual(restored.portalAppearance.cornerRadius, .small)
         XCTAssertEqual(restored.portalAppearance.spacing, .maximum)
         XCTAssertFalse(restored.portalAppearance.shadowEnabled)
+    }
+
+    @MainActor
+    func testRejectedAppearanceChangeDoesNotMutateOrPersistThePreference() throws {
+        let suiteName = "ApplicationSettingsWindowControllerTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let controller = ApplicationPreferencesController(userDefaults: defaults)
+        controller.onPortalAppearanceChanged = { _ in false }
+
+        XCTAssertFalse(controller.setPortalSpacing(.maximum))
+
+        XCTAssertEqual(controller.portalAppearance.spacing, .medium)
+        let restored = ApplicationPreferencesController(userDefaults: defaults)
+        XCTAssertEqual(restored.portalAppearance.spacing, .medium)
     }
 
     @MainActor

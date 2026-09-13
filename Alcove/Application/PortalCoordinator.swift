@@ -27,8 +27,10 @@ final class PortalCoordinator: PortalCoordinating {
     private let displayNotificationCenter: NotificationCenter
     private var portalAppearance: PortalAppearancePreferences
     private var windows: [PortalID: any PortalWindowPresenting] = [:]
+    private var spacingLayoutBaseFrames: [PortalID: NSRect] = [:]
     private var placementSessions: [PortalID: PlacementSession] = [:]
     private var deferredTopologyPortals = Set<PortalID>()
+    private var spacingLayoutNeedsRetry = false
     private var pendingUserPlacements: [PortalID: PendingUserPlacement] = [:]
     private var pendingPlacementAttempts: [PortalID: UInt64] = [:]
     private var nextUserPlacementGeneration: UInt64 = 0
@@ -162,11 +164,30 @@ final class PortalCoordinator: PortalCoordinating {
         await waitForTabTasks()
     }
 
-    func updatePortalAppearance(_ appearance: PortalAppearancePreferences) {
+    @discardableResult
+    func updatePortalAppearance(_ appearance: PortalAppearancePreferences) -> Bool {
+        let spacingChanged = portalAppearance.spacing != appearance.spacing
+        let spacingPlan: [PortalID: NSRect]?
+        if spacingChanged {
+            guard case .success(let snapshot) = displaySnapshotProvider(),
+                  let plan = portalSpacingLayoutPlan(
+                      snapshot: snapshot,
+                      spacing: appearance.spacing.points
+                  ) else {
+                return false
+            }
+            spacingPlan = plan
+        } else {
+            spacingPlan = nil
+        }
         portalAppearance = appearance
         for window in windows.values {
             window.updateAppearance(appearance)
         }
+        if let spacingPlan {
+            applyPortalSpacingLayout(spacingPlan, animated: true)
+        }
+        return true
     }
 
     func occupiedPortalFrames() -> [NSRect] {
@@ -396,9 +417,14 @@ final class PortalCoordinator: PortalCoordinating {
             }
         }
         windows[portal.id] = window
-        if let directive = transition.directive,
-           !window.applySystemPlacement(frame: directive.frame) {
-            deferredTopologyPortals.insert(portal.id)
+        if let directive = transition.directive {
+            if window.applySystemPlacement(frame: directive.frame) {
+                spacingLayoutBaseFrames[portal.id] = directive.frame
+            } else {
+                deferredTopologyPortals.insert(portal.id)
+            }
+        } else if let presentedFrame = window.presentedFrame {
+            spacingLayoutBaseFrames[portal.id] = presentedFrame
         }
         window.present()
     }
@@ -474,6 +500,7 @@ final class PortalCoordinator: PortalCoordinating {
                 try await store.save(updatedPortals)
                 portalStates = updatedPortals
                 placementSessions[portalID] = try placementSession(for: portal)
+                spacingLayoutBaseFrames[portalID] = committedFrame
                 clearPendingUserPlacement(portalID: portalID, generation: pending.generation)
                 displayError = nil
             } catch {
@@ -789,6 +816,9 @@ final class PortalCoordinator: PortalCoordinating {
                     reconcile(portalID: portal.id, with: snapshot)
                 }
             }
+            if pendingUserPlacements.isEmpty {
+                applyCurrentPortalSpacingLayout(snapshot: snapshot, animated: false)
+            }
         case .failure(let error) where error == .noScreensAvailable
             || error == .missingPrimaryScreen:
             displayError = error
@@ -826,6 +856,7 @@ final class PortalCoordinator: PortalCoordinating {
             placementSessions[portalID] = transition.session
             guard let directive = transition.directive else { return }
             if window.applySystemPlacement(frame: directive.frame) {
+                spacingLayoutBaseFrames[portalID] = directive.frame
                 deferredTopologyPortals.remove(portalID)
             } else {
                 deferredTopologyPortals.insert(portalID)
@@ -860,7 +891,10 @@ final class PortalCoordinator: PortalCoordinating {
     }
 
     private func retryDeferredTopology(for portalID: PortalID) {
-        guard deferredTopologyPortals.contains(portalID) else { return }
+        guard deferredTopologyPortals.contains(portalID)
+                || spacingLayoutNeedsRetry else {
+            return
+        }
         reconcileDisplayTopology(displaySnapshotProvider())
     }
 
@@ -966,6 +1000,86 @@ final class PortalCoordinator: PortalCoordinating {
         }
     }
 
+    private func portalSpacingLayoutPlan(
+        snapshot: DisplaySnapshot,
+        spacing: CGFloat
+    ) -> [PortalID: NSRect]? {
+        guard pendingUserPlacements.isEmpty,
+              !windows.values.contains(where: \.isUserPlacementInteractionActive) else {
+            return nil
+        }
+
+        var portalsByDisplay: [DisplayIdentity: [(id: PortalID, frame: NSRect)]] = [:]
+        for portal in portalStates {
+            guard let window = windows[portal.id],
+                  let presentedFrame = window.presentedFrame else {
+                continue
+            }
+            let baseFrame = spacingLayoutBaseFrames[portal.id] ?? presentedFrame
+            guard let display = try? LegacyFrameDisplayResolver.resolve(
+                frame: baseFrame,
+                in: snapshot
+            ) else {
+                return nil
+            }
+            portalsByDisplay[display.identity, default: []].append((portal.id, baseFrame))
+        }
+
+        var plan: [PortalID: NSRect] = [:]
+        for display in snapshot.displays {
+            guard let entries = portalsByDisplay[display.identity] else { continue }
+            let result: [NSRect]?
+            do {
+                result = try PortalFrameReflow.reflowedFrames(
+                    entries.map(\.frame),
+                    visibleFrame: display.visibleFrame,
+                    minimumGap: spacing
+                )
+            } catch {
+                return nil
+            }
+            guard let reflowedFrames = result else {
+                return nil
+            }
+            for (entry, frame) in zip(entries, reflowedFrames) {
+                plan[entry.id] = frame
+            }
+        }
+        return plan
+    }
+
+    private func applyCurrentPortalSpacingLayout(
+        snapshot: DisplaySnapshot,
+        animated: Bool
+    ) {
+        guard pendingUserPlacements.isEmpty,
+              !windows.values.contains(where: \.isUserPlacementInteractionActive) else {
+            spacingLayoutNeedsRetry = true
+            return
+        }
+        guard let plan = portalSpacingLayoutPlan(
+            snapshot: snapshot,
+            spacing: portalAppearance.spacing.points
+        ) else {
+            return
+        }
+        applyPortalSpacingLayout(plan, animated: animated)
+        spacingLayoutNeedsRetry = false
+    }
+
+    private func applyPortalSpacingLayout(
+        _ plan: [PortalID: NSRect],
+        animated: Bool
+    ) {
+        for portal in portalStates {
+            guard let frame = plan[portal.id],
+                  windows[portal.id]?.presentedFrame != frame else {
+                continue
+            }
+            _ = windows[portal.id]?.applySystemPlacement(frame: frame, animated: animated)
+        }
+    }
+
     private static func display(
         containingOrNearestTo point: NSPoint,
         in snapshot: DisplaySnapshot
@@ -1034,6 +1148,7 @@ final class PortalCoordinator: PortalCoordinating {
         deferredTopologyPortals.remove(portalID)
         pendingUserPlacements.removeValue(forKey: portalID)
         pendingPlacementAttempts.removeValue(forKey: portalID)
+        spacingLayoutBaseFrames.removeValue(forKey: portalID)
     }
 
     private func publishPortalMenu() {

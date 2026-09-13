@@ -84,6 +84,7 @@ Domain models and pure layout math. Zero AppKit imports.
 - `PlacementGeometry` — captures and restores per-display frames with normalized movable-range anchors
 - `PlacementStateMachine` — preserves user-confirmed home placement while emitting transient topology directives
 - `PortalFrameConstraints` — pure validation and swept-AABB drag geometry for display-edge and inter-Portal spacing; fast pointer motion cannot tunnel through another Portal
+- `PortalFrameReflow` — deterministically derives fixed-size runtime frames from saved frames, current `visibleFrame`, stable Portal order, and the selected spacing. It clamps earlier Portals first and places each later Portal at its nearest legal candidate; failure leaves the existing layout and preference unchanged.
 
 ### 3.2 AlcoveApp
 
@@ -114,6 +115,7 @@ App entry point and global coordination.
   - Frame snap to grid metrics on move/resize end
 - `PortalWindowController` — emits placement commits only after tracked drag mouse-up or live-resize end; generic frame notifications never imply user intent
 - `PortalCoordinator` injects synchronous geometry closures into each window. Dragging uses the pointer's fresh destination display and current runtime frames of other windows; live resize validates the actual frame delivered by AppKit and restores the last legal frame. The final persistence transaction revalidates to close races.
+- A spacing preference change is preflighted per display before it is accepted. The Coordinator animates the complete derived plan through system-placement calls, retains separate unspaced base frames, and never reports those style-driven moves as user placement. Recomputing from the same bases makes spacing changes reversible without modifying v10 home placement.
 - Display handoff follows the pointer's containing or nearest fresh `visibleFrame`; this keeps multi-display movement available rather than permanently clamping a Portal to its source display.
 
 ### 3.4 PortalPresentation

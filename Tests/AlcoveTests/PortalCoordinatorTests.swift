@@ -38,6 +38,54 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testSpacingPreferenceReflowsExistingPortalsAndReturnsToSavedFrames() async throws {
+        let upper = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/upper"),
+            frame: NSRect(x: 4, y: 496, width: 500, height: 400),
+            display: coordinatorTestDisplay
+        )
+        let lower = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/lower"),
+            frame: NSRect(x: 4, y: 192, width: 500, height: 300),
+            display: coordinatorTestDisplay
+        )
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let factory = PortalWindowFactorySpy()
+        let minimumAppearance = PortalAppearancePreferences(
+            cornerRadius: .maximum,
+            spacing: .minimum,
+            shadowEnabled: true
+        )
+        let store = PortalStoreSpy(portals: [upper, lower])
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            portalAppearance: minimumAppearance,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+
+        var maximumAppearance = minimumAppearance
+        maximumAppearance.spacing = .maximum
+        XCTAssertTrue(coordinator.updatePortalAppearance(maximumAppearance))
+
+        let maximumFrames = try factory.windows.map { try XCTUnwrap($0.presentedFrame) }
+        XCTAssertEqual(maximumFrames[0].minX, 20)
+        XCTAssertEqual(maximumFrames[0].maxY, coordinatorTestDisplay.visibleFrame.maxY - 20)
+        XCTAssertEqual(maximumFrames[0].minY - maximumFrames[1].maxY, 20)
+        XCTAssertEqual(factory.windows.flatMap(\.systemPlacementAnimations).last, true)
+
+        XCTAssertTrue(coordinator.updatePortalAppearance(minimumAppearance))
+        let restoredFrames = try factory.windows.map { try XCTUnwrap($0.presentedFrame) }
+        XCTAssertEqual(restoredFrames, [upper.frame, lower.frame])
+        let saves = await store.savedSnapshots()
+        XCTAssertTrue(saves.isEmpty)
+    }
+
+    @MainActor
     func testDisplaySnapshotFailurePreservesLoadedStateAndBlocksOverwrite() async throws {
         try await withPortalDirectory { folder in
             let portal = try makePortal(path: "/tmp/existing", x: 10)
@@ -344,7 +392,13 @@ final class PortalCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(coordinator.portalStates[0].placement, originalPlacement)
         XCTAssertEqual(saves, [])
-        XCTAssertEqual(factory.windows[0].systemFrames.count, 2)
+        let presentedFrame = try XCTUnwrap(factory.windows[0].systemFrames.last)
+        XCTAssertTrue(try PortalFrameConstraints.isValidPlacement(
+            frame: presentedFrame,
+            visibleFrame: changedDisplay.visibleFrame,
+            otherPortalFrames: [],
+            minimumGap: PortalSpacing.medium.points
+        ))
         XCTAssertNil(coordinator.displayError)
     }
 
@@ -1513,6 +1567,7 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     private(set) var updatedPortals: [Portal] = []
     private(set) var updatedAppearances: [PortalAppearancePreferences] = []
     private(set) var systemFrames: [NSRect] = []
+    private(set) var systemPlacementAnimations: [Bool] = []
     private(set) var selectedFolderReloadCount = 0
     private(set) var constrainDrag: ((NSRect, NSRect, NSPoint) -> NSRect)?
     private(set) var isValidFrame: ((NSRect) -> Bool)?
@@ -1547,9 +1602,10 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
         selectedFolderReloadCount += 1
     }
 
-    func applySystemPlacement(frame: NSRect) -> Bool {
+    func applySystemPlacement(frame: NSRect, animated: Bool) -> Bool {
         guard acceptsSystemPlacement else { return false }
         systemFrames.append(frame)
+        systemPlacementAnimations.append(animated)
         presentedFrame = frame
         return true
     }

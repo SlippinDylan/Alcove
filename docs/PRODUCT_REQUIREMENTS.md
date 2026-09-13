@@ -186,7 +186,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
 | FR-21 | Show the selected folder path in a reserved bottom row separated from the file grid, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
 | FR-22 | The menu bar lists New Portal, each Portal with Show/Hide commands, application Settings, and Quit. Application Settings provides General and About categories; General controls launch at login plus global five-step panel spacing (`4/8/12/16/20pt`), five-step corner radius (`0/8/14/20/24pt`), and the system window-shadow toggle. About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
-| FR-23 | New placement, user dragging, live resizing, and icon-preset resizing must not overlap another Portal and must honor the selected edge/inter-Portal spacing. Existing legacy placements are not automatically repacked when the preference changes; user interaction may move them into a legal state. | MVP |
+| FR-23 | New placement, user dragging, live resizing, and icon-preset resizing must not overlap another Portal and must honor the selected edge/inter-Portal spacing. Changing the global spacing automatically derives a new runtime layout from the saved frames: increasing it moves Portals only as far as needed, while decreasing it can return them toward their saved positions. This style-driven reflow does not overwrite durable home placement. | MVP |
 
 ### Non-Functional Requirements
 

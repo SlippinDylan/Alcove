@@ -150,11 +150,11 @@ final class PortalWindow: NSWindow {
         }
     }
 
-    func applySystemPlacement(frame: NSRect) -> Bool {
+    func applySystemPlacement(frame: NSRect, animated: Bool = false) -> Bool {
         guard !isUserPlacementInteractionActive else {
             return false
         }
-        setFrame(frame, display: true)
+        setFrame(frame, display: true, animate: animated)
         return true
     }
 

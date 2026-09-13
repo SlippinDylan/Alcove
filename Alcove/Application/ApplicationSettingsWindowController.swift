@@ -52,9 +52,9 @@ struct PortalAppearancePreferences: Equatable, Sendable {
 @MainActor
 protocol ApplicationPreferencesControlling: AnyObject {
     var portalAppearance: PortalAppearancePreferences { get }
-    func setPortalCornerRadius(_ cornerRadius: PortalCornerRadius)
-    func setPortalSpacing(_ spacing: PortalSpacing)
-    func setPortalShadowEnabled(_ enabled: Bool)
+    @discardableResult func setPortalCornerRadius(_ cornerRadius: PortalCornerRadius) -> Bool
+    @discardableResult func setPortalSpacing(_ spacing: PortalSpacing) -> Bool
+    @discardableResult func setPortalShadowEnabled(_ enabled: Bool) -> Bool
 }
 
 @MainActor
@@ -67,7 +67,7 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
 
     private let userDefaults: UserDefaults
     private(set) var portalAppearance: PortalAppearancePreferences
-    var onPortalAppearanceChanged: ((PortalAppearancePreferences) -> Void)?
+    var onPortalAppearanceChanged: ((PortalAppearancePreferences) -> Bool)?
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -90,25 +90,37 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
         )
     }
 
-    func setPortalSpacing(_ spacing: PortalSpacing) {
-        guard portalAppearance.spacing != spacing else { return }
-        portalAppearance.spacing = spacing
+    @discardableResult
+    func setPortalSpacing(_ spacing: PortalSpacing) -> Bool {
+        guard portalAppearance.spacing != spacing else { return true }
+        var updatedAppearance = portalAppearance
+        updatedAppearance.spacing = spacing
+        guard onPortalAppearanceChanged?(updatedAppearance) != false else { return false }
+        portalAppearance = updatedAppearance
         userDefaults.set(spacing.rawValue, forKey: Key.portalSpacing)
-        onPortalAppearanceChanged?(portalAppearance)
+        return true
     }
 
-    func setPortalCornerRadius(_ cornerRadius: PortalCornerRadius) {
-        guard portalAppearance.cornerRadius != cornerRadius else { return }
-        portalAppearance.cornerRadius = cornerRadius
+    @discardableResult
+    func setPortalCornerRadius(_ cornerRadius: PortalCornerRadius) -> Bool {
+        guard portalAppearance.cornerRadius != cornerRadius else { return true }
+        var updatedAppearance = portalAppearance
+        updatedAppearance.cornerRadius = cornerRadius
+        guard onPortalAppearanceChanged?(updatedAppearance) != false else { return false }
+        portalAppearance = updatedAppearance
         userDefaults.set(cornerRadius.rawValue, forKey: Key.portalCornerRadius)
-        onPortalAppearanceChanged?(portalAppearance)
+        return true
     }
 
-    func setPortalShadowEnabled(_ enabled: Bool) {
-        guard portalAppearance.shadowEnabled != enabled else { return }
-        portalAppearance.shadowEnabled = enabled
+    @discardableResult
+    func setPortalShadowEnabled(_ enabled: Bool) -> Bool {
+        guard portalAppearance.shadowEnabled != enabled else { return true }
+        var updatedAppearance = portalAppearance
+        updatedAppearance.shadowEnabled = enabled
+        guard onPortalAppearanceChanged?(updatedAppearance) != false else { return false }
+        portalAppearance = updatedAppearance
         userDefaults.set(enabled, forKey: Key.portalShadowEnabled)
-        onPortalAppearanceChanged?(portalAppearance)
+        return true
     }
 }
 
@@ -605,12 +617,17 @@ final class ApplicationSettingsViewController: NSViewController {
         let index = Int(sender.doubleValue.rounded())
         guard values.indices.contains(index) else { return }
         let cornerRadius = values[index]
-        sender.setAccessibilityValue(cornerRadiusTitle(cornerRadius))
-        preferencesController.setPortalCornerRadius(cornerRadius)
+        if preferencesController.setPortalCornerRadius(cornerRadius) {
+            sender.setAccessibilityValue(cornerRadiusTitle(cornerRadius))
+        } else {
+            sender.doubleValue = Double(preferencesController.portalAppearance.cornerRadius.rawValue)
+        }
     }
 
     @objc private func changeShadow(_ sender: NSSwitch) {
-        preferencesController.setPortalShadowEnabled(sender.state == .on)
+        if !preferencesController.setPortalShadowEnabled(sender.state == .on) {
+            sender.state = preferencesController.portalAppearance.shadowEnabled ? .on : .off
+        }
     }
 
     @objc private func changeSpacing(_ sender: NSSlider) {
@@ -618,8 +635,11 @@ final class ApplicationSettingsViewController: NSViewController {
         let index = Int(sender.doubleValue.rounded())
         guard values.indices.contains(index) else { return }
         let spacing = values[index]
-        sender.setAccessibilityValue(spacingTitle(spacing))
-        preferencesController.setPortalSpacing(spacing)
+        if preferencesController.setPortalSpacing(spacing) {
+            sender.setAccessibilityValue(spacingTitle(spacing))
+        } else {
+            sender.doubleValue = Double(preferencesController.portalAppearance.spacing.rawValue)
+        }
     }
 
     private func cornerRadiusTitle(_ cornerRadius: PortalCornerRadius) -> String {

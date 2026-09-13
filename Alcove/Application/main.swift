@@ -30,9 +30,10 @@ let applicationSettingsController = ApplicationSettingsWindowController(
     preferencesController: applicationPreferencesController
 )
 applicationPreferencesController.onPortalAppearanceChanged = { appearance in
-    portalCoordinator.updatePortalAppearance(appearance)
+    guard portalCoordinator.updatePortalAppearance(appearance) else { return false }
     frameSelector.updateCornerRadius(appearance.cornerRadius.points)
     frameSelector.updateSpacing(appearance.spacing.points)
+    return true
 }
 let statusMenuController = StatusMenuController(
     onNewPortal: { creationCoordinator.beginPortalCreation() },
