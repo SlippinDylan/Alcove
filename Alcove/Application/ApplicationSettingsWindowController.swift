@@ -1,6 +1,117 @@
 import AppKit
 import ServiceManagement
 
+enum PortalCornerRadius: Int, CaseIterable, Sendable {
+    case none
+    case small
+    case medium
+    case large
+    case maximum
+
+    var points: CGFloat {
+        switch self {
+        case .none: 0
+        case .small: 8
+        case .medium: 14
+        case .large: 20
+        case .maximum: 24
+        }
+    }
+}
+
+enum PortalSpacing: Int, CaseIterable, Sendable {
+    case minimum
+    case small
+    case medium
+    case large
+    case maximum
+
+    var points: CGFloat {
+        switch self {
+        case .minimum: 4
+        case .small: 8
+        case .medium: 12
+        case .large: 16
+        case .maximum: 20
+        }
+    }
+}
+
+struct PortalAppearancePreferences: Equatable, Sendable {
+    static let defaults = PortalAppearancePreferences(
+        cornerRadius: .maximum,
+        spacing: .medium,
+        shadowEnabled: true
+    )
+
+    var cornerRadius: PortalCornerRadius
+    var spacing: PortalSpacing
+    var shadowEnabled: Bool
+}
+
+@MainActor
+protocol ApplicationPreferencesControlling: AnyObject {
+    var portalAppearance: PortalAppearancePreferences { get }
+    func setPortalCornerRadius(_ cornerRadius: PortalCornerRadius)
+    func setPortalSpacing(_ spacing: PortalSpacing)
+    func setPortalShadowEnabled(_ enabled: Bool)
+}
+
+@MainActor
+final class ApplicationPreferencesController: ApplicationPreferencesControlling {
+    private enum Key {
+        static let portalCornerRadius = "portalAppearance.cornerRadius"
+        static let portalSpacing = "portalAppearance.spacing"
+        static let portalShadowEnabled = "portalAppearance.shadowEnabled"
+    }
+
+    private let userDefaults: UserDefaults
+    private(set) var portalAppearance: PortalAppearancePreferences
+    var onPortalAppearanceChanged: ((PortalAppearancePreferences) -> Void)?
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+        let defaults = PortalAppearancePreferences.defaults
+        userDefaults.register(defaults: [
+            Key.portalCornerRadius: defaults.cornerRadius.rawValue,
+            Key.portalSpacing: defaults.spacing.rawValue,
+            Key.portalShadowEnabled: defaults.shadowEnabled,
+        ])
+        let cornerRadius = PortalCornerRadius(
+            rawValue: userDefaults.integer(forKey: Key.portalCornerRadius)
+        ) ?? defaults.cornerRadius
+        let spacing = PortalSpacing(
+            rawValue: userDefaults.integer(forKey: Key.portalSpacing)
+        ) ?? defaults.spacing
+        portalAppearance = PortalAppearancePreferences(
+            cornerRadius: cornerRadius,
+            spacing: spacing,
+            shadowEnabled: userDefaults.bool(forKey: Key.portalShadowEnabled)
+        )
+    }
+
+    func setPortalSpacing(_ spacing: PortalSpacing) {
+        guard portalAppearance.spacing != spacing else { return }
+        portalAppearance.spacing = spacing
+        userDefaults.set(spacing.rawValue, forKey: Key.portalSpacing)
+        onPortalAppearanceChanged?(portalAppearance)
+    }
+
+    func setPortalCornerRadius(_ cornerRadius: PortalCornerRadius) {
+        guard portalAppearance.cornerRadius != cornerRadius else { return }
+        portalAppearance.cornerRadius = cornerRadius
+        userDefaults.set(cornerRadius.rawValue, forKey: Key.portalCornerRadius)
+        onPortalAppearanceChanged?(portalAppearance)
+    }
+
+    func setPortalShadowEnabled(_ enabled: Bool) {
+        guard portalAppearance.shadowEnabled != enabled else { return }
+        portalAppearance.shadowEnabled = enabled
+        userDefaults.set(enabled, forKey: Key.portalShadowEnabled)
+        onPortalAppearanceChanged?(portalAppearance)
+    }
+}
+
 @MainActor
 protocol LaunchAtLoginControlling: AnyObject {
     var isEnabled: Bool { get }
@@ -60,11 +171,13 @@ final class ApplicationSettingsWindowController: NSWindowController {
 
     init(
         launchAtLoginController: any LaunchAtLoginControlling = LaunchAtLoginController(),
+        preferencesController: any ApplicationPreferencesControlling = ApplicationPreferencesController(),
         metadata: ApplicationMetadata = ApplicationMetadata(),
         applicationIcon: NSImage = NSApplication.shared.applicationIconImage
     ) {
         let settingsViewController = ApplicationSettingsViewController(
             launchAtLoginController: launchAtLoginController,
+            preferencesController: preferencesController,
             metadata: metadata,
             applicationIcon: applicationIcon
         )
@@ -203,6 +316,7 @@ final class ApplicationSettingsViewController: NSViewController {
     }
 
     private let launchAtLoginController: any LaunchAtLoginControlling
+    private let preferencesController: any ApplicationPreferencesControlling
     private let metadata: ApplicationMetadata
     private let applicationIcon: NSImage
     private(set) var selectedCategory = Category.general
@@ -211,10 +325,12 @@ final class ApplicationSettingsViewController: NSViewController {
 
     init(
         launchAtLoginController: any LaunchAtLoginControlling,
+        preferencesController: any ApplicationPreferencesControlling,
         metadata: ApplicationMetadata,
         applicationIcon: NSImage
     ) {
         self.launchAtLoginController = launchAtLoginController
+        self.preferencesController = preferencesController
         self.metadata = metadata
         self.applicationIcon = applicationIcon
         super.init(nibName: nil, bundle: nil)
@@ -301,6 +417,100 @@ final class ApplicationSettingsViewController: NSViewController {
             ),
             card: ApplicationSettingsCardView(rows: [row])
         )
+        addSection(
+            title: NSLocalizedString(
+                "application.settings.portal_appearance",
+                comment: "Portal appearance settings section"
+            ),
+            card: ApplicationSettingsCardView(rows: [
+                settingRow(
+                    title: NSLocalizedString(
+                        "application.settings.corner_radius",
+                        comment: "Portal corner radius setting"
+                    ),
+                    control: cornerRadiusSlider()
+                ),
+                settingRow(
+                    title: NSLocalizedString(
+                        "application.settings.spacing",
+                        comment: "Portal spacing setting"
+                    ),
+                    control: spacingSlider()
+                ),
+                settingRow(
+                    title: NSLocalizedString(
+                        "application.settings.shadow",
+                        comment: "Portal shadow setting"
+                    ),
+                    control: shadowSwitch()
+                ),
+            ])
+        )
+    }
+
+    private func spacingSlider() -> NSSlider {
+        let values = PortalSpacing.allCases
+        let selectedIndex = values.firstIndex(
+            of: preferencesController.portalAppearance.spacing
+        ) ?? PortalSpacing.medium.rawValue
+        let slider = NSSlider(
+            value: Double(selectedIndex),
+            minValue: 0,
+            maxValue: Double(values.count - 1),
+            target: self,
+            action: #selector(changeSpacing(_:))
+        )
+        slider.identifier = NSUserInterfaceItemIdentifier("application-settings.spacing")
+        slider.numberOfTickMarks = values.count
+        slider.allowsTickMarkValuesOnly = true
+        slider.tickMarkPosition = .below
+        slider.widthAnchor.constraint(equalToConstant: 180).isActive = true
+        slider.setAccessibilityLabel(NSLocalizedString(
+            "application.settings.spacing",
+            comment: "Portal spacing setting"
+        ))
+        slider.setAccessibilityValue(spacingTitle(values[selectedIndex]))
+        return slider
+    }
+
+    private func cornerRadiusSlider() -> NSSlider {
+        let values = PortalCornerRadius.allCases
+        let selectedIndex = values.firstIndex(
+            of: preferencesController.portalAppearance.cornerRadius
+        ) ?? values.count - 1
+        let slider = NSSlider(
+            value: Double(selectedIndex),
+            minValue: 0,
+            maxValue: Double(values.count - 1),
+            target: self,
+            action: #selector(changeCornerRadius(_:))
+        )
+        slider.identifier = NSUserInterfaceItemIdentifier(
+            "application-settings.corner-radius"
+        )
+        slider.numberOfTickMarks = values.count
+        slider.allowsTickMarkValuesOnly = true
+        slider.tickMarkPosition = .below
+        slider.widthAnchor.constraint(equalToConstant: 180).isActive = true
+        slider.setAccessibilityLabel(NSLocalizedString(
+            "application.settings.corner_radius",
+            comment: "Portal corner radius setting"
+        ))
+        slider.setAccessibilityValue(cornerRadiusTitle(values[selectedIndex]))
+        return slider
+    }
+
+    private func shadowSwitch() -> NSSwitch {
+        let control = NSSwitch()
+        control.identifier = NSUserInterfaceItemIdentifier("application-settings.shadow")
+        control.state = preferencesController.portalAppearance.shadowEnabled ? .on : .off
+        control.target = self
+        control.action = #selector(changeShadow(_:))
+        control.setAccessibilityLabel(NSLocalizedString(
+            "application.settings.shadow",
+            comment: "Portal shadow setting"
+        ))
+        return control
     }
 
     private func showAbout() {
@@ -388,6 +598,48 @@ final class ApplicationSettingsViewController: NSViewController {
             sender.state = launchAtLoginController.isEnabled ? .on : .off
             presentLaunchAtLoginError(error)
         }
+    }
+
+    @objc private func changeCornerRadius(_ sender: NSSlider) {
+        let values = PortalCornerRadius.allCases
+        let index = Int(sender.doubleValue.rounded())
+        guard values.indices.contains(index) else { return }
+        let cornerRadius = values[index]
+        sender.setAccessibilityValue(cornerRadiusTitle(cornerRadius))
+        preferencesController.setPortalCornerRadius(cornerRadius)
+    }
+
+    @objc private func changeShadow(_ sender: NSSwitch) {
+        preferencesController.setPortalShadowEnabled(sender.state == .on)
+    }
+
+    @objc private func changeSpacing(_ sender: NSSlider) {
+        let values = PortalSpacing.allCases
+        let index = Int(sender.doubleValue.rounded())
+        guard values.indices.contains(index) else { return }
+        let spacing = values[index]
+        sender.setAccessibilityValue(spacingTitle(spacing))
+        preferencesController.setPortalSpacing(spacing)
+    }
+
+    private func cornerRadiusTitle(_ cornerRadius: PortalCornerRadius) -> String {
+        String(
+            format: NSLocalizedString(
+                "application.settings.corner_radius_value",
+                comment: "Portal corner radius accessibility value"
+            ),
+            Int(cornerRadius.points)
+        )
+    }
+
+    private func spacingTitle(_ spacing: PortalSpacing) -> String {
+        String(
+            format: NSLocalizedString(
+                "application.settings.spacing_value",
+                comment: "Portal spacing accessibility value"
+            ),
+            Int(spacing.points)
+        )
     }
 
     private func presentLaunchAtLoginError(_ error: Error) {

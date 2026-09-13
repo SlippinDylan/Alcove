@@ -4,6 +4,22 @@ import XCTest
 @testable import Alcove
 
 final class PortalChromeMaterialViewTests: XCTestCase {
+    @MainActor
+    func testSurfaceCornerRadiusCanBeUpdatedWithoutRebuildingMaterial() {
+        let view = PortalChromeMaterialView(
+            contentView: NSView(),
+            role: .surface,
+            supportsGlass: false
+        )
+        let rebuildCount = view.rebuildCount
+
+        view.updateCornerRadius(8)
+
+        XCTAssertEqual(view.layer?.cornerRadius, 8)
+        XCTAssertEqual(view.materialView?.layer?.cornerRadius, 8)
+        XCTAssertEqual(view.rebuildCount, rebuildCount)
+    }
+
     func testResolverPrioritizesReduceTransparencyAndSelectsVersionFallback() {
         let standard = PortalAccessibilityOptions(
             reduceTransparency: false,

@@ -57,6 +57,15 @@
 "application.settings.startup" = "Startup";
 "application.settings.launch_at_login" = "Launch at Login";
 "application.settings.launch_at_login_error" = "Unable to Change Login Setting";
+"application.settings.portal_appearance" = "Panel Appearance";
+"application.settings.corner_radius" = "Corner Radius";
+"application.settings.spacing" = "Panel Spacing";
+"application.settings.spacing_value" = "%d points";
+"application.settings.shadow" = "Show Shadow";
+"portal.placement.unavailable.title" = "Unable to Place Panel";
+"portal.placement.unavailable.detail" = "Choose a free area that leaves the selected spacing from the screen edges and other panels.";
+"portal.state.not_loaded" = "Panel state has not finished loading.";
+"application.settings.corner_radius_value" = "%ld pt";
 
 /* Portal pinning */
 "portal.pin.pin" = "Pin";

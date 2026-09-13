@@ -57,6 +57,15 @@
 "application.settings.startup" = "啟動";
 "application.settings.launch_at_login" = "登入時自動啟動";
 "application.settings.launch_at_login_error" = "無法更改登入啟動設定";
+"application.settings.portal_appearance" = "面板外觀";
+"application.settings.corner_radius" = "圓角";
+"application.settings.spacing" = "面板間距";
+"application.settings.spacing_value" = "%d 點";
+"application.settings.shadow" = "顯示陰影";
+"portal.placement.unavailable.title" = "無法放置面板";
+"portal.placement.unavailable.detail" = "請選擇一塊空白區域，並與螢幕邊緣及其他面板保持所設間距。";
+"portal.state.not_loaded" = "面板狀態尚未載入完成。";
+"application.settings.corner_radius_value" = "%ld 點";
 
 /* Portal pinning */
 "portal.pin.pin" = "釘選";

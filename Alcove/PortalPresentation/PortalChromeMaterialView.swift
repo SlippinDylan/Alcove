@@ -51,6 +51,7 @@ final class PortalChromeMaterialView: NSView {
     private let supportsGlass: Bool
     private let notificationCenter: NotificationCenter
     private var backgroundStyle: PortalBackgroundStyle
+    private var surfaceCornerRadius: CGFloat
     private var observation: PortalMaterialObservation?
     private var observationGeneration: UInt64 = 0
     private var materialConstraints: [NSLayoutConstraint] = []
@@ -65,6 +66,7 @@ final class PortalChromeMaterialView: NSView {
         contentView: NSView,
         role: PortalChromeMaterialRole = .controlGroup,
         backgroundStyle: PortalBackgroundStyle = .standard,
+        cornerRadius: CGFloat = 24,
         accessibilityProvider: @escaping AccessibilityProvider = {
             PortalAccessibilityOptions.current()
         },
@@ -77,6 +79,7 @@ final class PortalChromeMaterialView: NSView {
         self.supportsGlass = supportsGlass
         self.notificationCenter = notificationCenter
         self.backgroundStyle = backgroundStyle
+        surfaceCornerRadius = cornerRadius
         accessibility = accessibilityProvider()
         materialPath = PortalChromeMaterialResolver.resolve(
             role: role,
@@ -149,6 +152,16 @@ final class PortalChromeMaterialView: NSView {
         guard role == .surface else { return }
         self.backgroundStyle = backgroundStyle
         applySurfaceStyle()
+    }
+
+    func updateCornerRadius(_ cornerRadius: CGFloat) {
+        guard role == .surface, surfaceCornerRadius != cornerRadius else { return }
+        surfaceCornerRadius = cornerRadius
+        layer?.cornerRadius = cornerRadius
+        materialView?.layer?.cornerRadius = cornerRadius
+        if #available(macOS 26.0, *), let glass = materialView as? NSGlassEffectView {
+            glass.cornerRadius = cornerRadius
+        }
     }
 
     func startObserving() {
@@ -248,7 +261,7 @@ final class PortalChromeMaterialView: NSView {
     }
 
     private var cornerRadius: CGFloat {
-        role == .surface ? 24 : 999
+        role == .surface ? surfaceCornerRadius : 999
     }
 
     private var visualEffectMaterial: NSVisualEffectView.Material {

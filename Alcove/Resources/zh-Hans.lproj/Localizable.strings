@@ -57,6 +57,15 @@
 "application.settings.startup" = "启动";
 "application.settings.launch_at_login" = "开机自启动";
 "application.settings.launch_at_login_error" = "无法更改开机启动设置";
+"application.settings.portal_appearance" = "面板外观";
+"application.settings.corner_radius" = "圆角";
+"application.settings.spacing" = "面板间距";
+"application.settings.spacing_value" = "%d 点";
+"application.settings.shadow" = "显示阴影";
+"portal.placement.unavailable.title" = "无法放置面板";
+"portal.placement.unavailable.detail" = "请选择一块空白区域，并与屏幕边缘及其他面板保持所设间距。";
+"portal.state.not_loaded" = "面板状态尚未加载完成。";
+"application.settings.corner_radius_value" = "%ld 点";
 
 /* Portal pinning */
 "portal.pin.pin" = "固定";

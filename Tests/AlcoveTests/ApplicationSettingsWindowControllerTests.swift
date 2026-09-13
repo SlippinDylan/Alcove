@@ -14,6 +14,54 @@ private final class LaunchAtLoginControllerSpy: LaunchAtLoginControlling {
 }
 
 final class ApplicationSettingsWindowControllerTests: XCTestCase {
+    @MainActor
+    func testPortalAppearancePreferencesUseDefaultsAndPersistFiveStepValues() throws {
+        let suiteName = "ApplicationSettingsWindowControllerTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let controller = ApplicationPreferencesController(userDefaults: defaults)
+
+        XCTAssertEqual(controller.portalAppearance, .defaults)
+        XCTAssertEqual(PortalCornerRadius.allCases.map(\.points), [0, 8, 14, 20, 24])
+        XCTAssertEqual(PortalSpacing.allCases.map(\.points), [4, 8, 12, 16, 20])
+
+        var changes: [PortalAppearancePreferences] = []
+        controller.onPortalAppearanceChanged = { changes.append($0) }
+        controller.setPortalCornerRadius(.small)
+        controller.setPortalSpacing(.maximum)
+        controller.setPortalShadowEnabled(false)
+        controller.setPortalShadowEnabled(false)
+
+        XCTAssertEqual(changes.count, 3)
+        let restored = ApplicationPreferencesController(userDefaults: defaults)
+        XCTAssertEqual(restored.portalAppearance.cornerRadius, .small)
+        XCTAssertEqual(restored.portalAppearance.spacing, .maximum)
+        XCTAssertFalse(restored.portalAppearance.shadowEnabled)
+    }
+
+    @MainActor
+    func testGeneralSettingsExposeFiveStepRadiusAndSpacingControls() throws {
+        let controller = ApplicationSettingsWindowController(
+            launchAtLoginController: LaunchAtLoginControllerSpy(),
+            metadata: ApplicationMetadata(infoDictionary: [:]),
+            applicationIcon: NSImage(size: NSSize(width: 128, height: 128))
+        )
+        let sliders = descendants(of: controller.settingsViewController.view)
+            .compactMap { $0 as? NSSlider }
+
+        let radius = try XCTUnwrap(sliders.first {
+            $0.identifier?.rawValue == "application-settings.corner-radius"
+        })
+        let spacing = try XCTUnwrap(sliders.first {
+            $0.identifier?.rawValue == "application-settings.spacing"
+        })
+        XCTAssertEqual(radius.numberOfTickMarks, 5)
+        XCTAssertEqual(spacing.numberOfTickMarks, 5)
+        XCTAssertTrue(radius.allowsTickMarkValuesOnly)
+        XCTAssertTrue(spacing.allowsTickMarkValuesOnly)
+        controller.close()
+    }
+
     func testApplicationMetadataReadsBundleValues() {
         let metadata = ApplicationMetadata(infoDictionary: [
             "CFBundleName": "Alcove",
