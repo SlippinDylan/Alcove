@@ -30,8 +30,20 @@ final class TabBarViewTests: XCTestCase {
             (tabBar.tabButtons[tabs[2].id]?.accessibilityValue() as? NSNumber)?.boolValue,
             false
         )
-        XCTAssertFalse(try XCTUnwrap(tabBar.tabButtons[tabs[1].id]).isBordered)
-        XCTAssertNotNil(tabBar.tabButtons[tabs[1].id]?.layer?.backgroundColor)
+        let selectedButton = try XCTUnwrap(tabBar.tabButtons[tabs[1].id])
+        if #available(macOS 26.0, *) {
+            XCTAssertTrue(selectedButton.isBordered)
+            XCTAssertEqual(selectedButton.bezelStyle, .glass)
+            XCTAssertEqual(selectedButton.borderShape, .capsule)
+            XCTAssertEqual(selectedButton.tintProminence, .primary)
+            XCTAssertEqual(
+                tabBar.tabButtons[tabs[0].id]?.tintProminence,
+                NSTintProminence.none
+            )
+        } else {
+            XCTAssertFalse(selectedButton.isBordered)
+            XCTAssertNotNil(selectedButton.layer?.backgroundColor)
+        }
     }
 
     @MainActor
@@ -437,10 +449,13 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertTrue(
             tabBar.subviews.compactMap { $0 as? PortalChromeMaterialView }.isEmpty
         )
-        XCTAssertGreaterThan(
-            try XCTUnwrap(tabBar.tabButtons[tab.id]).layer?.backgroundColor?.alpha ?? 0,
-            0
-        )
+        let tabButton = try XCTUnwrap(tabBar.tabButtons[tab.id])
+        if #available(macOS 26.0, *) {
+            XCTAssertEqual(tabButton.bezelStyle, .glass)
+            XCTAssertEqual(tabButton.borderShape, .capsule)
+        } else {
+            XCTAssertGreaterThan(tabButton.layer?.backgroundColor?.alpha ?? 0, 0)
+        }
     }
 
     @MainActor
@@ -460,17 +475,22 @@ final class TabBarViewTests: XCTestCase {
 
         XCTAssertFalse(window.isKeyWindow)
         let tabButton = try XCTUnwrap(tabBar.tabButtons[tab.id])
-        let tabColor = try XCTUnwrap(
-            tabButton.attributedTitle.attribute(
-                .foregroundColor,
-                at: 0,
-                effectiveRange: nil
-            ) as? NSColor
-        )
         let menuColor = try XCTUnwrap(tabBar.managementButton.contentTintColor)
-        XCTAssertEqual(tabColor.alphaComponent, 1, accuracy: 0.01)
         XCTAssertEqual(menuColor.alphaComponent, 1, accuracy: 0.01)
-        XCTAssertGreaterThan(tabButton.layer?.backgroundColor?.alpha ?? 0, 0)
+        if #available(macOS 26.0, *) {
+            XCTAssertEqual(tabButton.bezelStyle, .glass)
+            XCTAssertEqual(tabButton.tintProminence, .primary)
+        } else {
+            let tabColor = try XCTUnwrap(
+                tabButton.attributedTitle.attribute(
+                    .foregroundColor,
+                    at: 0,
+                    effectiveRange: nil
+                ) as? NSColor
+            )
+            XCTAssertEqual(tabColor.alphaComponent, 1, accuracy: 0.01)
+            XCTAssertGreaterThan(tabButton.layer?.backgroundColor?.alpha ?? 0, 0)
+        }
     }
 
     @MainActor

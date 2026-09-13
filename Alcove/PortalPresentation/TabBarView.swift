@@ -1210,9 +1210,16 @@ final class PortalTabButton: NSButton {
         super.init(frame: .zero)
         self.title = title
         setButtonType(.momentaryPushIn)
-        isBordered = false
-        wantsLayer = true
-        layer?.cornerRadius = 14
+        if #available(macOS 26.0, *) {
+            isBordered = true
+            bezelStyle = .glass
+            borderShape = .capsule
+            tintProminence = .none
+        } else {
+            isBordered = false
+            wantsLayer = true
+            layer?.cornerRadius = 14
+        }
         updateAppearance()
     }
 
@@ -1243,6 +1250,15 @@ final class PortalTabButton: NSButton {
     }
 
     private func updateAppearance() {
+        if #available(macOS 26.0, *) {
+            font = .systemFont(
+                ofSize: NSFont.systemFontSize,
+                weight: isTabSelected ? .semibold : .regular
+            )
+            bezelColor = isTabSelected ? .controlAccentColor : nil
+            tintProminence = isTabSelected ? .primary : .none
+            return
+        }
         effectiveAppearance.performAsCurrentDrawingAppearance {
             let foreground = activeLabelColor
             attributedTitle = NSAttributedString(

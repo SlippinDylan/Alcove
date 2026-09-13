@@ -122,7 +122,8 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 | Tab title | Defaults to the mapped folder name |
 
 Tabs appear as small folder-name controls in one horizontally centered,
-scrollable strip. The selected folder receives capsule emphasis. Per-tab close
+scrollable strip. macOS 26 uses native capsule-shaped Glass buttons and tint
+prominence for selection; macOS 15–25 use a material-aware capsule fallback. Per-tab close
 and add buttons are intentionally omitted;
 editing actions open from the fixed trailing settings icon in a separate centered
 settings window. A standard close-only titlebar remains above a native preference-style toolbar;

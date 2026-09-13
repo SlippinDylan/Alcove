@@ -46,7 +46,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 - 支持多个 Portal、多个显示器和每个 Portal 多个 Tab。
 - Tab 按创建顺序持久化；当前选中 Tab 持久化。
-- Tab 位于顶部水平居中的可滚动条带中，当前文件夹使用小胶囊强调；顶部控制区与文件网格之间使用轻分割线。
+- Tab 位于顶部水平居中的可滚动条带中；macOS 26 使用原生胶囊形 Glass 按钮并以 tint prominence 区分当前文件夹，macOS 15–25 使用现有自绘胶囊回退；顶部控制区与文件网格之间使用轻分割线。
 - 单个 Tab 只显示一个小胶囊；Tab 上不放加号或关闭叉号。
 - Tab 编辑集中在右上角设置入口。
 - 右上角齿轮打开原生菜单：钉住/取消钉住、排序方式子菜单、面板设置、确认后删除面板。顶部不再单独显示图钉；钉住状态仍按 Portal 持久化，并且不阻断显示器恢复或内容交互。
@@ -209,7 +209,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 ### 6.1 Glass 中控件完全透明
 
-在 desktop-level 窗口中，把可点击 Tab 控件放入小型 `NSGlassEffectView.contentView` 曾出现“可以点击但完全透明”。当前 Portal 已取消顶部 control-group Glass 和外层胶囊，改为普通可滚动 Tab 条带与上下轻分割线；不要重新引入该不可见的嵌套 Glass 结构。
+在 desktop-level 窗口中，把可点击 Tab 控件放入小型 `NSGlassEffectView.contentView` 曾出现“可以点击但完全透明”。当前 Portal 不嵌套自定义 `NSGlassEffectView`；macOS 26 的 Tab 只使用系统 `NSButton.BezelStyle.glass`，旧系统保留自绘回退。不要重新引入该不可见的嵌套 Glass 结构。
 
 ### 6.2 Tab 一度不可见
 

@@ -124,7 +124,7 @@ App entry point and global coordination.
 Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
-- `TabBarView` — one centered, horizontally scrollable folder-name strip with capsule emphasis only on the selected tab, a fixed leading pin button, and a fixed trailing settings icon. The pin action persists through the Coordinator before the window changes its resizable/drag behavior. The settings icon presents one reusable standalone settings window centered on the Portal's current screen. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
+- `TabBarView` — one centered, horizontally scrollable folder-name strip and a fixed trailing settings icon. Folder tabs use the native capsule-shaped Glass button bezel on macOS 26, with tint prominence indicating selection; macOS 15–25 retain the existing material-aware capsule fallback. The settings icon presents one reusable standalone settings window centered on the Portal's current screen. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
 - `FolderPathBarView` — a plain reserved bottom row derived from the selected tab URL; it abbreviates the home directory as `~` and copies the displayed path to `NSPasteboard`
 - `PortalChromeMaterialView` — the content surface keeps an always-active `.popover`-material `NSVisualEffectView` at full strength; global background level controls overlay strength while each Portal selects a persisted neutral/red/orange/yellow/green/blue/indigo/purple hue
 - Layout: tab bar at top, a fixed path row at bottom, and the icon grid between them. Both chrome rows are included in creation, minimum-size, live-resize, and persisted-capacity geometry
@@ -132,7 +132,7 @@ Visual chrome inside each portal window.
 - Rendering hierarchy: the background material, file grid, top control row,
   bottom path row, and two full-width separators are sibling layers in a plain root
   container. The top and bottom rows add no full-width capsule material; only
-  the selected folder tab draws a compact selection capsule.
+  each folder tab is a compact control rather than an enclosing strip capsule.
 
 ### 3.5 FileGrid
 
