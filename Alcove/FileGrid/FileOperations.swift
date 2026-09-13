@@ -60,6 +60,9 @@ struct FileTransferPlan: Equatable, Sendable {
         fileManager: FileManager = .default
     ) throws -> FileTransferPlan {
         let destination = destinationDirectoryURL.standardizedFileURL
+        let supportsCaseSensitiveNames = try destination.resourceValues(
+            forKeys: [.volumeSupportsCaseSensitiveNamesKey]
+        ).volumeSupportsCaseSensitiveNames ?? false
         var names = Set<String>()
         var entries: [Entry] = []
 
@@ -68,7 +71,11 @@ struct FileTransferPlan: Equatable, Sendable {
             guard source.deletingLastPathComponent() != destination else {
                 throw FileOperationError.sourceAlreadyInDestination(source)
             }
-            guard names.insert(source.lastPathComponent).inserted else {
+            let destinationNameKey = destinationNameKey(
+                source.lastPathComponent,
+                caseSensitive: supportsCaseSensitiveNames
+            )
+            guard names.insert(destinationNameKey).inserted else {
                 throw FileOperationError.duplicateDestinationName(source.lastPathComponent)
             }
 
@@ -91,6 +98,13 @@ struct FileTransferPlan: Equatable, Sendable {
             destinationDirectoryURL: destination,
             entries: entries
         )
+    }
+
+    static func destinationNameKey(_ name: String, caseSensitive: Bool) -> String {
+        let normalizedName = name.precomposedStringWithCanonicalMapping
+        return caseSensitive
+            ? normalizedName
+            : normalizedName.folding(options: [.caseInsensitive], locale: nil)
     }
 }
 

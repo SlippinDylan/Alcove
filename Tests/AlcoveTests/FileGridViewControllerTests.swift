@@ -290,6 +290,21 @@ final class FileGridViewControllerTests: XCTestCase {
         }
     }
 
+    func testTransferPlanUsesTheDestinationVolumesNameComparisonRules() {
+        XCTAssertNotEqual(
+            FileTransferPlan.destinationNameKey("Report.txt", caseSensitive: true),
+            FileTransferPlan.destinationNameKey("report.txt", caseSensitive: true)
+        )
+        XCTAssertEqual(
+            FileTransferPlan.destinationNameKey("Report.txt", caseSensitive: false),
+            FileTransferPlan.destinationNameKey("report.txt", caseSensitive: false)
+        )
+        XCTAssertEqual(
+            FileTransferPlan.destinationNameKey("Café.txt", caseSensitive: true),
+            FileTransferPlan.destinationNameKey("Cafe\u{301}.txt", caseSensitive: true)
+        )
+    }
+
     @MainActor
     func testExternalDropDefaultsToCopyAndCommandRequestsMove() {
         XCTAssertEqual(

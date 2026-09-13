@@ -467,18 +467,9 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
         dropOperation proposedDropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>
     ) -> NSDragOperation {
         guard isBackgroundDrop(draggingInfo, in: collectionView),
-              let destination = dropDestinationURL,
+              dropDestinationURL != nil,
               let sourceURLs = Self.fileURLs(from: draggingInfo.draggingPasteboard),
               !sourceURLs.isEmpty else { return [] }
-
-        do {
-            _ = try FileTransferPlan.make(
-                sourceURLs: sourceURLs,
-                destinationDirectoryURL: destination
-            )
-        } catch {
-            return []
-        }
         return requestedOperation(for: draggingInfo)
     }
 
@@ -503,16 +494,8 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
             return false
         }
 
-        do {
-            _ = try FileTransferPlan.make(
-                sourceURLs: sourceURLs,
-                destinationDirectoryURL: destination
-            )
-        } catch {
-            fileOperationFailurePresenter.present(error)
-            return false
-        }
-
+        // Filesystem preflight belongs to the transfer actor. Drag callbacks are
+        // MainActor-isolated and must not synchronously query source or destination disks.
         Task { [weak self, fileTransferService] in
             do {
                 try await fileTransferService.transfer(
