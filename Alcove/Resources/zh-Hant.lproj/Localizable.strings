@@ -181,3 +181,7 @@
 "portal.files.descendant_destination" = "不能將資料夾放入其自身內部。";
 "portal.files.duplicate_names" = "多個所選項目具有相同名稱。";
 "portal.files.partial_failure" = "操作失敗前已完成 %d 個項目，共 %d 個。";
+"application.settings.backup.error.malformed" = "所選檔案不是有效的 Alcove 佈局備份。";
+"application.settings.backup.error.format" = "所選檔案不是由 Alcove 建立的佈局備份。";
+"application.settings.backup.error.version" = "目前版本的 Alcove 不支援佈局備份版本 %d。";
+"application.settings.backup.error.invalid_data" = "佈局備份包含無效或不受支援的資料。";

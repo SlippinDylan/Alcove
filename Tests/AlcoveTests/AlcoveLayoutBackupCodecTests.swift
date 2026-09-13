@@ -179,6 +179,26 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         }
     }
 
+    func testBackupValidationErrorsProvideUserFacingDescriptions() {
+        XCTAssertEqual(
+            AlcoveLayoutBackupError.malformedData.localizedDescription,
+            NSLocalizedString(
+                "application.settings.backup.error.malformed",
+                comment: ""
+            )
+        )
+        XCTAssertEqual(
+            AlcoveLayoutBackupError.unsupportedVersion(99).localizedDescription,
+            String(
+                format: NSLocalizedString(
+                    "application.settings.backup.error.version",
+                    comment: ""
+                ),
+                99
+            )
+        )
+    }
+
     private func makePortal(folderURL: URL) throws -> Portal {
         let display = DisplayDescriptor(
             identity: DisplayIdentity(rawValue: "display"),

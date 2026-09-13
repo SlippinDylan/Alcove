@@ -28,7 +28,7 @@ struct AlcoveLayoutBackupPortal: Equatable, Sendable {
     let selectedFolderIndex: Int?
 }
 
-enum AlcoveLayoutBackupError: Error, Equatable {
+enum AlcoveLayoutBackupError: LocalizedError, Equatable {
     case malformedData
     case invalidFormat(String)
     case unsupportedVersion(Int)
@@ -45,6 +45,34 @@ enum AlcoveLayoutBackupError: Error, Equatable {
     case invalidGridCapacity(columns: Int, rows: Int)
     case invalidSelectedFolderIndex(Int?)
     case invalidFolderPath(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .malformedData:
+            NSLocalizedString(
+                "application.settings.backup.error.malformed",
+                comment: "Malformed layout backup error"
+            )
+        case .invalidFormat:
+            NSLocalizedString(
+                "application.settings.backup.error.format",
+                comment: "Wrong layout backup format error"
+            )
+        case .unsupportedVersion(let version):
+            String(
+                format: NSLocalizedString(
+                    "application.settings.backup.error.version",
+                    comment: "Unsupported layout backup version error"
+                ),
+                version
+            )
+        default:
+            NSLocalizedString(
+                "application.settings.backup.error.invalid_data",
+                comment: "Invalid layout backup data error"
+            )
+        }
+    }
 }
 
 /// Encodes and validates the stable, user-facing Alcove layout-backup format.

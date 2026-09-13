@@ -181,3 +181,7 @@
 "portal.files.descendant_destination" = "不能将文件夹放入其自身内部。";
 "portal.files.duplicate_names" = "多个所选项目具有相同名称。";
 "portal.files.partial_failure" = "操作失败前已完成 %d 个项目，共 %d 个。";
+"application.settings.backup.error.malformed" = "所选文件不是有效的 Alcove 布局备份。";
+"application.settings.backup.error.format" = "所选文件不是由 Alcove 创建的布局备份。";
+"application.settings.backup.error.version" = "当前版本的 Alcove 不支持布局备份版本 %d。";
+"application.settings.backup.error.invalid_data" = "布局备份包含无效或不受支持的数据。";

@@ -181,3 +181,7 @@
 "portal.files.descendant_destination" = "A folder cannot be placed inside itself.";
 "portal.files.duplicate_names" = "More than one selected item has the same name.";
 "portal.files.partial_failure" = "%d of %d items were completed before the operation failed.";
+"application.settings.backup.error.malformed" = "The selected file is not a valid Alcove layout backup.";
+"application.settings.backup.error.format" = "The selected file was not created as an Alcove layout backup.";
+"application.settings.backup.error.version" = "Layout backup version %d is not supported by this version of Alcove.";
+"application.settings.backup.error.invalid_data" = "The layout backup contains invalid or unsupported data.";
