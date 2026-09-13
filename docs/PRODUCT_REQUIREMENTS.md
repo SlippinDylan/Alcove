@@ -23,9 +23,8 @@ Alcove is **not** a Finder replacement or a full desktop shell. It is a focused 
 | ID | Non-Goal | Rationale |
 |----|----------|-----------|
 | NG-1 | Unbounded filesystem browsing | Navigation is scoped to each mapped folder's runtime history and never changes the durable mapped root |
-| NG-2 | File mutations (rename, trash, new folder, move, copy) | Read-only MVP; reduces scope and permission surface |
-| NG-3 | Drag-in file imports | Mutation; deferred to post-MVP |
-| NG-4 | Drag-out from portals | Under investigation; deferred |
+| NG-2 | Rename and new-folder creation | Keep the focused Portal surface smaller than a general file manager |
+| NG-3 | Conflict replacement, Keep Both, and file-operation undo | Initial file transfers fail closed instead of overwriting |
 | NG-5 | WidgetKit widgets | Alcove is a windowed utility, not a widget |
 | NG-6 | Finder extension or Finder integration beyond NSWorkspace | Out of scope |
 | NG-7 | Cloud drive sync status indicators | Deferred; adds complexity with provider-specific APIs |
@@ -73,10 +72,12 @@ Alcove is **not** a Finder replacement or a full desktop shell. It is a focused 
 | Shift-click | Extend selection from the anchor to the clicked item (range select) |
 | Arrow keys | Move focus; Shift+arrow extends selection |
 | Select All (⌘A) | Select all items in the current tab |
+| Drag from empty grid space | Select every item tile intersecting the visible marquee; dragging in either direction is supported |
+| Command-drag from empty grid space | Toggle the marquee's items against the selection frozen at mouse-down |
 
 Selection state is per-tab. Changing tabs preserves each tab's selection independently.
 
-Return is reserved by Finder for rename; since Alcove MVP is read-only, Return is a no-op. Tab/Shift-Tab item cycling is not included.
+Return remains a no-op because rename is outside Alcove's scope. Tab/Shift-Tab item cycling is not included.
 
 ### 5.2 Opening
 
@@ -98,7 +99,18 @@ Return is reserved by Finder for rename; since Alcove MVP is read-only, Return i
 
 Quick Look follows the responder chain. The portal window owns the Quick Look responder integration.
 
-### 5.4 Portal Creation Flow
+### 5.4 File Operations
+
+| Action | Behavior |
+|--------|----------|
+| Command-Delete | Freeze the ordered selection, invalidate Quick Look, and move the selected URLs to Trash through `NSWorkspace.recycle` |
+| Drag from Alcove to Finder/Desktop | Publish the native file URLs through the collection view's AppKit drag session; Alcove never deletes the source after the external drop |
+| Drag from Finder to empty Portal grid space | Copy all dropped items into that tab's current browsed directory |
+| Command-drag from Finder to empty Portal grid space | Move all dropped items into that tab's current browsed directory when the source permits move |
+
+Before a drop begins, Alcove validates the complete source snapshot. An item already in the destination, a duplicate or existing destination name, and a directory transferred into its own descendant are rejected. Alcove never overwrites. Accepted work runs outside the main actor under `NSFileCoordinator`; FSEvents and an explicit reload converge the grid after completion. A multi-item failure reports how many preceding items completed rather than hiding partial progress.
+
+### 5.5 Portal Creation Flow
 
 1. User activates portal creation from the menu bar (clicks Alcove icon → "New Portal")
 2. A transparent overlay appears on the pointer's current display
@@ -110,7 +122,7 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 8. An eligible folder becomes the first selected tab. Cancelling or rejecting the choice leaves the empty Portal intact.
 9. The committed whole `columns × rows` capacity is persisted; its physical frame is derived from the active icon and text metrics.
 
-### 5.5 Tab Management
+### 5.6 Tab Management
 
 | Action | Behavior |
 |--------|----------|
@@ -140,7 +152,7 @@ selected folder's path, abbreviating the current home directory as `~`; its copy
 displayed path to the clipboard. Subtle separators divide the top controls and bottom path row from
 the file grid. Empty Portals keep the row's layout space but hide the path content.
 
-### 5.6 Portal Window Behavior
+### 5.7 Portal Window Behavior
 
 | Property | Value |
 |----------|-------|
@@ -170,7 +182,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-01 | Create portals via menu-bar → overlay → drag-rect → folder-choose flow | MVP |
 | FR-02 | Display folder contents as Finder-style icon tiles with one outlined object space containing padded icon and title regions, separate icon/title selection treatments, and a title that wraps to at most two lines; default ordering is directories first, then localized standard name. Layout is continuous row-major order: widening pulls the next lower-row items into the preceding row, and narrowing pushes trailing items into following rows. | MVP |
 | FR-03 | Support adding, switching, closing, and moving folder tabs up or down per portal; persist the resulting order and the currently selected tab. Closing the last tab prompts to remove the portal. | MVP |
-| FR-04 | Finder-consistent selection (single, Command, Shift, keyboard) | MVP |
+| FR-04 | Finder-consistent selection (single, Command, Shift, keyboard, and bidirectional empty-space marquee with Command-toggle semantics) | MVP |
 | FR-05 | Double-click files/packages/symbolic links opens with the default app; double-click an ordinary directory enters it in the current Portal tab; Back restores that tab's prior directory, selection, and scroll position | MVP |
 | FR-06 | Quick Look via Space key through responder chain | MVP |
 | FR-07 | Portal frames persist across app restarts | MVP |
@@ -183,7 +195,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
-| FR-17 | Drag-out from portals | Investigate |
+| FR-17 | Use native multi-item file-URL drag sessions for Portal-to-Finder/Desktop export; accept Finder file-URL drops only on the current directory's empty grid background, defaulting to copy and using Command for move | MVP |
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 | FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
 | FR-21 | Show the selected folder path in a reserved bottom row separated from the file grid, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
@@ -191,6 +203,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-23 | New placement, user dragging, live resizing, and icon-preset resizing must not overlap another Portal and must honor the selected edge/inter-Portal spacing. Portals attached within the five-step spacing range to a screen edge or another Portal use the selected value as their exact runtime gap, so increasing and decreasing the setting moves them in both directions. Unattached free placements remain separate. This style-driven reflow does not overwrite durable home placement. | MVP |
 | FR-24 | Each Portal persists its own name/modified/created sort order and one built-in neutral or rainbow tint. The gear opens a native menu for pinning, sorting, Portal settings, and confirmed Portal removal; global content size and transparency are not duplicated in Portal settings. | MVP |
 | FR-25 | Advanced settings exports a stable versioned JSON layout backup containing global Portal appearance and portable per-Portal layout state, but never launch-at-login. Import strictly validates the whole document and, after confirmation, replaces rather than merges the current layout. The replacement is preflighted against the fresh primary display and persisted once before runtime windows change; any validation or save failure leaves the current runtime layout untouched. | MVP |
+| FR-26 | Command-Delete moves a frozen ordered selection to Trash through `NSWorkspace.recycle`; drop transfers validate the entire snapshot before asynchronous coordinated IO, reject same-destination, overwrite, duplicate-name, and self-descendant cases, and report partial failure explicitly | MVP |
 
 ### Non-Functional Requirements
 
@@ -297,7 +310,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-11 | App runs on macOS 15 with NSVisualEffectView materials | FR-13 |
 | AC-12 | App uses Liquid Glass on macOS 26 for the centered folder-tab capsule group, preserves active visual contrast when the portal loses focus, and restores each portal's independently selected frosted-background transparency after restart | FR-12 |
 | AC-13 | Folder contents update automatically when files are added/removed | FR-15, FR-16 |
-| AC-14 | No file mutations (rename, trash, new folder) are possible through the portal | NG-2 |
+| AC-14 | Command-Delete moves the selected items to Trash, invalidates Quick Look immediately, and reports a recycle failure | FR-26 |
 | AC-15 | App is a menu-bar utility with no Dock icon | FR-11 |
 | AC-16 | Universal binary (arm64 + x86_64) builds and runs on both architectures | Distribution target |
 | AC-17 | Folder creation and re-mapping accept only resolved directories on internal fixed local storage and reject removable, ejectable, external, and network-volume locations without persisting partial state | FR-19 |
@@ -305,6 +318,8 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-19 | A pinned Portal cannot be dragged or resized by the user, restores that state after relaunch, and can still be relocated by display recovery | FR-20 |
 | AC-20 | The selected folder's abbreviated path updates with tab changes and can be copied without reducing the persisted visible grid capacity | FR-21 |
 | AC-21 | The menu hierarchy and all user-facing strings render in English, Simplified Chinese, or Traditional Chinese from the current macOS language, with unsupported languages falling back to English | FR-22 |
+| AC-22 | Empty-space marquee selection works in both directions and Command-drag toggles against the mouse-down selection | FR-04 |
+| AC-23 | Native file URL drags work from Alcove to Finder/Desktop; Finder drops target the current browsed directory, default to copy, use Command for move, and never overwrite an existing item | FR-17, FR-26 |
 
 ---
 
@@ -316,16 +331,14 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 - Stable display identity and frame persistence
 - Liquid Glass (macOS 26) and NSVisualEffectView (macOS 15–25) compatibility
 - Menu-bar management UI
-- Read-only: no mutations
+- Trash selected items and copy/move file-URL drops with fail-closed conflict handling
 - GitHub distribution readiness; signing mode and installation procedure remain gated by Spike 0.6
 
 ### Deferred (Post-MVP)
 - Tab drag-to-reorder
-- Drag-out investigation (FR-17)
 - Custom icon size slider (beyond Small/Medium/Large presets)
 - Sorting UI (beyond default directories-first, localized-name ordering)
-- File mutations (rename, trash, new folder)
-- Drag-in file imports
+- Rename, new folder, conflict replacement/Keep Both, and file-operation undo
 - Cloud drive sync status
 - Custom grid layouts beyond icon grid
 - Portal templates / presets

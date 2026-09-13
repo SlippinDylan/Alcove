@@ -175,3 +175,9 @@
 "portal.error.unsupported_location" = "请选择 Mac 内置磁盘上的文件夹";
 "portal.retry" = "重试";
 "portal.locate" = "定位文件夹…";
+"portal.files.operation_failed" = "无法完成文件操作";
+"portal.files.same_destination" = "该项目已在此文件夹中。";
+"portal.files.name_conflict" = "此文件夹中已有同名项目。";
+"portal.files.descendant_destination" = "不能将文件夹放入其自身内部。";
+"portal.files.duplicate_names" = "多个所选项目具有相同名称。";
+"portal.files.partial_failure" = "操作失败前已完成 %d 个项目，共 %d 个。";

@@ -139,13 +139,18 @@ Visual chrome inside each portal window.
 `NSCollectionView`-based icon grid.
 
 - `FileGridViewController` — owns `NSScrollView` + `NSCollectionView`
-- `PortalViewController` keeps a runtime-only navigation state per `FolderTabID`: the durable `FolderTab.folderURL` remains the root, while `currentURL`, back history, selection, and scroll position follow in-Portal navigation. Loading, FSEvents observation, the path bar, Finder, Terminal, and future drop destinations all consume the same current URL.
+- `PortalViewController` keeps a runtime-only navigation state per `FolderTabID`: the durable `FolderTab.folderURL` remains the root, while `currentURL`, back history, selection, and scroll position follow in-Portal navigation. Loading, FSEvents observation, the path bar, Finder, Terminal, and file-drop destination all consume the same current URL.
 - The controller explicitly keeps the document collection width equal to the scroll viewport width during layout. `GridCapacity.columns` is authoritative for the pure row-major `GridLayout`; window-border or clip-view rounding must never derive a different column count. Live-resize capacity changes invalidate the layout immediately, so items reflow in sequence in both directions.
 - Vertical overflow uses AppKit's mini overlay scroller with automatic hiding, so it does not reserve horizontal content space and retains native scrolling/accessibility behavior.
 - `FileItemCell` — one accessible tile with a thin outline exposing its complete object bounds, containing a padded system icon, a two-line title, and separate Finder-style icon/title selection regions
 - `FileGridDataSource` — bridges `FolderAccess` enumeration results to collection view items
-- `FileGridDelegate` — handles selection, double-click, keyboard events, and forwards to `QuickLookIntegration`
-- Selection protocol: single-click select, Command-click toggle, Shift-click range, arrow keys navigate
+- `FileGridDelegate` — handles selection, double-click, keyboard events, native pasteboard writers, and background drop validation; Quick Look remains a responder-chain concern
+- `FileCollectionView` forwards item mouse-down to AppKit so native multi-item drag sessions can cross the drag threshold. Empty-space mouse tracking is owned separately by a visible marquee layer; it intersects the custom layout's item attributes, autoscrolls at viewport edges, and never enters Portal title-row dragging.
+- Selection protocol: single-click select, Command-click toggle, Shift-click range, arrow keys navigate, and bidirectional empty-space marquee; Command-marquee toggles against the selection snapshot at mouse-down
+- `FileTransferPlan` is the synchronous validation boundary for Finder drops. It rejects a source already in the destination, duplicate destination names, existing targets, and a directory entering its own resolved descendant before any mutation begins.
+- `CoordinatedFileTransferService` is an actor-backed IO boundary. Copy coordinates source reads plus destination writes; move coordinates both source and destination writes. Operations are serial after whole-snapshot preflight, never overwrite, and return an explicit completed/total count if a later item fails.
+- Command-Delete freezes URLs in grid order, clears the grid/Quick Look selection, then delegates Trash semantics to `NSWorkspace.recycle`. Drag-out publishes `NSURL` pasteboard writers and never performs source-side deletion after another application accepts the drop.
+- `PortalViewController` injects the selected tab's runtime `currentURL` as the only drop destination. Navigation and tab switches replace it immediately; successful file operations explicitly reload while active-directory FSEvents remains the eventual consistency path.
 
 ### 3.6 QuickLookIntegration
 

@@ -175,3 +175,9 @@
 "portal.error.unsupported_location" = "請選擇 Mac 內置磁碟上的資料夾";
 "portal.retry" = "重試";
 "portal.locate" = "定位資料夾…";
+"portal.files.operation_failed" = "無法完成檔案操作";
+"portal.files.same_destination" = "此項目已在這個資料夾中。";
+"portal.files.name_conflict" = "這個資料夾中已有同名項目。";
+"portal.files.descendant_destination" = "不能將資料夾放入其自身內部。";
+"portal.files.duplicate_names" = "多個所選項目具有相同名稱。";
+"portal.files.partial_failure" = "操作失敗前已完成 %d 個項目，共 %d 個。";

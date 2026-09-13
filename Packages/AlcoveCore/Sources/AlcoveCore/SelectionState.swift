@@ -84,6 +84,22 @@ public struct SelectionState: Equatable, Sendable {
         }
     }
 
+    /// Replaces the selection with the supplied identities in the current ordered snapshot.
+    public mutating func replaceSelection(
+        with ids: Set<FileIdentity>,
+        in orderedIDs: [FileIdentity],
+        preferredAnchorID: FileIdentity? = nil,
+        preferredFocusID: FileIdentity? = nil
+    ) {
+        selectedIDs = ids.intersection(orderedIDs)
+        let firstSelectedID = orderedIDs.first { selectedIDs.contains($0) }
+        let lastSelectedID = orderedIDs.last { selectedIDs.contains($0) }
+        anchorID = preferredAnchorID.flatMap { selectedIDs.contains($0) ? $0 : nil }
+            ?? firstSelectedID
+        focusID = preferredFocusID.flatMap { selectedIDs.contains($0) ? $0 : nil }
+            ?? lastSelectedID
+    }
+
     /// Clears selection, range anchor, and keyboard focus.
     public mutating func clear() {
         selectedIDs = []

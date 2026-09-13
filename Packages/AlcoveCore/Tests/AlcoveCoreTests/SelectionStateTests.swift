@@ -3,6 +3,33 @@ import XCTest
 @testable import AlcoveCore
 
 final class SelectionStateTests: XCTestCase {
+    func testReplaceSelectionKeepsOnlyCurrentItemsInGridOrder() {
+        let ids = (0..<4).map { FileIdentity(url: URL(fileURLWithPath: "/tmp/\($0)")) }
+        let missing = FileIdentity(url: URL(fileURLWithPath: "/tmp/missing"))
+        var state = SelectionState()
+
+        state.replaceSelection(with: [ids[3], missing, ids[1]], in: ids)
+
+        XCTAssertEqual(state.selectedIDs, [ids[1], ids[3]])
+        XCTAssertEqual(state.anchorID, ids[1])
+        XCTAssertEqual(state.focusID, ids[3])
+    }
+
+    func testReplaceSelectionPreservesPreferredAnchorAndFocusWhenSelected() {
+        let ids = (0..<4).map { FileIdentity(url: URL(fileURLWithPath: "/tmp/\($0)")) }
+        var state = SelectionState()
+
+        state.replaceSelection(
+            with: [ids[0], ids[2], ids[3]],
+            in: ids,
+            preferredAnchorID: ids[2],
+            preferredFocusID: ids[3]
+        )
+
+        XCTAssertEqual(state.anchorID, ids[2])
+        XCTAssertEqual(state.focusID, ids[3])
+    }
+
     private let ids = ["a", "b", "c", "d"].map {
         FileIdentity(url: URL(fileURLWithPath: "/tmp/selection/\($0)"))
     }

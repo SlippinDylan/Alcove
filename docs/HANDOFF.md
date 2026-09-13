@@ -22,7 +22,7 @@
 
 Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通应用窗口之下展示可移动、可缩放的文件夹 Portal；每个 Portal 可以包含多个文件夹 Tab，并提供 Finder 风格的图标网格、选择、打开、Quick Look、自动刷新和多显示器恢复。
 
-它不是 Finder 替代品。每个 Tab 可在映射根目录内进行运行时导航，但映射根路径不随浏览改变；当前阶段仍不提供重命名、新建文件夹或文件写操作。
+它不是 Finder 替代品。每个 Tab 可在映射根目录内进行运行时导航，但映射根路径不随浏览改变；支持进废纸篓及 Finder 文件 URL 的拖入/拖出，仍不提供重命名、新建文件夹、覆盖冲突项或文件操作撤销。
 
 ## 3. 已确认的产品范围
 
@@ -100,9 +100,13 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 每个完整对象空间使用细边框显示实际 tile 边界；图标和标题的选中区域仍彼此独立。
 - 当前布局基于 Finder 桌面尺寸语义，不能把 64pt 图标、12pt 文字写死为唯一配置。
 - 单击选择；Command-click 切换；Shift-click 范围选择；方向键移动；Command-A 全选。
+- 从网格空白处双向拖拽可框选与 tile 相交的对象；Command-框选以 mouse-down 时冻结的选择为基准切换。框选进入滚动边缘时使用 AppKit autoscroll，文件区事件不能触发 Portal 顶栏拖动。
 - 双击普通目录在当前 Tab 内进入；Package 和符号链接交给系统默认 App。每个 Tab 独立保留运行时 currentURL、返回历史、选择和滚动位置，重启回到映射根目录。
 - 子目录中顶部左侧显示原生返回按钮；底部路径栏跟随 currentURL，路径可在 Finder 打开，并提供 Apple Terminal 与最右侧绝对路径复制按钮。
 - Space 使用 `QLPreviewPanel` 打开或关闭 Quick Look。
+- Command-Delete 冻结当前有序 URL、立即清空选择并使 Quick Look 失效，再通过 `NSWorkspace.recycle` 移入废纸篓；失败必须显示错误。
+- 从 Alcove 向 Finder/桌面拖动使用 `NSCollectionView` 原生多项 drag session 和 `NSURL` pasteboard writer，源端不在 drop 结束后自行删除。
+- Finder 拖入只接受当前浏览目录的网格空白背景。默认 Copy，按住 Command 才请求 Move；操作前全量拒绝同目录、同名目标、重复目标名和目录进入自身后代，绝不覆盖。实际 IO 在 actor 中通过 `NSFileCoordinator` 串行协调，完成后显式 reload，并由 FSEvents 最终收敛；中途失败集中报告已完成数量。
 - 选中标题文字为白色；图标和标题有各自的 Finder 风格选中区域。
 - 默认排序为目录优先，再按 localized standard name。
 - 当前浏览路径显示在网格下方的固定行中，底部路径行与文件网格之间使用轻分割线，不使用胶囊、额外材质、填充或描边。用户目录缩写为 `~`；Finder、Terminal 和复制操作都使用真实 currentURL，复制写入绝对路径。空 Portal 隐藏路径内容但保留布局高度。
@@ -259,6 +263,7 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - 桌面层 Portal 窗口和自定义拖动/缩放事务边界。
 - 多 Portal、多 Tab、空 Portal、新建 overlay。
 - Finder 风格图标网格、选择、键盘操作、打开和 Quick Look。
+- 空白框选、Command-Delete 进废纸篓、原生文件 URL 拖出，以及以 currentURL 为目标的 Finder 拖入 Copy/Command-Move。
 - 本地固定磁盘目录校验；外置、可移除、可弹出、网络卷拒绝。
 - 后台文件枚举和 FSEvents 自动刷新。
 - v11 原子持久化及 v1–v10 迁移。

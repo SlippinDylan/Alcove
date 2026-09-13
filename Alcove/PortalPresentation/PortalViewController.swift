@@ -9,6 +9,25 @@ private func portalLocalizedFormat(_ key: String, _ arguments: CVarArg...) -> St
     )
 }
 
+private final class PortalStateLabel: NSTextField {
+    init() {
+        super.init(frame: .zero)
+        isEditable = false
+        isSelectable = false
+        isBezeled = false
+        drawsBackground = false
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+}
+
 enum PortalPresentationState: Equatable {
     case emptyPortal
     case loading
@@ -114,7 +133,7 @@ final class PortalViewController: NSViewController {
     private let pathBarView = FolderPathBarView()
     private(set) var topSeparator = NSBox()
     private(set) var bottomSeparator = NSBox()
-    private let stateLabel = NSTextField(labelWithString: "")
+    private let stateLabel = PortalStateLabel()
     private let recoveryButton = NSButton()
     private let progressIndicator = NSProgressIndicator()
     private let chooseFolderButton = NSButton()
@@ -218,6 +237,9 @@ final class PortalViewController: NSViewController {
         }
         gridViewController.onNavigateDirectory = { [weak self] item in
             self?.navigate(into: item.url)
+        }
+        gridViewController.onFileOperationCompleted = { [weak self] in
+            self?.load()
         }
         let gridView = gridViewController.view
         gridView.translatesAutoresizingMaskIntoConstraints = false
@@ -577,7 +599,8 @@ final class PortalViewController: NSViewController {
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
         gridViewController.setItems([])
-        gridViewController.view.isHidden = true
+        // Keep the empty collection view active so its background remains a valid file-drop target.
+        gridViewController.view.isHidden = false
         stateLabel.stringValue = message
         stateLabel.isHidden = false
     }
@@ -752,7 +775,9 @@ final class PortalViewController: NSViewController {
     }
 
     private func updateNavigationChrome() {
+        let currentFolderURL = currentFolderURL
         pathBarView.update(folderURL: currentFolderURL)
+        gridViewController.updateDropDestination(currentFolderURL)
         let canGoBack = portal.selectedTabID.flatMap {
             navigationStates[$0]?.backStack.isEmpty == false
         } ?? false

@@ -169,8 +169,10 @@ final class PortalViewControllerTests: XCTestCase {
         )
         controller.loadView()
         await controller.reload()
+        XCTAssertEqual(grid.dropDestinationURL, root)
 
         grid.handleClick(index: 0, modifiers: [], clickCount: 2)
+        XCTAssertEqual(grid.dropDestinationURL, child)
         controller.stopObservation()
         await controller.reload()
 
@@ -185,6 +187,7 @@ final class PortalViewControllerTests: XCTestCase {
         XCTAssertEqual(grid.item(at: 0), childFile)
 
         tabBar.backButton.performClick(nil)
+        XCTAssertEqual(grid.dropDestinationURL, root)
         controller.stopObservation()
         await controller.reload()
 
@@ -401,9 +404,11 @@ final class PortalViewControllerTests: XCTestCase {
             frame: CGRect(x: 0, y: 0, width: 320, height: 240),
             display: testDisplay
         )
+        let grid = FileGridViewController()
         let controller = PortalViewController(
             portal: portal,
-            loadingCoordinator: coordinator
+            loadingCoordinator: coordinator,
+            gridViewController: grid
         )
         controller.loadView()
 
@@ -413,6 +418,8 @@ final class PortalViewControllerTests: XCTestCase {
             controller.presentationState,
             .message(NSLocalizedString("portal.empty", comment: ""))
         )
+        XCTAssertFalse(grid.view.isHidden)
+        XCTAssertEqual(grid.dropDestinationURL, root)
     }
 
     @MainActor

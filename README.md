@@ -39,11 +39,11 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 
 - **Native AppKit**, not WidgetKit
 - **Adaptive native material** with one global five-step background level on always-active frosted surfaces; lightweight separators divide the top controls and bottom path row from file content, while macOS 26 Glass remains limited to suitable settings actions
-- **Finder-consistent interaction**: click selects, Command-click toggles, Shift-click ranges, arrow keys navigate, Command-A selects all, Space for Quick Look, Command-Down or Command-O opens selection
+- **Finder-consistent interaction**: click/Command/Shift and empty-space marquee selection, arrow navigation, Command-A, Quick Look, open, Trash, and native file-URL drag in/out
 - **Finder-style icon tiles**: separate icon/title selection regions, two-line labels, a durable integer-capacity grid shared by rendering, keyboard navigation, creation, and live resizing, and persisted Small/Medium/Large icon presets
 - **Internal local folders only**: folder selection rejects removable, ejectable, and network-volume locations
 - **Eviction-safe placement design**: persists display UUID plus absolute and normalized placement, while preserving remembered home placement during system-driven moves; UUID stability and transition behavior are Phase 0 spike gates
-- **Read-only MVP**: no rename, trash, new folder, or file mutations
+- **Focused file operations**: Command-Delete uses the system Trash; Finder drops copy by default or move with Command after fail-closed conflict validation; rename/new-folder/overwrite remain out of scope
 - **Pinned placement**: each portal can persistently disable user dragging and resizing without blocking system display recovery
 - **Localized native UI**: English is the development and fallback language; Simplified and Traditional Chinese follow the current macOS language automatically
 - **Single UI-free Swift package**: `AlcoveCore` for domain/layout; internal feature groups within the Xcode app target

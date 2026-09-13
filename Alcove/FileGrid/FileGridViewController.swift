@@ -74,25 +74,36 @@ final class FileGridViewController: NSViewController {
     private let collectionView = FileCollectionView()
     private let workspaceOpener: any WorkspaceOpening
     private let openFailurePresenter: any WorkspaceOpenFailurePresenting
+    private let fileTransferService: any FileTransferPerforming
+    private let fileRecycler: any FileRecycling
+    private let fileOperationFailurePresenter: any FileOperationFailurePresenting
     private var metrics: GridMetrics
     private var gridCapacity: GridCapacity
     private var items: [FileItem] = []
     private(set) var selectionState = SelectionState()
     private(set) var failedOpenURLs: [URL] = []
     private(set) var lastKeyboardScrollPosition: NSCollectionView.ScrollPosition?
+    private(set) var dropDestinationURL: URL?
     var onQuickLookRequested: (([URL]) -> Void)?
     var onSelectionChanged: (([URL]) -> Void)?
     var onNavigateDirectory: ((FileItem) -> Void)?
+    var onFileOperationCompleted: (() -> Void)?
 
     init(
         workspaceOpener: any WorkspaceOpening = SystemWorkspaceOpener(),
         openFailurePresenter: any WorkspaceOpenFailurePresenting = WorkspaceOpenFailurePresenter(),
+        fileTransferService: any FileTransferPerforming = CoordinatedFileTransferService(),
+        fileRecycler: any FileRecycling = SystemFileRecycler(),
+        fileOperationFailurePresenter: any FileOperationFailurePresenting = FileOperationFailurePresenter(),
         iconSize: IconSize = .medium,
         textSize: CGFloat = 12,
         gridCapacity: GridCapacity = .minimum
     ) {
         self.workspaceOpener = workspaceOpener
         self.openFailurePresenter = openFailurePresenter
+        self.fileTransferService = fileTransferService
+        self.fileRecycler = fileRecycler
+        self.fileOperationFailurePresenter = fileOperationFailurePresenter
         metrics = GridMetrics(iconSize: iconSize, labelFontSize: textSize)
         self.gridCapacity = gridCapacity
         super.init(nibName: nil, bundle: nil)
@@ -122,15 +133,27 @@ final class FileGridViewController: NSViewController {
         collectionView.isSelectable = true
         collectionView.allowsMultipleSelection = true
         collectionView.backgroundColors = [.clear]
+        collectionView.registerForDraggedTypes([.fileURL])
+        collectionView.setDraggingSourceOperationMask([.copy, .move], forLocal: false)
+        collectionView.setDraggingSourceOperationMask([], forLocal: true)
         collectionView.register(
             FileItemCell.self,
             forItemWithIdentifier: FileItemCell.reuseIdentifier
         )
-        collectionView.onItemClick = { [weak self] index, modifiers, clickCount in
-            self?.handleClick(index: index, modifiers: modifiers, clickCount: clickCount)
+        collectionView.onNativeItemInteraction = {
+            [weak self] indexes, clickedIndex, modifiers, clickCount in
+            self?.handleNativeItemInteraction(
+                indexes: indexes,
+                clickedIndex: clickedIndex,
+                modifiers: modifiers,
+                clickCount: clickCount
+            )
         }
         collectionView.onKeyCommand = { [weak self] command in
             self?.handleKeyCommand(command)
+        }
+        collectionView.onMarqueeSelection = { [weak self] indexes in
+            self?.replaceSelection(with: indexes)
         }
 
         let scrollView = NSScrollView()
@@ -158,6 +181,10 @@ final class FileGridViewController: NSViewController {
         selectionState.reconcile(with: orderedIDs)
         collectionView.reloadData()
         applySelection()
+    }
+
+    func updateDropDestination(_ url: URL?) {
+        dropDestinationURL = url?.standardizedFileURL
     }
 
     func item(at index: Int) -> FileItem {
@@ -232,6 +259,33 @@ final class FileGridViewController: NSViewController {
         }
     }
 
+    private func handleNativeItemInteraction(
+        indexes: Set<Int>,
+        clickedIndex: Int,
+        modifiers: NSEvent.ModifierFlags,
+        clickCount: Int
+    ) {
+        guard items.indices.contains(clickedIndex) else { return }
+        let ids = Set(indexes.compactMap { index in
+            items.indices.contains(index) ? items[index].id : nil
+        })
+        let clickedID = items[clickedIndex].id
+        let preferredAnchorID = modifiers.contains(.shift)
+            ? selectionState.anchorID
+            : clickedID
+        selectionState.replaceSelection(
+            with: ids,
+            in: orderedIDs,
+            preferredAnchorID: preferredAnchorID,
+            preferredFocusID: clickedID
+        )
+        notifySelectionChanged()
+
+        if clickCount >= 2 {
+            open(items[clickedIndex])
+        }
+    }
+
     func handleKeyCommand(_ command: FileGridKeyCommand) {
         switch command {
         case .moveLeft(let extending):
@@ -247,6 +301,8 @@ final class FileGridViewController: NSViewController {
             applySelection()
         case .openSelection:
             openSelection()
+        case .trashSelection:
+            trashSelection()
         case .toggleQuickLook:
             let urls = items.compactMap { item in
                 selectionState.selectedIDs.contains(item.id) ? item.url : nil
@@ -307,6 +363,33 @@ final class FileGridViewController: NSViewController {
         }
     }
 
+    private func replaceSelection(with indexes: Set<Int>) {
+        let ids = Set(indexes.compactMap { index in
+            items.indices.contains(index) ? items[index].id : nil
+        })
+        selectionState.replaceSelection(with: ids, in: orderedIDs)
+        applySelection()
+    }
+
+    private func trashSelection() {
+        let urls = items.compactMap { item in
+            selectionState.selectedIDs.contains(item.id) ? item.url : nil
+        }
+        guard !urls.isEmpty else { return }
+
+        // Freeze the URL snapshot before invalidating selection and Quick Look ownership.
+        selectionState.clear()
+        applySelection()
+        fileRecycler.recycle(urls) { [weak self] error in
+            guard let self else { return }
+            if let error {
+                fileOperationFailurePresenter.present(error)
+            } else {
+                onFileOperationCompleted?()
+            }
+        }
+    }
+
     @discardableResult
     private func open(_ item: FileItem, allowsNavigation: Bool = true) -> Bool {
         if allowsNavigation, item.isNavigableDirectory, let onNavigateDirectory {
@@ -328,10 +411,13 @@ final class FileGridViewController: NSViewController {
                 : nil
         })
         collectionView.selectionIndexPaths = selectedPaths
-        let selectedURLs = items.compactMap { item in
+        notifySelectionChanged()
+    }
+
+    private func notifySelectionChanged() {
+        onSelectionChanged?(items.compactMap { item in
             selectionState.selectedIDs.contains(item.id) ? item.url : nil
-        }
-        onSelectionChanged?(selectedURLs)
+        })
     }
 }
 
@@ -364,5 +450,114 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
             onOpen: { [weak self] in self?.open(item) ?? false }
         )
         return fileCell
+    }
+
+    func collectionView(
+        _ collectionView: NSCollectionView,
+        pasteboardWriterForItemAt indexPath: IndexPath
+    ) -> (any NSPasteboardWriting)? {
+        guard items.indices.contains(indexPath.item) else { return nil }
+        return items[indexPath.item].url as NSURL
+    }
+
+    func collectionView(
+        _ collectionView: NSCollectionView,
+        validateDrop draggingInfo: any NSDraggingInfo,
+        proposedIndexPath proposedDropIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
+        dropOperation proposedDropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>
+    ) -> NSDragOperation {
+        guard isBackgroundDrop(draggingInfo, in: collectionView),
+              let destination = dropDestinationURL,
+              let sourceURLs = Self.fileURLs(from: draggingInfo.draggingPasteboard),
+              !sourceURLs.isEmpty else { return [] }
+
+        do {
+            _ = try FileTransferPlan.make(
+                sourceURLs: sourceURLs,
+                destinationDirectoryURL: destination
+            )
+        } catch {
+            return []
+        }
+        return requestedOperation(for: draggingInfo)
+    }
+
+    func collectionView(
+        _ collectionView: NSCollectionView,
+        acceptDrop draggingInfo: any NSDraggingInfo,
+        indexPath: IndexPath,
+        dropOperation: NSCollectionView.DropOperation
+    ) -> Bool {
+        guard isBackgroundDrop(draggingInfo, in: collectionView),
+              let destination = dropDestinationURL,
+              let sourceURLs = Self.fileURLs(from: draggingInfo.draggingPasteboard),
+              !sourceURLs.isEmpty else { return false }
+
+        let dragOperation = requestedOperation(for: draggingInfo)
+        let operation: FileTransferOperation
+        if dragOperation.contains(.move) {
+            operation = .move
+        } else if dragOperation.contains(.copy) {
+            operation = .copy
+        } else {
+            return false
+        }
+
+        do {
+            _ = try FileTransferPlan.make(
+                sourceURLs: sourceURLs,
+                destinationDirectoryURL: destination
+            )
+        } catch {
+            fileOperationFailurePresenter.present(error)
+            return false
+        }
+
+        Task { [weak self, fileTransferService] in
+            do {
+                try await fileTransferService.transfer(
+                    sourceURLs: sourceURLs,
+                    to: destination,
+                    operation: operation
+                )
+                self?.onFileOperationCompleted?()
+            } catch {
+                self?.fileOperationFailurePresenter.present(error)
+            }
+        }
+        return true
+    }
+
+    private func isBackgroundDrop(
+        _ draggingInfo: any NSDraggingInfo,
+        in collectionView: NSCollectionView
+    ) -> Bool {
+        guard draggingInfo.draggingSource as AnyObject? !== collectionView else { return false }
+        let location = collectionView.convert(draggingInfo.draggingLocation, from: nil)
+        return collectionView.indexPathForItem(at: location) == nil
+    }
+
+    private func requestedOperation(for draggingInfo: any NSDraggingInfo) -> NSDragOperation {
+        Self.requestedDropOperation(
+            sourceMask: draggingInfo.draggingSourceOperationMask,
+            modifiers: NSEvent.modifierFlags
+        )
+    }
+
+    static func requestedDropOperation(
+        sourceMask: NSDragOperation,
+        modifiers: NSEvent.ModifierFlags
+    ) -> NSDragOperation {
+        if modifiers.contains(.command), sourceMask.contains(.move) {
+            return .move
+        }
+        return sourceMask.contains(.copy) ? .copy : []
+    }
+
+    private static func fileURLs(from pasteboard: NSPasteboard) -> [URL]? {
+        pasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL]
     }
 }

@@ -175,6 +175,195 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(FileCollectionView.command(keyCode: 123, modifiers: .shift), .moveLeft(extending: true))
         XCTAssertEqual(FileCollectionView.command(keyCode: 36, modifiers: []), .noOperation)
         XCTAssertEqual(FileCollectionView.command(keyCode: 49, modifiers: []), .toggleQuickLook)
+        XCTAssertEqual(FileCollectionView.command(keyCode: 51, modifiers: .command), .trashSelection)
+        XCTAssertEqual(FileCollectionView.command(keyCode: 117, modifiers: .command), .trashSelection)
+        XCTAssertNil(FileCollectionView.command(keyCode: 51, modifiers: []))
+    }
+
+    @MainActor
+    func testMarqueeSelectionUsesTheExistingSelectionModel() throws {
+        let controller = FileGridViewController()
+        controller.loadView()
+        let items = makeItems(count: 4)
+        controller.setItems(items)
+        controller.handleClick(index: 0, modifiers: [])
+        let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
+        let collectionView = try XCTUnwrap(scrollView.documentView as? FileCollectionView)
+
+        collectionView.onMarqueeSelection?([1, 3])
+
+        XCTAssertEqual(controller.selectionState.selectedIDs, [items[1].id, items[3].id])
+        XCTAssertEqual(collectionView.selectionIndexPaths, [
+            IndexPath(item: 1, section: 0),
+            IndexPath(item: 3, section: 0),
+        ])
+    }
+
+    @MainActor
+    func testCollectionViewPublishesFileURLsForNativeDragOut() throws {
+        let controller = FileGridViewController()
+        controller.loadView()
+        let item = makeItems(count: 1)[0]
+        controller.setItems([item])
+        let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
+        let collectionView = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
+
+        let writer = try XCTUnwrap(controller.collectionView(
+            collectionView,
+            pasteboardWriterForItemAt: IndexPath(item: 0, section: 0)
+        ) as? NSURL)
+
+        XCTAssertEqual(writer as URL, item.url)
+    }
+
+    @MainActor
+    func testNativeItemInteractionKeepsDraggedMultiSelectionAndSynchronizesCommandToggle() throws {
+        let controller = FileGridViewController()
+        controller.loadView()
+        let items = makeItems(count: 3)
+        controller.setItems(items)
+        let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
+        let collectionView = try XCTUnwrap(scrollView.documentView as? FileCollectionView)
+
+        collectionView.onNativeItemInteraction?([0, 2], 2, [], 1)
+
+        XCTAssertEqual(controller.selectionState.selectedIDs, [items[0].id, items[2].id])
+        XCTAssertEqual(controller.selectionState.anchorID, items[2].id)
+        XCTAssertEqual(controller.selectionState.focusID, items[2].id)
+
+        collectionView.onNativeItemInteraction?([0], 2, .command, 1)
+
+        XCTAssertEqual(controller.selectionState.selectedIDs, [items[0].id])
+        XCTAssertEqual(controller.selectionState.anchorID, items[0].id)
+        XCTAssertEqual(controller.selectionState.focusID, items[0].id)
+    }
+
+    @MainActor
+    func testCommandDeleteFreezesSelectionInvalidatesQuickLookAndRecycles() {
+        let recycler = FileRecyclerSpy()
+        let failurePresenter = FileOperationFailurePresenterSpy()
+        let controller = FileGridViewController(
+            fileRecycler: recycler,
+            fileOperationFailurePresenter: failurePresenter
+        )
+        controller.loadView()
+        let items = makeItems(count: 3)
+        controller.setItems(items)
+        controller.handleClick(index: 2, modifiers: [])
+        controller.handleClick(index: 0, modifiers: .command)
+        var selections: [[URL]] = []
+        controller.onSelectionChanged = { selections.append($0) }
+
+        controller.handleKeyCommand(.trashSelection)
+
+        XCTAssertEqual(recycler.recycledURLs, [[items[0].url, items[2].url]])
+        XCTAssertTrue(controller.selectionState.selectedIDs.isEmpty)
+        XCTAssertEqual(selections, [[]])
+        XCTAssertTrue(failurePresenter.errors.isEmpty)
+    }
+
+    func testTransferPlanRejectsSameDestinationAndNameConflicts() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let source = root.appendingPathComponent("source", isDirectory: true)
+        let destination = root.appendingPathComponent("destination", isDirectory: true)
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let existing = destination.appendingPathComponent("existing.txt")
+        XCTAssertTrue(FileManager.default.createFile(atPath: existing.path, contents: Data()))
+
+        XCTAssertThrowsError(try FileTransferPlan.make(
+            sourceURLs: [existing],
+            destinationDirectoryURL: destination
+        )) { error in
+            XCTAssertEqual(error as? FileOperationError, .sourceAlreadyInDestination(existing))
+        }
+
+        let conflictingSource = source.appendingPathComponent("existing.txt")
+        XCTAssertTrue(FileManager.default.createFile(atPath: conflictingSource.path, contents: Data()))
+        XCTAssertThrowsError(try FileTransferPlan.make(
+            sourceURLs: [conflictingSource],
+            destinationDirectoryURL: destination
+        )) { error in
+            XCTAssertEqual(error as? FileOperationError, .destinationAlreadyExists(existing))
+        }
+    }
+
+    @MainActor
+    func testExternalDropDefaultsToCopyAndCommandRequestsMove() {
+        XCTAssertEqual(
+            FileGridViewController.requestedDropOperation(
+                sourceMask: [.copy, .move],
+                modifiers: []
+            ),
+            .copy
+        )
+        XCTAssertEqual(
+            FileGridViewController.requestedDropOperation(
+                sourceMask: [.copy, .move],
+                modifiers: .command
+            ),
+            .move
+        )
+        XCTAssertEqual(
+            FileGridViewController.requestedDropOperation(
+                sourceMask: .copy,
+                modifiers: .command
+            ),
+            .copy
+        )
+    }
+
+    func testTransferPlanRejectsDirectoryIntoItsDescendant() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let source = root.appendingPathComponent("source", isDirectory: true)
+        let descendant = source.appendingPathComponent("child", isDirectory: true)
+        try FileManager.default.createDirectory(at: descendant, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        XCTAssertThrowsError(try FileTransferPlan.make(
+            sourceURLs: [source],
+            destinationDirectoryURL: descendant
+        )) { error in
+            XCTAssertEqual(error as? FileOperationError, .directoryIntoDescendant(source))
+        }
+    }
+
+    func testCoordinatedTransferCopiesAndMovesWithoutOverwriting() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let source = root.appendingPathComponent("source", isDirectory: true)
+        let copyDestination = root.appendingPathComponent("copy", isDirectory: true)
+        let moveDestination = root.appendingPathComponent("move", isDirectory: true)
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: copyDestination, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: moveDestination, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = source.appendingPathComponent("note.txt")
+        try Data("hello".utf8).write(to: original)
+        let service = CoordinatedFileTransferService()
+
+        try await service.transfer(
+            sourceURLs: [original],
+            to: copyDestination,
+            operation: .copy
+        )
+        let copied = copyDestination.appendingPathComponent("note.txt")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: original.path))
+        XCTAssertEqual(try Data(contentsOf: copied), Data("hello".utf8))
+
+        try await service.transfer(
+            sourceURLs: [copied],
+            to: moveDestination,
+            operation: .move
+        )
+        XCTAssertFalse(FileManager.default.fileExists(atPath: copied.path))
+        XCTAssertEqual(
+            try Data(contentsOf: moveDestination.appendingPathComponent("note.txt")),
+            Data("hello".utf8)
+        )
     }
 
     @MainActor
@@ -454,5 +643,27 @@ private final class WorkspaceOpenFailurePresenterSpy: WorkspaceOpenFailurePresen
 
     func presentFailure(for url: URL) {
         failedURLs.append(url)
+    }
+}
+
+@MainActor
+private final class FileRecyclerSpy: FileRecycling {
+    private(set) var recycledURLs: [[URL]] = []
+
+    func recycle(
+        _ urls: [URL],
+        completion: @escaping @MainActor @Sendable (Error?) -> Void
+    ) {
+        recycledURLs.append(urls)
+        completion(nil)
+    }
+}
+
+@MainActor
+private final class FileOperationFailurePresenterSpy: FileOperationFailurePresenting {
+    private(set) var errors: [Error] = []
+
+    func present(_ error: Error) {
+        errors.append(error)
     }
 }
