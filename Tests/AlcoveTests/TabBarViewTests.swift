@@ -291,6 +291,34 @@ final class TabBarViewTests: XCTestCase {
     }
 
     @MainActor
+    func testFolderSettingsShowGuidanceRowForAnEmptyPortal() throws {
+        let tabBar = TabBarView(frame: .zero)
+        let portal = try Portal(
+            frame: NSRect(x: 0, y: 0, width: 300, height: 200),
+            display: DisplayDescriptor(
+                identity: DisplayIdentity(rawValue: "test-display"),
+                visibleFrame: NSRect(x: 0, y: 0, width: 1440, height: 900)
+            )
+        )
+        tabBar.configure(with: portal)
+        defer { tabBar.closeSettingsWindow() }
+
+        let settings = try settingsController(in: tabBar).settingsViewController
+        let emptyRow = try XCTUnwrap(
+            descendants(of: settings.view)
+                .compactMap { $0 as? PortalSettingsEmptyFolderRowView }
+                .first
+        )
+
+        XCTAssertNil(settings.folderListView)
+        XCTAssertEqual(emptyRow.frame.height, 44, accuracy: 0.5)
+        XCTAssertEqual(
+            emptyRow.accessibilityLabel(),
+            NSLocalizedString("portal.settings.folders.empty", comment: "")
+        )
+    }
+
+    @MainActor
     func testStyleCategoryUsesFiveAndThreeStepSlidersAndInvokesCallbacks() throws {
         let tab = makeTab(name: "First")
         var portal = try makePortal(tabs: [tab], selected: tab.id)

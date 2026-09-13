@@ -85,6 +85,7 @@
 "portal.settings.help" = "Configure folders, style, and portal actions";
 "portal.settings.title" = "Portal Settings";
 "portal.settings.folders" = "Folders";
+"portal.settings.folders.empty" = "No folders yet. Use Add Folder to add one.";
 "portal.settings.style" = "Style";
 "portal.settings.add_folder" = "Add Folder";
 "portal.settings.reorder_folder" = "Drag to reorder folder";

@@ -85,6 +85,7 @@
 "portal.settings.help" = "配置文件夹、样式和面板操作";
 "portal.settings.title" = "面板设置";
 "portal.settings.folders" = "文件夹";
+"portal.settings.folders.empty" = "暂无文件夹，请点击“添加文件夹”。";
 "portal.settings.style" = "样式";
 "portal.settings.add_folder" = "添加文件夹";
 "portal.settings.reorder_folder" = "拖动以调整文件夹顺序";

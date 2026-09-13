@@ -85,6 +85,7 @@
 "portal.settings.help" = "設定資料夾、樣式與面板操作";
 "portal.settings.title" = "面板設定";
 "portal.settings.folders" = "資料夾";
+"portal.settings.folders.empty" = "暫無資料夾，請點擊「加入資料夾」。";
 "portal.settings.style" = "樣式";
 "portal.settings.add_folder" = "加入資料夾";
 "portal.settings.reorder_folder" = "拖移以調整資料夾順序";

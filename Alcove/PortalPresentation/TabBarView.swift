@@ -626,12 +626,18 @@ final class PortalSettingsViewController: NSViewController {
 
         switch category {
         case .folders:
-            let folderListView = PortalSettingsFolderListView(
-                tabs: portal.tabs,
-                onRemove: onCloseFolder,
-                onMove: onMoveFolder
-            )
-            self.folderListView = folderListView
+            let folderContent: NSView
+            if portal.tabs.isEmpty {
+                folderContent = PortalSettingsEmptyFolderRowView()
+            } else {
+                let folderListView = PortalSettingsFolderListView(
+                    tabs: portal.tabs,
+                    onRemove: onCloseFolder,
+                    onMove: onMoveFolder
+                )
+                self.folderListView = folderListView
+                folderContent = folderListView
+            }
             let addButton = actionButton(
                 title: NSLocalizedString("portal.settings.add_folder", comment: "Add folder"),
                 symbol: "folder.badge.plus",
@@ -642,7 +648,7 @@ final class PortalSettingsViewController: NSViewController {
             addSection(
                 title: NSLocalizedString("portal.settings.folders", comment: "Folders section"),
                 accessory: addButton,
-                card: PortalSettingsCardView(rows: [folderListView])
+                card: PortalSettingsCardView(rows: [folderContent])
             )
             addSection(
                 title: NSLocalizedString("portal.settings.panel", comment: "Panel settings section"),
@@ -835,6 +841,51 @@ final class PortalSettingsViewController: NSViewController {
 
     @objc private func removePortal() {
         onRemovePortal()
+    }
+}
+
+@MainActor
+final class PortalSettingsEmptyFolderRowView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+
+        let icon = NSImageView(image: NSImage(
+            systemSymbolName: "folder",
+            accessibilityDescription: nil
+        ) ?? NSImage())
+        icon.contentTintColor = .secondaryLabelColor
+
+        let label = NSTextField(labelWithString: NSLocalizedString(
+            "portal.settings.folders.empty",
+            comment: "Empty folder list guidance"
+        ))
+        label.textColor = .secondaryLabelColor
+        label.lineBreakMode = .byTruncatingTail
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let stack = NSStackView(views: [icon, label])
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            heightAnchor.constraint(equalToConstant: 44),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -12),
+            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 18),
+            icon.heightAnchor.constraint(equalToConstant: 18),
+        ])
+        setAccessibilityElement(true)
+        setAccessibilityRole(.staticText)
+        setAccessibilityLabel(label.stringValue)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
     }
 }
 
