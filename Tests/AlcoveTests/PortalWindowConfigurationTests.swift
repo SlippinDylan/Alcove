@@ -382,7 +382,7 @@ final class PortalWindowConfigurationTests: XCTestCase {
         tabBar.managementButton.performClick(nil)
         let settingsController = try XCTUnwrap(tabBar.settingsWindowController)
         let settingsViewController = settingsController.settingsViewController
-        try XCTUnwrap(settingsViewController.categoryButtons[.style]).performClick(nil)
+        settingsController.selectCategory(.style)
         let settingsRoot = settingsViewController.view
         let background = try XCTUnwrap(
             allDescendants(of: settingsRoot)

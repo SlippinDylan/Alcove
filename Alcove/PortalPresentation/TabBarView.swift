@@ -267,6 +267,8 @@ final class TabBarView: NSView {
 @MainActor
 final class PortalSettingsWindowController: NSWindowController {
     private(set) var settingsViewController: PortalSettingsViewController
+    private(set) var categoryItems: [PortalSettingsViewController.Category: NSToolbarItem] = [:]
+    private let settingsToolbar = NSToolbar(identifier: "portal-settings")
     private var portal: Portal
 
     init(
@@ -290,13 +292,13 @@ final class PortalSettingsWindowController: NSWindowController {
         )
         self.settingsViewController = settingsViewController
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 544),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 478),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
         window.contentViewController = settingsViewController
-        window.setContentSize(NSSize(width: 400, height: 544))
+        window.setContentSize(NSSize(width: 400, height: 478))
         window.title = NSLocalizedString("portal.settings.title", comment: "Portal settings title")
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
@@ -305,6 +307,7 @@ final class PortalSettingsWindowController: NSWindowController {
         window.standardWindowButton(.zoomButton)?.isHidden = true
         super.init(window: window)
         shouldCascadeWindows = false
+        configureToolbar(for: window)
     }
 
     @available(*, unavailable)
@@ -316,6 +319,11 @@ final class PortalSettingsWindowController: NSWindowController {
         guard self.portal != portal else { return }
         self.portal = portal
         settingsViewController.update(portal)
+    }
+
+    func selectCategory(_ category: PortalSettingsViewController.Category) {
+        settingsToolbar.selectedItemIdentifier = category.toolbarItemIdentifier
+        settingsViewController.selectCategory(category)
     }
 
     func present(on screen: NSScreen?) {
@@ -336,6 +344,64 @@ final class PortalSettingsWindowController: NSWindowController {
         window.makeKeyAndOrderFront(nil)
     }
 
+    private func configureToolbar(for window: NSWindow) {
+        settingsToolbar.delegate = self
+        settingsToolbar.displayMode = .iconAndLabel
+        settingsToolbar.allowsUserCustomization = false
+        settingsToolbar.autosavesConfiguration = false
+        window.toolbarStyle = .preference
+        window.toolbar = settingsToolbar
+        settingsToolbar.selectedItemIdentifier = PortalSettingsViewController.Category.folders
+            .toolbarItemIdentifier
+    }
+
+}
+
+extension PortalSettingsWindowController: NSToolbarDelegate {
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        PortalSettingsViewController.Category.allCases.map(\.toolbarItemIdentifier)
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarAllowedItemIdentifiers(toolbar)
+    }
+
+    func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarAllowedItemIdentifiers(toolbar)
+    }
+
+    func toolbar(
+        _ toolbar: NSToolbar,
+        itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
+        willBeInsertedIntoToolbar flag: Bool
+    ) -> NSToolbarItem? {
+        guard let category = PortalSettingsViewController.Category(
+            toolbarItemIdentifier: itemIdentifier
+        ) else {
+            return nil
+        }
+        let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+        item.label = category.title
+        item.paletteLabel = category.title
+        item.toolTip = category.title
+        item.image = NSImage(
+            systemSymbolName: category.symbol,
+            accessibilityDescription: category.title
+        )?.withSymbolConfiguration(.init(pointSize: 18, weight: .regular))
+        item.target = self
+        item.action = #selector(selectToolbarCategory(_:))
+        item.tag = category.rawValue
+        item.isBordered = false
+        categoryItems[category] = item
+        return item
+    }
+
+    @objc private func selectToolbarCategory(_ sender: NSToolbarItem) {
+        guard let category = PortalSettingsViewController.Category(rawValue: sender.tag) else {
+            return
+        }
+        selectCategory(category)
+    }
 }
 
 @MainActor
@@ -359,6 +425,19 @@ final class PortalSettingsViewController: NSViewController {
             case .style: "paintpalette"
             }
         }
+
+        var toolbarItemIdentifier: NSToolbarItem.Identifier {
+            NSToolbarItem.Identifier("portal-settings.\(rawValue)")
+        }
+
+        init?(toolbarItemIdentifier: NSToolbarItem.Identifier) {
+            guard let category = Self.allCases.first(where: {
+                $0.toolbarItemIdentifier == toolbarItemIdentifier
+            }) else {
+                return nil
+            }
+            self = category
+        }
     }
 
     private var portal: Portal
@@ -369,8 +448,6 @@ final class PortalSettingsViewController: NSViewController {
     private let onSetBackgroundStyle: (PortalBackgroundStyle) -> Void
     private let onRemovePortal: () -> Void
     private(set) var selectedCategory = Category.folders
-    private(set) var categoryButtons: [Category: PortalSettingsCategoryButton] = [:]
-    private(set) var separatorView = NSBox()
     private(set) var scrollView = NSScrollView()
     private(set) var contentStack: NSStackView = PortalSettingsContentStackView()
     private let documentView = PortalSettingsDocumentView()
@@ -403,28 +480,6 @@ final class PortalSettingsViewController: NSViewController {
     override func loadView() {
         let root = NSView()
         root.userInterfaceLayoutDirection = .leftToRight
-        let navigationView = NSView()
-        navigationView.translatesAutoresizingMaskIntoConstraints = false
-        root.addSubview(navigationView)
-
-        let buttons = Category.allCases.map { category in
-            let button = PortalSettingsCategoryButton(category: category)
-            button.target = self
-            button.action = #selector(selectCategory(_:))
-            button.tag = category.rawValue
-            categoryButtons[category] = button
-            return button
-        }
-        let navigationStack = NSStackView(views: buttons)
-        navigationStack.orientation = .horizontal
-        navigationStack.alignment = .centerY
-        navigationStack.spacing = 20
-        navigationStack.translatesAutoresizingMaskIntoConstraints = false
-        navigationView.addSubview(navigationStack)
-
-        separatorView.boxType = .separator
-        separatorView.translatesAutoresizingMaskIntoConstraints = false
-        root.addSubview(separatorView)
 
         contentStack.orientation = .vertical
         contentStack.alignment = .width
@@ -448,22 +503,12 @@ final class PortalSettingsViewController: NSViewController {
         root.addSubview(scrollView)
 
         NSLayoutConstraint.activate([
-            navigationView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            navigationView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            navigationView.topAnchor.constraint(equalTo: root.topAnchor),
-            navigationView.heightAnchor.constraint(equalToConstant: 82),
-            navigationStack.centerXAnchor.constraint(equalTo: navigationView.centerXAnchor),
-            navigationStack.centerYAnchor.constraint(equalTo: navigationView.centerYAnchor),
-            separatorView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            separatorView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            separatorView.topAnchor.constraint(equalTo: navigationView.bottomAnchor),
             scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: separatorView.bottomAnchor),
+            scrollView.topAnchor.constraint(equalTo: root.topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
         ])
         view = root
-        updateCategoryButtons()
         showCategory(selectedCategory)
     }
 
@@ -478,17 +523,10 @@ final class PortalSettingsViewController: NSViewController {
         showCategory(selectedCategory)
     }
 
-    @objc private func selectCategory(_ sender: NSButton) {
-        guard let category = Category(rawValue: sender.tag) else { return }
+    func selectCategory(_ category: Category) {
+        guard category != selectedCategory else { return }
         selectedCategory = category
-        updateCategoryButtons()
         showCategory(category)
-    }
-
-    private func updateCategoryButtons() {
-        for (category, button) in categoryButtons {
-            button.setSelected(category == selectedCategory)
-        }
     }
 
     private func sectionLabel(_ title: String) -> NSTextField {

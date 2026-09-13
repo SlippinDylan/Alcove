@@ -139,25 +139,14 @@ final class TabBarViewTests: XCTestCase {
         let settingsRoot = settingsViewController.view
         settingsRoot.layoutSubtreeIfNeeded()
         XCTAssertEqual(
-            Set(settingsViewController.categoryButtons.keys),
+            Set(settingsController.categoryItems.keys),
             [.folders, .style]
         )
         XCTAssertEqual(settingsViewController.selectedCategory, .folders)
-        XCTAssertEqual(settingsViewController.categoryButtons[.folders]?.state, .on)
-        XCTAssertEqual(settingsViewController.categoryButtons[.style]?.state, .off)
-        XCTAssertTrue(settingsViewController.separatorView.superview === settingsRoot)
-        XCTAssertEqual(settingsViewController.separatorView.boxType, .separator)
-        let navigationFrame = try XCTUnwrap(
-            settingsViewController.categoryButtons[.folders]
-        ).convert(
-            try XCTUnwrap(settingsViewController.categoryButtons[.folders]).bounds,
-            to: settingsRoot
+        XCTAssertEqual(
+            settingsController.window?.toolbar?.selectedItemIdentifier,
+            PortalSettingsViewController.Category.folders.toolbarItemIdentifier
         )
-        let separatorFrame = settingsViewController.separatorView.convert(
-            settingsViewController.separatorView.bounds,
-            to: settingsRoot
-        )
-        XCTAssertGreaterThan(navigationFrame.minY, separatorFrame.maxY)
 
         try settingsButton(
             titled: NSLocalizedString("portal.settings.add_folder", comment: ""),
@@ -203,8 +192,10 @@ final class TabBarViewTests: XCTestCase {
         )
         XCTAssertNotNil(tabBar.managementButton.image)
         let settingsWindow = try XCTUnwrap(settingsController.window)
-        XCTAssertEqual(settingsWindow.contentView?.bounds.size, NSSize(width: 400, height: 544))
-        XCTAssertNil(settingsWindow.toolbar)
+        XCTAssertEqual(settingsWindow.contentView?.bounds.size, NSSize(width: 400, height: 478))
+        XCTAssertEqual(settingsWindow.toolbarStyle, .preference)
+        XCTAssertEqual(settingsWindow.toolbar?.displayMode, .iconAndLabel)
+        XCTAssertNotNil(settingsWindow.toolbar)
         XCTAssertTrue(settingsWindow.titlebarAppearsTransparent)
         XCTAssertTrue(settingsWindow.styleMask.contains(.titled))
         XCTAssertTrue(settingsWindow.styleMask.contains(.closable))
@@ -450,9 +441,7 @@ final class TabBarViewTests: XCTestCase {
         _ category: PortalSettingsViewController.Category,
         in tabBar: TabBarView
     ) throws {
-        try XCTUnwrap(
-            settingsController(in: tabBar).settingsViewController.categoryButtons[category]
-        ).performClick(nil)
+        try settingsController(in: tabBar).selectCategory(category)
     }
 
     @MainActor
