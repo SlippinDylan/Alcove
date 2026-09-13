@@ -1084,7 +1084,7 @@ private final class PortalSettingsCardView: NSView {
 
     override func updateLayer() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            layer?.backgroundColor = NSColor.quinarySystemFill.cgColor
+            layer?.backgroundColor = NSColor.quaternarySystemFill.cgColor
         }
     }
 

@@ -220,7 +220,7 @@ final class TabBarViewTests: XCTestCase {
             card.updateLayer()
             XCTAssertEqual(
                 card.layer?.backgroundColor,
-                NSColor.quinarySystemFill.cgColor
+                NSColor.quaternarySystemFill.cgColor
             )
         }
         let folderList = try XCTUnwrap(settingsViewController.folderListView)
