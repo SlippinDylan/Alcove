@@ -21,8 +21,9 @@ enum LegacyDisplayResolutionError: Error, Equatable {
 }
 
 actor PortalStore: PortalStoring {
-    static let defaultURL = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Application Support/Alcove/portals.json")
+    static let defaultURL = URL.applicationSupportDirectory
+        .appendingPathComponent("Alcove", isDirectory: true)
+        .appendingPathComponent("portals.json", isDirectory: false)
 
     private let url: URL
     private let fileSystem: any PortalStoreFileSystem

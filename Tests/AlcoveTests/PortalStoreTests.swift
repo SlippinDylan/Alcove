@@ -3,6 +3,15 @@ import XCTest
 @testable import Alcove
 
 final class PortalStoreTests: XCTestCase {
+    func testDefaultStoreURLUsesTheSystemApplicationSupportDirectory() {
+        XCTAssertEqual(
+            PortalStore.defaultURL,
+            URL.applicationSupportDirectory
+                .appendingPathComponent("Alcove", isDirectory: true)
+                .appendingPathComponent("portals.json", isDirectory: false)
+        )
+    }
+
     func testMissingStoreLoadsEmptyAndV11SaveRoundTrips() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
