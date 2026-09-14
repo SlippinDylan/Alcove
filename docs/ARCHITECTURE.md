@@ -92,7 +92,7 @@ App entry point and global coordination.
 
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
-- `StatusMenuController` — builds the localized New Portal / per-Portal Show, Hide, Pin, Settings, and confirmed Remove / application Settings / Quit hierarchy. Every actionable item uses an SF Symbol; Portal settings and removal route back through the existing window-owned presentation and confirmation paths.
+- `StatusMenuController` — builds the localized New Portal / per-Portal Show, Hide, Pin, Settings, and confirmed Remove / application Settings / Quit hierarchy. Every actionable item uses an SF Symbol; Portal settings and removal route back through the existing window-owned presentation path. Removal uses an independent app-modal alert centered horizontally and vertically in that Portal screen's current `visibleFrame`, never a sheet attached to the Portal.
 - `ApplicationSettingsWindowController` — owns the preference-style General/Style/Advanced/About window. General adapts `SMAppService.mainApp` for launch-at-login registration; Style stores global content size, background level, spacing, corner radius, and shadow in `UserDefaults`, with a separator between every option row; Advanced presents the layout backup import/export workflow; About reads version metadata and the compiled Icon Composer application icon
 - `ApplicationLayoutBackupController` — presents JSON-constrained `NSOpenPanel`/`NSSavePanel` sheets, performs blocking read/atomic write on an actor, confirms replace-only imports, and reports errors as sheets
 - `NewPortalOverlay` — pointer-display overlay with a dashed `3×1` rounded frame, full-width separators, complete object tiles, half-cell candidate feedback, and whole-capacity snapping constrained to the inset `visibleFrame`; occupied candidates remain editable and cannot commit
@@ -110,6 +110,8 @@ App entry point and global coordination.
 - Final window level, collection behaviors, window class, and key-window policy are provisional until Spike 0.1 is resolved.
 - Production development uses the replaceable Phase 0.1D default: key-eligible `NSWindow`, `desktopIconWindow + 1`, and `[.canJoinAllSpaces, .stationary, .ignoresCycle]`. This is an implementation starting point, not a claim that the manual WindowServer matrix passed.
 - Regardless of the selected strategy, the portal must provide:
+  - Key-window activation at the `PortalWindow` event boundary for every left-click,
+    including the top drag region that does not pass its mouse-down through AppKit
   - Application-tracked dragging from non-control space in the top control row,
     while preserving the system resize hit regions along the window edges
   - Standard resize from edges/corners
@@ -124,7 +126,7 @@ App entry point and global coordination.
 Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
-- `TabBarView` — one centered, horizontally scrollable folder-name strip and a fixed trailing settings icon. The transparent scroll viewport occupies the complete top row so macOS 26 Glass shadows are not clipped into a rectangular backing; folder buttons remain compact native capsules, and macOS 15–25 retain the material-aware capsule fallback. The gear menu uses SF Symbols for pin, sort, settings, and removal. Portal settings expose all three sort choices as native radio buttons and all eight built-in tints as circular single-selection swatches above no hidden pop-up state. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
+- `TabBarView` — one centered folder-name strip and a fixed trailing settings icon. A transparent horizontal `NSScrollView` remains the stable host and enables its scroller only when the equal-width tabs overflow, avoiding coordinate changes during first layout and updates. Back and folder controls share a borderless, shadow-free adaptive capsule style with hover, pressed, key-window selection, and accessibility states. All folder tabs use one equal width per global content preset (`88/104/120pt`) and heights `26/28/30pt`; long titles truncate with their full value retained in the tooltip and accessibility label. The gear menu uses SF Symbols for pin, sort, settings, and removal. Portal settings expose all three sort choices as native radio buttons and all eight built-in tints as circular single-selection swatches above no hidden pop-up state. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
 - `FolderPathBarView` — a plain reserved bottom row derived from the selected tab URL; it abbreviates the home directory as `~`, keeps Terminal and Copy fixed at the trailing edge with flexible space after the path, and copies the absolute path to `NSPasteboard`
 - `PortalChromeMaterialView` — the content surface keeps an always-active `.popover`-material `NSVisualEffectView` at full strength; global background level controls overlay strength while each Portal selects a persisted neutral/red/orange/yellow/green/blue/indigo/purple hue
 - Layout: tab bar at top, a fixed path row at bottom, and the icon grid between them. Both chrome rows are included in creation, minimum-size, live-resize, and persisted-capacity geometry
@@ -656,7 +658,7 @@ The file grid remains ordinary content on the portal's active frosted surface. A
 not expose the private Notification Center material as a public semantic material, so the
 surface uses the closest public floating-surface approximation, `.popover`, at full
 strength. Transparency changes therefore do not weaken its blur. Each Portal persists one
-of five neutral overlay levels with alpha values 0.04, 0.08, 0.16, 0.26, and 0.34. The tint uses white in Aqua and black in Dark Aqua, allowing the
+of five neutral overlay levels with alpha values 0.04, 0.08, 0.16, 0.26, and 0.34. The default tint uses a neutral gray in both Aqua and Dark Aqua so bright wallpapers do not receive an additional cool-blue cast; explicit rainbow presets replace only the hue while preserving the same global alpha, allowing the
 material to inherit color from the desktop instead of imposing a fixed hue. Reduce
 Transparency removes the overlay and uses the existing opaque accessibility surface
 without changing the saved preference. File cells and selection highlights do not create glass layers: icons

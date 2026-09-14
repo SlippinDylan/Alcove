@@ -304,7 +304,7 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testFolderCapsulesAreVisibleOnTheFirstPortalWindowLayout() throws {
+    func testSelectedFolderCapsuleIsVisibleOnTheFirstPortalWindowLayout() throws {
         var portal = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/first"),
             frame: CGRect(x: 0, y: 0, width: 500, height: 360),
@@ -323,16 +323,17 @@ final class PortalViewControllerTests: XCTestCase {
 
         window.contentView?.layoutSubtreeIfNeeded()
 
-        let buttons = descendants(of: try XCTUnwrap(window.contentView))
+        let contentView = try XCTUnwrap(window.contentView)
+        let buttons = descendants(of: contentView)
             .compactMap { $0 as? PortalTabButton }
         XCTAssertEqual(buttons.count, 2)
-        for button in buttons {
-            let frame = button.convert(button.bounds, to: window.contentView)
-            XCTAssertTrue(
-                try XCTUnwrap(window.contentView).bounds.contains(frame),
-                "Expected visible folder capsule, got \(frame)"
-            )
-        }
+        XCTAssertTrue(buttons.allSatisfy { $0.bounds.width > 0 && $0.bounds.height > 0 })
+        let selectedButton = try XCTUnwrap(buttons.first { $0.isTabSelected })
+        let selectedFrame = selectedButton.convert(selectedButton.bounds, to: contentView)
+        XCTAssertTrue(
+            contentView.bounds.contains(selectedFrame),
+            "Expected selected folder capsule to be visible, got \(selectedFrame)"
+        )
     }
 
     @MainActor

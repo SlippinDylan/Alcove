@@ -9,6 +9,38 @@ private func localizedFormat(_ key: String, _ arguments: CVarArg...) -> String {
     )
 }
 
+enum PortalRemovalConfirmationGeometry {
+    static func centeredOrigin(windowSize: NSSize, visibleFrame: NSRect) -> NSPoint {
+        NSPoint(
+            x: visibleFrame.midX - windowSize.width / 2,
+            y: visibleFrame.midY - windowSize.height / 2
+        )
+    }
+}
+
+struct PortalCapsuleMetrics: Equatable {
+    let tabWidth: CGFloat
+    let height: CGFloat
+    let controlSize: NSControl.ControlSize
+
+    init(iconSize: IconSize) {
+        switch iconSize {
+        case .small:
+            tabWidth = 88
+            height = 26
+            controlSize = .small
+        case .large:
+            tabWidth = 120
+            height = 30
+            controlSize = .large
+        default:
+            tabWidth = 104
+            height = 28
+            controlSize = .regular
+        }
+    }
+}
+
 @MainActor
 final class TabBarView: NSView {
     var onSelect: ((FolderTabID) -> Void)?
@@ -38,23 +70,27 @@ final class TabBarView: NSView {
         ))
         alert.addButton(withTitle: NSLocalizedString("action.cancel", comment: "Cancel"))
         alert.buttons.first?.hasDestructiveAction = true
-        if let window, window.isVisible {
-            alert.beginSheetModal(for: window) { response in
-                completion(response == .alertFirstButtonReturn)
-            }
-        } else {
-            completion(alert.runModal() == .alertFirstButtonReturn)
+        alert.layout()
+        if let visibleFrame = window?.screen?.visibleFrame ?? NSScreen.main?.visibleFrame {
+            alert.window.setFrameOrigin(PortalRemovalConfirmationGeometry.centeredOrigin(
+                windowSize: alert.window.frame.size,
+                visibleFrame: visibleFrame
+            ))
         }
+        completion(alert.runModal() == .alertFirstButtonReturn)
     }
 
     private(set) var scrollView = NSScrollView()
     private let stackView = NSStackView()
     private(set) var managementButton = NSButton()
-    private(set) var backButton = NSButton()
+    private(set) var backButton = PortalFlatCapsuleButton()
     private(set) var managementMenu: NSMenu?
     private(set) var settingsWindowController: PortalSettingsWindowController?
+    private(set) var isUsingScrollableTabStrip = true
     private var actionTargets: [TabActionTarget] = []
     private var portal: Portal?
+    private var capsuleMetrics = PortalCapsuleMetrics(iconSize: .medium)
+    private var shouldRevealSelectedTab = false
 
     private(set) var tabOrder: [FolderTabID] = []
     private(set) var selectedTabID: FolderTabID?
@@ -70,17 +106,18 @@ final class TabBarView: NSView {
         let backButtonWidth = backButton.isHidden ? 0 : backButton.fittingSize.width + 16
         let reservedSideWidth = max(52, backButtonWidth)
         let maximumGroupWidth = max(1, bounds.width - reservedSideWidth * 2)
-        let groupWidth = min(stackView.fittingSize.width, maximumGroupWidth)
-        let tabFrame = NSRect(
+        let fittingSize = stackView.fittingSize
+        let needsScrolling = fittingSize.width > maximumGroupWidth
+        isUsingScrollableTabStrip = needsScrolling
+        scrollView.hasHorizontalScroller = needsScrolling
+        let groupWidth = min(fittingSize.width, maximumGroupWidth)
+        scrollView.frame = NSRect(
             x: bounds.midX - groupWidth / 2,
             y: 0,
             width: groupWidth,
             height: max(1, bounds.height)
         )
-        scrollView.frame = tabFrame
-
         let viewportSize = scrollView.contentSize
-        let fittingSize = stackView.fittingSize
         stackView.frame = NSRect(
             origin: .zero,
             size: NSSize(
@@ -88,6 +125,14 @@ final class TabBarView: NSView {
                 height: max(viewportSize.height, fittingSize.height)
             )
         )
+        if shouldRevealSelectedTab {
+            stackView.layoutSubtreeIfNeeded()
+            if needsScrolling, let selectedTabID, let selectedButton = tabButtons[selectedTabID] {
+                scrollView.contentView.scrollToVisible(selectedButton.frame)
+                scrollView.reflectScrolledClipView(scrollView.contentView)
+            }
+            shouldRevealSelectedTab = false
+        }
     }
 
     @available(*, unavailable)
@@ -106,6 +151,8 @@ final class TabBarView: NSView {
 
     func update(with portal: Portal) {
         self.portal = portal
+        capsuleMetrics = PortalCapsuleMetrics(iconSize: portal.iconSize)
+        backButton.apply(metrics: capsuleMetrics)
         tabOrder = portal.tabs.map(\.id)
         selectedTabID = portal.selectedTabID
         tabButtons.removeAll(keepingCapacity: true)
@@ -122,6 +169,7 @@ final class TabBarView: NSView {
             )
         }
         stackView.frame = NSRect(origin: .zero, size: stackView.fittingSize)
+        shouldRevealSelectedTab = true
         settingsWindowController?.update(portal)
         needsLayout = true
     }
@@ -155,12 +203,7 @@ final class TabBarView: NSView {
         backButton.imagePosition = .imageLeading
         backButton.target = self
         backButton.action = #selector(navigateBack)
-        backButton.controlSize = .small
-        if #available(macOS 26.0, *) {
-            backButton.bezelStyle = .glass
-        } else {
-            backButton.bezelStyle = .rounded
-        }
+        backButton.apply(metrics: capsuleMetrics)
         backButton.setAccessibilityLabel(
             NSLocalizedString("portal.navigation.back", comment: "Back")
         )
@@ -193,7 +236,6 @@ final class TabBarView: NSView {
         NSLayoutConstraint.activate([
             backButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             backButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            backButton.heightAnchor.constraint(equalToConstant: 30),
             managementButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -9),
             managementButton.centerYAnchor.constraint(equalTo: centerYAnchor),
             managementButton.widthAnchor.constraint(equalToConstant: 30),
@@ -206,7 +248,10 @@ final class TabBarView: NSView {
     }
 
     private func makeTabButton(for tab: FolderTab, selected: Bool) -> PortalTabButton {
-        let button = PortalTabButton(title: tab.folderURL.lastPathComponent)
+        let button = PortalTabButton(
+            title: tab.folderURL.lastPathComponent,
+            metrics: capsuleMetrics
+        )
         button.setAccessibilityRole(.radioButton)
         button.setSelected(selected)
         button.setAccessibilityLabel(localizedFormat(
@@ -1215,6 +1260,7 @@ final class PortalTintSwatchButton: NSButton {
         self.tint = tint
         optionTitle = title
         super.init(frame: .zero)
+        self.title = ""
         self.target = target
         self.action = action
         setButtonType(.momentaryPushIn)
@@ -1260,7 +1306,7 @@ final class PortalTintSwatchButton: NSButton {
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        bounds.contains(point) ? self : nil
+        frame.contains(point) ? self : nil
     }
 
     override func viewDidChangeEffectiveAppearance() {
@@ -1294,7 +1340,10 @@ final class PortalTintSwatchButton: NSButton {
     }
 
     private var swatchColor: NSColor {
-        guard let color = tint.color else { return .controlBackgroundColor }
+        let isDarkAppearance = effectiveAppearance.bestMatch(
+            from: [.darkAqua, .aqua]
+        ) == .darkAqua
+        let color = tint.resolvedColor(forDarkAppearance: isDarkAppearance)
         return NSColor(
             srgbRed: CGFloat(color.red),
             green: CGFloat(color.green),
@@ -1364,24 +1413,22 @@ private final class PortalSettingsCardView: NSView {
 }
 
 @MainActor
-final class PortalTabButton: NSButton {
-    private(set) var isTabSelected = false
+class PortalFlatCapsuleButton: NSButton {
+    private var metrics = PortalCapsuleMetrics(iconSize: .medium)
+    private var fixedWidth: CGFloat?
+    private var pointerInside = false
+    private var pointerTrackingArea: NSTrackingArea?
+    private(set) var usesSelectedAppearance = false
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configureCapsule()
+    }
 
     init(title: String) {
         super.init(frame: .zero)
         self.title = title
-        setButtonType(.momentaryPushIn)
-        if #available(macOS 26.0, *) {
-            isBordered = true
-            bezelStyle = .glass
-            borderShape = .capsule
-            tintProminence = .none
-        } else {
-            isBordered = false
-            wantsLayer = true
-            layer?.cornerRadius = 14
-        }
-        updateAppearance()
+        configureCapsule()
     }
 
     @available(*, unavailable)
@@ -1390,13 +1437,169 @@ final class PortalTabButton: NSButton {
     }
 
     override var intrinsicContentSize: NSSize {
-        let size = super.intrinsicContentSize
-        return NSSize(width: size.width + 24, height: 28)
+        NSSize(
+            width: fixedWidth ?? super.intrinsicContentSize.width + 20,
+            height: metrics.height
+        )
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        NotificationCenter.default.removeObserver(
+            self,
+            name: NSWindow.didBecomeKeyNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: NSWindow.didResignKeyNotification,
+            object: nil
+        )
+        if let window {
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(windowKeyStateDidChange),
+                name: NSWindow.didBecomeKeyNotification,
+                object: window
+            )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(windowKeyStateDidChange),
+                name: NSWindow.didResignKeyNotification,
+                object: window
+            )
+        }
+        updateCapsuleAppearance()
     }
 
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
-        updateAppearance()
+        updateCapsuleAppearance()
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let pointerTrackingArea {
+            removeTrackingArea(pointerTrackingArea)
+        }
+        let trackingArea = NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        pointerTrackingArea = trackingArea
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        pointerInside = true
+        updateCapsuleAppearance()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        pointerInside = false
+        updateCapsuleAppearance()
+    }
+
+    override func highlight(_ flag: Bool) {
+        super.highlight(flag)
+        updateCapsuleAppearance(isPressed: flag)
+    }
+
+    func apply(metrics: PortalCapsuleMetrics, fixedWidth: CGFloat? = nil) {
+        self.metrics = metrics
+        self.fixedWidth = fixedWidth
+        controlSize = metrics.controlSize
+        layer?.cornerRadius = metrics.height / 2
+        invalidateIntrinsicContentSize()
+        updateCapsuleAppearance()
+    }
+
+    func setCapsuleSelected(_ selected: Bool) {
+        usesSelectedAppearance = selected
+        updateCapsuleAppearance()
+    }
+
+    private func configureCapsule() {
+        setButtonType(.momentaryPushIn)
+        isBordered = false
+        wantsLayer = true
+        layer?.cornerRadius = metrics.height / 2
+        layer?.shadowOpacity = 0
+        (cell as? NSButtonCell)?.lineBreakMode = .byTruncatingTail
+        updateCapsuleAppearance()
+    }
+
+    @objc private func windowKeyStateDidChange() {
+        updateCapsuleAppearance()
+    }
+
+    private func updateCapsuleAppearance(isPressed: Bool = false) {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            let isEmphasized = window?.isKeyWindow ?? true
+            let baseBackground: NSColor
+            let foreground: NSColor
+            if usesSelectedAppearance {
+                baseBackground = isEmphasized
+                    ? .selectedContentBackgroundColor
+                    : .unemphasizedSelectedContentBackgroundColor
+                foreground = isEmphasized
+                    ? .alternateSelectedControlTextColor
+                    : .unemphasizedSelectedTextColor
+            } else {
+                baseBackground = .quaternarySystemFill
+                foreground = .labelColor
+            }
+            let background: NSColor
+            if isPressed {
+                background = baseBackground.blended(
+                    withFraction: 0.16,
+                    of: .labelColor
+                ) ?? baseBackground
+            } else if pointerInside {
+                background = baseBackground.blended(
+                    withFraction: 0.08,
+                    of: .labelColor
+                ) ?? baseBackground
+            } else {
+                background = baseBackground
+            }
+            attributedTitle = NSAttributedString(
+                string: title,
+                attributes: [
+                    .font: NSFont.systemFont(
+                        ofSize: NSFont.systemFontSize(for: metrics.controlSize),
+                        weight: usesSelectedAppearance ? .semibold : .regular
+                    ),
+                    .foregroundColor: foreground,
+                ]
+            )
+            layer?.backgroundColor = background.cgColor
+            layer?.borderWidth = usesSelectedAppearance ? 0 : 0.5
+            layer?.borderColor = NSColor.separatorColor.cgColor
+            layer?.shadowOpacity = 0
+        }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+}
+
+@MainActor
+final class PortalTabButton: PortalFlatCapsuleButton {
+    private(set) var isTabSelected = false
+
+    init(title: String, metrics: PortalCapsuleMetrics) {
+        super.init(title: title)
+        toolTip = title
+        apply(metrics: metrics, fixedWidth: metrics.tabWidth)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
     }
 
     func setSelected(_ selected: Bool) {
@@ -1404,47 +1607,12 @@ final class PortalTabButton: NSButton {
         isTabSelected = selected
         setAccessibilitySelected(selected)
         setAccessibilityValue(NSNumber(value: selected))
-        updateAppearance()
+        setCapsuleSelected(selected)
         if didChange {
             NSAccessibility.post(element: self, notification: .valueChanged)
         }
     }
 
-    private func updateAppearance() {
-        if #available(macOS 26.0, *) {
-            font = .systemFont(
-                ofSize: NSFont.systemFontSize,
-                weight: isTabSelected ? .semibold : .regular
-            )
-            bezelColor = isTabSelected ? .controlAccentColor : nil
-            tintProminence = isTabSelected ? .primary : .none
-            return
-        }
-        effectiveAppearance.performAsCurrentDrawingAppearance {
-            let foreground = activeLabelColor
-            attributedTitle = NSAttributedString(
-                string: title,
-                attributes: [
-                    .font: NSFont.systemFont(
-                        ofSize: NSFont.systemFontSize,
-                        weight: isTabSelected ? .semibold : .regular
-                    ),
-                    .foregroundColor: foreground,
-                ]
-            )
-            layer?.backgroundColor = isTabSelected
-                ? foreground.withAlphaComponent(0.13).cgColor
-                : NSColor.clear.cgColor
-            layer?.borderWidth = isTabSelected ? 0.5 : 0
-            layer?.borderColor = foreground.withAlphaComponent(0.12).cgColor
-        }
-    }
-
-    private var activeLabelColor: NSColor {
-        effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? .white
-            : .black
-    }
 }
 
 @MainActor

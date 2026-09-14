@@ -290,9 +290,12 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         surface.viewDidChangeEffectiveAppearance()
         let dark = try tintColor(of: surface)
 
-        XCTAssertGreaterThan(light.brightnessComponent, dark.brightnessComponent)
-        XCTAssertEqual(light.saturationComponent, 0, accuracy: 0.001)
-        XCTAssertEqual(dark.saturationComponent, 0, accuracy: 0.001)
+        XCTAssertEqual(light.redComponent, 0.72, accuracy: 0.001)
+        XCTAssertEqual(light.greenComponent, 0.72, accuracy: 0.001)
+        XCTAssertEqual(light.blueComponent, 0.72, accuracy: 0.001)
+        XCTAssertEqual(dark.redComponent, 0.18, accuracy: 0.001)
+        XCTAssertEqual(dark.greenComponent, 0.18, accuracy: 0.001)
+        XCTAssertEqual(dark.blueComponent, 0.18, accuracy: 0.001)
         XCTAssertEqual(light.alphaComponent, 0.16, accuracy: 0.001)
         XCTAssertEqual(dark.alphaComponent, 0.16, accuracy: 0.001)
     }

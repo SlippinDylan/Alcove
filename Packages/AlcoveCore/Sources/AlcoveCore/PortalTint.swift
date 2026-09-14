@@ -42,4 +42,13 @@ public enum PortalTint: String, CaseIterable, Sendable {
             PortalTintColor(red: 0.69, green: 0.32, blue: 0.87)
         }
     }
+
+    /// Resolves the neutral default to a stable gray while preserving the
+    /// explicit rainbow colors across appearances.
+    public func resolvedColor(forDarkAppearance isDarkAppearance: Bool) -> PortalTintColor {
+        if let color { return color }
+        return isDarkAppearance
+            ? PortalTintColor(red: 0.18, green: 0.18, blue: 0.18)
+            : PortalTintColor(red: 0.72, green: 0.72, blue: 0.72)
+    }
 }

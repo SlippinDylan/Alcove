@@ -134,8 +134,10 @@ Before any file mutation, Alcove validates the complete source snapshot off the 
 | Tab title | Defaults to the mapped folder name |
 
 Tabs appear as small folder-name controls in one horizontally centered,
-scrollable strip. macOS 26 uses native capsule-shaped Glass buttons and tint
-prominence for selection; macOS 15–25 use a material-aware capsule fallback. Per-tab close
+scrollable strip. Back and folder controls use shadow-free adaptive capsules rather than
+Liquid Glass. Folder tabs are equal-sized within each global content preset, use compact
+widths, and scale with
+Small/Medium/Large while retaining native active/inactive selection semantics. Per-tab close
 and add buttons are intentionally omitted;
 editing actions open from the fixed trailing settings icon in a separate centered
 settings window. A standard close-only titlebar remains above a native preference-style toolbar;
@@ -190,7 +192,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-09 | Multiple portals supported simultaneously | MVP |
 | FR-10 | Multiple displays supported | MVP |
 | FR-11 | Menu-bar icon with portal management menu | MVP |
-| FR-12 | All Portals share one global content-size preset and one global five-step background level on always-active frosted content materials; changing size is preflighted for every Portal before any frame changes. Lightweight separators distinguish the top controls and bottom path row without additional capsule materials. | MVP |
+| FR-12 | All Portals share one global content-size preset and one global five-step background level on always-active frosted content materials; changing size is preflighted for every Portal before any frame changes. Lightweight separators distinguish the top controls and bottom path row without additional capsule materials. Clicking the top controls or draggable background activates the Portal just like clicking its grid or path row. | MVP |
 | FR-13 | NSVisualEffectView fallback on macOS 15–25 | MVP |
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
@@ -201,7 +203,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-21 | Show the selected folder path in a reserved bottom row separated from the file grid, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
 | FR-22 | The menu bar lists New Portal, each Portal with SF Symbol-labelled Show, Hide, Pin/Unpin, Panel Settings, and confirmed Remove commands, application Settings, and Quit. Application Settings provides General, Style, Advanced, and About categories; General controls launch at login, Style owns global content size, transparency, spacing (`4/8/12/16/20pt`), corner radius (`0/8/14/20/24pt`), and system shadow with a system separator between each row, Advanced imports or exports the complete layout, and About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
 | FR-23 | New placement, user dragging, live resizing, and global content-size changes must not overlap another Portal and must honor the selected edge/inter-Portal spacing. Portals attached within the five-step spacing range to a screen edge or another Portal retain that relationship when either spacing or content size changes, so expansion pushes and contraction pulls the attached layout in both directions. Unattached free placements retain their top-left intent when legal. The complete per-display plan is accepted atomically, and style-driven reflow does not overwrite durable home placement. | MVP |
-| FR-24 | Each Portal persists its own name/modified/created sort order and one built-in neutral or rainbow tint. The gear opens an SF Symbol-labelled native menu for pinning, sorting, Portal settings, and confirmed Portal removal. Portal settings show all sort choices as radio buttons and all tint choices as circular single-selection swatches; global content size and transparency are not duplicated there. | MVP |
+| FR-24 | Each Portal persists its own name/modified/created sort order and one built-in neutral or rainbow tint. The gear opens an SF Symbol-labelled native menu for pinning, sorting, Portal settings, and confirmed Portal removal. Removal confirmation is an independent app-modal alert centered in the current Portal screen's fresh `visibleFrame`, not an attached sheet. Portal settings show all sort choices as radio buttons and all tint choices as circular single-selection swatches; global content size and transparency are not duplicated there. | MVP |
 | FR-25 | Advanced settings exports a stable versioned JSON layout backup containing global Portal appearance and portable per-Portal layout state, but never launch-at-login. Import strictly validates the whole document and, after confirmation, replaces rather than merges the current layout. The replacement is preflighted against the fresh primary display and persisted once before runtime windows change; any validation or save failure leaves the current runtime layout untouched. | MVP |
 | FR-26 | Command-Delete moves a frozen ordered selection to Trash through `NSWorkspace.recycle`; drop transfers validate the entire snapshot before asynchronous coordinated IO, reject same-destination, overwrite, duplicate-name, and self-descendant cases, and report partial failure explicitly | MVP |
 

@@ -299,18 +299,16 @@ final class PortalChromeMaterialView: NSView {
     }
 
     private var surfaceTintColor: NSColor {
-        if let color = portalTint.color {
-            return NSColor(
-                srgbRed: color.red,
-                green: color.green,
-                blue: color.blue,
-                alpha: 1
-            )
-        }
-        if effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-            return .black
-        }
-        return .white
+        let isDarkAppearance = effectiveAppearance.bestMatch(
+            from: [.darkAqua, .aqua]
+        ) == .darkAqua
+        let color = portalTint.resolvedColor(forDarkAppearance: isDarkAppearance)
+        return NSColor(
+            srgbRed: color.red,
+            green: color.green,
+            blue: color.blue,
+            alpha: 1
+        )
     }
 }
 

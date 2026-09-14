@@ -4,6 +4,20 @@ import XCTest
 @testable import Alcove
 
 final class TabBarViewTests: XCTestCase {
+    func testRemovalConfirmationCentersInThePortalScreensVisibleFrame() {
+        let visibleFrame = NSRect(x: 1440, y: 38, width: 1920, height: 1042)
+        let windowSize = NSSize(width: 520, height: 278)
+
+        let origin = PortalRemovalConfirmationGeometry.centeredOrigin(
+            windowSize: windowSize,
+            visibleFrame: visibleFrame
+        )
+        let alertFrame = NSRect(origin: origin, size: windowSize)
+
+        XCTAssertEqual(alertFrame.midX, visibleFrame.midX, accuracy: 0.5)
+        XCTAssertEqual(alertFrame.midY, visibleFrame.midY, accuracy: 0.5)
+    }
+
     @MainActor
     func testConfigureDisplaysTabsInCreationOrderAndMarksSelectedTab() throws {
         let tabs = [
@@ -31,19 +45,48 @@ final class TabBarViewTests: XCTestCase {
             false
         )
         let selectedButton = try XCTUnwrap(tabBar.tabButtons[tabs[1].id])
-        if #available(macOS 26.0, *) {
-            XCTAssertTrue(selectedButton.isBordered)
-            XCTAssertEqual(selectedButton.bezelStyle, .glass)
-            XCTAssertEqual(selectedButton.borderShape, .capsule)
-            XCTAssertEqual(selectedButton.tintProminence, .primary)
-            XCTAssertEqual(
-                tabBar.tabButtons[tabs[0].id]?.tintProminence,
-                NSTintProminence.none
-            )
-        } else {
-            XCTAssertFalse(selectedButton.isBordered)
-            XCTAssertNotNil(selectedButton.layer?.backgroundColor)
-        }
+        XCTAssertFalse(selectedButton.isBordered)
+        XCTAssertTrue(selectedButton.usesSelectedAppearance)
+        XCTAssertNotNil(selectedButton.layer?.backgroundColor)
+        XCTAssertEqual(selectedButton.layer?.shadowOpacity, 0)
+    }
+
+    @MainActor
+    func testTabCapsulesAreEqualAndScaleWithGlobalContentSize() throws {
+        let tabs = [makeTab(name: "A"), makeTab(name: "Much Longer Folder")]
+        var portal = try makePortal(tabs: tabs, selected: tabs[0].id)
+        let tabBar = TabBarView(frame: NSRect(x: 0, y: 0, width: 500, height: 40))
+
+        tabBar.configure(with: portal)
+        let mediumSizes = tabs.compactMap { tabBar.tabButtons[$0.id]?.intrinsicContentSize }
+
+        XCTAssertEqual(mediumSizes, [
+            NSSize(width: 104, height: 28),
+            NSSize(width: 104, height: 28),
+        ])
+        XCTAssertEqual(tabBar.backButton.intrinsicContentSize.height, 28)
+        XCTAssertFalse(tabBar.backButton.isBordered)
+        XCTAssertEqual(tabBar.backButton.layer?.shadowOpacity, 0)
+
+        portal.updateIconSize(.large)
+        tabBar.update(with: portal)
+        let largeSizes = tabs.compactMap { tabBar.tabButtons[$0.id]?.intrinsicContentSize }
+
+        XCTAssertEqual(largeSizes, [
+            NSSize(width: 120, height: 30),
+            NSSize(width: 120, height: 30),
+        ])
+        XCTAssertEqual(tabBar.backButton.intrinsicContentSize.height, 30)
+
+        portal.updateIconSize(.small)
+        tabBar.update(with: portal)
+        let smallSizes = tabs.compactMap { tabBar.tabButtons[$0.id]?.intrinsicContentSize }
+
+        XCTAssertEqual(smallSizes, [
+            NSSize(width: 88, height: 26),
+            NSSize(width: 88, height: 26),
+        ])
+        XCTAssertEqual(tabBar.backButton.intrinsicContentSize.height, 26)
     }
 
     @MainActor
@@ -55,7 +98,9 @@ final class TabBarViewTests: XCTestCase {
         tabBar.layoutSubtreeIfNeeded()
 
         XCTAssertEqual(tabBar.tabButtons.count, 1)
-        XCTAssertEqual(tabBar.scrollView.documentView?.subviews.count, 1)
+        XCTAssertFalse(tabBar.isUsingScrollableTabStrip)
+        XCTAssertNotNil(tabBar.scrollView.documentView)
+        XCTAssertFalse(tabBar.scrollView.hasHorizontalScroller)
         XCTAssertEqual(tabBar.tabButtons[tab.id]?.title, "Only")
         XCTAssertTrue(tabBar.bounds.contains(managementButtonFrame(in: tabBar)))
         let tabButton = try XCTUnwrap(tabBar.tabButtons[tab.id])
@@ -63,16 +108,14 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertGreaterThan(tabButton.bounds.width, 0)
         XCTAssertGreaterThan(tabButton.bounds.height, 0)
         XCTAssertTrue(tabButton.isDescendant(of: tabBar.scrollView))
-        XCTAssertEqual(tabBar.scrollView.frame.midX, tabBar.bounds.midX, accuracy: 0.5)
-        XCTAssertEqual(tabBar.scrollView.frame.minY, tabBar.bounds.minY, accuracy: 0.5)
-        XCTAssertEqual(tabBar.scrollView.frame.height, tabBar.bounds.height, accuracy: 0.5)
+        XCTAssertTrue(tabButton.isDescendant(of: tabBar))
         XCTAssertFalse(tabBar.scrollView.drawsBackground)
         XCTAssertFalse(tabBar.scrollView.contentView.drawsBackground)
         XCTAssertEqual(tabBar.scrollView.backgroundColor, .clear)
         XCTAssertEqual(tabBar.scrollView.contentView.backgroundColor, .clear)
         XCTAssertTrue(
             tabBar.bounds.contains(tabFrame),
-            "Expected visible tab frame; strip=\(tabBar.scrollView.frame), tab=\(tabFrame)"
+            "Expected visible tab frame; tab=\(tabFrame)"
         )
     }
 
@@ -398,10 +441,25 @@ final class TabBarViewTests: XCTestCase {
         settings.sortOptionButtons[0].performClick(nil)
 
         settings.selectCategory(.style)
+        settings.view.layoutSubtreeIfNeeded()
         XCTAssertEqual(settings.tintOptionButtons.count, PortalTint.allCases.count)
+        XCTAssertTrue(settings.tintOptionButtons.allSatisfy {
+            $0.title.isEmpty && $0.attributedTitle.string.isEmpty
+        })
         XCTAssertEqual(settings.tintOptionButtons.map(\.isOptionSelected), [
             false, false, false, false, true, false, false, false,
         ])
+        XCTAssertTrue(settings.tintOptionButtons.allSatisfy { button in
+            button.hitTest(NSPoint(x: button.frame.midX, y: button.frame.midY)) === button
+        })
+        let defaultSwatchColor = try XCTUnwrap(
+            NSColor(cgColor: try XCTUnwrap(
+                settings.tintOptionButtons[0].swatchView.layer?.backgroundColor
+            ))?.usingColorSpace(.sRGB)
+        )
+        XCTAssertEqual(defaultSwatchColor.redComponent, 0.72, accuracy: 0.001)
+        XCTAssertEqual(defaultSwatchColor.greenComponent, 0.72, accuracy: 0.001)
+        XCTAssertEqual(defaultSwatchColor.blueComponent, 0.72, accuracy: 0.001)
         let selectedTint = settings.tintOptionButtons[4]
         selectedTint.layoutSubtreeIfNeeded()
         selectedTint.displayIfNeeded()
@@ -421,14 +479,17 @@ final class TabBarViewTests: XCTestCase {
         let first = makeTab(name: "First")
         let second = makeTab(name: "Second")
         let portal = try makePortal(tabs: [first, second], selected: second.id)
-        let tabBar = TabBarView(frame: .zero)
+        let tabBar = TabBarView(frame: NSRect(x: 0, y: 0, width: 360, height: 40))
 
         tabBar.configure(with: portal)
         tabBar.update(with: portal)
+        tabBar.layoutSubtreeIfNeeded()
 
         XCTAssertEqual(tabBar.tabOrder, [first.id, second.id])
         XCTAssertEqual(tabBar.tabButtons.count, 2)
-        XCTAssertEqual(tabBar.scrollView.documentView?.subviews.count, 2)
+        XCTAssertFalse(tabBar.isUsingScrollableTabStrip)
+        XCTAssertNotNil(tabBar.scrollView.documentView)
+        XCTAssertFalse(tabBar.scrollView.hasHorizontalScroller)
     }
 
     @MainActor
@@ -446,6 +507,8 @@ final class TabBarViewTests: XCTestCase {
         tabBar.configure(with: portal)
         tabBar.layoutSubtreeIfNeeded()
 
+        XCTAssertTrue(tabBar.isUsingScrollableTabStrip)
+        XCTAssertTrue(tabBar.scrollView.hasHorizontalScroller)
         let documentView = try XCTUnwrap(tabBar.scrollView.documentView)
         XCTAssertTrue(tabBar.scrollView.hasHorizontalScroller)
         XCTAssertGreaterThan(documentView.frame.width, tabBar.scrollView.contentSize.width)
@@ -470,12 +533,9 @@ final class TabBarViewTests: XCTestCase {
             tabBar.subviews.compactMap { $0 as? PortalChromeMaterialView }.isEmpty
         )
         let tabButton = try XCTUnwrap(tabBar.tabButtons[tab.id])
-        if #available(macOS 26.0, *) {
-            XCTAssertEqual(tabButton.bezelStyle, .glass)
-            XCTAssertEqual(tabButton.borderShape, .capsule)
-        } else {
-            XCTAssertGreaterThan(tabButton.layer?.backgroundColor?.alpha ?? 0, 0)
-        }
+        XCTAssertFalse(tabButton.isBordered)
+        XCTAssertEqual(tabButton.layer?.shadowOpacity, 0)
+        XCTAssertGreaterThan(tabButton.layer?.backgroundColor?.alpha ?? 0, 0)
     }
 
     @MainActor
@@ -497,20 +557,16 @@ final class TabBarViewTests: XCTestCase {
         let tabButton = try XCTUnwrap(tabBar.tabButtons[tab.id])
         let menuColor = try XCTUnwrap(tabBar.managementButton.contentTintColor)
         XCTAssertEqual(menuColor.alphaComponent, 1, accuracy: 0.01)
-        if #available(macOS 26.0, *) {
-            XCTAssertEqual(tabButton.bezelStyle, .glass)
-            XCTAssertEqual(tabButton.tintProminence, .primary)
-        } else {
-            let tabColor = try XCTUnwrap(
-                tabButton.attributedTitle.attribute(
-                    .foregroundColor,
-                    at: 0,
-                    effectiveRange: nil
-                ) as? NSColor
-            )
-            XCTAssertEqual(tabColor.alphaComponent, 1, accuracy: 0.01)
-            XCTAssertGreaterThan(tabButton.layer?.backgroundColor?.alpha ?? 0, 0)
-        }
+        let tabColor = try XCTUnwrap(
+            tabButton.attributedTitle.attribute(
+                .foregroundColor,
+                at: 0,
+                effectiveRange: nil
+            ) as? NSColor
+        )
+        XCTAssertFalse(tabButton.isBordered)
+        XCTAssertEqual(tabColor, .unemphasizedSelectedTextColor)
+        XCTAssertGreaterThan(tabButton.layer?.backgroundColor?.alpha ?? 0, 0)
     }
 
     @MainActor

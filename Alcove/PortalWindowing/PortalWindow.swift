@@ -128,6 +128,9 @@ final class PortalWindow: NSWindow {
     }
 
     override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown, canBecomeKey, !isKeyWindow {
+            makeKey()
+        }
         guard event.type == .leftMouseDown, isPortalDragRegion(at: event.locationInWindow) else {
             super.sendEvent(event)
             return
