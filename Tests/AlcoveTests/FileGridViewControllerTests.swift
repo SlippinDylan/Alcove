@@ -262,6 +262,102 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertTrue(failurePresenter.errors.isEmpty)
     }
 
+    @MainActor
+    func testContextMenuUsesFinderSelectionSemanticsAndExpectedActions() throws {
+        let actions = FileContextActionPerformerSpy()
+        let controller = FileGridViewController(contextActionPerformer: actions)
+        controller.loadView()
+        let items = makeItems(count: 3)
+        controller.setItems(items)
+        controller.handleClick(index: 0, modifiers: [])
+        controller.handleClick(index: 2, modifiers: .command)
+
+        let selectedMenu = try XCTUnwrap(controller.contextMenu(forItemAt: 2))
+        XCTAssertEqual(controller.selectionState.selectedIDs, [items[0].id, items[2].id])
+        XCTAssertEqual(
+            selectedMenu.items.map(\.title),
+            [
+                localized("portal.files.open"),
+                localized("portal.files.quick_look"),
+                localized("portal.files.show_in_finder"),
+                "",
+                localized("portal.files.move_to_trash"),
+                "",
+                localized("portal.files.airdrop"),
+                localized("portal.files.copy_path"),
+                localized("portal.files.open_in_terminal"),
+            ]
+        )
+
+        XCTAssertNotNil(controller.contextMenu(forItemAt: 1))
+        XCTAssertEqual(controller.selectionState.selectedIDs, [items[1].id])
+        XCTAssertNil(controller.contextMenu(forItemAt: 99))
+        XCTAssertEqual(controller.selectionState.selectedIDs, [items[1].id])
+    }
+
+    @MainActor
+    func testContextMenuRoutesActionsUsingStableGridOrder() throws {
+        let opener = WorkspaceOpenerSpy()
+        let recycler = FileRecyclerSpy()
+        let actions = FileContextActionPerformerSpy()
+        let controller = FileGridViewController(
+            workspaceOpener: opener,
+            fileRecycler: recycler,
+            contextActionPerformer: actions
+        )
+        controller.loadView()
+        let items = makeItems(count: 3)
+        controller.setItems(items)
+        controller.handleClick(index: 2, modifiers: [])
+        controller.handleClick(index: 0, modifiers: .command)
+        let menu = try XCTUnwrap(controller.contextMenu(forItemAt: 2))
+        var quickLookRequests: [[URL]] = []
+        controller.onQuickLookRequested = { quickLookRequests.append($0) }
+
+        performMenuItem(titled: localized("portal.files.open"), in: menu)
+        performMenuItem(titled: localized("portal.files.quick_look"), in: menu)
+        performMenuItem(titled: localized("portal.files.show_in_finder"), in: menu)
+        performMenuItem(titled: localized("portal.files.airdrop"), in: menu)
+        performMenuItem(titled: localized("portal.files.copy_path"), in: menu)
+        performMenuItem(titled: localized("portal.files.open_in_terminal"), in: menu)
+
+        let urls = [items[0].url, items[2].url]
+        XCTAssertEqual(opener.openedURLs, urls)
+        XCTAssertEqual(quickLookRequests, [urls])
+        XCTAssertEqual(actions.revealedURLs, [urls])
+        XCTAssertEqual(actions.airDroppedURLs, [urls])
+        XCTAssertEqual(actions.copiedURLs, [urls])
+        XCTAssertEqual(actions.terminalURLs, [[URL(fileURLWithPath: "/tmp", isDirectory: true)]])
+
+        performMenuItem(titled: localized("portal.files.move_to_trash"), in: menu)
+        XCTAssertEqual(recycler.recycledURLs, [urls])
+    }
+
+    @MainActor
+    func testAirDropMenuValidationUsesTheSelectedURLs() throws {
+        let actions = FileContextActionPerformerSpy()
+        actions.canAirDrop = false
+        let failurePresenter = FileOperationFailurePresenterSpy()
+        let controller = FileGridViewController(
+            fileOperationFailurePresenter: failurePresenter,
+            contextActionPerformer: actions
+        )
+        controller.loadView()
+        let items = makeItems(count: 2)
+        controller.setItems(items)
+        controller.handleKeyCommand(.selectAll)
+        let menu = try XCTUnwrap(controller.contextMenu(forItemAt: 0))
+        let airDrop = try XCTUnwrap(menu.item(withTitle: localized("portal.files.airdrop")))
+
+        XCTAssertFalse(controller.validateMenuItem(airDrop))
+        XCTAssertEqual(actions.airDropValidationURLs, [[items[0].url, items[1].url]])
+        performMenuItem(titled: localized("portal.files.airdrop"), in: menu)
+        XCTAssertEqual(
+            failurePresenter.errors.first as? FileContextActionError,
+            .airDropUnavailable
+        )
+    }
+
     func testTransferPlanRejectsSameDestinationAndNameConflicts() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -730,6 +826,19 @@ final class FileGridViewControllerTests: XCTestCase {
             )
         }
     }
+
+    private func localized(_ key: String) -> String {
+        NSLocalizedString(key, comment: "Test localization lookup")
+    }
+
+    @MainActor
+    private func performMenuItem(titled title: String, in menu: NSMenu) {
+        guard let item = menu.item(withTitle: title), let action = item.action else {
+            XCTFail("Missing context menu item: \(title)")
+            return
+        }
+        XCTAssertTrue(NSApp.sendAction(action, to: item.target, from: item))
+    }
 }
 
 @MainActor
@@ -775,5 +884,43 @@ private final class FileOperationFailurePresenterSpy: FileOperationFailurePresen
 
     func present(_ error: Error) {
         errors.append(error)
+    }
+}
+
+@MainActor
+private final class FileContextActionPerformerSpy: FileContextActionPerforming {
+    var canAirDrop = true
+    private(set) var revealedURLs: [[URL]] = []
+    private(set) var copiedURLs: [[URL]] = []
+    private(set) var airDropValidationURLs: [[URL]] = []
+    private(set) var airDroppedURLs: [[URL]] = []
+    private(set) var terminalURLs: [[URL]] = []
+
+    func revealInFinder(_ urls: [URL]) {
+        revealedURLs.append(urls)
+    }
+
+    func copyPaths(_ urls: [URL]) {
+        copiedURLs.append(urls)
+    }
+
+    func canSendViaAirDrop(_ urls: [URL]) -> Bool {
+        airDropValidationURLs.append(urls)
+        return canAirDrop
+    }
+
+    func sendViaAirDrop(_ urls: [URL]) -> Bool {
+        if canAirDrop {
+            airDroppedURLs.append(urls)
+        }
+        return canAirDrop
+    }
+
+    func openInTerminal(
+        _ urls: [URL],
+        completion: @escaping @MainActor @Sendable (FileContextActionError?) -> Void
+    ) {
+        terminalURLs.append(urls)
+        completion(nil)
     }
 }

@@ -17,6 +17,7 @@ final class FileCollectionView: NSCollectionView {
     var onNativeItemInteraction: ((Set<Int>, Int, NSEvent.ModifierFlags, Int) -> Void)?
     var onMarqueeSelection: ((Set<Int>) -> Void)?
     var onKeyCommand: ((FileGridKeyCommand) -> Void)?
+    var contextMenuProvider: ((Int) -> NSMenu?)?
     private let marqueeLayer = CAShapeLayer()
 
     override var acceptsFirstResponder: Bool {
@@ -51,6 +52,12 @@ final class FileCollectionView: NSCollectionView {
         } else {
             super.keyDown(with: event)
         }
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let location = convert(event.locationInWindow, from: nil)
+        guard let index = indexPathForItem(at: location)?.item else { return nil }
+        return contextMenuProvider?(index)
     }
 
     static func command(

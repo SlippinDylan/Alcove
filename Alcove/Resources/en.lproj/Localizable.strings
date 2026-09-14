@@ -196,6 +196,14 @@
 "portal.files.volume_unavailable" = "The source or destination volume is unavailable.";
 "portal.files.duplicate_names" = "More than one selected item has the same name.";
 "portal.files.partial_failure" = "%d of %d items were completed before the operation failed.";
+"portal.files.open" = "Open";
+"portal.files.quick_look" = "Quick Look";
+"portal.files.show_in_finder" = "Show in Finder";
+"portal.files.move_to_trash" = "Move to Trash";
+"portal.files.airdrop" = "AirDrop";
+"portal.files.copy_path" = "Copy Path";
+"portal.files.open_in_terminal" = "Open in Terminal";
+"portal.files.airdrop_unavailable" = "AirDrop Is Unavailable";
 "application.settings.backup.error.malformed" = "The selected file is not a valid Alcove layout backup.";
 "application.settings.backup.error.format" = "The selected file was not created as an Alcove layout backup.";
 "application.settings.backup.error.version" = "Layout backup version %d is not supported by this version of Alcove.";

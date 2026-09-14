@@ -196,6 +196,14 @@
 "portal.files.volume_unavailable" = "源卷或目标卷不可用。";
 "portal.files.duplicate_names" = "多个所选项目具有相同名称。";
 "portal.files.partial_failure" = "操作失败前已完成 %d 个项目，共 %d 个。";
+"portal.files.open" = "打开";
+"portal.files.quick_look" = "快速查看";
+"portal.files.show_in_finder" = "在“访达”中显示";
+"portal.files.move_to_trash" = "移到废纸篓";
+"portal.files.airdrop" = "隔空投送";
+"portal.files.copy_path" = "复制路径";
+"portal.files.open_in_terminal" = "在终端中打开";
+"portal.files.airdrop_unavailable" = "隔空投送不可用";
 "application.settings.backup.error.malformed" = "所选文件不是有效的 Alcove 布局备份。";
 "application.settings.backup.error.format" = "所选文件不是由 Alcove 创建的布局备份。";
 "application.settings.backup.error.version" = "当前版本的 Alcove 不支持布局备份版本 %d。";

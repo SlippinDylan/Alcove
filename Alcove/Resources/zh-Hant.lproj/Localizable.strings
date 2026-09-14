@@ -196,6 +196,14 @@
 "portal.files.volume_unavailable" = "來源卷宗或目標卷宗無法使用。";
 "portal.files.duplicate_names" = "多個所選項目具有相同名稱。";
 "portal.files.partial_failure" = "操作失敗前已完成 %d 個項目，共 %d 個。";
+"portal.files.open" = "打開";
+"portal.files.quick_look" = "快速查看";
+"portal.files.show_in_finder" = "在 Finder 中顯示";
+"portal.files.move_to_trash" = "移至垃圾桶";
+"portal.files.airdrop" = "AirDrop";
+"portal.files.copy_path" = "複製路徑";
+"portal.files.open_in_terminal" = "在終端機中打開";
+"portal.files.airdrop_unavailable" = "AirDrop 無法使用";
 "application.settings.backup.error.malformed" = "所選檔案不是有效的 Alcove 佈局備份。";
 "application.settings.backup.error.format" = "所選檔案不是由 Alcove 建立的佈局備份。";
 "application.settings.backup.error.version" = "目前版本的 Alcove 不支援佈局備份版本 %d。";

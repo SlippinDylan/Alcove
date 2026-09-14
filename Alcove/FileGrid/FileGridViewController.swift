@@ -70,13 +70,14 @@ struct FileGridRuntimeState: Equatable {
 }
 
 @MainActor
-final class FileGridViewController: NSViewController {
+final class FileGridViewController: NSViewController, NSMenuItemValidation {
     private let collectionView = FileCollectionView()
     private let workspaceOpener: any WorkspaceOpening
     private let openFailurePresenter: any WorkspaceOpenFailurePresenting
     private let fileTransferService: any FileTransferPerforming
     private let fileRecycler: any FileRecycling
     private let fileOperationFailurePresenter: any FileOperationFailurePresenting
+    private let contextActionPerformer: any FileContextActionPerforming
     private var metrics: GridMetrics
     private var gridCapacity: GridCapacity
     private var items: [FileItem] = []
@@ -95,6 +96,7 @@ final class FileGridViewController: NSViewController {
         fileTransferService: any FileTransferPerforming = CoordinatedFileTransferService(),
         fileRecycler: any FileRecycling = SystemFileRecycler(),
         fileOperationFailurePresenter: any FileOperationFailurePresenting = FileOperationFailurePresenter(),
+        contextActionPerformer: any FileContextActionPerforming = SystemFileContextActionPerformer(),
         iconSize: IconSize = .medium,
         textSize: CGFloat = 12,
         gridCapacity: GridCapacity = .minimum
@@ -104,6 +106,7 @@ final class FileGridViewController: NSViewController {
         self.fileTransferService = fileTransferService
         self.fileRecycler = fileRecycler
         self.fileOperationFailurePresenter = fileOperationFailurePresenter
+        self.contextActionPerformer = contextActionPerformer
         metrics = GridMetrics(iconSize: iconSize, labelFontSize: textSize)
         self.gridCapacity = gridCapacity
         super.init(nibName: nil, bundle: nil)
@@ -154,6 +157,9 @@ final class FileGridViewController: NSViewController {
         }
         collectionView.onMarqueeSelection = { [weak self] indexes in
             self?.replaceSelection(with: indexes)
+        }
+        collectionView.contextMenuProvider = { [weak self] index in
+            self?.contextMenu(forItemAt: index)
         }
 
         let scrollView = NSScrollView()
@@ -304,9 +310,7 @@ final class FileGridViewController: NSViewController {
         case .trashSelection:
             trashSelection()
         case .toggleQuickLook:
-            let urls = items.compactMap { item in
-                selectionState.selectedIDs.contains(item.id) ? item.url : nil
-            }
+            let urls = selectedItemsInGridOrder.map(\.url)
             if !urls.isEmpty {
                 onQuickLookRequested?(urls)
             }
@@ -317,6 +321,10 @@ final class FileGridViewController: NSViewController {
 
     private var orderedIDs: [FileIdentity] {
         items.map(\.id)
+    }
+
+    private var selectedItemsInGridOrder: [FileItem] {
+        items.filter { selectionState.selectedIDs.contains($0.id) }
     }
 
     private var columnCount: Int {
@@ -356,7 +364,7 @@ final class FileGridViewController: NSViewController {
 
     private func openSelection() {
         failedOpenURLs = []
-        let selectedItems = items.filter { selectionState.selectedIDs.contains($0.id) }
+        let selectedItems = selectedItemsInGridOrder
         let allowsNavigation = selectedItems.count == 1
         for item in selectedItems {
             open(item, allowsNavigation: allowsNavigation)
@@ -372,9 +380,7 @@ final class FileGridViewController: NSViewController {
     }
 
     private func trashSelection() {
-        let urls = items.compactMap { item in
-            selectionState.selectedIDs.contains(item.id) ? item.url : nil
-        }
+        let urls = selectedItemsInGridOrder.map(\.url)
         guard !urls.isEmpty else { return }
 
         // Freeze the URL snapshot before invalidating selection and Quick Look ownership.
@@ -415,9 +421,95 @@ final class FileGridViewController: NSViewController {
     }
 
     private func notifySelectionChanged() {
-        onSelectionChanged?(items.compactMap { item in
-            selectionState.selectedIDs.contains(item.id) ? item.url : nil
-        })
+        onSelectionChanged?(selectedItemsInGridOrder.map(\.url))
+    }
+
+    func contextMenu(forItemAt index: Int) -> NSMenu? {
+        guard items.indices.contains(index) else { return nil }
+        let clickedID = items[index].id
+        if !selectionState.selectedIDs.contains(clickedID) {
+            selectionState.select(clickedID)
+            applySelection()
+        }
+
+        let menu = NSMenu()
+        menu.addItem(menuItem("portal.files.open", action: #selector(openFromContextMenu)))
+        menu.addItem(menuItem("portal.files.quick_look", action: #selector(quickLookFromContextMenu)))
+        menu.addItem(menuItem("portal.files.show_in_finder", action: #selector(revealFromContextMenu)))
+        menu.addItem(.separator())
+        menu.addItem(menuItem("portal.files.move_to_trash", action: #selector(trashFromContextMenu)))
+        menu.addItem(.separator())
+        menu.addItem(menuItem("portal.files.airdrop", action: #selector(airDropFromContextMenu)))
+        menu.addItem(menuItem("portal.files.copy_path", action: #selector(copyPathFromContextMenu)))
+        menu.addItem(menuItem("portal.files.open_in_terminal", action: #selector(openInTerminalFromContextMenu)))
+        return menu
+    }
+
+    private func menuItem(_ localizationKey: String, action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: NSLocalizedString(localizationKey, comment: "File context menu item"),
+            action: action,
+            keyEquivalent: ""
+        )
+        item.target = self
+        return item
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        let urls = selectedItemsInGridOrder.map(\.url)
+        guard !urls.isEmpty else { return false }
+        if menuItem.action == #selector(airDropFromContextMenu) {
+            return contextActionPerformer.canSendViaAirDrop(urls)
+        }
+        return true
+    }
+
+    @objc private func openFromContextMenu() {
+        openSelection()
+    }
+
+    @objc private func quickLookFromContextMenu() {
+        let urls = selectedItemsInGridOrder.map(\.url)
+        if !urls.isEmpty {
+            onQuickLookRequested?(urls)
+        }
+    }
+
+    @objc private func revealFromContextMenu() {
+        contextActionPerformer.revealInFinder(selectedItemsInGridOrder.map(\.url))
+    }
+
+    @objc private func trashFromContextMenu() {
+        trashSelection()
+    }
+
+    @objc private func copyPathFromContextMenu() {
+        contextActionPerformer.copyPaths(selectedItemsInGridOrder.map(\.url))
+    }
+
+    @objc private func airDropFromContextMenu() {
+        let urls = selectedItemsInGridOrder.map(\.url)
+        guard contextActionPerformer.sendViaAirDrop(urls) else {
+            fileOperationFailurePresenter.present(FileContextActionError.airDropUnavailable)
+            return
+        }
+    }
+
+    @objc private func openInTerminalFromContextMenu() {
+        var seen = Set<URL>()
+        let directories = selectedItemsInGridOrder.compactMap { item -> URL? in
+            let directory = item.isNavigableDirectory
+                ? item.url
+                : item.url.deletingLastPathComponent()
+            return seen.insert(directory.standardizedFileURL).inserted
+                ? directory.standardizedFileURL
+                : nil
+        }
+        contextActionPerformer.openInTerminal(directories) { [weak self] error in
+            if let error {
+                self?.fileOperationFailurePresenter.present(error)
+            }
+        }
     }
 }
 
