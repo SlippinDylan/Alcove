@@ -38,7 +38,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 ## Key Design Decisions
 
 - **Native AppKit**, not WidgetKit
-- **Adaptive native material** with one global five-step background level on always-active frosted surfaces; lightweight separators divide chrome from file content, while macOS 26 Glass is limited to suitable navigation and action controls
+- **Adaptive native material** with native untinted `NSGlassEffectView` as the standard macOS 26 Portal surface and `NSVisualEffectView` on macOS 15; nonstandard background levels and built-in colors use the public Glass tint/style controls, while lightweight separators divide chrome from file content
 - **Finder-consistent interaction**: click/Command/Shift and empty-space marquee selection, arrow navigation, Command-A, Quick Look, open, Trash, and native file-URL drag in/out
 - **Finder-style icon tiles**: separate icon/title selection regions, two-line labels, a durable integer-capacity grid shared by rendering, keyboard navigation, creation, and live resizing, and persisted Small/Medium/Large icon presets
 - **Internal local folders only**: folder selection rejects removable, ejectable, and network-volume locations

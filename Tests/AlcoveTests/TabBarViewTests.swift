@@ -48,6 +48,15 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertFalse(selectedButton.isBordered)
         XCTAssertTrue(selectedButton.usesSelectedAppearance)
         XCTAssertNotNil(selectedButton.layer?.backgroundColor)
+        let selectedTitleColor = try XCTUnwrap(
+            selectedButton.attributedTitle.attribute(
+                .foregroundColor,
+                at: 0,
+                effectiveRange: nil
+            ) as? NSColor
+        )
+        XCTAssertEqual(selectedTitleColor, .white)
+        XCTAssertEqual(selectedButton.layer?.borderWidth, 0)
         XCTAssertEqual(selectedButton.layer?.shadowOpacity, 0)
     }
 
@@ -61,10 +70,11 @@ final class TabBarViewTests: XCTestCase {
         let mediumSizes = tabs.compactMap { tabBar.tabButtons[$0.id]?.intrinsicContentSize }
 
         XCTAssertEqual(mediumSizes, [
-            NSSize(width: 104, height: 28),
-            NSSize(width: 104, height: 28),
+            NSSize(width: 84, height: 28),
+            NSSize(width: 84, height: 28),
         ])
         XCTAssertEqual(tabBar.backButton.intrinsicContentSize.height, 28)
+        XCTAssertTrue(tabBar.backButton.imageHugsTitle)
         XCTAssertFalse(tabBar.backButton.isBordered)
         XCTAssertEqual(tabBar.backButton.layer?.shadowOpacity, 0)
 
@@ -73,8 +83,8 @@ final class TabBarViewTests: XCTestCase {
         let largeSizes = tabs.compactMap { tabBar.tabButtons[$0.id]?.intrinsicContentSize }
 
         XCTAssertEqual(largeSizes, [
-            NSSize(width: 120, height: 30),
-            NSSize(width: 120, height: 30),
+            NSSize(width: 92, height: 30),
+            NSSize(width: 92, height: 30),
         ])
         XCTAssertEqual(tabBar.backButton.intrinsicContentSize.height, 30)
 
@@ -83,8 +93,8 @@ final class TabBarViewTests: XCTestCase {
         let smallSizes = tabs.compactMap { tabBar.tabButtons[$0.id]?.intrinsicContentSize }
 
         XCTAssertEqual(smallSizes, [
-            NSSize(width: 88, height: 26),
-            NSSize(width: 88, height: 26),
+            NSSize(width: 76, height: 26),
+            NSSize(width: 76, height: 26),
         ])
         XCTAssertEqual(tabBar.backButton.intrinsicContentSize.height, 26)
     }
@@ -540,8 +550,10 @@ final class TabBarViewTests: XCTestCase {
 
     @MainActor
     func testTabAndMenuLabelsStayFullyVisibleInANonKeyWindow() throws {
-        let tab = makeTab(name: "Only")
+        let tab = makeTab(name: "Selected")
+        let otherTab = makeTab(name: "Other")
         let tabBar = TabBarView(frame: NSRect(x: 0, y: 0, width: 300, height: 40))
+        tabBar.appearance = NSAppearance(named: .aqua)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 200),
             styleMask: [.borderless],
@@ -550,7 +562,8 @@ final class TabBarViewTests: XCTestCase {
         )
         window.contentView = tabBar
 
-        tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
+        tabBar.configure(with: try makePortal(tabs: [tab, otherTab], selected: tab.id))
+        tabBar.updateNavigation(canGoBack: true)
         tabBar.layoutSubtreeIfNeeded()
 
         XCTAssertFalse(window.isKeyWindow)
@@ -566,7 +579,26 @@ final class TabBarViewTests: XCTestCase {
         )
         XCTAssertFalse(tabButton.isBordered)
         XCTAssertEqual(tabColor, .unemphasizedSelectedTextColor)
+        XCTAssertEqual(tabButton.layer?.borderWidth, 1)
         XCTAssertGreaterThan(tabButton.layer?.backgroundColor?.alpha ?? 0, 0)
+        let otherButton = try XCTUnwrap(tabBar.tabButtons[otherTab.id])
+        let otherTitleColor = try XCTUnwrap(
+            otherButton.attributedTitle.attribute(
+                .foregroundColor,
+                at: 0,
+                effectiveRange: nil
+            ) as? NSColor
+        )
+        let backTitleColor = try XCTUnwrap(
+            tabBar.backButton.attributedTitle.attribute(
+                .foregroundColor,
+                at: 0,
+                effectiveRange: nil
+            ) as? NSColor
+        )
+        XCTAssertEqual(otherTitleColor, .black)
+        XCTAssertEqual(tabBar.backButton.contentTintColor, .black)
+        XCTAssertEqual(backTitleColor, .black)
     }
 
     @MainActor

@@ -62,7 +62,7 @@ final class PortalChromeMaterialViewTests: XCTestCase {
                 supportsGlass: true,
                 accessibility: standard
             ),
-            .visualEffect
+            .glass
         )
     }
 
@@ -161,7 +161,8 @@ final class PortalChromeMaterialViewTests: XCTestCase {
     }
 
     @MainActor
-    func testPortalSurfaceUsesAlwaysActiveBackgroundMaterial() throws {
+    func testPortalSurfaceUsesUntintedNativeGlassByDefault() throws {
+        guard #available(macOS 26.0, *) else { return }
         let host = PortalChromeMaterialView(
             contentView: NSView(),
             role: .surface,
@@ -170,13 +171,51 @@ final class PortalChromeMaterialViewTests: XCTestCase {
             notificationCenter: NotificationCenter()
         )
 
-        let effect = try XCTUnwrap(host.materialView as? NSVisualEffectView)
-        XCTAssertEqual(host.materialPath, .visualEffect)
-        XCTAssertEqual(effect.material, .popover)
-        XCTAssertEqual(effect.state, .active)
-        XCTAssertEqual(effect.layer?.cornerRadius, 24)
+        let glass = try XCTUnwrap(host.materialView as? NSGlassEffectView)
+        XCTAssertEqual(host.materialPath, .glass)
+        XCTAssertEqual(glass.style, .regular)
+        XCTAssertNil(glass.tintColor)
+        XCTAssertEqual(glass.cornerRadius, 24)
         XCTAssertEqual(host.alphaValue, 1, accuracy: 0.001)
-        XCTAssertEqual(try tintColor(of: host).alphaComponent, 0.16, accuracy: 0.001)
+        XCTAssertNil(host.surfaceTintView)
+    }
+
+    @MainActor
+    func testPortalGlassSurfaceMapsBackgroundStyleAndBuiltInTint() throws {
+        guard #available(macOS 26.0, *) else { return }
+        let surface = PortalChromeMaterialView(
+            contentView: NSView(),
+            role: .surface,
+            backgroundStyle: .maximumTransparency,
+            accessibilityProvider: { .standard },
+            supportsGlass: true,
+            notificationCenter: NotificationCenter()
+        )
+        let glass = try XCTUnwrap(surface.materialView as? NSGlassEffectView)
+
+        XCTAssertEqual(glass.style, .clear)
+        XCTAssertNil(glass.tintColor)
+        surface.updateBackgroundStyle(.highTransparency)
+        XCTAssertEqual(glass.style, .clear)
+        XCTAssertEqual(
+            try XCTUnwrap(glass.tintColor).alphaComponent,
+            0.06,
+            accuracy: 0.001
+        )
+        surface.updateBackgroundStyle(.standard)
+        XCTAssertEqual(glass.style, .regular)
+        XCTAssertNil(glass.tintColor)
+
+        surface.updatePortalTint(.blue)
+        let standardBlue = try XCTUnwrap(glass.tintColor?.usingColorSpace(.sRGB))
+        XCTAssertEqual(standardBlue.blueComponent, 1, accuracy: 0.001)
+        XCTAssertEqual(standardBlue.alphaComponent, 0.16, accuracy: 0.001)
+        surface.updateBackgroundStyle(.lowTransparency)
+        XCTAssertEqual(
+            try XCTUnwrap(glass.tintColor).alphaComponent,
+            0.26,
+            accuracy: 0.001
+        )
     }
 
     @MainActor

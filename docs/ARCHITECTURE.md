@@ -126,9 +126,9 @@ App entry point and global coordination.
 Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
-- `TabBarView` — one centered folder-name strip and a fixed trailing settings icon. A transparent horizontal `NSScrollView` remains the stable host and enables its scroller only when the equal-width tabs overflow, avoiding coordinate changes during first layout and updates. Back and folder controls share a borderless, shadow-free adaptive capsule style with hover, pressed, key-window selection, and accessibility states. All folder tabs use one equal width per global content preset (`88/104/120pt`) and heights `26/28/30pt`; long titles truncate with their full value retained in the tooltip and accessibility label. The gear menu uses SF Symbols for pin, sort, settings, and removal. Portal settings expose all three sort choices as native radio buttons and all eight built-in tints as circular single-selection swatches above no hidden pop-up state. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
+- `TabBarView` — one centered folder-name strip and a fixed trailing settings icon. A transparent horizontal `NSScrollView` remains the stable host and enables its scroller only when the equal-width tabs overflow, avoiding coordinate changes during first layout and updates. Back and folder controls share a borderless, shadow-free adaptive capsule style with hover, pressed, application/window-aware selection, and accessibility states. All folder tabs use one equal width per global content preset (`76/84/92pt`) and heights `26/28/30pt`; long titles truncate with their full value retained in the tooltip and accessibility label. The Back button groups its image and title with `imageHugsTitle` instead of pinning the chevron to the bezel edge. The gear menu uses SF Symbols for pin, sort, settings, and removal. Portal settings expose all three sort choices as native radio buttons and all eight built-in tints as circular single-selection swatches above no hidden pop-up state. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
 - `FolderPathBarView` — a plain reserved bottom row derived from the selected tab URL; it abbreviates the home directory as `~`, keeps Terminal and Copy fixed at the trailing edge with flexible space after the path, and copies the absolute path to `NSPasteboard`
-- `PortalChromeMaterialView` — the content surface keeps an always-active `.popover`-material `NSVisualEffectView` at full strength; global background level controls overlay strength while each Portal selects a persisted neutral/red/orange/yellow/green/blue/indigo/purple hue
+- `PortalChromeMaterialView` — the standard macOS 26 surface is an untinted `.regular` `NSGlassEffectView`; other background levels select public `.clear`/`.regular` styles and tint strengths, while built-in colors use `NSGlassEffectView.tintColor`. macOS 15 keeps the active `.popover` `NSVisualEffectView` plus overlay fallback. Reduce Transparency selects the opaque path on both systems.
 - Layout: tab bar at top, a fixed path row at bottom, and the icon grid between them. Both chrome rows are included in creation, minimum-size, live-resize, and persisted-capacity geometry
 - Portal size intent is `GridCapacity`, not a remembered pixel size. Creation and content-size changes derive the content frame from the same `GridMetrics`. Changing Small/Medium/Large keeps each free Portal's top-left intent, while attached Portals and screen-edge relationships move together to retain the selected exact gap. The complete per-display resize is preflighted before all windows animate; an impossible layout rejects the preference without a partial update. New Portal creation starts at Medium.
 - Rendering hierarchy: the background material, file grid, top control row,
@@ -637,7 +637,7 @@ PortalWindowController / NSApplication
 - A tab switch invalidates the outgoing selection and relinquishes control. Window close detaches the responder and clears owned panel references.
 - Dismissal behavior when the portal loses key-window status remains manual/spike-validated; do not assume it always dismisses merely because the portal loses key status.
 
-**Prototype Gate:** Automated tests verify selection ordering, explicit ownership, takeover safety, second-Space dismissal policy, and responder restoration. Actual preview rendering, carousel navigation, focus handoff, and desktop-level behavior across macOS 15–26 still require manual validation.
+**Prototype Gate:** Automated tests verify selection ordering, explicit ownership, takeover safety, second-Space dismissal policy, and responder restoration. Actual preview rendering, carousel navigation, focus handoff, and desktop-level behavior across macOS 15 and macOS 26 still require manual validation.
 
 ---
 
@@ -645,21 +645,24 @@ PortalWindowController / NSApplication
 
 | macOS Version | Material API | Scope |
 |---------------|-------------|-------|
-| 26+ | Active `NSVisualEffectView` for the content surface; system Glass bezels for suitable settings actions | Stable Portal background contrast with native settings controls |
-| 15–25 | Active `NSVisualEffectView`; rounded native settings controls | Same Portal layout and persistent active appearance |
+| 26+ | Untinted `.regular` `NSGlassEffectView` for the standard content surface; public Glass style/tint variants for user-selected appearance | System-adaptive Portal background with native settings controls |
+| 15 | Active `NSVisualEffectView`; rounded native settings controls | Same Portal layout with a deliberate material fallback |
 
 The portal uses a plain root container whose surface material, file grid, top
 control row, bottom path row, and separators are siblings. The Portal itself has
-no secondary control-group material. Its content background uses
-`NSVisualEffectView.state = .active`; folder labels and the selected Tab use
-explicit appearance-aware colors that do not dim when another app is active.
+no secondary control-group material. On macOS 26 the standard default surface uses
+`.regular` `NSGlassEffectView` with no tint so the system owns its adaptive appearance.
+The selected Tab uses emphasized colors only while the application is active and
+its Portal is key; the inactive selection remains neutral but receives an explicit
+outline for legibility.
 
-The file grid remains ordinary content on the portal's active frosted surface. AppKit does
-not expose the private Notification Center material as a public semantic material, so the
-surface uses the closest public floating-surface approximation, `.popover`, at full
-strength. Transparency changes therefore do not weaken its blur. Each Portal persists one
-of five neutral overlay levels with alpha values 0.04, 0.08, 0.16, 0.26, and 0.34. The default tint uses a neutral gray in both Aqua and Dark Aqua so bright wallpapers do not receive an additional cool-blue cast; explicit rainbow presets replace only the hue while preserving the same global alpha, allowing the
-material to inherit color from the desktop instead of imposing a fixed hue. Reduce
+The file grid remains ordinary content on the portal surface. AppKit does not expose
+Notification Center's private card recipe as a semantic material. On macOS 26 the closest
+public system-adaptive surface is `.regular` `NSGlassEffectView`; the standard default leaves
+`tintColor` unset. The two lighter levels use `.clear`, the two heavier levels add neutral
+Glass tint, and explicit rainbow presets use the same public `tintColor` property. macOS 15
+uses active `.popover` `NSVisualEffectView` with overlay alpha values 0.04, 0.08, 0.16, 0.26,
+and 0.34. Reduce
 Transparency removes the overlay and uses the existing opaque accessibility surface
 without changing the saved preference. File cells and selection highlights do not create glass layers: icons
 stay as standard `NSImage` values from `NSWorkspace`, preserving readability and

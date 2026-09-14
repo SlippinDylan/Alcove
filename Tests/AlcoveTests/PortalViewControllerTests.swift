@@ -267,11 +267,22 @@ final class PortalViewControllerTests: XCTestCase {
         controller.updatePortal(portal)
 
         XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-        if surface.materialPath == .opaque {
+        switch surface.materialPath {
+        case .opaque:
             XCTAssertNil(surface.surfaceTintView)
-        } else {
+        case .visualEffect:
             let tintColor = try XCTUnwrap(surface.surfaceTintView?.layer?.backgroundColor)
             XCTAssertEqual(tintColor.alpha, 0.26, accuracy: 0.001)
+        case .glass:
+            if #available(macOS 26.0, *) {
+                let glass = try XCTUnwrap(surface.materialView as? NSGlassEffectView)
+                XCTAssertEqual(glass.style, .regular)
+                XCTAssertEqual(
+                    try XCTUnwrap(glass.tintColor).alphaComponent,
+                    0.12,
+                    accuracy: 0.001
+                )
+            }
         }
         XCTAssertEqual(controller.presentationState, .items(1))
         XCTAssertEqual(invalidationCount, 0)

@@ -31,7 +31,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 原生 AppKit 应用，最低 macOS 15，主要视觉目标 macOS 26。
 - `LSUIElement` 菜单栏应用，不显示 Dock 图标。
 - 通用架构：`arm64 + x86_64`。
-- macOS 26 使用适用的 Liquid Glass；macOS 15–25 使用原生 `NSVisualEffectView` 回退。
+- macOS 26 使用适用的 Liquid Glass；macOS 15 使用原生 `NSVisualEffectView` 回退。Apple 在 macOS 15 后直接采用年份版本号 26，不存在 macOS 16～25 产品版本。
 - 正式签名、证书和最终 DMG 发布不是当前 UI 功能工作的阻塞项；用户已明确要求暂时不要处理正式签名。
 - GitHub CI 和无签名通用验证制品已经存在，但最近的用户工作约定是：每轮完成后可以本地 commit，**不要自动 push，也不要监控 CI**，除非用户重新明确要求。
 
@@ -46,7 +46,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 - 支持多个 Portal、多个显示器和每个 Portal 多个 Tab。
 - Tab 按创建顺序持久化；当前选中 Tab 持久化。
-- Tab 位于顶部水平居中的透明滚动条带中；未溢出时隐藏滚动条，溢出时才允许横向滚动，Stack 始终保持同一宿主以避免首次布局坐标跳变。返回与文件夹 Tab 共用无边框、无阴影的扁平胶囊样式，并保留 hover、pressed、key-window 选中和无障碍状态。所有文件夹 Tab 在同一内容档位下等宽，Small/Medium/Large 分别为 `88/104/120pt` 宽、`26/28/30pt` 高；长名称截断但 Tooltip 和无障碍名称保持完整。顶部控制区与文件网格之间使用轻分割线。Portal 接收任意左键点击时先成为 key window，顶部拖动区与内容区使用一致的激活语义。
+- Tab 位于顶部水平居中的透明滚动条带中；未溢出时隐藏滚动条，溢出时才允许横向滚动，Stack 始终保持同一宿主以避免首次布局坐标跳变。返回与文件夹 Tab 共用无边框、无阴影的扁平胶囊样式，并保留 hover、pressed、激活/失活选中和无障碍状态。活跃蓝色选中态使用白色标题保证对比度，非活跃选中态使用中性文字和描边；未选中 Tab、返回文字及返回图标统一使用浅色外观黑色/深色外观白色的主文字色。所有文件夹 Tab 在同一内容档位下等宽，Small/Medium/Large 分别为 `76/84/92pt` 宽、`26/28/30pt` 高；长名称截断但 Tooltip 和无障碍名称保持完整。返回按钮用 `imageHugsTitle` 将箭头和文字作为一个整体居中。顶部控制区与文件网格之间使用轻分割线。Portal 接收任意左键点击时先激活 Alcove 并成为 key window；选中强调同时取决于 `NSApplication.isActive` 与 `NSWindow.isKeyWindow`，避免打开 Finder/Terminal 后残留蓝色。
 - 单个 Tab 只显示一个小胶囊；Tab 上不放加号或关闭叉号。
 - Tab 编辑集中在右上角设置入口。
 - 右上角齿轮打开原生菜单：钉住/取消钉住、排序方式子菜单、面板设置、确认后删除面板。顶部不再单独显示图钉；钉住状态仍按 Portal 持久化，并且不阻断显示器恢复或内容交互。
@@ -224,7 +224,7 @@ Tab 从左侧改为水平居中后，布局时机和材质层级共同导致单�
 
 ### 6.3 毛玻璃发黄
 
-直接依赖某些 material 的底色会受桌面壁纸和 appearance 影响而发黄。当前表面采用接近原生通知的 `.popover` material，并保持模糊层强度；默认 tint 在浅色模式使用中性灰 `0.72/0.72/0.72`，深色模式使用中性深灰 `0.18/0.18/0.18`，避免在亮色壁纸上额外叠加蓝紫色偏色，再由全局五档 alpha 调节背景强度。不要通过降低整个 visual effect alpha 来调透明度，否则模糊强度也会丢失。
+macOS 26 的标准默认表面直接使用 `.regular` `NSGlassEffectView`，`tintColor == nil`，由系统根据壁纸决定原生 Glass 外观。最透明/较透明档使用 `.clear`，较不透明档使用 `.regular` 加轻量中性 tint；彩色预设通过 `NSGlassEffectView.tintColor` 着色，不再叠加普通颜色 View。macOS 15 使用 `.popover` `NSVisualEffectView` 与现有五档覆盖层回退。不要通过降低整个材质 View 的 alpha 调透明度，否则模糊强度也会丢失。
 
 ### 6.4 图标尺寸只有三个稳定档位
 

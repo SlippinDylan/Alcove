@@ -26,15 +26,15 @@ struct PortalCapsuleMetrics: Equatable {
     init(iconSize: IconSize) {
         switch iconSize {
         case .small:
-            tabWidth = 88
+            tabWidth = 76
             height = 26
             controlSize = .small
         case .large:
-            tabWidth = 120
+            tabWidth = 92
             height = 30
             controlSize = .large
         default:
-            tabWidth = 104
+            tabWidth = 84
             height = 28
             controlSize = .regular
         }
@@ -201,6 +201,7 @@ final class TabBarView: NSView {
         backButton.title = NSLocalizedString("portal.navigation.back", comment: "Back")
         backButton.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil)
         backButton.imagePosition = .imageLeading
+        backButton.imageHugsTitle = true
         backButton.target = self
         backButton.action = #selector(navigateBack)
         backButton.apply(metrics: capsuleMetrics)
@@ -1445,28 +1446,31 @@ class PortalFlatCapsuleButton: NSButton {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        NotificationCenter.default.removeObserver(
-            self,
-            name: NSWindow.didBecomeKeyNotification,
-            object: nil
-        )
-        NotificationCenter.default.removeObserver(
-            self,
-            name: NSWindow.didResignKeyNotification,
-            object: nil
-        )
+        NotificationCenter.default.removeObserver(self)
         if let window {
             NotificationCenter.default.addObserver(
                 self,
-                selector: #selector(windowKeyStateDidChange),
+                selector: #selector(activationStateDidChange),
                 name: NSWindow.didBecomeKeyNotification,
                 object: window
             )
             NotificationCenter.default.addObserver(
                 self,
-                selector: #selector(windowKeyStateDidChange),
+                selector: #selector(activationStateDidChange),
                 name: NSWindow.didResignKeyNotification,
                 object: window
+            )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(activationStateDidChange),
+                name: NSApplication.didBecomeActiveNotification,
+                object: NSApplication.shared
+            )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(activationStateDidChange),
+                name: NSApplication.didResignActiveNotification,
+                object: NSApplication.shared
             )
         }
         updateCapsuleAppearance()
@@ -1531,25 +1535,35 @@ class PortalFlatCapsuleButton: NSButton {
         updateCapsuleAppearance()
     }
 
-    @objc private func windowKeyStateDidChange() {
+    @objc private func activationStateDidChange() {
         updateCapsuleAppearance()
     }
 
     private func updateCapsuleAppearance(isPressed: Bool = false) {
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            let isEmphasized = window?.isKeyWindow ?? true
+            let isEmphasized = window.map {
+                NSApplication.shared.isActive && $0.isKeyWindow
+            } ?? true
+            let primaryForeground: NSColor = effectiveAppearance.bestMatch(
+                from: [.darkAqua, .aqua]
+            ) == .darkAqua ? .white : .black
             let baseBackground: NSColor
             let foreground: NSColor
             if usesSelectedAppearance {
-                baseBackground = isEmphasized
-                    ? .selectedContentBackgroundColor
-                    : .unemphasizedSelectedContentBackgroundColor
+                if isEmphasized {
+                    baseBackground = .selectedContentBackgroundColor
+                } else {
+                    baseBackground = NSColor.unemphasizedSelectedContentBackgroundColor.blended(
+                        withFraction: 0.10,
+                        of: .labelColor
+                    ) ?? .unemphasizedSelectedContentBackgroundColor
+                }
                 foreground = isEmphasized
-                    ? .alternateSelectedControlTextColor
+                    ? .white
                     : .unemphasizedSelectedTextColor
             } else {
                 baseBackground = .quaternarySystemFill
-                foreground = .labelColor
+                foreground = primaryForeground
             }
             let background: NSColor
             if isPressed {
@@ -1575,9 +1589,14 @@ class PortalFlatCapsuleButton: NSButton {
                     .foregroundColor: foreground,
                 ]
             )
+            contentTintColor = foreground
             layer?.backgroundColor = background.cgColor
-            layer?.borderWidth = usesSelectedAppearance ? 0 : 0.5
-            layer?.borderColor = NSColor.separatorColor.cgColor
+            layer?.borderWidth = usesSelectedAppearance
+                ? (isEmphasized ? 0 : 1)
+                : 0.5
+            layer?.borderColor = usesSelectedAppearance && !isEmphasized
+                ? NSColor.secondaryLabelColor.cgColor
+                : NSColor.separatorColor.cgColor
             layer?.shadowOpacity = 0
         }
     }

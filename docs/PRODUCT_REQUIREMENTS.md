@@ -193,7 +193,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-10 | Multiple displays supported | MVP |
 | FR-11 | Menu-bar icon with portal management menu | MVP |
 | FR-12 | All Portals share one global content-size preset and one global five-step background level on always-active frosted content materials; changing size is preflighted for every Portal before any frame changes. Lightweight separators distinguish the top controls and bottom path row without additional capsule materials. Clicking the top controls or draggable background activates the Portal just like clicking its grid or path row. | MVP |
-| FR-13 | NSVisualEffectView fallback on macOS 15–25 | MVP |
+| FR-13 | NSVisualEffectView fallback on macOS 15 | MVP |
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
@@ -331,7 +331,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 - Portal creation, display, selection, opening, Quick Look
 - Multiple tabs (add, switch, close, creation-order persistence, selected-tab persistence), multiple portals, multiple displays
 - Stable display identity and frame persistence
-- Liquid Glass (macOS 26) and NSVisualEffectView (macOS 15–25) compatibility
+- Liquid Glass (macOS 26) and NSVisualEffectView (macOS 15) compatibility
 - Menu-bar management UI
 - Trash selected items and copy/move file-URL drops with fail-closed conflict handling
 - GitHub distribution readiness; signing mode and installation procedure remain gated by Spike 0.6

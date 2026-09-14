@@ -416,7 +416,7 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - Per-portal Small/Medium/Large icon sizing, fixed equal tile spacing, resize snap, and 3×1 minimum.
 - Per-portal five-step frosted-background control, persisted independently with an accessibility-driven opaque override.
 - Application-global five-step edge/inter-Portal spacing and corner radius, plus a system-shadow toggle; creation, dragging, live resize, and icon-preset resize reject collisions, while spacing changes preflight and animate a reversible runtime reflow of existing Portals.
-- Evidence-backed Liquid Glass chrome on macOS 26 and `NSVisualEffectView` fallback on macOS 15–25.
+- Evidence-backed Liquid Glass chrome on macOS 26 and `NSVisualEffectView` fallback on macOS 15.
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
 - Performance validation for defined NFR directory sizes.
 - PR CI for build, tests, and unsigned artifacts.

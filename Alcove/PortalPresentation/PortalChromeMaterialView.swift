@@ -37,7 +37,7 @@ enum PortalChromeMaterialResolver {
         if accessibility.reduceTransparency {
             return .opaque
         }
-        return role == .controlGroup && supportsGlass ? .glass : .visualEffect
+        return supportsGlass ? .glass : .visualEffect
     }
 }
 
@@ -284,6 +284,10 @@ final class PortalChromeMaterialView: NSView {
             return
         }
         alphaValue = 1
+        if #available(macOS 26.0, *), let glass = materialView as? NSGlassEffectView {
+            applyGlassSurfaceStyle(glass)
+            return
+        }
         guard materialPath == .visualEffect else { return }
         let tintAlpha: CGFloat = switch backgroundStyle {
         case .maximumTransparency: 0.04
@@ -296,6 +300,47 @@ final class PortalChromeMaterialView: NSView {
             .withAlphaComponent(tintAlpha)
             .cgColor
         (materialView as? NSVisualEffectView)?.material = visualEffectMaterial
+    }
+
+    @available(macOS 26.0, *)
+    private func applyGlassSurfaceStyle(_ glass: NSGlassEffectView) {
+        glass.style = switch backgroundStyle {
+        case .maximumTransparency, .highTransparency:
+            .clear
+        case .standard, .lowTransparency, .minimumTransparency:
+            .regular
+        }
+
+        let tintAlpha: CGFloat?
+        if portalTint == .default {
+            tintAlpha = switch backgroundStyle {
+            case .maximumTransparency, .standard:
+                nil
+            case .highTransparency:
+                0.06
+            case .lowTransparency:
+                0.12
+            case .minimumTransparency:
+                0.20
+            }
+        } else {
+            tintAlpha = switch backgroundStyle {
+            case .maximumTransparency:
+                0.04
+            case .highTransparency:
+                0.08
+            case .standard:
+                0.16
+            case .lowTransparency:
+                0.26
+            case .minimumTransparency:
+                0.34
+            }
+        }
+
+        glass.tintColor = tintAlpha.map {
+            surfaceTintColor.withAlphaComponent($0)
+        }
     }
 
     private var surfaceTintColor: NSColor {
