@@ -280,6 +280,7 @@ final class FileGridViewControllerTests: XCTestCase {
                 localized("portal.files.open"),
                 localized("portal.files.quick_look"),
                 localized("portal.files.show_in_finder"),
+                localized("portal.files.get_info"),
                 "",
                 localized("portal.files.rename"),
                 localized("portal.files.duplicate"),
@@ -567,6 +568,63 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(output.count, 2)
         XCTAssertEqual(try Data(contentsOf: output[0]), Data("second".utf8))
         XCTAssertEqual(try Data(contentsOf: output[1]), Data("first".utf8))
+    }
+
+    @MainActor
+    func testGetInfoContextActionRequiresOneItemAndRoutesItsURL() throws {
+        let inspector = FileInspectorPresenterSpy()
+        let controller = FileGridViewController(fileInspectorPresenter: inspector)
+        controller.loadView()
+        let items = makeItems(count: 2)
+        controller.setItems(items)
+        controller.handleClick(index: 1, modifiers: [])
+        let menu = try XCTUnwrap(controller.contextMenu(forItemAt: 1))
+        let getInfo = try XCTUnwrap(menu.item(withTitle: localized("portal.files.get_info")))
+
+        XCTAssertTrue(controller.validateMenuItem(getInfo))
+        performMenuItem(titled: localized("portal.files.get_info"), in: menu)
+        XCTAssertEqual(inspector.inspectedURLs, [items[1].url])
+
+        controller.handleClick(index: 0, modifiers: .command)
+        XCTAssertFalse(controller.validateMenuItem(getInfo))
+    }
+
+    func testInspectorLoaderReportsMetadataAndDoesNotTraverseSymlinks() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let external = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: external, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: root)
+            try? FileManager.default.removeItem(at: external)
+        }
+        let file = root.appendingPathComponent("first.bin")
+        let nested = root.appendingPathComponent("Nested", isDirectory: true)
+        let nestedFile = nested.appendingPathComponent("second.bin")
+        let externalFile = external.appendingPathComponent("outside.bin")
+        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+        try Data(repeating: 1, count: 3).write(to: file)
+        try Data(repeating: 2, count: 5).write(to: nestedFile)
+        try Data(repeating: 3, count: 100).write(to: externalFile)
+        try FileManager.default.createSymbolicLink(
+            at: root.appendingPathComponent("External Link"),
+            withDestinationURL: external
+        )
+        let loader = FileInspectorLoader()
+
+        let fileMetadata = try await loader.metadata(for: file)
+        let folderMetadata = try await loader.metadata(for: root)
+        let folderSize = try await loader.folderSize(for: root)
+
+        XCTAssertEqual(fileMetadata.name, "first.bin")
+        XCTAssertFalse(fileMetadata.localizedType.isEmpty)
+        XCTAssertEqual(fileMetadata.fileSize, 3)
+        XCTAssertFalse(fileMetadata.calculatesFolderSize)
+        XCTAssertNil(folderMetadata.fileSize)
+        XCTAssertTrue(folderMetadata.calculatesFolderSize)
+        XCTAssertEqual(folderSize, 8)
     }
 
     func testTransferPlanRejectsSameDestinationAndNameConflicts() throws {
@@ -1102,6 +1160,15 @@ private final class FileDuplicatorSpy: FileDuplicating {
             urls.map { $0.deletingPathExtension().appendingPathExtension("copy") },
             nil
         )
+    }
+}
+
+@MainActor
+private final class FileInspectorPresenterSpy: FileInspectorPresenting {
+    private(set) var inspectedURLs: [URL] = []
+
+    func showInspector(for url: URL) {
+        inspectedURLs.append(url)
     }
 }
 

@@ -80,6 +80,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     private let contextActionPerformer: any FileContextActionPerforming
     private let fileRenamer: any FileRenaming
     private let fileDuplicator: any FileDuplicating
+    private let fileInspectorPresenter: any FileInspectorPresenting
     private var metrics: GridMetrics
     private var gridCapacity: GridCapacity
     private var items: [FileItem] = []
@@ -101,6 +102,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         contextActionPerformer: any FileContextActionPerforming = SystemFileContextActionPerformer(),
         fileRenamer: any FileRenaming = CoordinatedFileRenamingService(),
         fileDuplicator: any FileDuplicating = SystemFileDuplicator(),
+        fileInspectorPresenter: any FileInspectorPresenting = SystemFileInspectorPresenter(),
         iconSize: IconSize = .medium,
         textSize: CGFloat = 12,
         gridCapacity: GridCapacity = .minimum
@@ -113,6 +115,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         self.contextActionPerformer = contextActionPerformer
         self.fileRenamer = fileRenamer
         self.fileDuplicator = fileDuplicator
+        self.fileInspectorPresenter = fileInspectorPresenter
         metrics = GridMetrics(iconSize: iconSize, labelFontSize: textSize)
         self.gridCapacity = gridCapacity
         super.init(nibName: nil, bundle: nil)
@@ -444,6 +447,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         menu.addItem(menuItem("portal.files.open", action: #selector(openFromContextMenu)))
         menu.addItem(menuItem("portal.files.quick_look", action: #selector(quickLookFromContextMenu)))
         menu.addItem(menuItem("portal.files.show_in_finder", action: #selector(revealFromContextMenu)))
+        menu.addItem(menuItem("portal.files.get_info", action: #selector(inspectFromContextMenu)))
         menu.addItem(.separator())
         menu.addItem(menuItem("portal.files.rename", action: #selector(renameFromContextMenu)))
         menu.addItem(menuItem("portal.files.duplicate", action: #selector(duplicateFromContextMenu)))
@@ -474,6 +478,9 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         if menuItem.action == #selector(renameFromContextMenu) {
             return urls.count == 1
         }
+        if menuItem.action == #selector(inspectFromContextMenu) {
+            return urls.count == 1
+        }
         return true
     }
 
@@ -490,6 +497,12 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
 
     @objc private func revealFromContextMenu() {
         contextActionPerformer.revealInFinder(selectedItemsInGridOrder.map(\.url))
+    }
+
+    @objc private func inspectFromContextMenu() {
+        let selectedItems = selectedItemsInGridOrder
+        guard selectedItems.count == 1, let item = selectedItems.first else { return }
+        fileInspectorPresenter.showInspector(for: item.url)
     }
 
     @objc private func trashFromContextMenu() {
