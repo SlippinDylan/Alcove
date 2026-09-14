@@ -26,6 +26,8 @@ protocol PortalWindowPresenting: AnyObject {
         isValidFrame: @escaping (NSRect) -> Bool
     )
     func reloadSelectedFolder()
+    func showPortalSettings()
+    func confirmPortalRemoval()
     func applySystemPlacement(frame: NSRect, animated: Bool) -> Bool
     func close()
 }

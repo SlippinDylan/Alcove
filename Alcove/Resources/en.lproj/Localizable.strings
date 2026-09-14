@@ -119,7 +119,9 @@
 "portal.settings.style" = "Style";
 "portal.settings.open" = "Panel Settings…";
 "portal.settings.sorting" = "Sorting";
+"portal.settings.sort.description" = "Choose how folders and files are arranged in this panel.";
 "portal.settings.tint" = "Color";
+"portal.settings.tint.description" = "Choose a color tint for this panel's frosted background.";
 "portal.settings.add_folder" = "Add Folder";
 "portal.settings.reorder_folder" = "Drag to reorder folder";
 "portal.settings.remove_folder_action" = "Remove Folder";

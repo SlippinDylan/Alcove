@@ -50,6 +50,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 单个 Tab 只显示一个小胶囊；Tab 上不放加号或关闭叉号。
 - Tab 编辑集中在右上角设置入口。
 - 右上角齿轮打开原生菜单：钉住/取消钉住、排序方式子菜单、面板设置、确认后删除面板。顶部不再单独显示图钉；钉住状态仍按 Portal 持久化，并且不阻断显示器恢复或内容交互。
+- 齿轮菜单的钉住、排序、面板设置和删除项都使用对应 SF Symbol。单面板 General 将三种排序方式直接显示为原生单选项；Style 将八种内置 tint 直接显示为圆形颜色单选，不再使用下拉菜单。
 - 每个 Portal 持久化名称/修改时间/创建时间排序，以及默认、红、橙、黄、绿、蓝、靛、紫八种内置磨玻璃 tint；透明强度仍由全局 Style 统一控制。
 - 关闭最后一个已有 Tab 时，仍需确认是否移除整个 Portal。
 - 空 Portal 是合法、可持久化状态：`tabs == []` 时 `selectedTabID == nil`；非空时必须存在一个属于 `tabs` 的选中 ID。
@@ -171,8 +172,9 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 ### 3.10 菜单栏与本地化
 
-- 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；Portal 名称的二级菜单只提供 Show 和 Hide。
+- 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；每个 Portal 名称的二级菜单提供带 SF Symbol 的 Show、Hide、Pin/Unpin、Panel Settings 和确认后 Remove。
 - 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / Advanced / About。General 只提供系统登录时自动启动；Style 统一控制三档内容大小、五档背景透明度、五档面板间距、五档圆角和系统阴影；Advanced 通过独立的布局备份 v1 JSON 执行完整导入/导出；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观写入 `UserDefaults`，不复制 Portal v11 的单面板排序和颜色状态。
+- 全局 Style 卡片的每个设置行之间使用系统分割线；Advanced 备份卡片继续以一条系统分割线区分说明和操作按钮。
 - 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
 - English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
 

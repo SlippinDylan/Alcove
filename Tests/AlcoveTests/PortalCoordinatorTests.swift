@@ -1071,6 +1071,10 @@ final class PortalCoordinatorTests: XCTestCase {
         XCTAssertEqual(factory.windows[0].presentCount, 2)
         coordinator.hidePortal(portal.id)
         XCTAssertEqual(factory.windows[0].hideCount, 1)
+        coordinator.showPortalSettings(portal.id)
+        coordinator.confirmPortalRemoval(portal.id)
+        XCTAssertEqual(factory.windows[0].showPortalSettingsCount, 1)
+        XCTAssertEqual(factory.windows[0].confirmPortalRemovalCount, 1)
 
         await coordinator.setIconSize(.large, for: portal.id)
 
@@ -1737,6 +1741,8 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
     private(set) var systemFrames: [NSRect] = []
     private(set) var systemPlacementAnimations: [Bool] = []
     private(set) var selectedFolderReloadCount = 0
+    private(set) var showPortalSettingsCount = 0
+    private(set) var confirmPortalRemovalCount = 0
     private(set) var constrainDrag: ((NSRect, NSRect, NSPoint) -> NSRect)?
     private(set) var isValidFrame: ((NSRect) -> Bool)?
     var acceptsSystemPlacement = true
@@ -1768,6 +1774,14 @@ private final class PortalWindowPresenterSpy: PortalWindowPresenting {
 
     func reloadSelectedFolder() {
         selectedFolderReloadCount += 1
+    }
+
+    func showPortalSettings() {
+        showPortalSettingsCount += 1
+    }
+
+    func confirmPortalRemoval() {
+        confirmPortalRemovalCount += 1
     }
 
     func applySystemPlacement(frame: NSRect, animated: Bool) -> Bool {

@@ -216,12 +216,21 @@ final class PortalViewControllerTests: XCTestCase {
 
     @MainActor
     func testPathBarUsesPlainContentWithoutACapsuleOrNestedMaterial() {
-        let pathBar = FolderPathBarView()
+        let pathBar = FolderPathBarView(frame: NSRect(x: 0, y: 0, width: 420, height: 38))
         pathBar.update(folderURL: URL(fileURLWithPath: "/Users/example/Folder"))
+        pathBar.layoutSubtreeIfNeeded()
 
         XCTAssertFalse(pathBar.contentView is NSVisualEffectView)
         XCTAssertNil(pathBar.contentView.layer)
         XCTAssertNil(pathBar.contentView.layer?.backgroundColor)
+        let terminalFrame = pathBar.terminalButton.convert(
+            pathBar.terminalButton.bounds,
+            to: pathBar
+        )
+        let copyFrame = pathBar.copyButton.convert(pathBar.copyButton.bounds, to: pathBar)
+        XCTAssertGreaterThan(pathBar.actionSpacer.frame.width, 0)
+        XCTAssertLessThan(terminalFrame.maxX, copyFrame.minX)
+        XCTAssertEqual(copyFrame.maxX, pathBar.bounds.maxX - 12, accuracy: 0.5)
     }
 
     @MainActor

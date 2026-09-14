@@ -4,6 +4,13 @@ import AlcoveCore
 struct PortalMenuEntry: Equatable {
     let id: PortalID
     let title: String
+    let isPinned: Bool
+
+    init(id: PortalID, title: String, isPinned: Bool = false) {
+        self.id = id
+        self.title = title
+        self.isPinned = isPinned
+    }
 }
 
 @MainActor
@@ -13,6 +20,9 @@ final class StatusMenuController: StatusMenuControlling {
     private let onOpenSettings: () -> Void
     private let onShowPortal: (PortalID) -> Void
     private let onHidePortal: (PortalID) -> Void
+    private let onSetPortalPinned: (PortalID, Bool) -> Void
+    private let onOpenPortalSettings: (PortalID) -> Void
+    private let onRequestPortalRemoval: (PortalID) -> Void
     private var portalEntries: [PortalMenuEntry] = []
     private var actionTargets: [PortalMenuActionTarget] = []
     private(set) var statusItem: NSStatusItem?
@@ -22,13 +32,19 @@ final class StatusMenuController: StatusMenuControlling {
         onNewPortal: @escaping () -> Void,
         onOpenSettings: @escaping () -> Void = {},
         onShowPortal: @escaping (PortalID) -> Void = { _ in },
-        onHidePortal: @escaping (PortalID) -> Void = { _ in }
+        onHidePortal: @escaping (PortalID) -> Void = { _ in },
+        onSetPortalPinned: @escaping (PortalID, Bool) -> Void = { _, _ in },
+        onOpenPortalSettings: @escaping (PortalID) -> Void = { _ in },
+        onRequestPortalRemoval: @escaping (PortalID) -> Void = { _ in }
     ) {
         self.statusBar = statusBar
         self.onNewPortal = onNewPortal
         self.onOpenSettings = onOpenSettings
         self.onShowPortal = onShowPortal
         self.onHidePortal = onHidePortal
+        self.onSetPortalPinned = onSetPortalPinned
+        self.onOpenPortalSettings = onOpenPortalSettings
+        self.onRequestPortalRemoval = onRequestPortalRemoval
     }
 
     func start() {
@@ -140,16 +156,41 @@ final class StatusMenuController: StatusMenuControlling {
         let menu = NSMenu(title: entry.title)
         menu.addItem(makeActionItem(
             title: NSLocalizedString("menu.show", comment: "Show a portal"),
+            symbolName: "eye",
             action: .show(entry.id)
         ))
         menu.addItem(makeActionItem(
             title: NSLocalizedString("menu.hide", comment: "Hide a portal"),
+            symbolName: "eye.slash",
             action: .hide(entry.id)
+        ))
+        menu.addItem(.separator())
+        menu.addItem(makeActionItem(
+            title: entry.isPinned
+                ? NSLocalizedString("portal.pin.unpin", comment: "Unpin a portal")
+                : NSLocalizedString("portal.pin.pin", comment: "Pin a portal"),
+            symbolName: entry.isPinned ? "pin.slash" : "pin",
+            action: .setPinned(entry.id, !entry.isPinned)
+        ))
+        menu.addItem(makeActionItem(
+            title: NSLocalizedString("portal.settings.open", comment: "Open panel settings"),
+            symbolName: "gearshape",
+            action: .settings(entry.id)
+        ))
+        menu.addItem(.separator())
+        menu.addItem(makeActionItem(
+            title: NSLocalizedString("portal.remove.menu", comment: "Remove portal menu item"),
+            symbolName: "trash",
+            action: .remove(entry.id)
         ))
         return menu
     }
 
-    private func makeActionItem(title: String, action: PortalMenuAction) -> NSMenuItem {
+    private func makeActionItem(
+        title: String,
+        symbolName: String,
+        action: PortalMenuAction
+    ) -> NSMenuItem {
         let target = PortalMenuActionTarget(action: action, owner: self)
         actionTargets.append(target)
         let item = NSMenuItem(
@@ -158,6 +199,7 @@ final class StatusMenuController: StatusMenuControlling {
             keyEquivalent: ""
         )
         item.target = target
+        item.image = menuImage(symbolName: symbolName, accessibilityDescription: title)
         return item
     }
 
@@ -165,6 +207,9 @@ final class StatusMenuController: StatusMenuControlling {
         switch action {
         case .show(let id): onShowPortal(id)
         case .hide(let id): onHidePortal(id)
+        case .setPinned(let id, let isPinned): onSetPortalPinned(id, isPinned)
+        case .settings(let id): onOpenPortalSettings(id)
+        case .remove(let id): onRequestPortalRemoval(id)
         }
     }
 }
@@ -172,6 +217,9 @@ final class StatusMenuController: StatusMenuControlling {
 private enum PortalMenuAction {
     case show(PortalID)
     case hide(PortalID)
+    case setPinned(PortalID, Bool)
+    case settings(PortalID)
+    case remove(PortalID)
 }
 
 @MainActor

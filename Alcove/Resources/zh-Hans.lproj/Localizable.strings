@@ -119,7 +119,9 @@
 "portal.settings.style" = "样式";
 "portal.settings.open" = "面板设置…";
 "portal.settings.sorting" = "排序";
+"portal.settings.sort.description" = "选择此面板中文件夹和文件的排列方式。";
 "portal.settings.tint" = "颜色";
+"portal.settings.tint.description" = "为此面板的磨玻璃背景选择一种颜色。";
 "portal.settings.add_folder" = "添加文件夹";
 "portal.settings.reorder_folder" = "拖动以调整文件夹顺序";
 "portal.settings.remove_folder_action" = "移除文件夹";

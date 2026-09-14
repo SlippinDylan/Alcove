@@ -38,7 +38,7 @@ final class TabBarView: NSView {
         ))
         alert.addButton(withTitle: NSLocalizedString("action.cancel", comment: "Cancel"))
         alert.buttons.first?.hasDestructiveAction = true
-        if let window {
+        if let window, window.isVisible {
             alert.beginSheetModal(for: window) { response in
                 completion(response == .alertFirstButtonReturn)
             }
@@ -73,9 +73,9 @@ final class TabBarView: NSView {
         let groupWidth = min(stackView.fittingSize.width, maximumGroupWidth)
         let tabFrame = NSRect(
             x: bounds.midX - groupWidth / 2,
-            y: 6,
+            y: 0,
             width: groupWidth,
-            height: max(1, bounds.height - 12)
+            height: max(1, bounds.height)
         )
         scrollView.frame = tabFrame
 
@@ -138,6 +138,9 @@ final class TabBarView: NSView {
         stackView.spacing = 2
 
         scrollView.drawsBackground = false
+        scrollView.backgroundColor = .clear
+        scrollView.contentView.drawsBackground = false
+        scrollView.contentView.backgroundColor = .clear
         scrollView.hasHorizontalScroller = true
         scrollView.horizontalScroller?.controlSize = .mini
         scrollView.scrollerStyle = .overlay
@@ -256,6 +259,10 @@ final class TabBarView: NSView {
             keyEquivalent: ""
         )
         pinItem.target = self
+        pinItem.image = NSImage(
+            systemSymbolName: portal.isPinned ? "pin.slash" : "pin",
+            accessibilityDescription: nil
+        )
         menu.addItem(pinItem)
 
         let sortMenu = NSMenu()
@@ -276,6 +283,10 @@ final class TabBarView: NSView {
             keyEquivalent: ""
         )
         sortItem.submenu = sortMenu
+        sortItem.image = NSImage(
+            systemSymbolName: "arrow.up.arrow.down",
+            accessibilityDescription: nil
+        )
         menu.addItem(sortItem)
 
         let settingsItem = NSMenuItem(
@@ -284,6 +295,10 @@ final class TabBarView: NSView {
             keyEquivalent: ""
         )
         settingsItem.target = self
+        settingsItem.image = NSImage(
+            systemSymbolName: "gearshape",
+            accessibilityDescription: nil
+        )
         menu.addItem(settingsItem)
         menu.addItem(.separator())
 
@@ -316,7 +331,7 @@ final class TabBarView: NSView {
         onSetSortOrder?(PortalSortOrder.allCases[sender.tag])
     }
 
-    @objc private func confirmPortalRemoval() {
+    @objc func confirmPortalRemoval() {
         removalConfirmationPresenter(window) { [weak self] confirmed in
             guard confirmed else { return }
             self?.onRemovePortal?()
@@ -548,8 +563,8 @@ final class PortalSettingsViewController: NSViewController {
     private(set) var scrollView = NSScrollView()
     private(set) var contentStack: NSStackView = PortalSettingsContentStackView()
     private(set) var folderListView: PortalSettingsFolderListView?
-    private(set) var sortPopUpButton: NSPopUpButton?
-    private(set) var tintPopUpButton: NSPopUpButton?
+    private(set) var sortOptionButtons: [NSButton] = []
+    private(set) var tintOptionButtons: [PortalTintSwatchButton] = []
     private let documentView = PortalSettingsDocumentView()
 
     init(
@@ -676,18 +691,19 @@ final class PortalSettingsViewController: NSViewController {
         return button
     }
 
-    private func styleRow(title: String, control: NSView) -> NSStackView {
-        let label = NSTextField(labelWithString: title)
-        label.alignment = .left
-        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let row = NSStackView(views: [label, control])
-        row.orientation = .horizontal
-        row.distribution = .fill
-        row.alignment = .centerY
-        row.spacing = 12
-        row.userInterfaceLayoutDirection = .leftToRight
-        row.heightAnchor.constraint(equalToConstant: 40).isActive = true
-        return row
+    private func preferenceIntroduction(title: String, detail: String) -> NSStackView {
+        let titleLabel = NSTextField(labelWithString: title)
+        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        let detailLabel = NSTextField(wrappingLabelWithString: detail)
+        detailLabel.font = .systemFont(ofSize: 12)
+        detailLabel.textColor = .secondaryLabelColor
+        detailLabel.maximumNumberOfLines = 2
+        let labels = NSStackView(views: [titleLabel, detailLabel])
+        labels.orientation = .vertical
+        labels.alignment = .leading
+        labels.spacing = 3
+        labels.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
+        return labels
     }
 
     private func addSection(
@@ -730,19 +746,23 @@ final class PortalSettingsViewController: NSViewController {
             view.removeFromSuperview()
         }
         folderListView = nil
-        sortPopUpButton = nil
-        tintPopUpButton = nil
+        sortOptionButtons = []
+        tintOptionButtons = []
 
         switch category {
         case .general:
-            let popUp = makeSortPopUpButton()
-            sortPopUpButton = popUp
             addSection(
                 title: NSLocalizedString("portal.settings.sorting", comment: "Sorting section"),
-                card: PortalSettingsCardView(rows: [styleRow(
-                    title: NSLocalizedString("portal.sort.title", comment: "Sort order"),
-                    control: popUp
-                )])
+                card: PortalSettingsCardView(rows: [
+                    preferenceIntroduction(
+                        title: NSLocalizedString("portal.sort.title", comment: "Sort order"),
+                        detail: NSLocalizedString(
+                            "portal.settings.sort.description",
+                            comment: "Sort order description"
+                        )
+                    ),
+                    makeSortOptions(),
+                ])
             )
         case .folders:
             let folderContent: NSView
@@ -770,37 +790,66 @@ final class PortalSettingsViewController: NSViewController {
                 card: PortalSettingsCardView(rows: [folderContent])
             )
         case .style:
-            let popUp = makeTintPopUpButton()
-            tintPopUpButton = popUp
             addSection(
                 title: NSLocalizedString("portal.settings.appearance", comment: "Appearance section"),
-                card: PortalSettingsCardView(rows: [styleRow(
-                    title: NSLocalizedString("portal.settings.tint", comment: "Panel tint"),
-                    control: popUp
-                )])
+                card: PortalSettingsCardView(rows: [
+                    preferenceIntroduction(
+                        title: NSLocalizedString("portal.settings.tint", comment: "Panel tint"),
+                        detail: NSLocalizedString(
+                            "portal.settings.tint.description",
+                            comment: "Panel tint description"
+                        )
+                    ),
+                    makeTintOptions(),
+                ])
             )
         }
         layoutSettingsContent()
     }
 
-    private func makeSortPopUpButton() -> NSPopUpButton {
-        let popUp = NSPopUpButton()
-        popUp.identifier = NSUserInterfaceItemIdentifier("portal-settings.sort-order")
-        PortalSortOrder.allCases.forEach { popUp.addItem(withTitle: sortOrderTitle($0)) }
-        popUp.selectItem(at: PortalSortOrder.allCases.firstIndex(of: portal.sortOrder) ?? 0)
-        popUp.target = self
-        popUp.action = #selector(changeSortOrder(_:))
-        return popUp
+    private func makeSortOptions() -> NSStackView {
+        sortOptionButtons = PortalSortOrder.allCases.enumerated().map { index, sortOrder in
+            let button = NSButton(
+                radioButtonWithTitle: sortOrderTitle(sortOrder),
+                target: self,
+                action: #selector(changeSortOrder(_:))
+            )
+            button.tag = index
+            button.state = sortOrder == portal.sortOrder ? .on : .off
+            button.setAccessibilityRole(.radioButton)
+            button.identifier = NSUserInterfaceItemIdentifier(
+                "portal-settings.sort-order.\(sortOrder.rawValue)"
+            )
+            return button
+        }
+        let options = NSStackView(views: sortOptionButtons)
+        options.orientation = .horizontal
+        options.alignment = .centerY
+        options.distribution = .fillEqually
+        options.spacing = 8
+        options.edgeInsets = NSEdgeInsets(top: 7, left: 0, bottom: 7, right: 0)
+        return options
     }
 
-    private func makeTintPopUpButton() -> NSPopUpButton {
-        let popUp = NSPopUpButton()
-        popUp.identifier = NSUserInterfaceItemIdentifier("portal-settings.tint")
-        PortalTint.allCases.forEach { popUp.addItem(withTitle: tintTitle($0)) }
-        popUp.selectItem(at: PortalTint.allCases.firstIndex(of: portal.tint) ?? 0)
-        popUp.target = self
-        popUp.action = #selector(changeTint(_:))
-        return popUp
+    private func makeTintOptions() -> NSStackView {
+        tintOptionButtons = PortalTint.allCases.enumerated().map { index, tint in
+            let button = PortalTintSwatchButton(
+                tint: tint,
+                title: tintTitle(tint),
+                target: self,
+                action: #selector(changeTint(_:))
+            )
+            button.tag = index
+            button.setSelected(tint == portal.tint)
+            return button
+        }
+        let options = NSStackView(views: tintOptionButtons)
+        options.orientation = .horizontal
+        options.alignment = .centerY
+        options.distribution = .equalSpacing
+        options.spacing = 8
+        options.edgeInsets = NSEdgeInsets(top: 7, left: 2, bottom: 7, right: 2)
+        return options
     }
 
     func reorderFolder(_ id: FolderTabID, to targetIndex: Int) {
@@ -833,14 +882,16 @@ final class PortalSettingsViewController: NSViewController {
         onAddFolder()
     }
 
-    @objc private func changeSortOrder(_ sender: NSPopUpButton) {
-        guard PortalSortOrder.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
-        onSetSortOrder(PortalSortOrder.allCases[sender.indexOfSelectedItem])
+    @objc private func changeSortOrder(_ sender: NSButton) {
+        guard PortalSortOrder.allCases.indices.contains(sender.tag) else { return }
+        sortOptionButtons.forEach { $0.state = $0 === sender ? .on : .off }
+        onSetSortOrder(PortalSortOrder.allCases[sender.tag])
     }
 
-    @objc private func changeTint(_ sender: NSPopUpButton) {
-        guard PortalTint.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
-        onSetTint(PortalTint.allCases[sender.indexOfSelectedItem])
+    @objc private func changeTint(_ sender: PortalTintSwatchButton) {
+        guard PortalTint.allCases.indices.contains(sender.tag) else { return }
+        tintOptionButtons.forEach { $0.setSelected($0 === sender) }
+        onSetTint(PortalTint.allCases[sender.tag])
     }
 
     private func sortOrderTitle(_ sortOrder: PortalSortOrder) -> String {
@@ -1149,6 +1200,116 @@ private final class PortalSettingsDragIndicatorView: NSImageView {
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         nil
+    }
+}
+
+@MainActor
+final class PortalTintSwatchButton: NSButton {
+    let tint: PortalTint
+    private let optionTitle: String
+    private(set) var isOptionSelected = false
+    private(set) var swatchView = NSView()
+    private(set) var checkmarkView = NSImageView()
+
+    init(tint: PortalTint, title: String, target: AnyObject?, action: Selector?) {
+        self.tint = tint
+        optionTitle = title
+        super.init(frame: .zero)
+        self.target = target
+        self.action = action
+        setButtonType(.momentaryPushIn)
+        isBordered = false
+        focusRingType = .none
+        identifier = NSUserInterfaceItemIdentifier("portal-settings.tint.\(tint.rawValue)")
+        toolTip = title
+        setAccessibilityRole(.radioButton)
+        setAccessibilityLabel(title)
+
+        swatchView.wantsLayer = true
+        swatchView.layer?.cornerRadius = 14
+        swatchView.layer?.masksToBounds = true
+        swatchView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(swatchView)
+
+        checkmarkView.imageScaling = .scaleProportionallyDown
+        checkmarkView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(checkmarkView)
+
+        widthAnchor.constraint(equalToConstant: 30).isActive = true
+        heightAnchor.constraint(equalToConstant: 30).isActive = true
+        NSLayoutConstraint.activate([
+            swatchView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            swatchView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            swatchView.widthAnchor.constraint(equalToConstant: 28),
+            swatchView.heightAnchor.constraint(equalToConstant: 28),
+            checkmarkView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            checkmarkView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            checkmarkView.widthAnchor.constraint(equalToConstant: 14),
+            checkmarkView.heightAnchor.constraint(equalToConstant: 14),
+        ])
+        updateAppearance()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: 30, height: 30)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(point) ? self : nil
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateAppearance()
+    }
+
+    func setSelected(_ selected: Bool) {
+        isOptionSelected = selected
+        state = selected ? .on : .off
+        setAccessibilitySelected(selected)
+        setAccessibilityValue(NSNumber(value: selected))
+        checkmarkView.image = selected
+            ? NSImage(
+                systemSymbolName: "checkmark",
+                accessibilityDescription: optionTitle
+            )?.withSymbolConfiguration(.init(pointSize: 11, weight: .bold))
+            : nil
+        updateAppearance()
+    }
+
+    private func updateAppearance() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            swatchView.layer?.backgroundColor = swatchColor.cgColor
+            swatchView.layer?.borderWidth = isOptionSelected ? 3 : 1
+            swatchView.layer?.borderColor = (isOptionSelected
+                ? NSColor.controlAccentColor
+                : NSColor.separatorColor).cgColor
+            checkmarkView.contentTintColor = checkmarkColor
+        }
+    }
+
+    private var swatchColor: NSColor {
+        guard let color = tint.color else { return .controlBackgroundColor }
+        return NSColor(
+            srgbRed: CGFloat(color.red),
+            green: CGFloat(color.green),
+            blue: CGFloat(color.blue),
+            alpha: 1
+        )
+    }
+
+    private var checkmarkColor: NSColor {
+        switch tint {
+        case .default, .orange, .yellow, .green:
+            .labelColor
+        case .red, .blue, .indigo, .purple:
+            .white
+        }
     }
 }
 

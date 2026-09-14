@@ -130,6 +130,14 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         portalViewController.reloadSelectedFolder()
     }
 
+    func showPortalSettings() {
+        portalViewController.showSettingsWindow()
+    }
+
+    func confirmPortalRemoval() {
+        portalViewController.confirmPortalRemoval()
+    }
+
     func updateAppearance(_ appearance: PortalAppearancePreferences) {
         portalViewController.updateAppearance(appearance)
         (window as? PortalWindow)?.updateAppearance(appearance)

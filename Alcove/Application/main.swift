@@ -66,7 +66,12 @@ let statusMenuController = StatusMenuController(
     onNewPortal: { creationCoordinator.beginPortalCreation() },
     onOpenSettings: { applicationSettingsController.present() },
     onShowPortal: { portalCoordinator.showPortal($0) },
-    onHidePortal: { portalCoordinator.hidePortal($0) }
+    onHidePortal: { portalCoordinator.hidePortal($0) },
+    onSetPortalPinned: { portalID, isPinned in
+        Task { await portalCoordinator.setPinned(isPinned, for: portalID) }
+    },
+    onOpenPortalSettings: { portalCoordinator.showPortalSettings($0) },
+    onRequestPortalRemoval: { portalCoordinator.confirmPortalRemoval($0) }
 )
 portalCoordinator.onPortalsChanged = { [weak statusMenuController] entries in
     statusMenuController?.updatePortals(entries)

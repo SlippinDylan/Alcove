@@ -368,6 +368,14 @@ final class PortalViewController: NSViewController {
         tabBarView.closeSettingsWindow()
     }
 
+    func showSettingsWindow() {
+        tabBarView.showSettingsWindow()
+    }
+
+    func confirmPortalRemoval() {
+        tabBarView.confirmPortalRemoval()
+    }
+
     override func viewDidAppear() {
         super.viewDidAppear()
         startObservation()
@@ -792,6 +800,7 @@ final class FolderPathBarView: NSView {
     private(set) var pathLabel = NSTextField(labelWithString: "")
     private(set) var terminalButton = NSButton()
     private(set) var copyButton = NSButton()
+    private(set) var actionSpacer = NSView()
     private(set) var displayedPath: String?
     private(set) var folderURL: URL?
     private let pathOpener: any FolderPathOpening
@@ -855,6 +864,7 @@ final class FolderPathBarView: NSView {
         pathLabel.lineBreakMode = .byTruncatingMiddle
         pathLabel.maximumNumberOfLines = 1
         pathLabel.textColor = .secondaryLabelColor
+        pathLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         pathLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         pathLabel.setAccessibilityLabel(
             NSLocalizedString("portal.path.label", comment: "Folder path accessibility label")
@@ -891,7 +901,15 @@ final class FolderPathBarView: NSView {
         copyButton.toolTip = NSLocalizedString("portal.path.copy", comment: "Copy folder path")
         copyButton.setAccessibilityLabel(copyButton.toolTip ?? "")
 
-        let stack = NSStackView(views: [pathIcon, pathLabel, terminalButton, copyButton])
+        actionSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        actionSpacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let stack = NSStackView(views: [
+            pathIcon,
+            pathLabel,
+            actionSpacer,
+            terminalButton,
+            copyButton,
+        ])
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.spacing = 8

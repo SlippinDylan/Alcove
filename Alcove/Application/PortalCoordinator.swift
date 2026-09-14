@@ -337,6 +337,14 @@ final class PortalCoordinator: PortalCoordinating {
         windows[portalID]?.hide()
     }
 
+    func showPortalSettings(_ portalID: PortalID) {
+        windows[portalID]?.showPortalSettings()
+    }
+
+    func confirmPortalRemoval(_ portalID: PortalID) {
+        windows[portalID]?.confirmPortalRemoval()
+    }
+
     func removePortal(_ portalID: PortalID) async {
         do {
             try await performMutation { [weak self] in
@@ -1441,7 +1449,7 @@ final class PortalCoordinator: PortalCoordinating {
         let entries = portalStates.map { portal in
             let title = portal.selectedTab?.folderURL.lastPathComponent
                 ?? NSLocalizedString("portal.empty.title", comment: "Empty portal title")
-            return PortalMenuEntry(id: portal.id, title: title)
+            return PortalMenuEntry(id: portal.id, title: title, isPinned: portal.isPinned)
         }
         onPortalsChanged?(entries)
     }

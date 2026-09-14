@@ -64,6 +64,12 @@ final class TabBarViewTests: XCTestCase {
         XCTAssertGreaterThan(tabButton.bounds.height, 0)
         XCTAssertTrue(tabButton.isDescendant(of: tabBar.scrollView))
         XCTAssertEqual(tabBar.scrollView.frame.midX, tabBar.bounds.midX, accuracy: 0.5)
+        XCTAssertEqual(tabBar.scrollView.frame.minY, tabBar.bounds.minY, accuracy: 0.5)
+        XCTAssertEqual(tabBar.scrollView.frame.height, tabBar.bounds.height, accuracy: 0.5)
+        XCTAssertFalse(tabBar.scrollView.drawsBackground)
+        XCTAssertFalse(tabBar.scrollView.contentView.drawsBackground)
+        XCTAssertEqual(tabBar.scrollView.backgroundColor, .clear)
+        XCTAssertEqual(tabBar.scrollView.contentView.backgroundColor, .clear)
         XCTAssertTrue(
             tabBar.bounds.contains(tabFrame),
             "Expected visible tab frame; strip=\(tabBar.scrollView.frame), tab=\(tabFrame)"
@@ -327,7 +333,7 @@ final class TabBarViewTests: XCTestCase {
             .compactMap(\.identifier?.rawValue)
         XCTAssertFalse(identifiers.contains("portal-settings.background"))
         XCTAssertFalse(identifiers.contains("portal-settings.icon-size"))
-        XCTAssertTrue(identifiers.contains("portal-settings.tint"))
+        XCTAssertTrue(identifiers.contains("portal-settings.tint.default"))
     }
 
     @MainActor
@@ -347,10 +353,13 @@ final class TabBarViewTests: XCTestCase {
         let menu = tabBar.makeManagementMenu()
         XCTAssertEqual(menu.items.count, 5)
         XCTAssertEqual(menu.items[0].title, NSLocalizedString("portal.pin.pin", comment: ""))
+        XCTAssertNotNil(menu.items[0].image)
         let sortMenu = try XCTUnwrap(menu.items[1].submenu)
         XCTAssertEqual(sortMenu.items.count, 3)
         XCTAssertEqual(sortMenu.items.map(\.state), [.off, .on, .off])
+        XCTAssertNotNil(menu.items[1].image)
         XCTAssertEqual(menu.items[2].title, NSLocalizedString("portal.settings.open", comment: ""))
+        XCTAssertNotNil(menu.items[2].image)
         XCTAssertTrue(menu.items[3].isSeparatorItem)
         XCTAssertEqual(menu.items[4].title, NSLocalizedString("portal.remove.menu", comment: ""))
 
@@ -381,16 +390,27 @@ final class TabBarViewTests: XCTestCase {
         defer { tabBar.closeSettingsWindow() }
 
         let settings = try settingsController(in: tabBar).settingsViewController
-        let sortPopUp = try XCTUnwrap(settings.sortPopUpButton)
-        XCTAssertEqual(sortPopUp.indexOfSelectedItem, 2)
-        sortPopUp.selectItem(at: 0)
-        NSApp.sendAction(try XCTUnwrap(sortPopUp.action), to: sortPopUp.target, from: sortPopUp)
+        XCTAssertEqual(settings.sortOptionButtons.count, 3)
+        XCTAssertEqual(settings.sortOptionButtons.map(\.state), [.off, .off, .on])
+        XCTAssertTrue(settings.sortOptionButtons.allSatisfy {
+            $0.accessibilityRole() == .radioButton
+        })
+        settings.sortOptionButtons[0].performClick(nil)
 
         settings.selectCategory(.style)
-        let tintPopUp = try XCTUnwrap(settings.tintPopUpButton)
-        XCTAssertEqual(tintPopUp.indexOfSelectedItem, 4)
-        tintPopUp.selectItem(at: 5)
-        NSApp.sendAction(try XCTUnwrap(tintPopUp.action), to: tintPopUp.target, from: tintPopUp)
+        XCTAssertEqual(settings.tintOptionButtons.count, PortalTint.allCases.count)
+        XCTAssertEqual(settings.tintOptionButtons.map(\.isOptionSelected), [
+            false, false, false, false, true, false, false, false,
+        ])
+        let selectedTint = settings.tintOptionButtons[4]
+        selectedTint.layoutSubtreeIfNeeded()
+        selectedTint.displayIfNeeded()
+        XCTAssertEqual(selectedTint.accessibilityRole(), .radioButton)
+        XCTAssertEqual(selectedTint.swatchView.frame.size, NSSize(width: 28, height: 28))
+        XCTAssertEqual(selectedTint.swatchView.layer?.cornerRadius, 14)
+        XCTAssertNotNil(selectedTint.swatchView.layer?.backgroundColor)
+        XCTAssertNotNil(selectedTint.checkmarkView.image)
+        settings.tintOptionButtons[5].performClick(nil)
 
         XCTAssertEqual(sortOrders, [.name])
         XCTAssertEqual(tints, [.blue])

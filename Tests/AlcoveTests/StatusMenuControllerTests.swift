@@ -58,13 +58,19 @@ final class StatusMenuControllerTests: XCTestCase {
         let secondID = PortalID()
         var shownIDs: [PortalID] = []
         var hiddenIDs: [PortalID] = []
+        var pinnedRequests: [(PortalID, Bool)] = []
+        var settingsIDs: [PortalID] = []
+        var removedIDs: [PortalID] = []
         let controller = StatusMenuController(
             onNewPortal: {},
             onShowPortal: { shownIDs.append($0) },
-            onHidePortal: { hiddenIDs.append($0) }
+            onHidePortal: { hiddenIDs.append($0) },
+            onSetPortalPinned: { pinnedRequests.append(($0, $1)) },
+            onOpenPortalSettings: { settingsIDs.append($0) },
+            onRequestPortalRemoval: { removedIDs.append($0) }
         )
         controller.updatePortals([
-            PortalMenuEntry(id: firstID, title: "First"),
+            PortalMenuEntry(id: firstID, title: "First", isPinned: true),
             PortalMenuEntry(id: secondID, title: "Second"),
         ])
 
@@ -83,12 +89,29 @@ final class StatusMenuControllerTests: XCTestCase {
         XCTAssertEqual(firstMenu.items.map(\.title), [
             NSLocalizedString("menu.show", comment: ""),
             NSLocalizedString("menu.hide", comment: ""),
+            "",
+            NSLocalizedString("portal.pin.unpin", comment: ""),
+            NSLocalizedString("portal.settings.open", comment: ""),
+            "",
+            NSLocalizedString("portal.remove.menu", comment: ""),
         ])
+        XCTAssertEqual(firstMenu.items.filter(\.isSeparatorItem).count, 2)
+        XCTAssertTrue(firstMenu.items.filter { !$0.isSeparatorItem }.allSatisfy {
+            $0.image != nil && $0.image?.isTemplate == true
+        })
         firstMenu.performActionForItem(at: 0)
         firstMenu.performActionForItem(at: 1)
+        firstMenu.performActionForItem(at: 3)
+        firstMenu.performActionForItem(at: 4)
+        firstMenu.performActionForItem(at: 6)
 
         XCTAssertEqual(shownIDs, [firstID])
         XCTAssertEqual(hiddenIDs, [firstID])
+        XCTAssertEqual(pinnedRequests.count, 1)
+        XCTAssertEqual(pinnedRequests[0].0, firstID)
+        XCTAssertFalse(pinnedRequests[0].1)
+        XCTAssertEqual(settingsIDs, [firstID])
+        XCTAssertEqual(removedIDs, [firstID])
     }
 
     @MainActor

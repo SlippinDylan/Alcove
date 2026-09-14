@@ -135,6 +135,12 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertEqual(transparency.numberOfTickMarks, 5)
         XCTAssertTrue(contentSize.allowsTickMarkValuesOnly)
         XCTAssertTrue(transparency.allowsTickMarkValuesOnly)
+        XCTAssertEqual(
+            descendants(of: controller.settingsViewController.view).filter {
+                $0.identifier?.rawValue == "application-settings.row-separator"
+            }.count,
+            4
+        )
         controller.close()
     }
 
@@ -160,6 +166,12 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         })
 
         XCTAssertNotNil(card.layer)
+        XCTAssertEqual(
+            descendants(of: card).filter {
+                $0.identifier?.rawValue == "application-settings.row-separator"
+            }.count,
+            1
+        )
         importButton.performClick(nil)
         exportButton.performClick(nil)
         XCTAssertEqual(backupController.importCount, 1)

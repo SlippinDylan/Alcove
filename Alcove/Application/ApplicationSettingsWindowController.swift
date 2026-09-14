@@ -581,9 +581,6 @@ final class ApplicationSettingsViewController: NSViewController {
         labels.spacing = 3
         labels.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
 
-        let separator = NSBox()
-        separator.boxType = .separator
-
         let importButton = backupButton(
             titleKey: "application.settings.backup.import",
             identifier: "application-settings.backup.import",
@@ -601,7 +598,7 @@ final class ApplicationSettingsViewController: NSViewController {
         actions.spacing = 10
         actions.heightAnchor.constraint(equalToConstant: 46).isActive = true
 
-        let card = ApplicationSettingsCardView(rows: [labels, separator, actions])
+        let card = ApplicationSettingsCardView(rows: [labels, actions])
         card.identifier = NSUserInterfaceItemIdentifier("application-settings.backup.card")
         addSection(
             title: NSLocalizedString(
@@ -980,7 +977,19 @@ private final class ApplicationSettingsCardView: NSView {
         layer?.cornerRadius = 12
         layer?.masksToBounds = true
 
-        let stack = NSStackView(views: rows)
+        var arrangedViews: [NSView] = []
+        for (index, row) in rows.enumerated() {
+            arrangedViews.append(row)
+            if index < rows.count - 1 {
+                let separator = NSBox()
+                separator.boxType = .separator
+                separator.identifier = NSUserInterfaceItemIdentifier(
+                    "application-settings.row-separator"
+                )
+                arrangedViews.append(separator)
+            }
+        }
+        let stack = NSStackView(views: arrangedViews)
         stack.orientation = .vertical
         stack.alignment = .width
         stack.spacing = 0
