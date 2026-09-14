@@ -23,6 +23,9 @@ enum FileOperationError: LocalizedError, Equatable, Sendable {
     case invalidDestinationDirectory(URL)
     case volumeUnavailable(URL)
     case invalidName
+    case compressionNoSources
+    case compressionSourcesNotColocated
+    case compressionFailed(Int32)
     case duplicateDestinationName(String)
     case operationFailed(completedCount: Int, totalCount: Int)
 
@@ -57,6 +60,21 @@ enum FileOperationError: LocalizedError, Equatable, Sendable {
             return NSLocalizedString(
                 "portal.files.invalid_name",
                 comment: "A file or folder name is invalid"
+            )
+        case .compressionNoSources:
+            return NSLocalizedString(
+                "portal.files.compression_no_sources",
+                comment: "Compression requires at least one source"
+            )
+        case .compressionSourcesNotColocated:
+            return NSLocalizedString(
+                "portal.files.compression_sources_not_colocated",
+                comment: "Compression sources must share a directory"
+            )
+        case .compressionFailed:
+            return NSLocalizedString(
+                "portal.files.compression_failed",
+                comment: "The system compression process failed"
             )
         case .duplicateDestinationName:
             return NSLocalizedString(

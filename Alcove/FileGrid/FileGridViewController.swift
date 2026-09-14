@@ -81,9 +81,11 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     private let fileRenamer: any FileRenaming
     private let fileDuplicator: any FileDuplicating
     private let fileInspectorPresenter: any FileInspectorPresenting
+    private let fileCompressor: any FileCompressing
     private var metrics: GridMetrics
     private var gridCapacity: GridCapacity
     private var items: [FileItem] = []
+    private var compressionTask: Task<Void, Never>?
     private(set) var selectionState = SelectionState()
     private(set) var failedOpenURLs: [URL] = []
     private(set) var lastKeyboardScrollPosition: NSCollectionView.ScrollPosition?
@@ -103,6 +105,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         fileRenamer: any FileRenaming = CoordinatedFileRenamingService(),
         fileDuplicator: any FileDuplicating = SystemFileDuplicator(),
         fileInspectorPresenter: any FileInspectorPresenting = SystemFileInspectorPresenter(),
+        fileCompressor: any FileCompressing = DittoFileCompressionService(),
         iconSize: IconSize = .medium,
         textSize: CGFloat = 12,
         gridCapacity: GridCapacity = .minimum
@@ -116,6 +119,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         self.fileRenamer = fileRenamer
         self.fileDuplicator = fileDuplicator
         self.fileInspectorPresenter = fileInspectorPresenter
+        self.fileCompressor = fileCompressor
         metrics = GridMetrics(iconSize: iconSize, labelFontSize: textSize)
         self.gridCapacity = gridCapacity
         super.init(nibName: nil, bundle: nil)
@@ -124,6 +128,10 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         nil
+    }
+
+    deinit {
+        compressionTask?.cancel()
     }
 
     var itemCount: Int {
@@ -450,6 +458,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         menu.addItem(menuItem("portal.files.get_info", action: #selector(inspectFromContextMenu)))
         menu.addItem(.separator())
         menu.addItem(menuItem("portal.files.rename", action: #selector(renameFromContextMenu)))
+        menu.addItem(menuItem("portal.files.compress", action: #selector(compressFromContextMenu)))
         menu.addItem(menuItem("portal.files.duplicate", action: #selector(duplicateFromContextMenu)))
         menu.addItem(menuItem("portal.files.move_to_trash", action: #selector(trashFromContextMenu)))
         menu.addItem(.separator())
@@ -480,6 +489,9 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         }
         if menuItem.action == #selector(inspectFromContextMenu) {
             return urls.count == 1
+        }
+        if menuItem.action == #selector(compressFromContextMenu) {
+            return compressionTask == nil
         }
         return true
     }
@@ -515,6 +527,10 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
 
     @objc private func duplicateFromContextMenu() {
         duplicateSelection()
+    }
+
+    @objc private func compressFromContextMenu() {
+        compressSelection()
     }
 
     @objc private func copyPathFromContextMenu() {
@@ -600,6 +616,27 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
             }
             if let error {
                 fileOperationFailurePresenter.present(error)
+            }
+        }
+    }
+
+    private func compressSelection() {
+        let sourceURLs = selectedItemsInGridOrder.map(\.url)
+        guard !sourceURLs.isEmpty, compressionTask == nil else { return }
+        compressionTask = Task { [weak self, fileCompressor] in
+            do {
+                let archiveURL = try await fileCompressor.compress(sourceURLs)
+                guard let self else { return }
+                selectionState.select(FileIdentity(url: archiveURL))
+                onSelectionChanged?([archiveURL])
+                onFileOperationCompleted?()
+                compressionTask = nil
+            } catch is CancellationError {
+                self?.compressionTask = nil
+            } catch {
+                guard let self else { return }
+                fileOperationFailurePresenter.present(error)
+                compressionTask = nil
             }
         }
     }

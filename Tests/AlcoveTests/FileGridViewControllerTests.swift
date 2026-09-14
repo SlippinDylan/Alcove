@@ -283,6 +283,7 @@ final class FileGridViewControllerTests: XCTestCase {
                 localized("portal.files.get_info"),
                 "",
                 localized("portal.files.rename"),
+                localized("portal.files.compress"),
                 localized("portal.files.duplicate"),
                 localized("portal.files.move_to_trash"),
                 "",
@@ -625,6 +626,142 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertNil(folderMetadata.fileSize)
         XCTAssertTrue(folderMetadata.calculatesFolderSize)
         XCTAssertEqual(folderSize, 8)
+    }
+
+    func testCompressionPlanUsesFinderNamesWithoutOverwriting() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = root.appendingPathComponent("first.txt")
+        let second = root.appendingPathComponent("second.txt")
+        XCTAssertTrue(FileManager.default.createFile(atPath: first.path, contents: Data()))
+        XCTAssertTrue(FileManager.default.createFile(atPath: second.path, contents: Data()))
+        XCTAssertTrue(FileManager.default.createFile(
+            atPath: root.appendingPathComponent("first.txt.zip").path,
+            contents: Data()
+        ))
+        XCTAssertTrue(FileManager.default.createFile(
+            atPath: root.appendingPathComponent("first.txt 2.zip").path,
+            contents: Data()
+        ))
+        XCTAssertTrue(FileManager.default.createFile(
+            atPath: root.appendingPathComponent("Archive.zip").path,
+            contents: Data()
+        ))
+
+        let single = try FileCompressionPlan.make(
+            sourceURLs: [first],
+            archiveBaseName: "Archive"
+        )
+        let multiple = try FileCompressionPlan.make(
+            sourceURLs: [first, second],
+            archiveBaseName: "Archive"
+        )
+
+        XCTAssertEqual(single.destinationURL.lastPathComponent, "first.txt 3.zip")
+        XCTAssertEqual(multiple.destinationURL.lastPathComponent, "Archive 2.zip")
+    }
+
+    func testCompressionPlanRejectsSourcesFromDifferentFolders() throws {
+        let firstRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let secondRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: firstRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: secondRoot, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: firstRoot)
+            try? FileManager.default.removeItem(at: secondRoot)
+        }
+        let first = firstRoot.appendingPathComponent("first")
+        let second = secondRoot.appendingPathComponent("second")
+        XCTAssertTrue(FileManager.default.createFile(atPath: first.path, contents: Data()))
+        XCTAssertTrue(FileManager.default.createFile(atPath: second.path, contents: Data()))
+
+        XCTAssertThrowsError(try FileCompressionPlan.make(
+            sourceURLs: [first, second],
+            archiveBaseName: "Archive"
+        )) { error in
+            XCTAssertEqual(error as? FileOperationError, .compressionSourcesNotColocated)
+        }
+    }
+
+    func testDittoCompressionCreatesFinderCompatibleSingleAndMultiItemZIPs() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = root.appendingPathComponent("first.txt")
+        let second = root.appendingPathComponent("second.txt")
+        let folder = root.appendingPathComponent("Folder", isDirectory: true)
+        let nested = folder.appendingPathComponent("nested.txt")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("first".utf8).write(to: first)
+        try Data("second".utf8).write(to: second)
+        try Data("nested".utf8).write(to: nested)
+        let service = DittoFileCompressionService()
+
+        let singleArchive = try await service.compress([folder])
+        let multiArchive = try await service.compress([first, second, folder])
+
+        XCTAssertEqual(
+            try zipPayloadEntries(at: singleArchive),
+            ["Folder/nested.txt"]
+        )
+        XCTAssertEqual(
+            try zipPayloadEntries(at: multiArchive),
+            ["Folder/nested.txt", "first.txt", "second.txt"]
+        )
+    }
+
+    func testCompressionCancellationTerminatesTheActiveProcess() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("source.txt")
+        XCTAssertTrue(FileManager.default.createFile(atPath: source.path, contents: Data()))
+        let service = DittoFileCompressionService(
+            executableURL: URL(fileURLWithPath: "/usr/bin/yes")
+        )
+        let task = Task {
+            try await service.compress([source])
+        }
+
+        try await Task.sleep(for: .milliseconds(50))
+        task.cancel()
+
+        do {
+            _ = try await task.value
+            XCTFail("Cancelled compression unexpectedly completed")
+        } catch is CancellationError {
+            XCTAssertFalse(FileManager.default.fileExists(
+                atPath: root.appendingPathComponent("source.txt.zip").path
+            ))
+        }
+    }
+
+    @MainActor
+    func testCompressContextActionReloadsAndSelectsTheArchive() throws {
+        let compressor = FileCompressorSpy()
+        let controller = FileGridViewController(fileCompressor: compressor)
+        controller.loadView()
+        let items = makeItems(count: 2)
+        controller.setItems(items)
+        controller.handleKeyCommand(.selectAll)
+        let menu = try XCTUnwrap(controller.contextMenu(forItemAt: 0))
+        let completed = expectation(description: "Compression reload requested")
+        var selectedURLs: [[URL]] = []
+        controller.onSelectionChanged = { selectedURLs.append($0) }
+        controller.onFileOperationCompleted = { completed.fulfill() }
+
+        performMenuItem(titled: localized("portal.files.compress"), in: menu)
+        wait(for: [completed], timeout: 1)
+
+        let archiveURL = URL(fileURLWithPath: "/tmp/Archive.zip")
+        XCTAssertEqual(selectedURLs.last, [archiveURL])
+        XCTAssertEqual(controller.selectionState.selectedIDs, [FileIdentity(url: archiveURL)])
     }
 
     func testTransferPlanRejectsSameDestinationAndNameConflicts() throws {
@@ -1100,6 +1237,26 @@ final class FileGridViewControllerTests: XCTestCase {
         NSLocalizedString(key, comment: "Test localization lookup")
     }
 
+    private func zipPayloadEntries(at archiveURL: URL) throws -> [String] {
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        process.arguments = ["-Z1", archiveURL.path]
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw FileOperationError.compressionFailed(process.terminationStatus)
+        }
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        return String(decoding: data, as: UTF8.self)
+            .split(separator: "\n")
+            .map(String.init)
+            .filter { !$0.hasPrefix("__MACOSX/") && !$0.hasSuffix("/") }
+            .sorted()
+    }
+
     @MainActor
     private func performMenuItem(titled title: String, in menu: NSMenu) {
         guard let item = menu.item(withTitle: title), let action = item.action else {
@@ -1169,6 +1326,12 @@ private final class FileInspectorPresenterSpy: FileInspectorPresenting {
 
     func showInspector(for url: URL) {
         inspectedURLs.append(url)
+    }
+}
+
+private actor FileCompressorSpy: FileCompressing {
+    func compress(_ sourceURLs: [URL]) -> URL {
+        URL(fileURLWithPath: "/tmp/Archive.zip")
     }
 }
 

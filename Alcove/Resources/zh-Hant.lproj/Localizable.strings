@@ -219,6 +219,11 @@
 "portal.files.inspector.calculating" = "正在計算…";
 "portal.files.inspector.unavailable" = "無法使用";
 "portal.files.inspector.unknown_type" = "未知";
+"portal.files.compress" = "壓縮";
+"portal.files.archive_base_name" = "封存";
+"portal.files.compression_no_sources" = "請至少選取一個要壓縮的項目。";
+"portal.files.compression_sources_not_colocated" = "所選項目必須位於同一個資料夾中。";
+"portal.files.compression_failed" = "無法製作 ZIP 封存檔。";
 "application.settings.backup.error.malformed" = "所選檔案不是有效的 Alcove 佈局備份。";
 "application.settings.backup.error.format" = "所選檔案不是由 Alcove 建立的佈局備份。";
 "application.settings.backup.error.version" = "目前版本的 Alcove 不支援佈局備份版本 %d。";

@@ -63,6 +63,7 @@
 		BB0000000000000000000001 /* ApplicationLayoutBackupController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000002 /* ApplicationLayoutBackupController.swift */; };
 		FC0000000000000000000001 /* FileOperations.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0000000000000000000002 /* FileOperations.swift */; };
 		FI0000000000000000000001 /* FileInspectorWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FI0000000000000000000002 /* FileInspectorWindowController.swift */; };
+		FZ0000000000000000000001 /* FileCompression.swift in Sources */ = {isa = PBXBuildFile; fileRef = FZ0000000000000000000002 /* FileCompression.swift */; };
 		BE2637E43056904F005587C8 /* Alcove.icon in Resources */ = {isa = PBXBuildFile; fileRef = BE2637E33056904F005587C8 /* Alcove.icon */; };
 /* End PBXBuildFile section */
 
@@ -96,6 +97,7 @@
 		200000000000000000000011 /* FileGridViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridViewController.swift; sourceTree = "<group>"; };
 		FC0000000000000000000002 /* FileOperations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperations.swift; sourceTree = "<group>"; };
 		FI0000000000000000000002 /* FileInspectorWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileInspectorWindowController.swift; sourceTree = "<group>"; };
+		FZ0000000000000000000002 /* FileCompression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCompression.swift; sourceTree = "<group>"; };
 		200000000000000000000012 /* PortalViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalViewController.swift; sourceTree = "<group>"; };
 		200000000000000000000013 /* PortalWindowStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowStrategy.swift; sourceTree = "<group>"; };
 		200000000000000000000014 /* PortalWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindow.swift; sourceTree = "<group>"; };
@@ -279,6 +281,7 @@
 			isa = PBXGroup;
 			children = (
 				20000000000000000000001B /* FileCollectionView.swift */,
+				FZ0000000000000000000002 /* FileCompression.swift */,
 				200000000000000000000010 /* FileItemCell.swift */,
 				200000000000000000000011 /* FileGridViewController.swift */,
 				FI0000000000000000000002 /* FileInspectorWindowController.swift */,
@@ -469,6 +472,7 @@
 				10000000000000000000000D /* FolderLocationValidator.swift in Sources */,
 				10000000000000000000002C /* FolderObserver.swift in Sources */,
 				100000000000000000000019 /* FileCollectionView.swift in Sources */,
+				FZ0000000000000000000001 /* FileCompression.swift in Sources */,
 				10000000000000000000000E /* FileItemCell.swift in Sources */,
 				10000000000000000000000F /* FileGridViewController.swift in Sources */,
 				FI0000000000000000000001 /* FileInspectorWindowController.swift in Sources */,

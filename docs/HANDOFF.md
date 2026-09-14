@@ -111,6 +111,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 文件或文件夹右键使用原生 `NSMenu`：右键已选项目保留多选，右键未选项目只选中该项，右键空白不显示文件菜单也不改变选择。当前菜单集中提供打开、快速查看、在 Finder 中显示、显示简介、重新命名、复制、移到废纸篓、隔空投送、复制绝对路径和在 Apple Terminal 中打开；多选路径按网格顺序逐行复制，Terminal 对文件使用父目录并去重。
 - “显示简介”仅在单选时可用，打开 Alcove 自己的只读 AppKit 窗口，展示名称、系统本地化种类、位置、创建/修改时间和大小。普通文件大小随基础元数据返回；普通文件夹大小异步递归计算，窗口关闭或切换对象即取消，不跟随符号链接，任何枚举错误都显示不可用而不是伪造部分总数。
 - “复制”把完整有序选择一次性交给 `NSWorkspace.duplicate`，由系统生成与 Finder 一致的副本名称；成功返回的新 URL 按原选择顺序重新选中后刷新。若系统只返回部分映射，已完成副本仍保留并选中，同时明确报错。
+- “压缩”使用系统 `/usr/bin/ditto` 创建 Finder/归档实用工具兼容的 PKZip：单项为完整对象名加 `.zip`，多项使用系统语言下的 `Archive.zip` 基名，冲突从 ` 2` 递增且绝不覆盖。单目录使用 `--keepParent`；多选先逐项暂存到私有 payload，再只归档其内容，避免 UUID 包装目录进入 ZIP。Process 只接收参数数组，不经过 shell；取消终止当前进程，临时数据始终清理，成功后回选 ZIP 并刷新。
 - 单选后按 Return 或选择右键“重新命名”会直接编辑 tile 标题；文件默认只选中扩展名前的部分，文件夹全选。Return 或失焦提交，Escape 取消。名称为空、只有空白、`.`、`..`、包含 `/`/NUL 或与其他对象冲突时拒绝；仅大小写或规范化形式变化通过文件资源身份确认，不覆盖其他对象。成功后先迁移路径型选择和 Quick Look URL，再刷新目录。
 - 从 Alcove 向 Finder/桌面拖动使用 `NSCollectionView` 原生多项 drag session 和 `NSURL` pasteboard writer，源端不在 drop 结束后自行删除。
 - 外部 Finder/桌面拖入可落到当前浏览目录的网格空白或普通目录 tile；Alcove 面板内拖动可落到同面板普通目录 tile，local background drop 继续拒绝。操作语义与 Finder 对齐：同卷默认 Move、跨卷默认 Copy、Option 强制 Copy、Command 强制 Move，Command-Option 因不支持替身而拒绝。actor 在任何 mutation 前重新确认普通目录目标、解析全部卷身份，并全量拒绝同目录、同名目标、重复目标名、目录进入自身或后代，绝不覆盖。实际 IO 通过 `NSFileCoordinator` 串行协调，完成后显式 reload，并由 FSEvents 最终收敛；中途失败集中报告已完成数量。

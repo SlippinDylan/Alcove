@@ -219,6 +219,11 @@
 "portal.files.inspector.calculating" = "Calculating…";
 "portal.files.inspector.unavailable" = "Unavailable";
 "portal.files.inspector.unknown_type" = "Unknown";
+"portal.files.compress" = "Compress";
+"portal.files.archive_base_name" = "Archive";
+"portal.files.compression_no_sources" = "Select at least one item to compress.";
+"portal.files.compression_sources_not_colocated" = "The selected items must be in the same folder.";
+"portal.files.compression_failed" = "Unable to create the ZIP archive.";
 "application.settings.backup.error.malformed" = "The selected file is not a valid Alcove layout backup.";
 "application.settings.backup.error.format" = "The selected file was not created as an Alcove layout backup.";
 "application.settings.backup.error.version" = "Layout backup version %d is not supported by this version of Alcove.";

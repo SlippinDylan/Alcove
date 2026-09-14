@@ -219,6 +219,11 @@
 "portal.files.inspector.calculating" = "正在计算…";
 "portal.files.inspector.unavailable" = "不可用";
 "portal.files.inspector.unknown_type" = "未知";
+"portal.files.compress" = "压缩";
+"portal.files.archive_base_name" = "归档";
+"portal.files.compression_no_sources" = "请至少选择一个要压缩的项目。";
+"portal.files.compression_sources_not_colocated" = "所选项目必须位于同一个文件夹中。";
+"portal.files.compression_failed" = "无法创建 ZIP 归档。";
 "application.settings.backup.error.malformed" = "所选文件不是有效的 Alcove 布局备份。";
 "application.settings.backup.error.format" = "所选文件不是由 Alcove 创建的布局备份。";
 "application.settings.backup.error.version" = "当前版本的 Alcove 不支持布局备份版本 %d。";
