@@ -123,6 +123,8 @@
 "portal.settings.tint" = "Color";
 "portal.settings.tint.description" = "Choose a color tint for this panel's frosted background.";
 "portal.settings.add_folder" = "Add Folder";
+"portal.settings.folder_count" = "%d / %d";
+"portal.settings.folder_limit" = "Each panel can contain up to %d folders.";
 "portal.settings.reorder_folder" = "Drag to reorder folder";
 "portal.settings.remove_folder_action" = "Remove Folder";
 "portal.settings.panel" = "Panel";
@@ -130,6 +132,7 @@
 "portal.settings.size" = "Size";
 "portal.settings.appearance" = "Appearance";
 "portal.settings.background" = "Background";
+"application.settings.backup.error.folder_limit" = "Each panel in a backup can contain up to %d folders.";
 "portal.settings.remove_portal" = "Remove";
 "portal.settings.remove_portal_title" = "Remove This Panel";
 "portal.settings.remove_portal_detail" = "Permanently removes this panel and all of its folder tabs.";

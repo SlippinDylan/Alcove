@@ -127,17 +127,17 @@ Before any file mutation, Alcove validates the complete source snapshot off the 
 | Action | Behavior |
 |--------|----------|
 | Click tab | Switch to that tab's folder |
-| Settings → Folders → Add Folder… | Add a new tab (opens folder chooser) |
+| Settings → Folders → Add Folder… | Add a new tab until the per-Portal maximum of four; at four the count/limit remains visible and Add Folder is disabled |
 | Settings → Folders → Remove current folder | Remove the selected tab; if last tab, prompt to remove the portal (never silently destroy it) |
 | Application Settings → Style | Choose a global Small, Medium, or Large content size while preserving every Portal's grid capacity; attached Portals move together to retain the selected edge/inter-Portal gap, while unrelated free placements retain their top-left intent |
 | Settings → Folders → Remove Panel | Remove the complete Portal from the destructive action card at the bottom |
 | Tab title | Defaults to the mapped folder name |
 
-Tabs appear as small folder-name controls in one horizontally centered,
-scrollable strip. Back and folder controls use shadow-free adaptive capsules rather than
-Liquid Glass. Folder tabs are equal-sized within each global content preset, use compact
-widths, and scale with
-Small/Medium/Large while retaining native active/inactive selection semantics. Per-tab close
+Tabs appear as at most four equal segments in one horizontally centered, shadow-free outer
+capsule. The selected folder uses one neutral inner capsule; unselected segments remain clear.
+Small/Medium/Large prefer `56/64/72pt` segment widths and scale without changing the top-row
+height. Narrow Portals compress all segments equally and truncate long labels instead of
+providing horizontal scrolling. Per-tab close
 and add buttons are intentionally omitted;
 editing actions open from the fixed trailing settings icon in a separate centered
 settings window. A standard close-only titlebar remains above a native preference-style toolbar;
@@ -183,7 +183,7 @@ column capacity remains authoritative while the physical frame width follows tho
 |----|-------------|----------|
 | FR-01 | Create portals via menu-bar → overlay → drag-rect → folder-choose flow | MVP |
 | FR-02 | Display folder contents as Finder-style icon tiles with one outlined object space containing padded icon and title regions, separate icon/title selection treatments, and a title that wraps to at most two lines; default ordering is directories first, then localized standard name. Layout is continuous row-major order: widening pulls the next lower-row items into the preceding row, and narrowing pushes trailing items into following rows. | MVP |
-| FR-03 | Support adding, switching, closing, and moving folder tabs up or down per portal; persist the resulting order and the currently selected tab. Closing the last tab prompts to remove the portal. | MVP |
+| FR-03 | Support adding, switching, closing, and moving up to four folder tabs per portal; persist the resulting order and selected tab. The settings UI shows the count and disables addition at four, while domain restoration and backup import reject any fifth folder. The centered segmented capsule never scrolls; constrained widths compress equally and labels truncate at the tail. Closing the last tab prompts to remove the portal. | MVP |
 | FR-04 | Finder-consistent selection (single, Command, Shift, keyboard, and bidirectional empty-space marquee with Command-toggle semantics) | MVP |
 | FR-05 | Double-click files/packages/symbolic links opens with the default app; double-click an ordinary directory enters it in the current Portal tab; Back restores that tab's prior directory, selection, and scroll position | MVP |
 | FR-06 | Quick Look via Space key through responder chain | MVP |

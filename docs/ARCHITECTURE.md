@@ -126,7 +126,7 @@ App entry point and global coordination.
 Visual chrome inside each portal window.
 
 - `PortalViewController` — root view controller per portal
-- `TabBarView` — one centered folder-name strip and a fixed trailing settings icon. A transparent horizontal `NSScrollView` remains the stable host and enables its scroller only when the equal-width tabs overflow, avoiding coordinate changes during first layout and updates. Back and folder controls share a borderless, shadow-free adaptive capsule style with hover, pressed, application/window-aware selection, and accessibility states. All folder tabs use one equal width per global content preset (`76/84/92pt`) and heights `26/28/30pt`; long titles truncate with their full value retained in the tooltip and accessibility label. The Back button groups its image and title with `imageHugsTitle` instead of pinning the chevron to the bezel edge. The gear menu uses SF Symbols for pin, sort, settings, and removal. Portal settings expose all three sort choices as native radio buttons and all eight built-in tints as circular single-selection swatches above no hidden pop-up state. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
+- `TabBarView` — one centered, shadow-free segmented capsule and a fixed trailing settings icon. The outer capsule contains at most four equal-width folder segments; Small/Medium/Large prefer `56/64/72pt` segment widths and heights `26/28/30pt`. A segment never stretches beyond its preset width, and when the symmetric Back/settings reservations leave less room, all segments compress equally without horizontal scrolling. Long titles truncate at the tail while tooltips and accessibility labels retain the complete folder name. Selection uses one neutral inner capsule rather than independent or accent-blue buttons. The Back button remains a separate action and groups its image and title with `imageHugsTitle`. The gear menu uses SF Symbols for pin, sort, settings, and removal. Portal settings expose a current-count/maximum row, disable Add Folder at four, show all sort choices as native radio buttons, and show all eight built-in tints as circular single-selection swatches. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
 - `FolderPathBarView` — a plain reserved bottom row derived from the selected tab URL; it abbreviates the home directory as `~`, keeps Terminal and Copy fixed at the trailing edge with flexible space after the path, and copies the absolute path to `NSPasteboard`
 - `PortalChromeMaterialView` — the standard macOS 26 surface is an untinted `.regular` `NSGlassEffectView`; other background levels select public `.clear`/`.regular` styles and tint strengths, while built-in colors use `NSGlassEffectView.tintColor`. macOS 15 keeps the active `.popover` `NSVisualEffectView` plus overlay fallback. Reduce Transparency selects the opaque path on both systems.
 - Layout: tab bar at top, a fixed path row at bottom, and the icon grid between them. Both chrome rows are included in creation, minimum-size, live-resize, and persisted-capacity geometry
@@ -224,6 +224,10 @@ struct Portal: Identifiable, Sendable {
          placement: PlacementRecord, iconSize: IconSize = .medium) throws { ... }
 }
 ```
+
+`Portal.maximumTabCount == 4` is a domain invariant. Full-state restoration and
+`appendTab` reject a fifth folder; UI state and backup decoding enforce the same
+contract before a persistence transaction begins.
 
 ### 4.2 FolderTab
 
@@ -909,7 +913,7 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 ### 16.4 Liquid Glass and Compatibility Material — Spike 0.4
 
-**Current scope:** The Portal uses an always-active `NSVisualEffectView` surface on supported macOS versions. The former enclosing control-group Glass is removed from production; macOS 26 uses native Glass only for individual Tab/navigation and suitable settings actions, with separators retaining the larger structural boundaries.
+**Current scope:** macOS 26 uses one native Glass surface for the complete Portal; macOS 15 uses the `NSVisualEffectView` fallback. The former nested control-group Glass is removed: Tab/navigation controls are flat Layer-backed controls on the single surface, with separators retaining the larger structural boundaries.
 
 **Gate criteria:**
 

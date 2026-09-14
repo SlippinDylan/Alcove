@@ -46,12 +46,12 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 - 支持多个 Portal、多个显示器和每个 Portal 多个 Tab。
 - Tab 按创建顺序持久化；当前选中 Tab 持久化。
-- Tab 位于顶部水平居中的透明滚动条带中；未溢出时隐藏滚动条，溢出时才允许横向滚动，Stack 始终保持同一宿主以避免首次布局坐标跳变。返回与文件夹 Tab 共用无边框、无阴影的扁平胶囊样式，并保留 hover、pressed、激活/失活选中和无障碍状态。活跃蓝色选中态使用白色标题保证对比度，非活跃选中态使用中性文字和描边；未选中 Tab、返回文字及返回图标统一使用浅色外观黑色/深色外观白色的主文字色。所有文件夹 Tab 在同一内容档位下等宽，Small/Medium/Large 分别为 `76/84/92pt` 宽、`26/28/30pt` 高；长名称截断但 Tooltip 和无障碍名称保持完整。返回按钮用 `imageHugsTitle` 将箭头和文字作为一个整体居中。顶部控制区与文件网格之间使用轻分割线。Portal 接收任意左键点击时先激活 Alcove 并成为 key window；选中强调同时取决于 `NSApplication.isActive` 与 `NSWindow.isKeyWindow`，避免打开 Finder/Terminal 后残留蓝色。
+- 每个 Portal 最多包含四个文件夹 Tab。顶部使用一个水平居中的无阴影分段胶囊，内部 Segment 等宽、相连且只有当前文件夹显示中性选中胶囊，不使用蓝色强调。Small/Medium/Large 的目标 Segment 宽度为 `56/64/72pt`、高度为 `26/28/30pt`；空间不足时全部等比压缩，不提供横向滚动。长名称尾部省略，但 Tooltip 和无障碍名称保持完整。左右始终按返回按钮的完整宽度做对称逻辑预留，即使返回暂时隐藏，右侧齿轮也占相同布局宽度，因此 Tab 组不随目录层级偏移。返回按钮用 `imageHugsTitle` 将箭头和文字作为一个整体居中。Portal 接收任意左键点击时先激活 Alcove 并成为 key window。
 - 单个 Tab 只显示一个小胶囊；Tab 上不放加号或关闭叉号。
 - Tab 编辑集中在右上角设置入口。
 - 右上角齿轮打开原生菜单：钉住/取消钉住、排序方式子菜单、面板设置、确认后删除面板。顶部不再单独显示图钉；钉住状态仍按 Portal 持久化，并且不阻断显示器恢复或内容交互。
 - 删除确认使用独立的 app-modal `NSAlert`，按当前 Portal 所在屏幕的实时 `visibleFrame` 水平、垂直居中，不作为 Sheet 挂在 Portal 上。
-- 齿轮菜单的钉住、排序、面板设置和删除项都使用对应 SF Symbol。单面板 General 将三种排序方式直接显示为原生单选项；Style 将八种内置 tint 直接显示为圆形颜色单选，不再使用下拉菜单。
+- 齿轮菜单的钉住、排序、面板设置和删除项都使用对应 SF Symbol。单面板 General 将三种排序方式直接显示为原生单选项；Folders 显示当前数量/4和上限说明，在四个时禁用添加；Style 将八种内置 tint 直接显示为圆形颜色单选，不再使用下拉菜单。
 - 每个 Portal 持久化名称/修改时间/创建时间排序，以及默认、红、橙、黄、绿、蓝、靛、紫八种内置磨玻璃 tint；透明强度仍由全局 Style 统一控制。
 - 关闭最后一个已有 Tab 时，仍需确认是否移除整个 Portal。
 - 空 Portal 是合法、可持久化状态：`tabs == []` 时 `selectedTabID == nil`；非空时必须存在一个属于 `tabs` 的选中 ID。
@@ -216,7 +216,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 ### 6.1 Glass 中控件完全透明
 
-在 desktop-level 窗口中，把可点击 Tab 控件放入小型 `NSGlassEffectView.contentView` 曾出现“可以点击但完全透明”。当前 Portal 不嵌套自定义 `NSGlassEffectView`；macOS 26 的 Tab 只使用系统 `NSButton.BezelStyle.glass`，旧系统保留自绘回退。不要重新引入该不可见的嵌套 Glass 结构。
+在 desktop-level 窗口中，把可点击 Tab 控件放入小型 `NSGlassEffectView.contentView` 曾出现“可以点击但完全透明”。当前 macOS 26 的整块 Portal 表面使用一个 `NSGlassEffectView`，Tab 自身只是普通无边框 Layer 胶囊，不再为顶部控件嵌套第二层 Glass。不要重新引入该不可见的嵌套控制组 Glass。
 
 ### 6.2 Tab 一度不可见
 

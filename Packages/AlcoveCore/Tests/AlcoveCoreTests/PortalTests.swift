@@ -182,6 +182,42 @@ final class PortalTests: XCTestCase {
         XCTAssertNotEqual(secondID, thirdID)
     }
 
+    func testPortalRejectsMoreThanFourTabsAtCreationAndAppendBoundaries() throws {
+        var portal = try makePortal(path: "/tmp/first")
+        _ = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/second"))
+        _ = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/third"))
+        _ = try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/fourth"))
+
+        XCTAssertEqual(portal.tabs.count, Portal.maximumTabCount)
+        XCTAssertThrowsError(
+            try portal.appendTab(folderURL: URL(fileURLWithPath: "/tmp/fifth"))
+        ) { error in
+            XCTAssertEqual(
+                error as? PortalError,
+                .maximumTabCountExceeded(Portal.maximumTabCount)
+            )
+        }
+
+        let fifthTab = FolderTab(folderURL: URL(fileURLWithPath: "/tmp/fifth"))
+        XCTAssertThrowsError(try Portal(
+            id: portal.id,
+            tabs: portal.tabs + [fifthTab],
+            selectedTabID: portal.selectedTabID,
+            placement: portal.placement,
+            iconLayout: portal.iconLayout,
+            backgroundStyle: portal.backgroundStyle,
+            gridCapacity: portal.gridCapacity,
+            isPinned: portal.isPinned,
+            sortOrder: portal.sortOrder,
+            tint: portal.tint
+        )) { error in
+            XCTAssertEqual(
+                error as? PortalError,
+                .maximumTabCountExceeded(Portal.maximumTabCount)
+            )
+        }
+    }
+
     func testMovingTabsSwapsAdjacentOrderAndPreservesSelection() throws {
         var portal = try makePortal(path: "/tmp/first")
         let firstID = portal.tabs[0].id

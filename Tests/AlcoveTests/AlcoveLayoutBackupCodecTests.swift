@@ -140,6 +140,23 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         }
     }
 
+    func testDecodeRejectsMoreThanFourFoldersInOnePortal() throws {
+        let folder = "{\"kind\":\"home_relative\",\"path\":\"Repo\"}"
+        let folders = Array(repeating: folder, count: Portal.maximumTabCount + 1)
+            .joined(separator: ",")
+        let json = validJSON.replacingOccurrences(
+            of: "[\(folder)]",
+            with: "[\(folders)]"
+        )
+
+        XCTAssertThrowsError(try decode(json)) { error in
+            XCTAssertEqual(
+                error as? AlcoveLayoutBackupError,
+                .tooManyFolders(maximum: Portal.maximumTabCount)
+            )
+        }
+    }
+
     func testDecodeRejectsUnsafeRelativeFolderPaths() throws {
         try assertReplacement(
             "\"path\":\"Repo\"",

@@ -922,6 +922,10 @@ final class PortalCoordinator: PortalCoordinating {
     }
 
     func addTab(to portalID: PortalID) async {
+        guard let portal = portalStates.first(where: { $0.id == portalID }),
+              portal.tabs.count < Portal.maximumTabCount else {
+            return
+        }
         while !Task.isCancelled {
             guard let folderURL = await tabFolderPicker.chooseFolder() else { return }
             do {

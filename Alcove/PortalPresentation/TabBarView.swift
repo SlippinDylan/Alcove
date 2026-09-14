@@ -26,15 +26,15 @@ struct PortalCapsuleMetrics: Equatable {
     init(iconSize: IconSize) {
         switch iconSize {
         case .small:
-            tabWidth = 76
+            tabWidth = 56
             height = 26
             controlSize = .small
         case .large:
-            tabWidth = 92
+            tabWidth = 72
             height = 30
             controlSize = .large
         default:
-            tabWidth = 84
+            tabWidth = 64
             height = 28
             controlSize = .regular
         }
@@ -86,11 +86,9 @@ final class TabBarView: NSView {
     private(set) var backButton = PortalFlatCapsuleButton()
     private(set) var managementMenu: NSMenu?
     private(set) var settingsWindowController: PortalSettingsWindowController?
-    private(set) var isUsingScrollableTabStrip = true
     private var actionTargets: [TabActionTarget] = []
     private var portal: Portal?
     private var capsuleMetrics = PortalCapsuleMetrics(iconSize: .medium)
-    private var shouldRevealSelectedTab = false
 
     private(set) var tabOrder: [FolderTabID] = []
     private(set) var selectedTabID: FolderTabID?
@@ -103,36 +101,43 @@ final class TabBarView: NSView {
 
     override func layout() {
         super.layout()
-        let backButtonWidth = backButton.isHidden ? 0 : backButton.fittingSize.width + 16
+        let backButtonWidth = backButton.fittingSize.width + 16
         let reservedSideWidth = max(52, backButtonWidth)
         let maximumGroupWidth = max(1, bounds.width - reservedSideWidth * 2)
-        let fittingSize = stackView.fittingSize
-        let needsScrolling = fittingSize.width > maximumGroupWidth
-        isUsingScrollableTabStrip = needsScrolling
-        scrollView.hasHorizontalScroller = needsScrolling
+        let buttons = Array(tabButtons.values)
+        guard !buttons.isEmpty else {
+            scrollView.isHidden = true
+            scrollView.frame = .zero
+            return
+        }
+        scrollView.isHidden = false
+        buttons.forEach { $0.setFixedWidth(capsuleMetrics.tabWidth) }
+        var fittingSize = stackView.fittingSize
+        if fittingSize.width > maximumGroupWidth, !buttons.isEmpty {
+            let horizontalInsets = stackView.edgeInsets.left + stackView.edgeInsets.right
+            let compressedWidth = max(
+                1,
+                (maximumGroupWidth - horizontalInsets) / CGFloat(buttons.count)
+            )
+            buttons.forEach { $0.setFixedWidth(compressedWidth) }
+            fittingSize = stackView.fittingSize
+        }
         let groupWidth = min(fittingSize.width, maximumGroupWidth)
         scrollView.frame = NSRect(
             x: bounds.midX - groupWidth / 2,
-            y: 0,
+            y: bounds.midY - fittingSize.height / 2,
             width: groupWidth,
-            height: max(1, bounds.height)
+            height: fittingSize.height
         )
         let viewportSize = scrollView.contentSize
         stackView.frame = NSRect(
             origin: .zero,
             size: NSSize(
-                width: max(viewportSize.width, fittingSize.width),
-                height: max(viewportSize.height, fittingSize.height)
+                width: viewportSize.width,
+                height: viewportSize.height
             )
         )
-        if shouldRevealSelectedTab {
-            stackView.layoutSubtreeIfNeeded()
-            if needsScrolling, let selectedTabID, let selectedButton = tabButtons[selectedTabID] {
-                scrollView.contentView.scrollToVisible(selectedButton.frame)
-                scrollView.reflectScrolledClipView(scrollView.contentView)
-            }
-            shouldRevealSelectedTab = false
-        }
+        scrollView.contentView.scroll(to: .zero)
     }
 
     @available(*, unavailable)
@@ -142,6 +147,7 @@ final class TabBarView: NSView {
 
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
+        updateTabGroupAppearance()
         updateManagementButtonAppearance()
     }
 
@@ -153,6 +159,7 @@ final class TabBarView: NSView {
         self.portal = portal
         capsuleMetrics = PortalCapsuleMetrics(iconSize: portal.iconSize)
         backButton.apply(metrics: capsuleMetrics)
+        stackView.layer?.cornerRadius = (capsuleMetrics.height + 4) / 2
         tabOrder = portal.tabs.map(\.id)
         selectedTabID = portal.selectedTabID
         tabButtons.removeAll(keepingCapacity: true)
@@ -169,7 +176,6 @@ final class TabBarView: NSView {
             )
         }
         stackView.frame = NSRect(origin: .zero, size: stackView.fittingSize)
-        shouldRevealSelectedTab = true
         settingsWindowController?.update(portal)
         needsLayout = true
     }
@@ -183,17 +189,20 @@ final class TabBarView: NSView {
         stackView.orientation = .horizontal
         stackView.alignment = .centerY
         stackView.distribution = .fill
-        stackView.spacing = 2
+        stackView.spacing = 0
+        stackView.edgeInsets = NSEdgeInsets(top: 2, left: 2, bottom: 2, right: 2)
+        stackView.wantsLayer = true
+        stackView.layer?.masksToBounds = true
+        stackView.layer?.shadowOpacity = 0
+        updateTabGroupAppearance()
 
         scrollView.drawsBackground = false
         scrollView.backgroundColor = .clear
         scrollView.contentView.drawsBackground = false
         scrollView.contentView.backgroundColor = .clear
-        scrollView.hasHorizontalScroller = true
-        scrollView.horizontalScroller?.controlSize = .mini
-        scrollView.scrollerStyle = .overlay
+        scrollView.hasHorizontalScroller = false
         scrollView.hasVerticalScroller = false
-        scrollView.autohidesScrollers = true
+        scrollView.autohidesScrollers = false
         scrollView.documentView = stackView
 
         addSubview(scrollView)
@@ -274,6 +283,15 @@ final class TabBarView: NSView {
     private func updateManagementButtonAppearance() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
             managementButton.contentTintColor = activeLabelColor
+        }
+    }
+
+    private func updateTabGroupAppearance() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            stackView.layer?.backgroundColor = NSColor.quaternarySystemFill.cgColor
+            stackView.layer?.borderWidth = 0.5
+            stackView.layer?.borderColor = NSColor.separatorColor.cgColor
+            stackView.layer?.shadowOpacity = 0
         }
     }
 
@@ -609,6 +627,7 @@ final class PortalSettingsViewController: NSViewController {
     private(set) var scrollView = NSScrollView()
     private(set) var contentStack: NSStackView = PortalSettingsContentStackView()
     private(set) var folderListView: PortalSettingsFolderListView?
+    private(set) var addFolderButton: NSButton?
     private(set) var sortOptionButtons: [NSButton] = []
     private(set) var tintOptionButtons: [PortalTintSwatchButton] = []
     private let documentView = PortalSettingsDocumentView()
@@ -792,6 +811,7 @@ final class PortalSettingsViewController: NSViewController {
             view.removeFromSuperview()
         }
         folderListView = nil
+        addFolderButton = nil
         sortOptionButtons = []
         tintOptionButtons = []
 
@@ -830,10 +850,29 @@ final class PortalSettingsViewController: NSViewController {
                 controlSize: .regular,
                 action: #selector(addFolder)
             )
+            let limitDescription = localizedFormat(
+                "portal.settings.folder_limit",
+                Portal.maximumTabCount
+            )
+            addButton.isEnabled = portal.tabs.count < Portal.maximumTabCount
+            addButton.toolTip = limitDescription
+            addButton.setAccessibilityHelp(limitDescription)
+            addFolderButton = addButton
+            let limitRow = preferenceIntroduction(
+                title: localizedFormat(
+                    "portal.settings.folder_count",
+                    portal.tabs.count,
+                    Portal.maximumTabCount
+                ),
+                detail: limitDescription
+            )
+            limitRow.identifier = NSUserInterfaceItemIdentifier(
+                "portal-settings.folder-limit"
+            )
             addSection(
                 title: NSLocalizedString("portal.settings.folders", comment: "Folders section"),
                 accessory: addButton,
-                card: PortalSettingsCardView(rows: [folderContent])
+                card: PortalSettingsCardView(rows: [limitRow, folderContent])
             )
         case .style:
             addSection(
@@ -925,6 +964,7 @@ final class PortalSettingsViewController: NSViewController {
     }
 
     @objc private func addFolder() {
+        guard portal.tabs.count < Portal.maximumTabCount else { return }
         onAddFolder()
     }
 
@@ -1419,6 +1459,7 @@ class PortalFlatCapsuleButton: NSButton {
     private var fixedWidth: CGFloat?
     private var pointerInside = false
     private var pointerTrackingArea: NSTrackingArea?
+    private var usesSegmentedStyle = false
     private(set) var usesSelectedAppearance = false
 
     override init(frame frameRect: NSRect) {
@@ -1520,6 +1561,17 @@ class PortalFlatCapsuleButton: NSButton {
         updateCapsuleAppearance()
     }
 
+    func setFixedWidth(_ width: CGFloat) {
+        guard fixedWidth != width else { return }
+        fixedWidth = width
+        invalidateIntrinsicContentSize()
+    }
+
+    func useSegmentedStyle() {
+        usesSegmentedStyle = true
+        updateCapsuleAppearance()
+    }
+
     func setCapsuleSelected(_ selected: Bool) {
         usesSelectedAppearance = selected
         updateCapsuleAppearance()
@@ -1549,7 +1601,12 @@ class PortalFlatCapsuleButton: NSButton {
             ) == .darkAqua ? .white : .black
             let baseBackground: NSColor
             let foreground: NSColor
-            if usesSelectedAppearance {
+            if usesSegmentedStyle {
+                baseBackground = usesSelectedAppearance
+                    ? .tertiarySystemFill
+                    : .clear
+                foreground = primaryForeground
+            } else if usesSelectedAppearance {
                 if isEmphasized {
                     baseBackground = .selectedContentBackgroundColor
                 } else {
@@ -1591,12 +1648,17 @@ class PortalFlatCapsuleButton: NSButton {
             )
             contentTintColor = foreground
             layer?.backgroundColor = background.cgColor
-            layer?.borderWidth = usesSelectedAppearance
-                ? (isEmphasized ? 0 : 1)
-                : 0.5
-            layer?.borderColor = usesSelectedAppearance && !isEmphasized
-                ? NSColor.secondaryLabelColor.cgColor
-                : NSColor.separatorColor.cgColor
+            if usesSegmentedStyle {
+                layer?.borderWidth = usesSelectedAppearance ? 0.75 : 0
+                layer?.borderColor = NSColor.separatorColor.cgColor
+            } else {
+                layer?.borderWidth = usesSelectedAppearance
+                    ? (isEmphasized ? 0 : 1)
+                    : 0.5
+                layer?.borderColor = usesSelectedAppearance && !isEmphasized
+                    ? NSColor.secondaryLabelColor.cgColor
+                    : NSColor.separatorColor.cgColor
+            }
             layer?.shadowOpacity = 0
         }
     }
@@ -1614,6 +1676,7 @@ final class PortalTabButton: PortalFlatCapsuleButton {
         super.init(title: title)
         toolTip = title
         apply(metrics: metrics, fixedWidth: metrics.tabWidth)
+        useSegmentedStyle()
     }
 
     @available(*, unavailable)

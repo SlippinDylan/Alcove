@@ -48,6 +48,7 @@ public enum PortalError: Error, Equatable, Sendable {
     case selectionWithoutTabs(FolderTabID)
     case missingSelectedTab
     case duplicateTabID(FolderTabID)
+    case maximumTabCountExceeded(Int)
     case selectedTabNotFound(FolderTabID)
     case tabNotFound(FolderTabID)
     case cannotMoveTab(FolderTabID, PortalTabMoveDirection)
@@ -148,6 +149,8 @@ public struct PlacementRecord: Equatable, Sendable {
 ///
 /// Tab array order is creation order. It is intentionally the only ordering representation.
 public struct Portal: Identifiable, Equatable, Sendable {
+    public static let maximumTabCount = 4
+
     public let id: PortalID
     public private(set) var tabs: [FolderTab]
     public private(set) var selectedTabID: FolderTabID?
@@ -300,6 +303,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
         sortOrder: PortalSortOrder = .name,
         tint: PortalTint = .default
     ) throws {
+        guard tabs.count <= Self.maximumTabCount else {
+            throw PortalError.maximumTabCountExceeded(Self.maximumTabCount)
+        }
         var tabIDs = Set<FolderTabID>()
         for tab in tabs {
             guard tabIDs.insert(tab.id).inserted else {
@@ -334,6 +340,9 @@ public struct Portal: Identifiable, Equatable, Sendable {
 
     /// Appends a tab without changing the active tab.
     public mutating func appendTab(_ tab: FolderTab) throws {
+        guard tabs.count < Self.maximumTabCount else {
+            throw PortalError.maximumTabCountExceeded(Self.maximumTabCount)
+        }
         guard !tabs.contains(where: { $0.id == tab.id }) else {
             throw PortalError.duplicateTabID(tab.id)
         }

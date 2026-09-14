@@ -123,6 +123,8 @@
 "portal.settings.tint" = "颜色";
 "portal.settings.tint.description" = "为此面板的磨玻璃背景选择一种颜色。";
 "portal.settings.add_folder" = "添加文件夹";
+"portal.settings.folder_count" = "%d / %d";
+"portal.settings.folder_limit" = "每个面板最多可以添加 %d 个文件夹。";
 "portal.settings.reorder_folder" = "拖动以调整文件夹顺序";
 "portal.settings.remove_folder_action" = "移除文件夹";
 "portal.settings.panel" = "面板";
@@ -130,6 +132,7 @@
 "portal.settings.size" = "大小";
 "portal.settings.appearance" = "外观";
 "portal.settings.background" = "背景";
+"application.settings.backup.error.folder_limit" = "备份中的每个面板最多只能包含 %d 个文件夹。";
 "portal.settings.remove_portal" = "移除";
 "portal.settings.remove_portal_title" = "移除此面板";
 "portal.settings.remove_portal_detail" = "永久移除此面板及其中的所有文件夹。";

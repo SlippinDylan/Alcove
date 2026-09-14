@@ -44,6 +44,7 @@ enum AlcoveLayoutBackupError: LocalizedError, Equatable {
     case invalidSize(width: Double, height: Double)
     case invalidGridCapacity(columns: Int, rows: Int)
     case invalidSelectedFolderIndex(Int?)
+    case tooManyFolders(maximum: Int)
     case invalidFolderPath(String)
 
     var errorDescription: String? {
@@ -65,6 +66,14 @@ enum AlcoveLayoutBackupError: LocalizedError, Equatable {
                     comment: "Unsupported layout backup version error"
                 ),
                 version
+            )
+        case .tooManyFolders(let maximum):
+            String(
+                format: NSLocalizedString(
+                    "application.settings.backup.error.folder_limit",
+                    comment: "Layout backup folder limit error"
+                ),
+                maximum
             )
         default:
             NSLocalizedString(
@@ -257,6 +266,11 @@ private struct LayoutBackupPortalDTO: Codable {
         let size = try size.domainValue()
         let gridCapacity = try gridCapacity.domainValue()
         let folderURLs = try folders.map { try $0.domainValue(homeDirectory: homeDirectory) }
+        guard folderURLs.count <= Portal.maximumTabCount else {
+            throw AlcoveLayoutBackupError.tooManyFolders(
+                maximum: Portal.maximumTabCount
+            )
+        }
         if folderURLs.isEmpty {
             guard selectedFolderIndex == nil else {
                 throw AlcoveLayoutBackupError.invalidSelectedFolderIndex(selectedFolderIndex)
