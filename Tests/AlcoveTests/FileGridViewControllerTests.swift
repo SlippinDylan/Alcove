@@ -282,6 +282,7 @@ final class FileGridViewControllerTests: XCTestCase {
                 localized("portal.files.show_in_finder"),
                 "",
                 localized("portal.files.rename"),
+                localized("portal.files.duplicate"),
                 localized("portal.files.move_to_trash"),
                 "",
                 localized("portal.files.airdrop"),
@@ -510,6 +511,62 @@ final class FileGridViewControllerTests: XCTestCase {
         ))
         XCTAssertEqual(committedNames, ["renamed"])
         XCTAssertEqual(cell.nameLabel.stringValue, item.name)
+    }
+
+    @MainActor
+    func testDuplicateContextActionReloadsAndSelectsReturnedURLs() throws {
+        let duplicator = FileDuplicatorSpy()
+        let controller = FileGridViewController(fileDuplicator: duplicator)
+        controller.loadView()
+        let items = makeItems(count: 3)
+        controller.setItems(items)
+        controller.handleClick(index: 2, modifiers: [])
+        controller.handleClick(index: 0, modifiers: .command)
+        let menu = try XCTUnwrap(controller.contextMenu(forItemAt: 2))
+        let completed = expectation(description: "Duplicate reload requested")
+        var selectedURLs: [[URL]] = []
+        controller.onSelectionChanged = { selectedURLs.append($0) }
+        controller.onFileOperationCompleted = { completed.fulfill() }
+
+        performMenuItem(titled: localized("portal.files.duplicate"), in: menu)
+
+        wait(for: [completed], timeout: 1)
+        let duplicatedURLs = [items[0].url, items[2].url].map {
+            $0.deletingPathExtension().appendingPathExtension("copy")
+        }
+        XCTAssertEqual(duplicator.requests, [[items[0].url, items[2].url]])
+        XCTAssertEqual(selectedURLs.last, duplicatedURLs)
+        XCTAssertEqual(
+            controller.selectionState.selectedIDs,
+            Set(duplicatedURLs.map(FileIdentity.init(url:)))
+        )
+    }
+
+    @MainActor
+    func testSystemDuplicatorUsesFinderDuplicateAndReturnsSourceOrder() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = root.appendingPathComponent("first.txt")
+        let second = root.appendingPathComponent("second.txt")
+        try Data("first".utf8).write(to: first)
+        try Data("second".utf8).write(to: second)
+        let completed = expectation(description: "Finder duplicate completed")
+        var output: [URL] = []
+        var outputError: Error?
+
+        SystemFileDuplicator().duplicate([second, first]) { urls, error in
+            output = urls
+            outputError = error
+            completed.fulfill()
+        }
+        await fulfillment(of: [completed], timeout: 5)
+
+        XCTAssertNil(outputError)
+        XCTAssertEqual(output.count, 2)
+        XCTAssertEqual(try Data(contentsOf: output[0]), Data("second".utf8))
+        XCTAssertEqual(try Data(contentsOf: output[1]), Data("first".utf8))
     }
 
     func testTransferPlanRejectsSameDestinationAndNameConflicts() throws {
@@ -1029,6 +1086,22 @@ private final class FileRecyclerSpy: FileRecycling {
     ) {
         recycledURLs.append(urls)
         completion(nil)
+    }
+}
+
+@MainActor
+private final class FileDuplicatorSpy: FileDuplicating {
+    private(set) var requests: [[URL]] = []
+
+    func duplicate(
+        _ urls: [URL],
+        completion: @escaping @MainActor @Sendable ([URL], Error?) -> Void
+    ) {
+        requests.append(urls)
+        completion(
+            urls.map { $0.deletingPathExtension().appendingPathExtension("copy") },
+            nil
+        )
     }
 }
 

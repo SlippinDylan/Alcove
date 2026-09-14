@@ -79,6 +79,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     private let fileOperationFailurePresenter: any FileOperationFailurePresenting
     private let contextActionPerformer: any FileContextActionPerforming
     private let fileRenamer: any FileRenaming
+    private let fileDuplicator: any FileDuplicating
     private var metrics: GridMetrics
     private var gridCapacity: GridCapacity
     private var items: [FileItem] = []
@@ -99,6 +100,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         fileOperationFailurePresenter: any FileOperationFailurePresenting = FileOperationFailurePresenter(),
         contextActionPerformer: any FileContextActionPerforming = SystemFileContextActionPerformer(),
         fileRenamer: any FileRenaming = CoordinatedFileRenamingService(),
+        fileDuplicator: any FileDuplicating = SystemFileDuplicator(),
         iconSize: IconSize = .medium,
         textSize: CGFloat = 12,
         gridCapacity: GridCapacity = .minimum
@@ -110,6 +112,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         self.fileOperationFailurePresenter = fileOperationFailurePresenter
         self.contextActionPerformer = contextActionPerformer
         self.fileRenamer = fileRenamer
+        self.fileDuplicator = fileDuplicator
         metrics = GridMetrics(iconSize: iconSize, labelFontSize: textSize)
         self.gridCapacity = gridCapacity
         super.init(nibName: nil, bundle: nil)
@@ -443,6 +446,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         menu.addItem(menuItem("portal.files.show_in_finder", action: #selector(revealFromContextMenu)))
         menu.addItem(.separator())
         menu.addItem(menuItem("portal.files.rename", action: #selector(renameFromContextMenu)))
+        menu.addItem(menuItem("portal.files.duplicate", action: #selector(duplicateFromContextMenu)))
         menu.addItem(menuItem("portal.files.move_to_trash", action: #selector(trashFromContextMenu)))
         menu.addItem(.separator())
         menu.addItem(menuItem("portal.files.airdrop", action: #selector(airDropFromContextMenu)))
@@ -494,6 +498,10 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
 
     @objc private func renameFromContextMenu() {
         beginRenamingSelection()
+    }
+
+    @objc private func duplicateFromContextMenu() {
+        duplicateSelection()
     }
 
     @objc private func copyPathFromContextMenu() {
@@ -561,6 +569,24 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
                 onFileOperationCompleted?()
             } catch {
                 self?.fileOperationFailurePresenter.present(error)
+            }
+        }
+    }
+
+    private func duplicateSelection() {
+        let sourceURLs = selectedItemsInGridOrder.map(\.url)
+        guard !sourceURLs.isEmpty else { return }
+        fileDuplicator.duplicate(sourceURLs) { [weak self] duplicatedURLs, error in
+            guard let self else { return }
+            if !duplicatedURLs.isEmpty {
+                let duplicatedIDs = duplicatedURLs.map(FileIdentity.init(url:))
+                selectionState = SelectionState()
+                selectionState.selectAll(duplicatedIDs)
+                onSelectionChanged?(duplicatedURLs)
+                onFileOperationCompleted?()
+            }
+            if let error {
+                fileOperationFailurePresenter.present(error)
             }
         }
     }

@@ -408,6 +408,35 @@ final class SystemFileRecycler: FileRecycling {
 }
 
 @MainActor
+protocol FileDuplicating: AnyObject {
+    func duplicate(
+        _ urls: [URL],
+        completion: @escaping @MainActor @Sendable ([URL], Error?) -> Void
+    )
+}
+
+@MainActor
+final class SystemFileDuplicator: FileDuplicating {
+    func duplicate(
+        _ urls: [URL],
+        completion: @escaping @MainActor @Sendable ([URL], Error?) -> Void
+    ) {
+        NSWorkspace.shared.duplicate(urls) { mappings, error in
+            let duplicatedURLs = urls.compactMap { mappings[$0] }
+            let resultError = error ?? (duplicatedURLs.count == urls.count
+                ? nil
+                : FileOperationError.operationFailed(
+                    completedCount: duplicatedURLs.count,
+                    totalCount: urls.count
+                ))
+            Task { @MainActor in
+                completion(duplicatedURLs, resultError)
+            }
+        }
+    }
+}
+
+@MainActor
 protocol FileOperationFailurePresenting: AnyObject {
     func present(_ error: Error)
 }
