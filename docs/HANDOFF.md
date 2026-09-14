@@ -109,7 +109,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - Space 使用 `QLPreviewPanel` 打开或关闭 Quick Look。
 - Command-Delete 冻结当前有序 URL、立即清空选择并使 Quick Look 失效，再通过 `NSWorkspace.recycle` 移入废纸篓；失败必须显示错误。
 - 从 Alcove 向 Finder/桌面拖动使用 `NSCollectionView` 原生多项 drag session 和 `NSURL` pasteboard writer，源端不在 drop 结束后自行删除。
-- Finder 拖入只接受当前浏览目录的网格空白背景。默认 Copy，按住 Command 才请求 Move；操作前全量拒绝同目录、同名目标、重复目标名和目录进入自身后代，绝不覆盖。实际 IO 在 actor 中通过 `NSFileCoordinator` 串行协调，完成后显式 reload，并由 FSEvents 最终收敛；中途失败集中报告已完成数量。
+- 外部 Finder/桌面拖入可落到当前浏览目录的网格空白或普通目录 tile；Alcove 面板内拖动可落到同面板普通目录 tile，local background drop 继续拒绝。操作语义与 Finder 对齐：同卷默认 Move、跨卷默认 Copy、Option 强制 Copy、Command 强制 Move，Command-Option 因不支持替身而拒绝。actor 在任何 mutation 前重新确认普通目录目标、解析全部卷身份，并全量拒绝同目录、同名目标、重复目标名、目录进入自身或后代，绝不覆盖。实际 IO 通过 `NSFileCoordinator` 串行协调，完成后显式 reload，并由 FSEvents 最终收敛；中途失败集中报告已完成数量。
 - 选中标题文字为白色；图标和标题有各自的 Finder 风格选中区域。
 - 默认排序为目录优先，再按 localized standard name。
 - 当前浏览路径显示在网格下方的固定行中，底部路径行与文件网格之间使用轻分割线，不使用胶囊、额外材质、填充或描边。用户目录缩写为 `~`；Finder、Terminal 和复制操作都使用真实 currentURL，复制写入绝对路径。空 Portal 隐藏路径内容但保留布局高度。

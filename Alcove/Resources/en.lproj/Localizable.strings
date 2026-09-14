@@ -192,6 +192,8 @@
 "portal.files.same_destination" = "The item is already in this folder.";
 "portal.files.name_conflict" = "An item with the same name already exists in this folder.";
 "portal.files.descendant_destination" = "A folder cannot be placed inside itself.";
+"portal.files.invalid_destination_directory" = "The drop destination is no longer an ordinary folder.";
+"portal.files.volume_unavailable" = "The source or destination volume is unavailable.";
 "portal.files.duplicate_names" = "More than one selected item has the same name.";
 "portal.files.partial_failure" = "%d of %d items were completed before the operation failed.";
 "application.settings.backup.error.malformed" = "The selected file is not a valid Alcove layout backup.";

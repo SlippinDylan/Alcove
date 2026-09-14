@@ -312,7 +312,7 @@ final class FileGridViewControllerTests: XCTestCase {
                 sourceMask: [.copy, .move],
                 modifiers: []
             ),
-            .copy
+            [.copy, .move]
         )
         XCTAssertEqual(
             FileGridViewController.requestedDropOperation(
@@ -325,6 +325,39 @@ final class FileGridViewControllerTests: XCTestCase {
             FileGridViewController.requestedDropOperation(
                 sourceMask: .copy,
                 modifiers: .command
+            ),
+            .copy
+        )
+        XCTAssertEqual(
+            FileGridViewController.requestedDropOperation(
+                sourceMask: [.copy, .move],
+                modifiers: [],
+                isLocal: true
+            ),
+            .move
+        )
+        XCTAssertEqual(
+            FileGridViewController.requestedTransferOperation(
+                sourceMask: [.copy, .move],
+                modifiers: []
+            ),
+            .automatic
+        )
+        XCTAssertNil(FileGridViewController.requestedTransferOperation(
+            sourceMask: [.copy, .move],
+            modifiers: [.command, .option]
+        ))
+        XCTAssertEqual(
+            FileTransferOperation.automatic.resolved(
+                sourceVolumeURL: URL(fileURLWithPath: "/Volumes/Source"),
+                destinationVolumeURL: URL(fileURLWithPath: "/Volumes/Source")
+            ),
+            .move
+        )
+        XCTAssertEqual(
+            FileTransferOperation.automatic.resolved(
+                sourceVolumeURL: URL(fileURLWithPath: "/Volumes/Source"),
+                destinationVolumeURL: URL(fileURLWithPath: "/Volumes/Destination")
             ),
             .copy
         )
@@ -344,6 +377,55 @@ final class FileGridViewControllerTests: XCTestCase {
         )) { error in
             XCTAssertEqual(error as? FileOperationError, .directoryIntoDescendant(source))
         }
+        XCTAssertThrowsError(try FileTransferPlan.make(
+            sourceURLs: [source],
+            destinationDirectoryURL: source
+        )) { error in
+            XCTAssertEqual(error as? FileOperationError, .directoryIntoDescendant(source))
+        }
+    }
+
+    @MainActor
+    func testFolderTilesAcceptExternalAndLocalDropsWhileFilesAndBackgroundRejectLocalDrops() {
+        let currentURL = URL(fileURLWithPath: "/tmp/current", isDirectory: true)
+        let folder = FileItem(
+            url: currentURL.appendingPathComponent("Folder", isDirectory: true),
+            name: "Folder",
+            isDirectory: true,
+            isHidden: false
+        )
+        let file = FileItem(
+            url: currentURL.appendingPathComponent("File.txt"),
+            name: "File.txt",
+            isDirectory: false,
+            isHidden: false
+        )
+        let package = FileItem(
+            url: currentURL.appendingPathComponent("App.app", isDirectory: true),
+            name: "App.app",
+            isDirectory: true,
+            isPackage: true,
+            isHidden: false
+        )
+        let symlink = FileItem(
+            url: currentURL.appendingPathComponent("Link", isDirectory: true),
+            name: "Link",
+            isDirectory: true,
+            isSymbolicLink: true,
+            isHidden: false
+        )
+        let controller = FileGridViewController()
+        controller.loadView()
+        controller.setItems([folder, file, package, symlink])
+        controller.updateDropDestination(currentURL)
+
+        XCTAssertEqual(controller.destinationURL(forDropAt: 0, isLocal: false), folder.url)
+        XCTAssertEqual(controller.destinationURL(forDropAt: 0, isLocal: true), folder.url)
+        XCTAssertNil(controller.destinationURL(forDropAt: 1, isLocal: false))
+        XCTAssertNil(controller.destinationURL(forDropAt: 2, isLocal: false))
+        XCTAssertNil(controller.destinationURL(forDropAt: 3, isLocal: false))
+        XCTAssertEqual(controller.destinationURL(forDropAt: nil, isLocal: false), currentURL)
+        XCTAssertNil(controller.destinationURL(forDropAt: nil, isLocal: true))
     }
 
     func testCoordinatedTransferCopiesAndMovesWithoutOverwriting() async throws {
@@ -378,6 +460,19 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(
             try Data(contentsOf: moveDestination.appendingPathComponent("note.txt")),
             Data("hello".utf8)
+        )
+
+        let automaticSource = source.appendingPathComponent("automatic.txt")
+        try Data("automatic".utf8).write(to: automaticSource)
+        try await service.transfer(
+            sourceURLs: [automaticSource],
+            to: moveDestination,
+            operation: .automatic
+        )
+        XCTAssertFalse(FileManager.default.fileExists(atPath: automaticSource.path))
+        XCTAssertEqual(
+            try Data(contentsOf: moveDestination.appendingPathComponent("automatic.txt")),
+            Data("automatic".utf8)
         )
     }
 

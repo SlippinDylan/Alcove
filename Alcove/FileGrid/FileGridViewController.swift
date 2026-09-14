@@ -135,7 +135,7 @@ final class FileGridViewController: NSViewController {
         collectionView.backgroundColors = [.clear]
         collectionView.registerForDraggedTypes([.fileURL])
         collectionView.setDraggingSourceOperationMask([.copy, .move], forLocal: false)
-        collectionView.setDraggingSourceOperationMask([], forLocal: true)
+        collectionView.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
         collectionView.register(
             FileItemCell.self,
             forItemWithIdentifier: FileItemCell.reuseIdentifier
@@ -466,11 +466,23 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
         proposedIndexPath proposedDropIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
         dropOperation proposedDropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>
     ) -> NSDragOperation {
-        guard isBackgroundDrop(draggingInfo, in: collectionView),
-              dropDestinationURL != nil,
+        let location = collectionView.convert(draggingInfo.draggingLocation, from: nil)
+        let targetIndex = collectionView.indexPathForItem(at: location)?.item
+        let isLocal = draggingInfo.draggingSource as AnyObject? === collectionView
+        guard destinationURL(forDropAt: targetIndex, isLocal: isLocal) != nil,
               let sourceURLs = Self.fileURLs(from: draggingInfo.draggingPasteboard),
               !sourceURLs.isEmpty else { return [] }
-        return requestedOperation(for: draggingInfo)
+        if let targetIndex {
+            proposedDropIndexPath.pointee = NSIndexPath(
+                forItem: targetIndex,
+                inSection: 0
+            )
+            proposedDropOperation.pointee = .on
+        }
+        return requestedDragOperation(
+            for: draggingInfo,
+            isLocal: isLocal
+        )
     }
 
     func collectionView(
@@ -479,20 +491,18 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
         indexPath: IndexPath,
         dropOperation: NSCollectionView.DropOperation
     ) -> Bool {
-        guard isBackgroundDrop(draggingInfo, in: collectionView),
-              let destination = dropDestinationURL,
+        let isLocal = draggingInfo.draggingSource as AnyObject? === collectionView
+        guard let destination = destinationURL(
+                forDropAt: dropOperation == .on ? indexPath.item : nil,
+                isLocal: isLocal
+              ),
               let sourceURLs = Self.fileURLs(from: draggingInfo.draggingPasteboard),
               !sourceURLs.isEmpty else { return false }
 
-        let dragOperation = requestedOperation(for: draggingInfo)
-        let operation: FileTransferOperation
-        if dragOperation.contains(.move) {
-            operation = .move
-        } else if dragOperation.contains(.copy) {
-            operation = .copy
-        } else {
-            return false
-        }
+        guard let operation = Self.requestedTransferOperation(
+            sourceMask: draggingInfo.draggingSourceOperationMask,
+            modifiers: NSEvent.modifierFlags
+        ) else { return false }
 
         // Filesystem preflight belongs to the transfer actor. Drag callbacks are
         // MainActor-isolated and must not synchronously query source or destination disks.
@@ -511,30 +521,68 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
         return true
     }
 
-    private func isBackgroundDrop(
-        _ draggingInfo: any NSDraggingInfo,
-        in collectionView: NSCollectionView
-    ) -> Bool {
-        guard draggingInfo.draggingSource as AnyObject? !== collectionView else { return false }
-        let location = collectionView.convert(draggingInfo.draggingLocation, from: nil)
-        return collectionView.indexPathForItem(at: location) == nil
+    func destinationURL(forDropAt index: Int?, isLocal: Bool) -> URL? {
+        if let index {
+            guard items.indices.contains(index), items[index].isNavigableDirectory else {
+                return nil
+            }
+            return items[index].url
+        }
+        return isLocal ? nil : dropDestinationURL
     }
 
-    private func requestedOperation(for draggingInfo: any NSDraggingInfo) -> NSDragOperation {
-        Self.requestedDropOperation(
+    private func requestedDragOperation(
+        for draggingInfo: any NSDraggingInfo,
+        isLocal: Bool
+    ) -> NSDragOperation {
+        let operation = Self.requestedDropOperation(
             sourceMask: draggingInfo.draggingSourceOperationMask,
-            modifiers: NSEvent.modifierFlags
+            modifiers: NSEvent.modifierFlags,
+            isLocal: isLocal
         )
+        return operation
     }
 
     static func requestedDropOperation(
         sourceMask: NSDragOperation,
-        modifiers: NSEvent.ModifierFlags
+        modifiers: NSEvent.ModifierFlags,
+        isLocal: Bool = false
     ) -> NSDragOperation {
+        guard let requested = requestedTransferOperation(
+            sourceMask: sourceMask,
+            modifiers: modifiers
+        ) else { return [] }
+        switch requested {
+        case .copy:
+            return sourceMask.contains(.copy) ? .copy : []
+        case .move:
+            return sourceMask.contains(.move) ? .move : []
+        case .automatic:
+            if isLocal, sourceMask.contains(.move) { return .move }
+            return sourceMask.intersection([.copy, .move])
+        }
+    }
+
+    static func requestedTransferOperation(
+        sourceMask: NSDragOperation,
+        modifiers: NSEvent.ModifierFlags
+    ) -> FileTransferOperation? {
+        if modifiers.contains([.command, .option]) {
+            return nil
+        }
+        if modifiers.contains(.option), sourceMask.contains(.copy) {
+            return .copy
+        }
         if modifiers.contains(.command), sourceMask.contains(.move) {
             return .move
         }
-        return sourceMask.contains(.copy) ? .copy : []
+        if sourceMask.contains(.copy), !sourceMask.contains(.move) {
+            return .copy
+        }
+        if sourceMask.contains(.move), !sourceMask.contains(.copy) {
+            return .move
+        }
+        return .automatic
     }
 
     private static func fileURLs(from pasteboard: NSPasteboard) -> [URL]? {

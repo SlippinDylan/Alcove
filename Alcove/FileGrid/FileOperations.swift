@@ -1,15 +1,27 @@
 import AppKit
 import Foundation
 
-enum FileTransferOperation: Sendable {
+enum FileTransferOperation: Equatable, Sendable {
+    case automatic
     case copy
     case move
+
+    func resolved(
+        sourceVolumeURL: URL,
+        destinationVolumeURL: URL
+    ) -> FileTransferOperation {
+        guard self == .automatic else { return self }
+        return sourceVolumeURL.standardizedFileURL
+            == destinationVolumeURL.standardizedFileURL ? .move : .copy
+    }
 }
 
 enum FileOperationError: LocalizedError, Equatable, Sendable {
     case sourceAlreadyInDestination(URL)
     case destinationAlreadyExists(URL)
     case directoryIntoDescendant(URL)
+    case invalidDestinationDirectory(URL)
+    case volumeUnavailable(URL)
     case duplicateDestinationName(String)
     case operationFailed(completedCount: Int, totalCount: Int)
 
@@ -29,6 +41,16 @@ enum FileOperationError: LocalizedError, Equatable, Sendable {
             return NSLocalizedString(
                 "portal.files.descendant_destination",
                 comment: "A directory cannot be moved into its own descendant"
+            )
+        case .invalidDestinationDirectory:
+            return NSLocalizedString(
+                "portal.files.invalid_destination_directory",
+                comment: "File transfer destination is no longer an ordinary directory"
+            )
+        case .volumeUnavailable:
+            return NSLocalizedString(
+                "portal.files.volume_unavailable",
+                comment: "File transfer volume identity is unavailable"
             )
         case .duplicateDestinationName:
             return NSLocalizedString(
@@ -60,9 +82,19 @@ struct FileTransferPlan: Equatable, Sendable {
         fileManager: FileManager = .default
     ) throws -> FileTransferPlan {
         let destination = destinationDirectoryURL.standardizedFileURL
-        let supportsCaseSensitiveNames = try destination.resourceValues(
-            forKeys: [.volumeSupportsCaseSensitiveNamesKey]
-        ).volumeSupportsCaseSensitiveNames ?? false
+        let destinationValues = try destination.resourceValues(forKeys: [
+            .isDirectoryKey,
+            .isPackageKey,
+            .isSymbolicLinkKey,
+            .volumeSupportsCaseSensitiveNamesKey,
+        ])
+        guard destinationValues.isDirectory == true,
+              destinationValues.isPackage != true,
+              destinationValues.isSymbolicLink != true else {
+            throw FileOperationError.invalidDestinationDirectory(destination)
+        }
+        let supportsCaseSensitiveNames = destinationValues.volumeSupportsCaseSensitiveNames
+            ?? false
         var names = Set<String>()
         var entries: [Entry] = []
 
@@ -87,7 +119,9 @@ struct FileTransferPlan: Equatable, Sendable {
             var isDirectory: ObjCBool = false
             if fileManager.fileExists(atPath: source.path, isDirectory: &isDirectory),
                isDirectory.boolValue,
-               destination.resolvingSymlinksInPath().isDescendant(of: source.resolvingSymlinksInPath()) {
+               destination.resolvingSymlinksInPath().isSameAsOrDescendant(
+                    of: source.resolvingSymlinksInPath()
+               ) {
                 throw FileOperationError.directoryIntoDescendant(source)
             }
 
@@ -109,11 +143,10 @@ struct FileTransferPlan: Equatable, Sendable {
 }
 
 private extension URL {
-    func isDescendant(of ancestor: URL) -> Bool {
+    func isSameAsOrDescendant(of ancestor: URL) -> Bool {
         let ancestorComponents = ancestor.standardizedFileURL.pathComponents
         let candidateComponents = standardizedFileURL.pathComponents
-        return candidateComponents.count > ancestorComponents.count
-            && candidateComponents.starts(with: ancestorComponents)
+        return candidateComponents.starts(with: ancestorComponents)
     }
 }
 
@@ -142,23 +175,52 @@ actor CoordinatedFileTransferService: FileTransferPerforming {
             destinationDirectoryURL: destinationDirectoryURL,
             fileManager: fileManager
         )
+        let resolvedTransfers = try plan.entries.map { entry in
+            (
+                entry: entry,
+                operation: try resolve(
+                    operation,
+                    sourceURL: entry.sourceURL,
+                    destinationDirectoryURL: plan.destinationDirectoryURL
+                )
+            )
+        }
 
         var completedCount = 0
         do {
-            for entry in plan.entries {
+            for transfer in resolvedTransfers {
                 try coordinate(
-                    entry: entry,
+                    entry: transfer.entry,
                     destinationDirectoryURL: plan.destinationDirectoryURL,
-                    operation: operation
+                    operation: transfer.operation
                 )
                 completedCount += 1
             }
         } catch {
             throw FileOperationError.operationFailed(
                 completedCount: completedCount,
-                totalCount: plan.entries.count
+                totalCount: resolvedTransfers.count
             )
         }
+    }
+
+    private func resolve(
+        _ operation: FileTransferOperation,
+        sourceURL: URL,
+        destinationDirectoryURL: URL
+    ) throws -> FileTransferOperation {
+        guard operation == .automatic else { return operation }
+        let sourceVolume = try sourceURL.resourceValues(forKeys: [.volumeURLKey]).volume
+        let destinationVolume = try destinationDirectoryURL.resourceValues(
+            forKeys: [.volumeURLKey]
+        ).volume
+        guard let sourceVolume, let destinationVolume else {
+            throw FileOperationError.volumeUnavailable(sourceURL)
+        }
+        return operation.resolved(
+            sourceVolumeURL: sourceVolume,
+            destinationVolumeURL: destinationVolume
+        )
     }
 
     private func coordinate(
@@ -171,6 +233,8 @@ actor CoordinatedFileTransferService: FileTransferPerforming {
         var operationError: Error?
 
         switch operation {
+        case .automatic:
+            preconditionFailure("Automatic transfer operation must be resolved before IO")
         case .copy:
             coordinator.coordinate(
                 readingItemAt: entry.sourceURL,

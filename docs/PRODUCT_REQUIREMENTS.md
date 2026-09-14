@@ -105,8 +105,9 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 |--------|----------|
 | Command-Delete | Freeze the ordered selection, invalidate Quick Look, and move the selected URLs to Trash through `NSWorkspace.recycle` |
 | Drag from Alcove to Finder/Desktop | Publish the native file URLs through the collection view's AppKit drag session; Alcove never deletes the source after the external drop |
-| Drag from Finder to empty Portal grid space | Copy all dropped items into that tab's current browsed directory |
-| Command-drag from Finder to empty Portal grid space | Move all dropped items into that tab's current browsed directory when the source permits move |
+| Drag from Finder to empty Portal grid space or an ordinary folder tile | Transfer all dropped items into the current browsed directory or targeted folder using Finder volume semantics |
+| Drag from Alcove to an ordinary folder tile in the same panel | Transfer the selected items into that folder; local background drops remain invalid |
+| Finder-style transfer modifiers | Same-volume defaults to Move, cross-volume defaults to Copy, Option forces Copy, Command forces Move, and Command-Option is rejected because alias creation is out of scope |
 
 Before any file mutation, Alcove validates the complete source snapshot off the main actor. An item already in the destination, a duplicate or existing destination name, and a directory transferred into its own descendant are rejected. Alcove never overwrites. Accepted work runs outside the main actor under `NSFileCoordinator`; FSEvents and an explicit reload converge the grid after completion. A multi-item failure reports how many preceding items completed rather than hiding partial progress.
 
@@ -197,7 +198,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
-| FR-17 | Use native multi-item file-URL drag sessions for Portal-to-Finder/Desktop export; accept Finder file-URL drops only on the current directory's empty grid background, defaulting to copy and using Command for move | MVP |
+| FR-17 | Use native multi-item file-URL drag sessions for Portal-to-Finder/Desktop export; accept external file URLs on the current-directory background or an ordinary folder tile and accept in-panel file URLs on ordinary folder tiles. Same-volume transfers default to Move, cross-volume transfers default to Copy, Option forces Copy, Command forces Move, and Command-Option is rejected because alias creation is out of scope | MVP |
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 | FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
 | FR-21 | Show the selected folder path in a reserved bottom row separated from the file grid, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
@@ -321,7 +322,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-20 | The selected folder's abbreviated path updates with tab changes and can be copied without reducing the persisted visible grid capacity | FR-21 |
 | AC-21 | The menu hierarchy and all user-facing strings render in English, Simplified Chinese, or Traditional Chinese from the current macOS language, with unsupported languages falling back to English | FR-22 |
 | AC-22 | Empty-space marquee selection works in both directions and Command-drag toggles against the mouse-down selection | FR-04 |
-| AC-23 | Native file URL drags work from Alcove to Finder/Desktop; Finder drops target the current browsed directory, default to copy, use Command for move, and never overwrite an existing item | FR-17, FR-26 |
+| AC-23 | Native file URL drags work from Alcove to Finder/Desktop; external drops target the current browsed directory or an ordinary folder tile, in-panel drops target ordinary folder tiles, automatic operations use Finder same-volume Move/cross-volume Copy semantics, modifiers override safely, and no transfer overwrites an existing item | FR-17, FR-26 |
 | AC-24 | Advanced → Repair Panel Positions leaves every already visible non-conflicting frame unchanged, persists only repaired panels, uses distinct exposed-top fallback slots before repeating them, and leaves every panel recoverable through menu-bar Show | FR-08, FR-22, FR-23 |
 
 ---
