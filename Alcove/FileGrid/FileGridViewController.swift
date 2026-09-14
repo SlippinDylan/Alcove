@@ -78,6 +78,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     private let fileRecycler: any FileRecycling
     private let fileOperationFailurePresenter: any FileOperationFailurePresenting
     private let contextActionPerformer: any FileContextActionPerforming
+    private let fileRenamer: any FileRenaming
     private var metrics: GridMetrics
     private var gridCapacity: GridCapacity
     private var items: [FileItem] = []
@@ -97,6 +98,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         fileRecycler: any FileRecycling = SystemFileRecycler(),
         fileOperationFailurePresenter: any FileOperationFailurePresenting = FileOperationFailurePresenter(),
         contextActionPerformer: any FileContextActionPerforming = SystemFileContextActionPerformer(),
+        fileRenamer: any FileRenaming = CoordinatedFileRenamingService(),
         iconSize: IconSize = .medium,
         textSize: CGFloat = 12,
         gridCapacity: GridCapacity = .minimum
@@ -107,6 +109,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         self.fileRecycler = fileRecycler
         self.fileOperationFailurePresenter = fileOperationFailurePresenter
         self.contextActionPerformer = contextActionPerformer
+        self.fileRenamer = fileRenamer
         metrics = GridMetrics(iconSize: iconSize, labelFontSize: textSize)
         self.gridCapacity = gridCapacity
         super.init(nibName: nil, bundle: nil)
@@ -307,6 +310,8 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
             applySelection()
         case .openSelection:
             openSelection()
+        case .renameSelection:
+            beginRenamingSelection()
         case .trashSelection:
             trashSelection()
         case .toggleQuickLook:
@@ -437,6 +442,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         menu.addItem(menuItem("portal.files.quick_look", action: #selector(quickLookFromContextMenu)))
         menu.addItem(menuItem("portal.files.show_in_finder", action: #selector(revealFromContextMenu)))
         menu.addItem(.separator())
+        menu.addItem(menuItem("portal.files.rename", action: #selector(renameFromContextMenu)))
         menu.addItem(menuItem("portal.files.move_to_trash", action: #selector(trashFromContextMenu)))
         menu.addItem(.separator())
         menu.addItem(menuItem("portal.files.airdrop", action: #selector(airDropFromContextMenu)))
@@ -461,6 +467,9 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         if menuItem.action == #selector(airDropFromContextMenu) {
             return contextActionPerformer.canSendViaAirDrop(urls)
         }
+        if menuItem.action == #selector(renameFromContextMenu) {
+            return urls.count == 1
+        }
         return true
     }
 
@@ -481,6 +490,10 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
 
     @objc private func trashFromContextMenu() {
         trashSelection()
+    }
+
+    @objc private func renameFromContextMenu() {
+        beginRenamingSelection()
     }
 
     @objc private func copyPathFromContextMenu() {
@@ -507,6 +520,46 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         }
         contextActionPerformer.openInTerminal(directories) { [weak self] error in
             if let error {
+                self?.fileOperationFailurePresenter.present(error)
+            }
+        }
+    }
+
+    private func beginRenamingSelection() {
+        guard selectedItemsInGridOrder.count == 1,
+              let selectedItem = selectedItemsInGridOrder.first,
+              let index = items.firstIndex(where: { $0.id == selectedItem.id }) else { return }
+        let indexPath = IndexPath(item: index, section: 0)
+        collectionView.scrollToItems(at: [indexPath], scrollPosition: .nearestVerticalEdge)
+        collectionView.layoutSubtreeIfNeeded()
+        guard let cell = collectionView.item(at: indexPath) as? FileItemCell else { return }
+        cell.beginRenaming(selecting: Self.renameSelectionRange(for: selectedItem)) {
+            [weak self] newName in
+            self?.commitRename(selectedItem, to: newName)
+        }
+    }
+
+    static func renameSelectionRange(for item: FileItem) -> NSRange {
+        let name = item.name as NSString
+        guard !item.isDirectory || item.isPackage else {
+            return NSRange(location: 0, length: name.length)
+        }
+        let pathExtension = name.pathExtension as NSString
+        guard pathExtension.length > 0 else {
+            return NSRange(location: 0, length: name.length)
+        }
+        return NSRange(location: 0, length: name.length - pathExtension.length - 1)
+    }
+
+    func commitRename(_ item: FileItem, to newName: String) {
+        Task { [weak self, fileRenamer] in
+            do {
+                let renamedURL = try await fileRenamer.rename(item.url, to: newName)
+                guard let self else { return }
+                selectionState.select(FileIdentity(url: renamedURL))
+                onSelectionChanged?([renamedURL])
+                onFileOperationCompleted?()
+            } catch {
                 self?.fileOperationFailurePresenter.present(error)
             }
         }

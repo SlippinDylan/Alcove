@@ -173,7 +173,7 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(FileCollectionView.command(keyCode: 31, modifiers: .command), .openSelection)
         XCTAssertEqual(FileCollectionView.command(keyCode: 125, modifiers: .command), .openSelection)
         XCTAssertEqual(FileCollectionView.command(keyCode: 123, modifiers: .shift), .moveLeft(extending: true))
-        XCTAssertEqual(FileCollectionView.command(keyCode: 36, modifiers: []), .noOperation)
+        XCTAssertEqual(FileCollectionView.command(keyCode: 36, modifiers: []), .renameSelection)
         XCTAssertEqual(FileCollectionView.command(keyCode: 49, modifiers: []), .toggleQuickLook)
         XCTAssertEqual(FileCollectionView.command(keyCode: 51, modifiers: .command), .trashSelection)
         XCTAssertEqual(FileCollectionView.command(keyCode: 117, modifiers: .command), .trashSelection)
@@ -281,6 +281,7 @@ final class FileGridViewControllerTests: XCTestCase {
                 localized("portal.files.quick_look"),
                 localized("portal.files.show_in_finder"),
                 "",
+                localized("portal.files.rename"),
                 localized("portal.files.move_to_trash"),
                 "",
                 localized("portal.files.airdrop"),
@@ -356,6 +357,159 @@ final class FileGridViewControllerTests: XCTestCase {
             failurePresenter.errors.first as? FileContextActionError,
             .airDropUnavailable
         )
+    }
+
+    func testRenamePlanRejectsInvalidAndConflictingNames() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("source.txt")
+        let conflict = root.appendingPathComponent("conflict.txt")
+        let hardLink = root.appendingPathComponent("hard-link.txt")
+        XCTAssertTrue(FileManager.default.createFile(atPath: source.path, contents: Data()))
+        XCTAssertTrue(FileManager.default.createFile(atPath: conflict.path, contents: Data()))
+        try FileManager.default.linkItem(at: source, to: hardLink)
+
+        for invalidName in ["", "   ", ".", "..", "folder/name", "bad\0name"] {
+            XCTAssertThrowsError(try FileRenamePlan.make(
+                sourceURL: source,
+                newName: invalidName
+            )) { error in
+                XCTAssertEqual(error as? FileOperationError, .invalidName)
+            }
+        }
+        XCTAssertThrowsError(try FileRenamePlan.make(
+            sourceURL: source,
+            newName: conflict.lastPathComponent
+        )) { error in
+            XCTAssertEqual(
+                error as? FileOperationError,
+                .destinationAlreadyExists(conflict)
+            )
+        }
+        XCTAssertThrowsError(try FileRenamePlan.make(
+            sourceURL: source,
+            newName: hardLink.lastPathComponent
+        )) { error in
+            XCTAssertEqual(
+                error as? FileOperationError,
+                .destinationAlreadyExists(hardLink)
+            )
+        }
+    }
+
+    func testCoordinatedRenameSupportsCaseOnlyNamesWithoutOverwriting() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = root.appendingPathComponent("report.txt")
+        try Data("contents".utf8).write(to: original)
+        let service = CoordinatedFileRenamingService()
+
+        let renamed = try await service.rename(original, to: "Report.txt")
+
+        XCTAssertEqual(renamed.lastPathComponent, "Report.txt")
+        XCTAssertEqual(try Data(contentsOf: renamed), Data("contents".utf8))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["Report.txt"])
+    }
+
+    @MainActor
+    func testRenameCompletionMigratesPathBasedSelectionBeforeReload() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = root.appendingPathComponent("draft.txt")
+        XCTAssertTrue(FileManager.default.createFile(atPath: original.path, contents: Data()))
+        let item = FileItem(
+            url: original,
+            name: original.lastPathComponent,
+            isDirectory: false,
+            isHidden: false
+        )
+        let controller = FileGridViewController()
+        controller.loadView()
+        controller.setItems([item])
+        controller.handleClick(index: 0, modifiers: [])
+        let completed = expectation(description: "Rename reload requested")
+        var selectedURLs: [[URL]] = []
+        controller.onSelectionChanged = { selectedURLs.append($0) }
+        controller.onFileOperationCompleted = { completed.fulfill() }
+
+        controller.commitRename(item, to: "final.txt")
+        await fulfillment(of: [completed], timeout: 2)
+
+        let renamed = root.appendingPathComponent("final.txt")
+        XCTAssertEqual(controller.selectionState.selectedIDs, [FileIdentity(url: renamed)])
+        XCTAssertEqual(selectedURLs.last, [renamed])
+    }
+
+    @MainActor
+    func testRenameSelectionRangePreservesFileExtensions() {
+        let file = FileItem(
+            url: URL(fileURLWithPath: "/tmp/Archive.tar.gz"),
+            name: "Archive.tar.gz",
+            isDirectory: false,
+            isHidden: false
+        )
+        let folder = FileItem(
+            url: URL(fileURLWithPath: "/tmp/Folder"),
+            name: "Folder",
+            isDirectory: true,
+            isHidden: false
+        )
+        let hidden = FileItem(
+            url: URL(fileURLWithPath: "/tmp/.gitignore"),
+            name: ".gitignore",
+            isDirectory: false,
+            isHidden: true
+        )
+
+        XCTAssertEqual(FileGridViewController.renameSelectionRange(for: file), NSRange(location: 0, length: 11))
+        XCTAssertEqual(FileGridViewController.renameSelectionRange(for: folder), NSRange(location: 0, length: 6))
+        XCTAssertEqual(FileGridViewController.renameSelectionRange(for: hidden), NSRange(location: 0, length: 10))
+    }
+
+    @MainActor
+    func testInlineRenameCommitsReturnAndCancelsEscape() {
+        let cell = FileItemCell()
+        cell.loadView()
+        let item = makeItems(count: 1)[0]
+        cell.configure(
+            with: item,
+            metrics: GridMetrics(iconSize: .medium),
+            position: 1,
+            itemCount: 1,
+            onOpen: { true }
+        )
+        var committedNames: [String] = []
+        cell.beginRenaming(selecting: NSRange(location: 0, length: 4)) {
+            committedNames.append($0)
+        }
+        cell.nameLabel.stringValue = "renamed"
+
+        XCTAssertTrue(cell.control(
+            cell.nameLabel,
+            textView: NSTextView(),
+            doCommandBy: #selector(NSResponder.insertNewline(_:))
+        ))
+        XCTAssertEqual(committedNames, ["renamed"])
+        XCTAssertEqual(cell.nameLabel.stringValue, item.name)
+        XCTAssertFalse(cell.nameLabel.isEditable)
+
+        cell.beginRenaming(selecting: NSRange(location: 0, length: 4)) {
+            committedNames.append($0)
+        }
+        cell.nameLabel.stringValue = "cancelled"
+        XCTAssertTrue(cell.control(
+            cell.nameLabel,
+            textView: NSTextView(),
+            doCommandBy: #selector(NSResponder.cancelOperation(_:))
+        ))
+        XCTAssertEqual(committedNames, ["renamed"])
+        XCTAssertEqual(cell.nameLabel.stringValue, item.name)
     }
 
     func testTransferPlanRejectsSameDestinationAndNameConflicts() throws {

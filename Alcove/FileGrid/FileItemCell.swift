@@ -2,7 +2,7 @@ import AlcoveCore
 import AppKit
 
 @MainActor
-final class FileItemCell: NSCollectionViewItem {
+final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
     static let reuseIdentifier = NSUserInterfaceItemIdentifier("FileItemCell")
 
     private(set) var iconView = NSImageView()
@@ -18,6 +18,12 @@ final class FileItemCell: NSCollectionViewItem {
     private var itemPosition = 0
     private var itemCount = 0
     private var onOpen: (() -> Bool)?
+    private var renameState: RenameState?
+
+    private struct RenameState {
+        let originalName: String
+        let onCommit: (String) -> Void
+    }
 
     override func loadView() {
         let rootView = FileItemRootView()
@@ -41,6 +47,7 @@ final class FileItemCell: NSCollectionViewItem {
         nameLabel.lineBreakMode = .byCharWrapping
         nameLabel.maximumNumberOfLines = 2
         nameLabel.cell?.truncatesLastVisibleLine = true
+        nameLabel.delegate = self
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
         view.addSubview(iconSelectionView)
@@ -105,6 +112,7 @@ final class FileItemCell: NSCollectionViewItem {
         opensDirectoryInPanel: Bool = false,
         onOpen: @escaping () -> Bool
     ) {
+        cancelRenaming()
         representedObject = item
         itemPosition = position
         self.itemCount = itemCount
@@ -145,6 +153,60 @@ final class FileItemCell: NSCollectionViewItem {
                 selector: #selector(performAccessibilityOpen)
             ),
         ])
+    }
+
+    func beginRenaming(
+        selecting range: NSRange,
+        onCommit: @escaping (String) -> Void
+    ) {
+        guard renameState == nil else { return }
+        renameState = RenameState(originalName: nameLabel.stringValue, onCommit: onCommit)
+        nameLabel.isEditable = true
+        nameLabel.isSelectable = true
+        nameLabel.maximumNumberOfLines = 1
+        nameLabel.lineBreakMode = .byClipping
+        view.window?.makeFirstResponder(nameLabel)
+        nameLabel.currentEditor()?.selectedRange = range
+    }
+
+    func control(
+        _ control: NSControl,
+        textView: NSTextView,
+        doCommandBy commandSelector: Selector
+    ) -> Bool {
+        switch commandSelector {
+        case #selector(NSResponder.insertNewline(_:)):
+            finishRenaming(commit: true)
+            return true
+        case #selector(NSResponder.cancelOperation(_:)):
+            finishRenaming(commit: false)
+            return true
+        default:
+            return false
+        }
+    }
+
+    func controlTextDidEndEditing(_ notification: Notification) {
+        finishRenaming(commit: true)
+    }
+
+    private func finishRenaming(commit: Bool) {
+        guard let state = renameState else { return }
+        let proposedName = nameLabel.stringValue
+        renameState = nil
+        nameLabel.abortEditing()
+        nameLabel.isEditable = false
+        nameLabel.isSelectable = false
+        nameLabel.maximumNumberOfLines = 2
+        nameLabel.lineBreakMode = .byCharWrapping
+        nameLabel.stringValue = state.originalName
+        if commit {
+            state.onCommit(proposedName)
+        }
+    }
+
+    private func cancelRenaming() {
+        finishRenaming(commit: false)
     }
 
     private func updateAccessibilityValue() {

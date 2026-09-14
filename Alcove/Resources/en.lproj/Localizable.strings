@@ -204,6 +204,8 @@
 "portal.files.copy_path" = "Copy Path";
 "portal.files.open_in_terminal" = "Open in Terminal";
 "portal.files.airdrop_unavailable" = "AirDrop Is Unavailable";
+"portal.files.rename" = "Rename";
+"portal.files.invalid_name" = "Enter a valid file or folder name.";
 "application.settings.backup.error.malformed" = "The selected file is not a valid Alcove layout backup.";
 "application.settings.backup.error.format" = "The selected file was not created as an Alcove layout backup.";
 "application.settings.backup.error.version" = "Layout backup version %d is not supported by this version of Alcove.";

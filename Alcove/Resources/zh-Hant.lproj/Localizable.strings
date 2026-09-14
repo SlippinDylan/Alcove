@@ -204,6 +204,8 @@
 "portal.files.copy_path" = "複製路徑";
 "portal.files.open_in_terminal" = "在終端機中打開";
 "portal.files.airdrop_unavailable" = "AirDrop 無法使用";
+"portal.files.rename" = "重新命名";
+"portal.files.invalid_name" = "請輸入有效的檔案或資料夾名稱。";
 "application.settings.backup.error.malformed" = "所選檔案不是有效的 Alcove 佈局備份。";
 "application.settings.backup.error.format" = "所選檔案不是由 Alcove 建立的佈局備份。";
 "application.settings.backup.error.version" = "目前版本的 Alcove 不支援佈局備份版本 %d。";

@@ -108,7 +108,8 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 子目录中顶部左侧显示原生返回按钮；底部路径栏跟随 currentURL，路径可在 Finder 打开，并提供 Apple Terminal 与最右侧绝对路径复制按钮。
 - Space 使用 `QLPreviewPanel` 打开或关闭 Quick Look。
 - Command-Delete 冻结当前有序 URL、立即清空选择并使 Quick Look 失效，再通过 `NSWorkspace.recycle` 移入废纸篓；失败必须显示错误。
-- 文件或文件夹右键使用原生 `NSMenu`：右键已选项目保留多选，右键未选项目只选中该项，右键空白不显示文件菜单也不改变选择。当前菜单集中提供打开、快速查看、在 Finder 中显示、移到废纸篓、隔空投送、复制绝对路径和在 Apple Terminal 中打开；多选路径按网格顺序逐行复制，Terminal 对文件使用父目录并去重。
+- 文件或文件夹右键使用原生 `NSMenu`：右键已选项目保留多选，右键未选项目只选中该项，右键空白不显示文件菜单也不改变选择。当前菜单集中提供打开、快速查看、在 Finder 中显示、重新命名、移到废纸篓、隔空投送、复制绝对路径和在 Apple Terminal 中打开；多选路径按网格顺序逐行复制，Terminal 对文件使用父目录并去重。
+- 单选后按 Return 或选择右键“重新命名”会直接编辑 tile 标题；文件默认只选中扩展名前的部分，文件夹全选。Return 或失焦提交，Escape 取消。名称为空、只有空白、`.`、`..`、包含 `/`/NUL 或与其他对象冲突时拒绝；仅大小写或规范化形式变化通过文件资源身份确认，不覆盖其他对象。成功后先迁移路径型选择和 Quick Look URL，再刷新目录。
 - 从 Alcove 向 Finder/桌面拖动使用 `NSCollectionView` 原生多项 drag session 和 `NSURL` pasteboard writer，源端不在 drop 结束后自行删除。
 - 外部 Finder/桌面拖入可落到当前浏览目录的网格空白或普通目录 tile；Alcove 面板内拖动可落到同面板普通目录 tile，local background drop 继续拒绝。操作语义与 Finder 对齐：同卷默认 Move、跨卷默认 Copy、Option 强制 Copy、Command 强制 Move，Command-Option 因不支持替身而拒绝。actor 在任何 mutation 前重新确认普通目录目标、解析全部卷身份，并全量拒绝同目录、同名目标、重复目标名、目录进入自身或后代，绝不覆盖。实际 IO 通过 `NSFileCoordinator` 串行协调，完成后显式 reload，并由 FSEvents 最终收敛；中途失败集中报告已完成数量。
 - 选中标题文字为白色；图标和标题有各自的 Finder 风格选中区域。

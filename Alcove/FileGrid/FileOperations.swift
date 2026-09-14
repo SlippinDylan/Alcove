@@ -22,6 +22,7 @@ enum FileOperationError: LocalizedError, Equatable, Sendable {
     case directoryIntoDescendant(URL)
     case invalidDestinationDirectory(URL)
     case volumeUnavailable(URL)
+    case invalidName
     case duplicateDestinationName(String)
     case operationFailed(completedCount: Int, totalCount: Int)
 
@@ -52,6 +53,11 @@ enum FileOperationError: LocalizedError, Equatable, Sendable {
                 "portal.files.volume_unavailable",
                 comment: "File transfer volume identity is unavailable"
             )
+        case .invalidName:
+            return NSLocalizedString(
+                "portal.files.invalid_name",
+                comment: "A file or folder name is invalid"
+            )
         case .duplicateDestinationName:
             return NSLocalizedString(
                 "portal.files.duplicate_names",
@@ -65,6 +71,111 @@ enum FileOperationError: LocalizedError, Equatable, Sendable {
             return String(format: format, completedCount, totalCount)
         }
     }
+}
+
+struct FileRenamePlan: Equatable, Sendable {
+    let sourceURL: URL
+    let destinationURL: URL
+
+    static func make(
+        sourceURL: URL,
+        newName: String,
+        fileManager: FileManager = .default
+    ) throws -> FileRenamePlan {
+        let source = sourceURL.standardizedFileURL
+        guard !newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              newName != ".",
+              newName != "..",
+              !newName.contains("/"),
+              !newName.contains("\0") else {
+            throw FileOperationError.invalidName
+        }
+
+        let destination = source.deletingLastPathComponent()
+            .appendingPathComponent(newName)
+            .standardizedFileURL
+        let sourceValues = try source.resourceValues(forKeys: [
+            .fileResourceIdentifierKey,
+            .volumeSupportsCaseSensitiveNamesKey,
+        ])
+        guard let sourceIdentifier = sourceValues.fileResourceIdentifier else {
+            throw CocoaError(.fileReadNoSuchFile)
+        }
+        if destination.path == source.path {
+            return FileRenamePlan(sourceURL: source, destinationURL: destination)
+        }
+
+        if fileManager.fileExists(atPath: destination.path) {
+            let destinationIdentifier = try destination.resourceValues(
+                forKeys: [.fileResourceIdentifierKey]
+            ).fileResourceIdentifier
+            guard let supportsCaseSensitiveNames = sourceValues.volumeSupportsCaseSensitiveNames else {
+                throw FileOperationError.volumeUnavailable(source)
+            }
+            let namesIdentifySameEntry = FileTransferPlan.destinationNameKey(
+                source.lastPathComponent,
+                caseSensitive: supportsCaseSensitiveNames
+            ) == FileTransferPlan.destinationNameKey(
+                newName,
+                caseSensitive: supportsCaseSensitiveNames
+            )
+            guard let destinationIdentifier,
+                  namesIdentifySameEntry,
+                  sourceIdentifier.isEqual(destinationIdentifier) else {
+                throw FileOperationError.destinationAlreadyExists(destination)
+            }
+        }
+        return FileRenamePlan(sourceURL: source, destinationURL: destination)
+    }
+}
+
+protocol FileRenaming: Sendable {
+    func rename(_ sourceURL: URL, to newName: String) async throws -> URL
+}
+
+actor CoordinatedFileRenamingService: FileRenaming {
+    private let fileManager: FileManager
+
+    init(fileManager: FileManager = .default) {
+        self.fileManager = fileManager
+    }
+
+    func rename(_ sourceURL: URL, to newName: String) throws -> URL {
+        let plan = try FileRenamePlan.make(
+            sourceURL: sourceURL,
+            newName: newName,
+            fileManager: fileManager
+        )
+        guard plan.sourceURL != plan.destinationURL else { return plan.destinationURL }
+
+        // The accessor is synchronous and the actor serializes every use of this handle.
+        let coordinator = SendableFileCoordinator()
+        var coordinationError: NSError?
+        var operationError: Error?
+        coordinator.value.coordinate(
+            writingItemAt: plan.sourceURL,
+            options: .forMoving,
+            error: &coordinationError
+        ) { coordinatedSource in
+            do {
+                coordinator.value.item(
+                    at: coordinatedSource,
+                    willMoveTo: plan.destinationURL
+                )
+                try fileManager.moveItem(at: coordinatedSource, to: plan.destinationURL)
+                coordinator.value.item(at: coordinatedSource, didMoveTo: plan.destinationURL)
+            } catch {
+                operationError = error
+            }
+        }
+        if let coordinationError { throw coordinationError }
+        if let operationError { throw operationError }
+        return plan.destinationURL
+    }
+}
+
+private final class SendableFileCoordinator: @unchecked Sendable {
+    let value = NSFileCoordinator(filePresenter: nil)
 }
 
 struct FileTransferPlan: Equatable, Sendable {

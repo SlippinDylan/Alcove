@@ -204,6 +204,8 @@
 "portal.files.copy_path" = "复制路径";
 "portal.files.open_in_terminal" = "在终端中打开";
 "portal.files.airdrop_unavailable" = "隔空投送不可用";
+"portal.files.rename" = "重新命名";
+"portal.files.invalid_name" = "请输入有效的文件或文件夹名称。";
 "application.settings.backup.error.malformed" = "所选文件不是有效的 Alcove 布局备份。";
 "application.settings.backup.error.format" = "所选文件不是由 Alcove 创建的布局备份。";
 "application.settings.backup.error.version" = "当前版本的 Alcove 不支持布局备份版本 %d。";
