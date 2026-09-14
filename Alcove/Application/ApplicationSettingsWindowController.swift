@@ -2,6 +2,16 @@ import AppKit
 import AlcoveCore
 import ServiceManagement
 
+@MainActor
+protocol PanelPositionRepairing: AnyObject {
+    func repairPanelPositions() async throws -> Int
+}
+
+@MainActor
+final class DisabledPanelPositionRepairer: PanelPositionRepairing {
+    func repairPanelPositions() async throws -> Int { 0 }
+}
+
 enum PortalCornerRadius: Int, CaseIterable, Sendable {
     case none
     case small
@@ -251,6 +261,7 @@ final class ApplicationSettingsWindowController: NSWindowController {
         launchAtLoginController: any LaunchAtLoginControlling = LaunchAtLoginController(),
         preferencesController: any ApplicationPreferencesControlling = ApplicationPreferencesController(),
         layoutBackupController: any ApplicationLayoutBackupControlling = DisabledApplicationLayoutBackupController(),
+        panelPositionRepairer: any PanelPositionRepairing = DisabledPanelPositionRepairer(),
         metadata: ApplicationMetadata = ApplicationMetadata(),
         applicationIcon: NSImage = NSApplication.shared.applicationIconImage
     ) {
@@ -258,6 +269,7 @@ final class ApplicationSettingsWindowController: NSWindowController {
             launchAtLoginController: launchAtLoginController,
             preferencesController: preferencesController,
             layoutBackupController: layoutBackupController,
+            panelPositionRepairer: panelPositionRepairer,
             metadata: metadata,
             applicationIcon: applicationIcon
         )
@@ -406,6 +418,7 @@ final class ApplicationSettingsViewController: NSViewController {
     private let launchAtLoginController: any LaunchAtLoginControlling
     private let preferencesController: any ApplicationPreferencesControlling
     private let layoutBackupController: any ApplicationLayoutBackupControlling
+    private let panelPositionRepairer: any PanelPositionRepairing
     private let metadata: ApplicationMetadata
     private let applicationIcon: NSImage
     private(set) var selectedCategory = Category.general
@@ -416,12 +429,14 @@ final class ApplicationSettingsViewController: NSViewController {
         launchAtLoginController: any LaunchAtLoginControlling,
         preferencesController: any ApplicationPreferencesControlling,
         layoutBackupController: any ApplicationLayoutBackupControlling,
+        panelPositionRepairer: any PanelPositionRepairing,
         metadata: ApplicationMetadata,
         applicationIcon: NSImage
     ) {
         self.launchAtLoginController = launchAtLoginController
         self.preferencesController = preferencesController
         self.layoutBackupController = layoutBackupController
+        self.panelPositionRepairer = panelPositionRepairer
         self.metadata = metadata
         self.applicationIcon = applicationIcon
         super.init(nibName: nil, bundle: nil)
@@ -561,6 +576,49 @@ final class ApplicationSettingsViewController: NSViewController {
     }
 
     private func showAdvancedSettings() {
+        let repairTitle = NSTextField(labelWithString: NSLocalizedString(
+            "application.settings.position_repair.title",
+            comment: "Panel position repair card title"
+        ))
+        repairTitle.font = .systemFont(ofSize: 13, weight: .semibold)
+
+        let repairDetail = NSTextField(wrappingLabelWithString: NSLocalizedString(
+            "application.settings.position_repair.description",
+            comment: "Panel position repair card description"
+        ))
+        repairDetail.font = .systemFont(ofSize: 12)
+        repairDetail.textColor = .secondaryLabelColor
+        repairDetail.maximumNumberOfLines = 2
+
+        let repairLabels = NSStackView(views: [repairTitle, repairDetail])
+        repairLabels.orientation = .vertical
+        repairLabels.alignment = .leading
+        repairLabels.spacing = 3
+        repairLabels.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
+
+        let repairButton = backupButton(
+            titleKey: "application.settings.position_repair.action",
+            identifier: "application-settings.position-repair.action",
+            action: #selector(repairPanelPositions(_:))
+        )
+        let repairSpacer = NSView()
+        let repairActions = NSStackView(views: [repairSpacer, repairButton])
+        repairActions.orientation = .horizontal
+        repairActions.alignment = .centerY
+        repairActions.heightAnchor.constraint(equalToConstant: 46).isActive = true
+
+        let repairCard = ApplicationSettingsCardView(rows: [repairLabels, repairActions])
+        repairCard.identifier = NSUserInterfaceItemIdentifier(
+            "application-settings.position-repair.card"
+        )
+        addSection(
+            title: NSLocalizedString(
+                "application.settings.position_repair.section",
+                comment: "Panel position repair settings section"
+            ),
+            card: repairCard
+        )
+
         let title = NSTextField(labelWithString: NSLocalizedString(
             "application.settings.backup.title",
             comment: "Layout backup card title"
@@ -842,6 +900,47 @@ final class ApplicationSettingsViewController: NSViewController {
     @objc private func exportLayout(_ sender: NSButton) {
         guard let window = view.window else { return }
         layoutBackupController.beginExport(from: window)
+    }
+
+    @objc private func repairPanelPositions(_ sender: NSButton) {
+        guard let window = view.window else { return }
+        sender.isEnabled = false
+        Task { [weak self, weak sender, weak window] in
+            guard let self else { return }
+            defer { sender?.isEnabled = true }
+            do {
+                let count = try await panelPositionRepairer.repairPanelPositions()
+                presentPositionRepairResult(count: count, from: window)
+            } catch {
+                presentPositionRepairError(error, from: window)
+            }
+        }
+    }
+
+    private func presentPositionRepairResult(count: Int, from window: NSWindow?) {
+        guard let window else { return }
+        let alert = NSAlert()
+        alert.messageText = count == 0
+            ? NSLocalizedString(
+                "application.settings.position_repair.no_changes",
+                comment: "No panel positions needed repair"
+            )
+            : NSLocalizedString(
+                "application.settings.position_repair.completed",
+                comment: "Panel position repair completed"
+            )
+        alert.addButton(withTitle: NSLocalizedString("OK", comment: "Dismiss alert"))
+        alert.beginSheetModal(for: window)
+    }
+
+    private func presentPositionRepairError(_ error: Error, from window: NSWindow?) {
+        guard let window else { return }
+        let alert = NSAlert(error: error)
+        alert.messageText = NSLocalizedString(
+            "application.settings.position_repair.error",
+            comment: "Panel position repair error title"
+        )
+        alert.beginSheetModal(for: window)
     }
 
     @objc private func changeIconSize(_ sender: NSSlider) {

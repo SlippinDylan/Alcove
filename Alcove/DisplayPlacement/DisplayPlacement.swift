@@ -27,8 +27,9 @@ public enum DisplaySnapshotError: Error, Sendable, Equatable {
 
 /// A complete topology snapshot suitable for placement reconciliation.
 ///
-/// `primaryDisplay` is captured explicitly from `NSScreen.main`; consumers
-/// must not infer it from the order of `NSScreen.screens`.
+/// `primaryDisplay` is the menu-bar display at index zero of the fresh
+/// `NSScreen.screens` array. It is deliberately not `NSScreen.main`, which is
+/// the display containing the window that currently has keyboard focus.
 public struct DisplaySnapshot: Sendable, Equatable {
     public let displays: [DisplayDescriptor]
     public let primaryDisplay: DisplayIdentity
@@ -63,12 +64,13 @@ public struct DisplaySnapshot: Sendable, Equatable {
     /// Captures all current displays and their canonical CoreGraphics UUIDs.
     @MainActor
     public static func capture() throws -> DisplaySnapshot {
-        guard let mainScreen = NSScreen.main else {
+        let screens = NSScreen.screens
+        guard let primaryScreen = screens.first else {
             throw DisplaySnapshotError.missingPrimaryScreen
         }
 
-        let primaryDisplay = try identity(for: mainScreen)
-        let displays = try NSScreen.screens.map(descriptor(for:))
+        let primaryDisplay = try identity(for: primaryScreen)
+        let displays = try screens.map(descriptor(for:))
         return try DisplaySnapshot(
             displays: displays,
             primaryDisplay: primaryDisplay

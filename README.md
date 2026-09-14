@@ -16,11 +16,11 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 > system-behavior matrices and remaining integration evidence are still in progress. Production
 > Slices 1–10 now provide the tested universal AppKit shell, multi-tab portals,
 > Finder-style interaction and icon tiles, transactional empty-portal creation, Quick Look, v11 portal
-> persistence, multi-display recovery, automatic FSEvents folder refresh,
+> persistence, primary-display-following recovery, automatic FSEvents folder refresh,
 > menu-bar portal management, global Small/Medium/Large content sizing and five-step frosted-background control, global five-step panel spacing and corner radius, a system-shadow toggle, collision-safe placement, adaptive macOS 26
 > Glass/macOS 15 fallback chrome, accessibility display-option handling, and
 > explicit recovery from missing, replaced, permission, read, and persistence
-> failures. Portals can be pinned against user movement and resizing, browse mapped subdirectories, expose Finder/Terminal/path actions, and localize all user-facing UI into English, Simplified Chinese, or Traditional Chinese. The menu bar provides portal show/hide commands and an application-settings window for global style and layout backup. Three production-wide code review passes are complete, and CI tests
+> failures. Portals can be pinned against user movement and resizing, browse mapped subdirectories, expose Finder/Terminal/path actions, and localize all user-facing UI into English, Simplified Chinese, or Traditional Chinese. The menu bar provides portal show/hide commands and an application-settings window for global style, position repair, and layout backup. Three production-wide code review passes are complete, and CI tests
 > and publishes an unsigned universal verification artifact. Manual system
 > behavior and the separate signing release gate remain open.
 
@@ -42,7 +42,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 - **Finder-consistent interaction**: click/Command/Shift and empty-space marquee selection, arrow navigation, Command-A, Quick Look, open, Trash, and native file-URL drag in/out
 - **Finder-style icon tiles**: separate icon/title selection regions, two-line labels, a durable integer-capacity grid shared by rendering, keyboard navigation, creation, and live resizing, and persisted Small/Medium/Large icon presets
 - **Internal local folders only**: folder selection rejects removable, ejectable, and network-volume locations
-- **Eviction-safe placement design**: persists display UUID plus absolute and normalized placement, while preserving remembered home placement during system-driven moves; UUID stability and transition behavior are Phase 0 spike gates
+- **Primary-display layout**: all Portals live on the menu-bar display (`NSScreen.screens[0]`). Primary-display changes preserve left/top point offsets, keep fitting non-conflicting panels fixed, flow overflow into new right-hand columns, and retain complete per-display layouts for return restoration. Advanced settings repairs off-screen or conflicting panels; UUID stability and real topology behavior remain Phase 0 spike gates
 - **Focused file operations**: Command-Delete uses the system Trash; Finder drops copy by default or move with Command after fail-closed conflict validation; rename/new-folder/overwrite remain out of scope
 - **Pinned placement**: each portal can persistently disable user dragging and resizing without blocking system display recovery
 - **Localized native UI**: English is the development and fallback language; Simplified and Traditional Chinese follow the current macOS language automatically

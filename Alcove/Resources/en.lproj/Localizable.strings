@@ -85,6 +85,14 @@
 "application.settings.backup.import_error" = "Unable to Import Layout";
 "application.settings.backup.export_error" = "Unable to Export Layout";
 "application.settings.backup.import_busy" = "Finish the current panel interaction before importing a layout.";
+"application.settings.position_repair.section" = "Panel Position";
+"application.settings.position_repair.title" = "Repair Panel Positions";
+"application.settings.position_repair.description" = "Bring off-screen or conflicting panels into view without moving panels that are already positioned normally.";
+"application.settings.position_repair.action" = "Repair Panel Positions";
+"application.settings.position_repair.no_changes" = "All panels are already visible.";
+"application.settings.position_repair.completed" = "Panel positions repaired.";
+"application.settings.position_repair.error" = "Unable to Repair Panel Positions";
+"application.settings.position_repair.busy" = "Finish the current panel interaction before repairing panel positions.";
 "portal.placement.unavailable.title" = "Unable to Place Panel";
 "portal.placement.unavailable.detail" = "Choose a free area that leaves the selected spacing from the screen edges and other panels.";
 "portal.state.not_loaded" = "Panel state has not finished loading.";

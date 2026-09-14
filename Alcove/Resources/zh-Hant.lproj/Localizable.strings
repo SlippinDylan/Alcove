@@ -85,6 +85,14 @@
 "application.settings.backup.import_error" = "無法匯入佈局";
 "application.settings.backup.export_error" = "無法匯出佈局";
 "application.settings.backup.import_busy" = "請先結束目前的面板操作，再匯入佈局。";
+"application.settings.position_repair.section" = "面板位置";
+"application.settings.position_repair.title" = "修復面板位置";
+"application.settings.position_repair.description" = "將離屏或衝突的面板移回可見區域，位置正常的面板不會移動。";
+"application.settings.position_repair.action" = "修復面板位置";
+"application.settings.position_repair.no_changes" = "所有面板都已正常顯示。";
+"application.settings.position_repair.completed" = "面板位置已修復。";
+"application.settings.position_repair.error" = "無法修復面板位置";
+"application.settings.position_repair.busy" = "請先結束目前的面板操作，再修復面板位置。";
 "portal.placement.unavailable.title" = "無法放置面板";
 "portal.placement.unavailable.detail" = "請選擇一塊空白區域，並與螢幕邊緣及其他面板保持所設間距。";
 "portal.state.not_loaded" = "面板狀態尚未載入完成。";

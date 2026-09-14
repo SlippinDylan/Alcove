@@ -15,7 +15,7 @@ Alcove is **not** a Finder replacement or a full desktop shell. It is a focused 
 | G-1 | Provide persistent desktop-layer folder portals that survive display topology changes, Spaces, Stage Manager, sleep/wake, and resolution adjustments |
 | G-2 | Match Finder's selection and opening semantics for familiar, low-friction interaction |
 | G-3 | Offer Quick Look for selected items without leaving the portal |
-| G-4 | Support multiple independent portals across multiple displays |
+| G-4 | Keep the complete multi-Portal layout on the menu-bar primary display and migrate it when the primary display changes |
 | G-5 | Adopt Liquid Glass on macOS 26 while remaining fully functional on macOS 15 |
 
 ## 3. Non-Goals (MVP)
@@ -37,7 +37,7 @@ Alcove is **not** a Finder replacement or a full desktop shell. It is a focused 
 
 ### Persona: Developer / Power User
 - Keeps project folders, Downloads, and reference material visible on desktop
-- Uses multiple displays; portals must survive display disconnect/reconnect
+- Uses multiple displays; the complete Portal layout must follow changes to the menu-bar primary display
 - Wants fast access without opening Finder windows
 
 ### Persona: Creative Professional
@@ -56,7 +56,7 @@ Alcove is **not** a Finder replacement or a full desktop shell. It is a focused 
 | UC-5 | Invoke Quick Look with Space for selected items |
 | UC-6 | Add, switch, close, and move folder tabs within a portal; preserve the resulting order and selected tab across restarts |
 | UC-7 | Move and resize a portal; have it remember position across sessions |
-| UC-8 | Unplug a display, replug it, and see portals restored to their remembered positions |
+| UC-8 | Disconnect, reconnect, or change the menu-bar primary display and see the complete layout follow it without losing remembered per-display positions |
 | UC-9 | Switch Spaces and continue seeing portals on every Space; exact system-transition behavior is resolved by the desktop-layer spike |
 
 ---
@@ -113,7 +113,7 @@ Before any file mutation, Alcove validates the complete source snapshot off the 
 ### 5.5 Portal Creation Flow
 
 1. User activates portal creation from the menu bar (clicks Alcove icon → "New Portal")
-2. A transparent overlay appears on the pointer's current display
+2. A transparent overlay appears on the menu-bar primary display (`NSScreen.screens[0]`), regardless of pointer location
 3. A dashed `3×1` portal appears immediately. It previews the rounded outer frame, two full-width separators, and complete object tiles using the Medium preset; it does not recreate the removed title/path capsules or split an object into separate icon and name boxes.
 4. Dragging changes columns and rows at half-cell thresholds: partial progress remains a translucent candidate until the next whole capacity is committed.
 5. A candidate that violates the configured screen-edge or inter-Portal spacing is shown as invalid and is not submitted. On a valid mouse-up, Alcove revalidates, persists, and presents an empty Portal; creation does not open a folder chooser.
@@ -166,7 +166,7 @@ the file grid. Empty Portals keep the row's layout space but hide the path conte
 | Inactive appearance | Portal material and folder controls retain their active visual contrast when another app becomes active |
 | Frame snap | Columns and rows switch at half-cell thresholds and always settle on a whole `columns × rows` capacity; that committed column count directly controls item wrapping and is never re-derived from a slightly smaller content rectangle |
 | Min size | 3 columns × 1 row |
-| Placement bounds | User dragging and resizing remain inside the current display's fresh `visibleFrame`, including the configured edge spacing; other Portals are fixed obstacles with the same spacing |
+| Placement bounds | User dragging and resizing remain inside the menu-bar primary display's fresh `visibleFrame`, including the configured edge spacing; other Portals are fixed obstacles with the same spacing. Portals cannot be left on a secondary display |
 
 The file grid uses 8pt top and bottom content insets. These insets are part of the
 capacity-to-frame calculation, so existing persisted placements are migrated when they change.
@@ -188,9 +188,9 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-05 | Double-click files/packages/symbolic links opens with the default app; double-click an ordinary directory enters it in the current Portal tab; Back restores that tab's prior directory, selection, and scroll position | MVP |
 | FR-06 | Quick Look via Space key through responder chain | MVP |
 | FR-07 | Portal frames persist across app restarts | MVP |
-| FR-08 | Portal frames restore correctly after display topology changes | MVP |
+| FR-08 | The complete Portal layout follows the menu-bar primary display after topology, primary-display, resolution, or scaling changes. Projection preserves each frame's point offsets from the old primary `visibleFrame` left/top edges; fitting non-conflicting frames remain fixed, overflow opens columns to the right from top to bottom, and an over-capacity fallback uses distinct exposed-top slots until finite screen space is exhausted. Further panels may overlap completely but remain recoverable through menu-bar Show, which brings the selected panel to the front | MVP |
 | FR-09 | Multiple portals supported simultaneously | MVP |
-| FR-10 | Multiple displays supported | MVP |
+| FR-10 | Multiple connected displays are supported as topology inputs, but all Portal windows and new-Portal creation remain on the menu-bar primary display | MVP |
 | FR-11 | Menu-bar icon with portal management menu | MVP |
 | FR-12 | All Portals share one global content-size preset and one global five-step background level on always-active frosted content materials; changing size is preflighted for every Portal before any frame changes. Lightweight separators distinguish the top controls and bottom path row without additional capsule materials. Clicking the top controls or draggable background activates the Portal just like clicking its grid or path row. | MVP |
 | FR-13 | NSVisualEffectView fallback on macOS 15 | MVP |
@@ -201,8 +201,8 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 | FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
 | FR-21 | Show the selected folder path in a reserved bottom row separated from the file grid, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
-| FR-22 | The menu bar lists New Portal, each Portal with SF Symbol-labelled Show, Hide, Pin/Unpin, Panel Settings, and confirmed Remove commands, application Settings, and Quit. Application Settings provides General, Style, Advanced, and About categories; General controls launch at login, Style owns global content size, transparency, spacing (`4/8/12/16/20pt`), corner radius (`0/8/14/20/24pt`), and system shadow with a system separator between each row, Advanced imports or exports the complete layout, and About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
-| FR-23 | New placement, user dragging, live resizing, and global content-size changes must not overlap another Portal and must honor the selected edge/inter-Portal spacing. Portals attached within the five-step spacing range to a screen edge or another Portal retain that relationship when either spacing or content size changes, so expansion pushes and contraction pulls the attached layout in both directions. Unattached free placements retain their top-left intent when legal. The complete per-display plan is accepted atomically, and style-driven reflow does not overwrite durable home placement. | MVP |
+| FR-22 | The menu bar lists New Portal, each Portal with SF Symbol-labelled Show, Hide, Pin/Unpin, Panel Settings, and confirmed Remove commands, application Settings, and Quit. Application Settings provides General, Style, Advanced, and About categories; General controls launch at login, Style owns global content size, transparency, spacing (`4/8/12/16/20pt`), corner radius (`0/8/14/20/24pt`), and system shadow with a system separator between each row, Advanced repairs off-screen or conflicting panel positions and imports or exports the complete layout, and About shows the bundled app icon, version/build, and copyright. All user-facing UI uses English, Simplified Chinese, or Traditional Chinese according to the current system language, with English fallback | MVP |
+| FR-23 | New placement, user dragging, live resizing, and global content-size changes must not overlap another Portal and must honor the selected edge/inter-Portal spacing. Portals attached within the five-step spacing range to a screen edge or another Portal retain that relationship when either spacing or content size changes, so expansion pushes and contraction pulls the attached layout in both directions. Unattached free placements retain their top-left intent when legal. The complete primary-display plan is accepted atomically, and style-driven or topology-driven reflow does not overwrite durable placement. Manual repair persists only repaired frames and leaves already visible non-conflicting frames unchanged. | MVP |
 | FR-24 | Each Portal persists its own name/modified/created sort order and one built-in neutral or rainbow tint. The gear opens an SF Symbol-labelled native menu for pinning, sorting, Portal settings, and confirmed Portal removal. Removal confirmation is an independent app-modal alert centered in the current Portal screen's fresh `visibleFrame`, not an attached sheet. Portal settings show all sort choices as radio buttons and all tint choices as circular single-selection swatches; global content size and transparency are not duplicated there. | MVP |
 | FR-25 | Advanced settings exports a stable versioned JSON layout backup containing global Portal appearance and portable per-Portal layout state, but never launch-at-login. Import strictly validates the whole document and, after confirmation, replaces rather than merges the current layout. The replacement is preflighted against the fresh primary display and persisted once before runtime windows change; any validation or save failure leaves the current runtime layout untouched. | MVP |
 | FR-26 | Command-Delete moves a frozen ordered selection to Trash through `NSWorkspace.recycle`; drop transfers validate the entire snapshot before asynchronous coordinated IO, reject same-destination, overwrite, duplicate-name, and self-descendant cases, and report partial failure explicitly | MVP |
@@ -305,8 +305,8 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-04 | Double-click file opens with its default app; an ordinary directory navigates within the tab; Back never crosses the mapped root | FR-05 |
 | AC-05 | Space invokes Quick Look for selected items | FR-06 |
 | AC-06 | Portal supports adding, switching, closing, and moving multiple tabs; each tab maps one folder, the resulting order and selected tab survive restart, and closing the last tab prompts before removing the portal | FR-03 |
-| AC-07 | Portal frame persists across app restart and restores to the correct display | FR-07, FR-10 |
-| AC-08 | Portal frames restore correctly after display disconnect/reconnect | FR-08, FR-10 |
+| AC-07 | Portal frames persist across app restart and restore on the menu-bar primary display | FR-07, FR-10 |
+| AC-08 | All Portal frames follow the menu-bar primary display after disconnect/reconnect or a primary-display switch; fitting frames retain left/top point offsets and overflow uses new right-hand columns | FR-08, FR-10 |
 | AC-09 | Portal frames restore correctly after resolution/scaling change | FR-08 |
 | AC-10 | Portal coexists with Spaces and Stage Manager without permanent eviction | G-1; Spike 0.1 product gate |
 | AC-11 | App runs on macOS 15 with NSVisualEffectView materials | FR-13 |
@@ -322,6 +322,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-21 | The menu hierarchy and all user-facing strings render in English, Simplified Chinese, or Traditional Chinese from the current macOS language, with unsupported languages falling back to English | FR-22 |
 | AC-22 | Empty-space marquee selection works in both directions and Command-drag toggles against the mouse-down selection | FR-04 |
 | AC-23 | Native file URL drags work from Alcove to Finder/Desktop; Finder drops target the current browsed directory, default to copy, use Command for move, and never overwrite an existing item | FR-17, FR-26 |
+| AC-24 | Advanced → Repair Panel Positions leaves every already visible non-conflicting frame unchanged, persists only repaired panels, uses distinct exposed-top fallback slots before repeating them, and leaves every panel recoverable through menu-bar Show | FR-08, FR-22, FR-23 |
 
 ---
 
@@ -329,7 +330,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 
 ### MVP (Phase 1)
 - Portal creation, display, selection, opening, Quick Look
-- Multiple tabs (add, switch, close, creation-order persistence, selected-tab persistence), multiple portals, multiple displays
+- Multiple tabs (add, switch, close, creation-order persistence, selected-tab persistence), multiple portals, and primary-display-following multi-display recovery
 - Stable display identity and frame persistence
 - Liquid Glass (macOS 26) and NSVisualEffectView (macOS 15) compatibility
 - Menu-bar management UI

@@ -1,8 +1,8 @@
 # Alcove 当前状态与开发交接
 
-> 快照日期：2026-09-13（Asia/Tokyo）
+> 快照日期：2026-09-15（Asia/Tokyo）
 >
-> 适用基线：功能提交 `e73385b`；本交接文档的提交位于其后
+> 适用基线：`HEAD 00d2bc4`；主显示器跟随与位置修复改动尚未提交
 >
 > 用途：让新的开发对话在不依赖历史聊天记录的情况下接管项目
 
@@ -20,7 +20,7 @@
 
 ## 2. 一句话说明项目
 
-Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通应用窗口之下展示可移动、可缩放的文件夹 Portal；每个 Portal 可以包含多个文件夹 Tab，并提供 Finder 风格的图标网格、选择、打开、Quick Look、自动刷新和多显示器恢复。
+Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通应用窗口之下展示可移动、可缩放的文件夹 Portal；每个 Portal 可以包含多个文件夹 Tab，并提供 Finder 风格的图标网格、选择、打开、Quick Look、自动刷新和主显示器跟随恢复。
 
 它不是 Finder 替代品。每个 Tab 可在映射根目录内进行运行时导航，但映射根路径不随浏览改变；支持进废纸篓及 Finder 文件 URL 的拖入/拖出，仍不提供重命名、新建文件夹、覆盖冲突项或文件操作撤销。
 
@@ -44,7 +44,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 ### 3.3 Portal 和 Tab
 
-- 支持多个 Portal、多个显示器和每个 Portal 多个 Tab。
+- 支持多个 Portal 和每个 Portal 多个 Tab；多个已连接显示器只作为拓扑输入，所有 Portal 始终位于菜单栏主显示器。
 - Tab 按创建顺序持久化；当前选中 Tab 持久化。
 - 每个 Portal 最多包含四个文件夹 Tab。顶部使用一个水平居中的无阴影分段胶囊，内部 Segment 等宽、相连且只有当前文件夹显示中性选中胶囊，不使用蓝色强调。Small/Medium/Large 的目标 Segment 宽度为 `56/64/72pt`、高度为 `26/28/30pt`；空间不足时全部等比压缩，不提供横向滚动。长名称尾部省略，但 Tooltip 和无障碍名称保持完整。左右始终按返回按钮的完整宽度做对称逻辑预留，即使返回暂时隐藏，右侧齿轮也占相同布局宽度，因此 Tab 组不随目录层级偏移。返回按钮用 `imageHugsTitle` 将箭头和文字作为一个整体居中。Portal 接收任意左键点击时先激活 Alcove 并成为 key window。
 - 单个 Tab 只显示一个小胶囊；Tab 上不放加号或关闭叉号。
@@ -128,10 +128,12 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - `windowDidMove`、`windowDidResize`、`windowDidChangeScreen` 等普通通知不能单独证明用户意图，也不能直接持久化。
 - live resize 仅在 `windowDidEndLiveResize` 提交。
 - 系统显示器恢复、Spaces 或 Stage Manager 导致的 frame 变化不修改用户记住的 home placement。
-- 用户拖动使用 swept-AABB 阻止快速穿透，live resize 在实际 frame 形成后回退到上一合法 frame；两者均使用窗口当前 runtime frame 作为障碍，并按指针位置保留跨显示器 handoff。
-- 全局间距变化会按显示器从保存位置派生完整 runtime 布局并平滑移动现有 Portal：处于最大 20pt 范围内的贴屏边或相邻关系使用当前档位作为精确间距，因此调大时推开、调小时也会拉回；距离较远的自由布局不会被吸到一起。重排预检失败时拒绝档位变化，不产生半套布局；自动移动不写入 durable home placement。
+- 菜单栏主显示器严格取实时 `NSScreen.screens[0]`，不能使用表示键盘焦点屏幕的 `NSScreen.main`。新建、拖动和缩放都限制在该主屏的 `visibleFrame`，不再支持把 Portal 长期留在副屏。
+- 用户拖动使用 swept-AABB 阻止快速穿透，live resize 在实际 frame 形成后回退到上一合法 frame；两者均使用窗口当前 runtime frame 作为障碍。
+- 主显示器切换、拔插、缩放或分辨率变化时，完整布局按旧主屏 `visibleFrame` 左边和上边的 pt 偏移投影到新主屏。仍完整可见且不冲突的 Portal 按稳定顺序锁定；溢出项按原视觉顺序向右新开列并从上到下排列。若固定尺寸仍无法全部容纳，则优先使用不同的顶部露出槽位，有限槽位耗尽后允许完全重叠；菜单栏 Show 始终可把指定 Portal 提到最前。系统迁移不覆盖旧显示器持久布局，切回时只在所有 Portal 都有该屏记录时整组恢复，否则整组从当前布局投影。
+- 全局间距变化会从保存位置派生完整 runtime 布局并平滑移动现有 Portal：处于最大 20pt 范围内的贴屏边或相邻关系使用当前档位作为精确间距，因此调大时推开、调小时也会拉回；距离较远的自由布局不会被吸到一起。重排预检失败时拒绝档位变化，不产生半套布局；自动移动不写入 durable placement。
 - placement 保存 display UUID、绝对 frame、保存时 visible frame、preferred size 和 normalized anchor。
-- 显示器断开时可以临时迁移到主屏，但原 home placement 必须保留；显示器回来后恢复。
+- Application Settings → Advanced 提供“修复面板位置”：按稳定顺序只修复不在主屏可见区域内或与先前正常 Portal 冲突的 Portal，正常 Portal 的 runtime frame 和持久化 placement 都不变；修复结果先单次保存，再动画应用。
 
 ### 3.9 当前设置窗口
 
@@ -196,10 +198,10 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 | 文件单元 | `Alcove/FileGrid/FileItemCell.swift` | Finder 风格对象、两行标题、选中视觉和无障碍 |
 | 文件读取 | `Alcove/FolderAccess/*` | 后台枚举、路径校验、FSEvents 和恢复 |
 | Quick Look | `Alcove/QuickLookIntegration/QuickLookIntegration.swift` | responder chain 和 `QLPreviewPanel` 所有权 |
-| placement | `Alcove/DisplayPlacement/DisplayPlacement.swift` | NSScreen 快照、拓扑通知、legacy frame 解析 |
+| placement | `Alcove/DisplayPlacement/DisplayPlacement.swift` | 菜单栏主屏识别、NSScreen 快照、拓扑通知、legacy frame 解析 |
 | 持久化 | `Alcove/Persistence/*` | v11 DTO、v1–v10 迁移、同目录临时文件和原子替换 |
 | 布局备份 | `Alcove/Application/ApplicationLayoutBackupController.swift`、`Alcove/Persistence/AlcoveLayoutBackupCodec.swift` | JSON 面板、后台原子 I/O、公开 v1 codec 和替换式导入 |
-| 纯领域/几何 | `Packages/AlcoveCore/Sources/AlcoveCore/*` | Portal、GridCapacity、GridLayout、placement state machine、selection |
+| 纯领域/几何 | `Packages/AlcoveCore/Sources/AlcoveCore/*` | Portal、GridCapacity、GridLayout、placement state machine、主屏投影/溢出恢复、selection |
 
 ## 5. 持久化现状
 
@@ -271,6 +273,7 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - 后台文件枚举和 FSEvents 自动刷新。
 - v11 原子持久化及 v1–v10 迁移。
 - 多显示器 placement state machine 和系统通知接入。
+- 所有 Portal 跟随菜单栏主显示器；保持左/上 pt 偏移、锁定仍可见面板、溢出向右开列、极端重叠露出顶栏，并提供 Advanced 一键位置修复。
 - 五档 Portal 背景强度、macOS 26 Glass 与旧系统 fallback。
 - Small/Medium/Large 三档手动 icon presets；没有 Finder Automation 或外部尺寸同步。
 - 3×1 最小容量、创建/缩放半格阈值、capacity 驱动的 row-major 回流。
@@ -280,6 +283,38 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - English、简体中文、繁体中文完整 bundle 本地化，其他系统语言回退 English。
 
 ### 7.2 最近验证结果
+
+主显示器跟随与一键位置修复实现后执行并通过：
+
+```bash
+swift test --package-path Packages/AlcoveCore
+
+xcodebuild test -quiet \
+  -project Alcove.xcodeproj \
+  -scheme Alcove \
+  -destination 'platform=macOS' \
+  -derivedDataPath /tmp/AlcovePrimaryDisplayRiskFixFinal \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGN_IDENTITY=''
+
+xcodebuild build -quiet \
+  -project Alcove.xcodeproj \
+  -scheme Alcove \
+  -configuration Release \
+  -destination 'generic/platform=macOS' \
+  -derivedDataPath /tmp/AlcovePrimaryDisplayRiskFixFinalRelease \
+  ARCHS='arm64 x86_64' \
+  ONLY_ACTIVE_ARCH=NO \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGN_IDENTITY=''
+```
+
+Core 共 159 项 XCTest 通过；hosted app 260 项测试通过；Release 为 `x86_64 + arm64`。覆盖菜单栏主屏识别、左上 pt
+偏移投影、`1–8` 溢出新列、有限重叠槽位优先耗尽、部分历史记录不与当前布局混用、
+冲突候选进入 overflow、旧主屏仍连接时全体跟随新主屏、手动修复只持久化离屏/冲突
+Portal、无修复时零写入、保存失败时 runtime 零变化，以及窗口拒绝应用时不误报成功。
 
 本轮图钉、路径栏、菜单、本地化与等距紧凑网格实现后执行并通过：
 
@@ -346,6 +381,7 @@ Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
 - 最新独立设置窗口的视觉结果尚未收到用户截图确认；这是下一次 UI 对话最可能的第一项工作。
 - 设置窗口需人工核对：约 400×572 外框、当前屏幕居中、preference toolbar 的分类 icon/label 与选中背景、圆角卡片比例、Glass 按钮、滑块、字体和间距是否足够接近参考图。
 - Portal 的 desktop-level 窗口在 macOS 15/26、多个显示器、Spaces、Stage Manager、全屏应用、睡眠唤醒和缩放切换下仍需要真实系统矩阵。
+- 主屏在 27 英寸 4K、14 英寸内置屏和当前竖屏显示器之间切换时，左上偏移、溢出新列、返回旧布局和极端重叠仍需真机人工验证。
 - 显示器 UUID 跨断开/重连的稳定性不是 Apple 的通用保证，仍需真实硬件证据。
 - Quick Look 的 desktop-level 单项/多项行为仍需人工验证。
 - macOS 26 Liquid Glass、macOS 15 fallback、Reduce Transparency、Increase Contrast、VoiceOver 和键盘全流程仍需人工视觉/系统验证。
@@ -355,39 +391,25 @@ Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
 
 ## 8. Git 状态与提交边界
 
-本轮实现尚未提交。除下述既有 `project.pbxproj` 变更外，工作区还包含本轮图钉、
-路径 footer、v10 迁移、菜单、本地化、测试和文档改动。用户已明确允许仅为本地化
-资源修改 `project.pbxproj`；新增的 variant groups、known regions 和 Resources build
-phase 条目属于本轮，原有 object version、组排序和 Development Team/签名设置仍属于
-用户既有改动。后续若提交，必须按 hunk 区分，不能把整份工程文件直接混入功能提交。
+主显示器跟随、一键位置修复、本地化、测试和相关文档改动尚未提交。
+`Alcove.xcodeproj/project.pbxproj` 本轮未修改；新 Swift 文件通过现有同步文件组进入构建。
 
 快照时：
 
 ```text
-HEAD:        e73385b fix: present portal settings in a window
-origin/main: 65368f0 fix: reflow portal items during resizing
-ahead:       4 commits（本交接文档提交后会再增加 1）
-worktree:    M Alcove.xcodeproj/project.pbxproj
+HEAD:        00d2bc4 feat: cap portal folder tabs
+origin/main: 666b709 feat: reflow attached portals with content size
+ahead:       3 commits
+worktree:    本轮主显示器跟随与位置修复改动，未提交
 ```
 
 尚未 push 的功能提交：
 
 ```text
-15a501c fix: honor portal capacity when wrapping items
-e641943 fix: use a mini overlay scroller
-9cd71a3 feat: add categorized portal settings
-e73385b fix: present portal settings in a window
+0193501 feat: refine portal chrome appearance
+5bd8b2e feat: adopt native portal glass styling
+00d2bc4 feat: cap portal folder tabs
 ```
-
-其中 `9cd71a3` 是设置功能链路和分类内容的基础提交，但它的 Popover 展示方式已被 `e73385b` 替换。两者都属于当前本地历史，不要删除或重写，除非用户明确授权。
-
-`Alcove.xcodeproj/project.pbxproj` 是用户已有的 Xcode 改动，包含 object version、组排序和 Development Team/签名设置等变化。此前所有任务都明确避开了它。新的对话必须继续做到：
-
-- 不暂存它。
-- 不回退它。
-- 不自动格式化它。
-- 不把它混入任何功能 commit。
-- 如任务必须修改该文件，先精确说明重叠范围并获得用户确认。
 
 ## 9. 当前协作约定
 

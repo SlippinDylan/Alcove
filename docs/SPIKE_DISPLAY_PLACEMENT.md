@@ -4,6 +4,8 @@
 
 Full Spike 0.2 remains incomplete. Phase 0.2A models pure placement geometry, Phase 0.2B adds a real-session inventory/notification probe, and Phase 0.2C adds an eviction-safe pure state machine. Physical topology behavior and identity stability remain unverified.
 
+> **Product-rule update (2026-09-14):** The production app now keeps the complete Portal layout on the menu-bar primary display (`NSScreen.screens[0]`). Primary-display changes preserve left/top point offsets and reflow only overflow; secondary displays are no longer long-term Portal destinations. The spike evidence below remains historical geometry/identity evidence, not the current placement contract.
+
 ---
 
 ## 1. Scope

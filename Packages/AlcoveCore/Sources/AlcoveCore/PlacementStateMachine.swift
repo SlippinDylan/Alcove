@@ -1,5 +1,5 @@
 // PlacementStateMachine.swift
-// AlcoveCore — Pure eviction-safe display placement state.
+// AlcoveCore — Pure primary-display-following placement state.
 //
 // UI-free and persistence-free. This reducer distinguishes explicit user
 // placement from system-driven movement and emits window placement directives.
@@ -97,7 +97,7 @@ public enum FrameChangeOrigin: Sendable, Equatable {
 public enum PlacementDirectiveReason: Sendable, Equatable {
     case refreshHomeGeometry
     case restoreReturnedHome
-    case temporaryPrimaryEviction
+    case followPrimaryDisplay
 }
 
 public struct PlacementDirective: Sendable, Equatable {
@@ -132,6 +132,7 @@ public enum PlacementStateError: Error, Sendable, Equatable {
     case primaryDisplayUnavailable(DisplayIdentity)
     case duplicateDisplayIdentity(DisplayIdentity)
     case invalidGeometry(PlacementError)
+    case invalidPrimaryLayout(PrimaryDisplayLayoutError)
 }
 
 public enum PlacementStateMachine {
@@ -163,11 +164,32 @@ public enum PlacementStateMachine {
         return updated
     }
 
-    /// Reconcile saved home placement against one complete display snapshot.
+    /// Updates only transient presentation state for a topology snapshot. Frame
+    /// planning remains the responsibility of the complete-layout planner.
+    public static func reconcilePresentation(
+        session: PlacementSession,
+        displays: [DisplayDescriptor],
+        primaryDisplay: DisplayIdentity
+    ) throws -> PlacementSession {
+        guard !displays.isEmpty else {
+            var updated = session
+            updated.awaitDisplay()
+            return updated
+        }
+        let displaysByIdentity = try validatedDisplays(displays)
+        guard displaysByIdentity[primaryDisplay] != nil else {
+            throw PlacementStateError.primaryDisplayUnavailable(primaryDisplay)
+        }
+        var updated = session
+        updated.recordSystemPresentation(on: primaryDisplay)
+        return updated
+    }
+
+    /// Reconcile saved placement against the current menu-bar primary display.
     ///
-    /// When home is absent, the returned fallback frame is derived from the
-    /// home record but the record and `homeDisplay` remain unchanged. When home
-    /// returns, its saved record is restored using current geometry.
+    /// A placement previously recorded for the primary display wins. Otherwise
+    /// the home placement supplies the size and relative position. System
+    /// reconciliation never changes durable placement records or `homeDisplay`.
     public static func reconcileTopology(
         session: PlacementSession,
         displays: [DisplayDescriptor],
@@ -184,46 +206,34 @@ public enum PlacementStateMachine {
             throw PlacementStateError.missingHomePlacement(session.homeDisplay)
         }
 
-        if let home = displaysByIdentity[session.homeDisplay] {
-            let restored = try restore(
-                homePlacement,
-                visibleFrame: home.visibleFrame,
-                gridSpacing: gridSpacing
-            )
-            var updated = session
-            let reason: PlacementDirectiveReason = switch session.presentation {
-            case .active:
-                .refreshHomeGeometry
-            case .temporarilyDisplaced, .awaitingDisplay:
-                .restoreReturnedHome
-            }
-            updated.recordSystemPresentation(on: session.homeDisplay)
-            return PlacementTransition(
-                session: updated,
-                directive: PlacementDirective(
-                    targetDisplay: session.homeDisplay,
-                    frame: restored,
-                    reason: reason
-                )
-            )
-        }
-
         guard let primary = displaysByIdentity[primaryDisplay] else {
             throw PlacementStateError.primaryDisplayUnavailable(primaryDisplay)
         }
-        let fallback = try temporaryEvictionFrame(
-            homePlacement,
+        let targetPlacement = session.placements[primaryDisplay] ?? homePlacement
+        let restored = try projectToPrimary(
+            targetPlacement,
             visibleFrame: primary.visibleFrame,
             gridSpacing: gridSpacing
         )
         var updated = session
         updated.recordSystemPresentation(on: primary.identity)
+        let reason: PlacementDirectiveReason
+        if primary.identity != session.homeDisplay {
+            reason = .followPrimaryDisplay
+        } else {
+            reason = switch session.presentation {
+            case .active:
+                .refreshHomeGeometry
+            case .temporarilyDisplaced, .awaitingDisplay:
+                .restoreReturnedHome
+            }
+        }
         return PlacementTransition(
             session: updated,
             directive: PlacementDirective(
                 targetDisplay: primary.identity,
-                frame: fallback,
-                reason: .temporaryPrimaryEviction
+                frame: restored,
+                reason: reason
             )
         )
     }
@@ -240,50 +250,31 @@ public enum PlacementStateMachine {
         return result
     }
 
-    private static func restore(
+    private static func projectToPrimary(
         _ placement: DisplayPlacementEntry,
         visibleFrame: CGRect,
         gridSpacing: GridSpacing
     ) throws -> CGRect {
         do {
+            let projected = try PrimaryDisplayLayout.projectTopLeft(
+                frame: placement.absoluteFrame,
+                from: placement.referenceVisibleFrame,
+                to: visibleFrame
+            )
+            let projectedPlacement = try PlacementGeometry.capture(
+                windowFrame: projected,
+                visibleFrame: visibleFrame
+            )
             return try PlacementGeometry.restore(
-                record: placement,
+                record: projectedPlacement,
                 currentVisibleFrame: visibleFrame,
                 gridSpacing: gridSpacing
             )
+        } catch let error as PrimaryDisplayLayoutError {
+            throw PlacementStateError.invalidPrimaryLayout(error)
         } catch let error as PlacementError {
             throw PlacementStateError.invalidGeometry(error)
         }
     }
 
-    /// Center a constrained temporary frame on primary before snap and clamp.
-    /// This deliberately does not reuse the home normalized anchor: eviction
-    /// is a transient fallback, not a saved placement on the primary display.
-    private static func temporaryEvictionFrame(
-        _ placement: DisplayPlacementEntry,
-        visibleFrame: CGRect,
-        gridSpacing: GridSpacing
-    ) throws -> CGRect {
-        let size = CGSize(
-            width: min(placement.preferredSize.width, visibleFrame.width),
-            height: min(placement.preferredSize.height, visibleFrame.height)
-        )
-        let centeredFrame = CGRect(
-            x: visibleFrame.midX - size.width / 2,
-            y: visibleFrame.midY - size.height / 2,
-            width: size.width,
-            height: size.height
-        )
-        let centeredRecord = DisplayPlacementEntry(
-            absoluteFrame: centeredFrame,
-            referenceVisibleFrame: visibleFrame,
-            preferredSize: placement.preferredSize,
-            normalizedAnchor: .center
-        )
-        return try restore(
-            centeredRecord,
-            visibleFrame: visibleFrame,
-            gridSpacing: gridSpacing
-        )
-    }
 }

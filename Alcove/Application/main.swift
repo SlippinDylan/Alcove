@@ -48,7 +48,8 @@ let layoutBackupController = ApplicationLayoutBackupController(
 )
 let applicationSettingsController = ApplicationSettingsWindowController(
     preferencesController: applicationPreferencesController,
-    layoutBackupController: layoutBackupController
+    layoutBackupController: layoutBackupController,
+    panelPositionRepairer: portalCoordinator
 )
 applicationPreferencesController.onPortalAppearanceChanged = { appearance in
     guard portalCoordinator.updatePortalAppearance(appearance) else { return false }

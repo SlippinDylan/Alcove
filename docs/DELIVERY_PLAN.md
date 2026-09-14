@@ -30,7 +30,7 @@ Each spike records its findings in `docs/SPIKE_<name>.md`. The candidate archite
 
 ### Spike 0.2 — Display Identity and Placement
 
-**Question:** Can we establish a stable display identity via `CGDisplayCreateUUIDFromDisplayID` (or equivalent) that survives display disconnect/reconnect, resolution changes, and rearrangement in System Settings?
+**Question:** Can we identify remembered display layouts via `CGDisplayCreateUUIDFromDisplayID` while always presenting the complete runtime layout on the current menu-bar primary display?
 
 **Approach:**
 - On a multi-display setup, enumerate `NSScreen.screens` and record each screen's `CGDisplayCreateUUIDFromDisplayID(displayID)` (stability through disconnect/reconnect is inference, not guaranteed) alongside its `frame` and `visibleFrame`.
@@ -223,7 +223,7 @@ Each slice produces a runnable, observable increment and adds only the domain or
 
 **Deliverables:**
 - Enable the menu-bar "New Portal" command.
-- Transparent overlay on the pointer's current display, constrained to `visibleFrame`.
+- Transparent overlay on the menu-bar primary display (`NSScreen.screens[0]`), constrained to `visibleFrame`.
 - Immediate dashed `3×1` card with title/item skeletons, Escape cancellation,
   translucent partial-cell feedback, and whole-column/whole-row snapping at
   half-cell thresholds.
@@ -341,7 +341,7 @@ are observed on the supported desktop-window configurations.
 
 ### Slice 8 — Display Placement Persistence
 
-**Goal:** Preserve explicit home placement across restart, display topology changes, resolution/scaling changes, and temporary system eviction.
+**Goal:** Preserve per-display layout records while the complete runtime layout follows the menu-bar primary display across restart, topology changes, and resolution/scaling changes.
 
 **Entry Gate:** Slice 5 exit gate passed and Spike 0.2 has resolved display identity and placement fields. It may proceed after Slice 7 or in parallel with Slices 6–7.
 
@@ -350,14 +350,14 @@ are observed on the supported desktop-window configurations.
 - For each user-confirmed move/resize: display UUID, absolute frame, save-time `visibleFrame`, preferred size, and normalized anchor within the actual movable range.
 - Same display and unchanged geometry prefer the absolute frame.
 - Changed geometry: constrain preferred size, calculate movable width/height, restore the clamped anchor, grid-snap, then clamp.
-- Missing display: temporary primary-screen placement without overwriting remembered home placement.
-- Display return: restore remembered placement when identity matches.
+- Primary-display change: preserve left/top point offsets, lock fitting frames, and place overflow in right-hand columns without overwriting remembered placements.
+- Display return as primary: restore remembered placement when identity matches.
 
 **Tests:**
 - Unit: normalized-anchor save/restore for zero and nonzero movable width/height.
 - Unit: unchanged geometry uses absolute frame; changed geometry uses preferred size and movable range.
 - Unit: size constraint precedes range calculation; grid snap precedes final clamp.
-- Unit: disconnect, temporary eviction, reconnect, rearrangement, and resolution changes do not overwrite home placement.
+- Unit: primary switch, disconnect, reconnect, rearrangement, and resolution changes keep all runtime frames on the primary display without overwriting remembered placement.
 - Integration: screen-geometry descriptors drive the placement coordinator.
 - Manual: real external display disconnect/reconnect, rearrangement, scaling, and sleep/wake.
 

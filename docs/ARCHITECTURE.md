@@ -82,9 +82,10 @@ Domain models and pure layout math. Zero AppKit imports.
 - `Portal.isPinned` — persisted interaction state that disables user-driven movement and resizing without suppressing system placement directives
 - `GridLayout` — computes item frames from container size, icon size, column count, and spacing
 - `PlacementGeometry` — captures and restores per-display frames with normalized movable-range anchors
-- `PlacementStateMachine` — preserves user-confirmed home placement while emitting transient topology directives
+- `PlacementStateMachine` — preserves user-confirmed placement records while emitting transient directives that always target the menu-bar primary display
 - `PortalFrameConstraints` — pure validation and swept-AABB drag geometry for display-edge and inter-Portal spacing; fast pointer motion cannot tunnel through another Portal
 - `PortalFrameReflow` — deterministically derives runtime frames from a pre-change attachment snapshot, target sizes, current `visibleFrame`, stable Portal order, and the selected spacing. Keeping reference frames separate from targets preserves screen-edge and inter-Portal relationships even when larger targets initially overlap. Unrelated free placements remain at their intended coordinates when legal; failure leaves the existing layout and preference unchanged.
+- `PrimaryDisplayLayout` — projects frames by their point offsets from the source `visibleFrame` left/top edges, locks frames that still fit without collision, places overflow in right-hand columns from top to bottom, and uses distinct exposed-top fallback slots until finite screen space is exhausted; menu-bar Show remains the final recovery path for fully overlapped panels
 
 ### 3.2 AlcoveApp
 
@@ -93,9 +94,9 @@ App entry point and global coordination.
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
 - `StatusMenuController` — builds the localized New Portal / per-Portal Show, Hide, Pin, Settings, and confirmed Remove / application Settings / Quit hierarchy. Every actionable item uses an SF Symbol; Portal settings and removal route back through the existing window-owned presentation path. Removal uses an independent app-modal alert centered horizontally and vertically in that Portal screen's current `visibleFrame`, never a sheet attached to the Portal.
-- `ApplicationSettingsWindowController` — owns the preference-style General/Style/Advanced/About window. General adapts `SMAppService.mainApp` for launch-at-login registration; Style stores global content size, background level, spacing, corner radius, and shadow in `UserDefaults`, with a separator between every option row; Advanced presents the layout backup import/export workflow; About reads version metadata and the compiled Icon Composer application icon
+- `ApplicationSettingsWindowController` — owns the preference-style General/Style/Advanced/About window. General adapts `SMAppService.mainApp` for launch-at-login registration; Style stores global content size, background level, spacing, corner radius, and shadow in `UserDefaults`, with a separator between every option row; Advanced presents position repair and layout backup import/export; About reads version metadata and the compiled Icon Composer application icon
 - `ApplicationLayoutBackupController` — presents JSON-constrained `NSOpenPanel`/`NSSavePanel` sheets, performs blocking read/atomic write on an actor, confirms replace-only imports, and reports errors as sheets
-- `NewPortalOverlay` — pointer-display overlay with a dashed `3×1` rounded frame, full-width separators, complete object tiles, half-cell candidate feedback, and whole-capacity snapping constrained to the inset `visibleFrame`; occupied candidates remain editable and cannot commit
+- `NewPortalOverlay` — menu-bar-primary-display overlay with a dashed `3×1` rounded frame, full-width separators, complete object tiles, half-cell candidate feedback, and whole-capacity snapping constrained to the inset `visibleFrame`; occupied candidates remain editable and cannot commit
 - Info.plist: `LSUIElement = YES`, `LSBackgroundOnly = NO`
 
 ### 3.3 PortalWindowing
@@ -117,9 +118,9 @@ App entry point and global coordination.
   - Standard resize from edges/corners
   - Frame snap to grid metrics on move/resize end
 - `PortalWindowController` — emits placement commits only after tracked drag mouse-up or live-resize end; generic frame notifications never imply user intent
-- `PortalCoordinator` injects synchronous geometry closures into each window. Dragging uses the pointer's fresh destination display and current runtime frames of other windows; live resize validates the actual frame delivered by AppKit and restores the last legal frame. The final persistence transaction revalidates to close races.
-- A spacing preference change is preflighted per display before it is accepted. The Coordinator animates the complete derived plan through system-placement calls, retains separate unspaced base frames, and never reports those style-driven moves as user placement. Recomputing from the same bases makes spacing changes reversible without modifying v11 home placement.
-- Display handoff follows the pointer's containing or nearest fresh `visibleFrame`; this keeps multi-display movement available rather than permanently clamping a Portal to its source display.
+- `PortalCoordinator` injects synchronous geometry closures into each window. Dragging and live resize are constrained to the fresh menu-bar primary `visibleFrame` and current runtime frames of other windows; the final persistence transaction revalidates to close races.
+- A spacing preference change is preflighted for the primary display before it is accepted. The Coordinator animates the complete derived plan through system-placement calls, retains separate base frames, and never reports style-driven moves as user placement. Recomputing from the same bases makes spacing changes reversible without modifying durable placement.
+- Secondary displays remain topology inputs but never long-term Portal destinations. A primary-display change projects the complete layout from the prior primary's left/top offsets and repairs overflow before applying frames.
 
 ### 3.4 PortalPresentation
 
@@ -183,10 +184,10 @@ Display identity, coordinate normalization, and placement state machine.
 
 - `DisplayIdentity` — wraps `CGDisplayCreateUUIDFromDisplayID` output (stability through disconnect/reconnect is inference, requires spike validation)
 - `NormalizedAnchor` — portal origin expressed as fractions of the actual movable range within `NSScreen.visibleFrame`, after constraining the portal size
-- `DisplaySnapshot` — captures canonical display UUIDs, visible frames, and the explicit primary display without treating `NSScreen.screens` order as identity
+- `DisplaySnapshot` — captures canonical display UUIDs and visible frames, and explicitly identifies the menu-bar primary as the fresh `NSScreen.screens[0]`; it never substitutes keyboard-focus-based `NSScreen.main`
 - `DisplayPlacementObserver` — refreshes topology after screen-parameter changes and wake notifications
 - `PortalStore` — persists per-portal, per-display placement records
-- State machine (§6) — distinguishes explicit user placement commits from system-driven evictions
+- State machine (§6) — distinguishes explicit user placement commits from system-driven primary-display following
 
 ### 3.9 Persistence
 
@@ -421,8 +422,8 @@ migration instead of overwriting evidence.
 │ (absent) │ ───────────────→ │  active   │ ──────────────→ │ destroyed │
 └─────────┘                   └──────────┘                  └───────────┘
                                ▲       │
-                    display    │       │ display
-                    reconnected│       │ disconnected
+                    primary    │       │ primary
+                    restored   │       │ changed
                                │       ▼
                           ┌─────────────┐
                           │  displaced   │
@@ -433,11 +434,12 @@ migration instead of overwriting evidence.
 
 | Event | Origin | Action |
 |-------|--------|--------|
-| User ends drag or live-resize session | User | Write absolute frame and normalized anchor to `framesByDisplay[currentDisplayUUID]`; update `homeDisplayUUID` |
-| Display disconnected | System | If portal was on that display, move to primary screen clamped to `visibleFrame`; do **not** overwrite `framesByDisplay[disconnectedUUID]` |
-| Display reconnected | System | If `framesByDisplay[reconnectedUUID]` exists, apply the same-geometry or changed-geometry restoration policy; mark portal as active on that display |
-| Resolution/scaling change | System | Constrain preferred size, compute movable range, restore the normalized anchor, grid-snap, and clamp to new `visibleFrame` |
-| Sleep/wake | System | Re-read `NSScreen` geometry and apply the same-geometry or changed-geometry restoration policy |
+| User ends drag or live-resize session | User | Require the final frame to be on the menu-bar primary display, then write its absolute frame and normalized anchor to that display entry and update `homeDisplayUUID` |
+| Menu-bar primary changes or disconnects | System | Project the complete layout to the new primary using left/top point offsets; keep fitting frames fixed and place overflow in new right-hand columns without overwriting durable placement |
+| Prior display becomes primary again | System | Prefer its remembered per-display entries and restore that primary's layout |
+| Resolution/scaling change | System | Project from the prior primary `visibleFrame` by left/top offsets, then run the complete overflow-repair plan |
+| Sleep/wake | System | Re-read `NSScreen.screens`, identify index zero as primary, and run the same complete layout plan |
+| Manual position repair | User command | Keep frames already inside the primary `visibleFrame` and non-conflicting in stable order unchanged, preflight off-screen/conflicting frames, save only repaired placements once, then animate them into place |
 | Spaces transition | System | Desired behavior: portal remains on every Space without persisted-state mutation; the desktop-layer spike determines whether the selected window behaviors achieve this reliably |
 
 ### 6.3 User vs. System Move Distinction
@@ -454,13 +456,13 @@ This prevents Show Desktop, Spaces transitions, or Stage Manager reflow from ove
 
 ---
 
-## 7. Placement Restoration Algorithm
+## 7. Primary-Display Placement Algorithm
 
 ### 7.1 Save (user ended drag or live-resize)
 
 ```
-1. Get currentDisplay = NSScreen containing portal window
-2. Get visibleFrame = currentDisplay.visibleFrame  (accounts for menu bar and Dock; safe-area behavior is verified separately)
+1. Get currentDisplay = fresh `NSScreen.screens[0]`, the menu-bar primary display
+2. Get visibleFrame = currentDisplay.visibleFrame
 3. Constrain portalWindow.frame.size to visibleFrame; this constrained frame is absoluteFrame
 4. Compute the actual movable range:
      movableWidth = max(0, visibleFrame.width - absoluteFrame.width)
@@ -477,46 +479,36 @@ This prevents Show Desktop, Spaces transitions, or Stage Manager reflow from ove
 8. Update homeDisplayUUID = currentDisplayUUID
 ```
 
-### 7.2 Restore (display available, same geometry)
+### 7.2 Project to the current primary
 
 ```
-1. Look up DisplayPlacementEntry for displayUUID in framesByDisplay
-2. Get current visibleFrame for that display
-3. If visibleFrame is unchanged from save time (same origin and size):
-     - Use saved absoluteFrame directly
-     - Constrain size to visibleFrame, then grid-snap and clamp to visibleFrame
-4. Set portalWindow.frame
+1. Use remembered entries for the current primary only when every Portal has one, so records from different layout generations are never mixed. Otherwise project the complete prior runtime primary layout; at cold start with no runtime layout, use durable home entries and resolve any conflicts as overflow.
+2. For every frame, calculate `left = frame.minX - oldVisible.minX` and `top = oldVisible.maxY - frame.maxY`.
+3. Form the candidate on the new primary as `x = newVisible.minX + left`, `y = newVisible.maxY - top - height`.
+4. Do not clamp candidates independently; retain overflow evidence for the complete planner.
 ```
 
-### 7.3 Restore (display available, geometry changed)
+### 7.3 Repair overflow as one plan
 
 ```
-1. Look up DisplayPlacementEntry for displayUUID in framesByDisplay
-2. Get current visibleFrame for that display
-3. Constrain preferredSize to current visibleFrame
-4. Compute the actual movable range using the constrained size:
-     movableWidth = max(0, visibleFrame.width - constrainedSize.width)
-     movableHeight = max(0, visibleFrame.height - constrainedSize.height)
-5. Restore the origin from the normalized anchor:
-     ax = visibleFrame.minX + clamp(nx, 0...1) * movableWidth
-     ay = visibleFrame.minY + clamp(ny, 0...1) * movableHeight
-6. Form the candidate frame from the restored origin and constrained size
-7. Grid-snap the candidate frame, then clamp it to visibleFrame
-8. Set portalWindow.frame
+1. In stable Portal order, mark candidates wholly contained by the primary `visibleFrame` and respecting the selected inter-Portal gap from earlier fixed frames as fixed; move later conflicting candidates into overflow.
+2. Sort overflow by prior visual order: top to bottom, then left to right, then stable Portal order.
+3. Start immediately to the right of all fixed frames and fill a column from top to bottom using actual frame sizes and the selected gap.
+4. Open further columns to the right as necessary.
+5. If no non-overlapping column fits, cascade remaining fixed-size frames through distinct exposed-top slots until those finite slots are exhausted, then reuse slots. Never silently shrink capacity; menu-bar Show can always bring a fully overlapped Portal to the front.
+6. Apply no window frame until the complete deterministic plan succeeds.
 ```
 
-The normalized anchor expresses the portal origin's relative position within the space in which that specific window size can actually move. It does not divide by the full display width or height. Operation order is fixed: constrain size, calculate movable range, restore origin, grid-snap, then clamp.
+Normalized anchors remain in the v11 persistence contract and migration path. Primary-display topology projection uses left/top point offsets instead of proportional normalization so panels that still fit do not drift when display size changes.
 
-### 7.4 Eviction to Primary Screen
+### 7.4 Manual repair
 
 ```
-1. Resolve a primary screen with `NSScreen.main ?? NSScreen.screens.first`
-2. If no screen is available during a transient display reconfiguration, defer eviction until the next screen-parameters notification
-3. primaryFrame = resolvedScreen.visibleFrame
-4. Compute clamped position: center of portal stays within primaryFrame
-5. If portal width > primaryFrame.width, shrink to fit
-6. Set portalWindow.frame to clamped rect
-7. Do NOT write to framesByDisplay[anyUUID] — preserve home placement
+1. Capture a fresh topology and use `NSScreen.screens[0]` as the only destination.
+2. Freeze every current runtime frame already wholly inside the primary `visibleFrame`.
+3. Project secondary/off-screen frames to the primary, then run §7.3 with the frozen frames as obstacles.
+4. Persist only repaired Portal entries in one `PortalStore.save` transaction.
+5. After persistence succeeds, animate repaired windows; pinned and hidden state remain unchanged.
 ```
 
 ---
@@ -888,14 +880,14 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 ### 16.2 Display Identity and Placement — Spike 0.2
 
-**Provisional claim:** Display UUID, absolute frame, save-time `visibleFrame`, preferred size, and a normalized anchor within the actual movable range can restore a portal without overwriting remembered home placement.
+**Provisional claim:** Per-display placement records plus left/top point-offset projection can keep the complete layout on the menu-bar primary display without overwriting remembered layouts for other displays.
 
 **Gate criteria:**
 
 - Measure display UUID behavior across disconnect/reconnect, rearrangement, resolution/scaling changes, and sleep/wake.
-- Verify system-driven eviction does not overwrite the user's last explicit placement.
-- Verify same geometry prefers the absolute frame; changed geometry constrains size, computes movable range, restores normalized origin, grid-snaps, then clamps.
-- Record behavior for zero movable width or height and displays unavailable during transient reconfiguration.
+- Verify system-driven primary following does not overwrite the user's last explicit placement.
+- Verify fitting non-conflicting frames preserve their left/top point offsets, overflow opens right-hand columns in stable visual order, fallback slots are exhausted before repetition, and menu-bar Show brings a fully overlapped Portal to the front.
+- Verify `NSScreen.screens[0]` changes are observed, returning primary displays use remembered entries, and transient empty topologies defer without mutation.
 
 **If gate fails:** Revise display identity matching, placement fields, or the restoration product promise based on evidence.
 

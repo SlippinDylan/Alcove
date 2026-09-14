@@ -181,14 +181,21 @@ final class DisplayPlacementTests: XCTestCase {
         XCTAssertEqual(deliveries, 1)
     }
 
-    func testCurrentScreenCaptureHasAnExplicitPrimaryIdentity() throws {
-        guard !NSScreen.screens.isEmpty else {
+    func testCurrentScreenCaptureUsesMenuBarPrimaryAtIndexZero() throws {
+        guard let primaryScreen = NSScreen.screens.first else {
             throw XCTSkip("No screens are available in this test session")
         }
         let snapshot = try DisplaySnapshot.capture()
+        let displayID = try DisplayIdentityLookup.displayID(
+            from: primaryScreen.deviceDescription
+        )
+        let uuid = try XCTUnwrap(CGDisplayCreateUUIDFromDisplayID(displayID))
+        let expectedPrimary = DisplayIdentity(
+            rawValue: DisplayIdentityLookup.format(uuid.takeRetainedValue())
+        )
 
         XCTAssertFalse(snapshot.displays.isEmpty)
-        XCTAssertNotNil(snapshot.display(with: snapshot.primaryDisplay))
+        XCTAssertEqual(snapshot.primaryDisplay, expectedPrimary)
         XCTAssertEqual(Set(snapshot.displays.map(\.identity)).count, snapshot.displays.count)
     }
 

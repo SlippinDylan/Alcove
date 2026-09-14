@@ -1,5 +1,5 @@
 // PlacementStateMachineTests.swift
-// AlcoveCore — Eviction-safe pure state tests.
+// AlcoveCore — Primary-display-following placement state tests.
 
 import CoreGraphics
 import XCTest
@@ -24,12 +24,11 @@ final class PlacementStateMachineTests: XCTestCase {
         XCTAssertEqual(transition.session.presentation, .temporarilyDisplaced(to: primaryID))
         let directive = try XCTUnwrap(transition.directive)
         XCTAssertEqual(directive.targetDisplay, primaryID)
-        XCTAssertEqual(directive.reason, .temporaryPrimaryEviction)
-        XCTAssertEqual(directive.frame, CGRect(x: 400, y: 250, width: 400, height: 300))
+        XCTAssertEqual(directive.reason, .followPrimaryDisplay)
         assertContained(directive.frame, in: descriptor(primaryID, x: 0, width: 1200).visibleFrame)
     }
 
-    func testRepeatedEvictionDoesNotMutateHomePlacement() throws {
+    func testRepeatedPrimaryFollowingDoesNotMutateHomePlacement() throws {
         let original = try makeSession()
         let first = try PlacementStateMachine.reconcileTopology(
             session: original,
@@ -44,10 +43,10 @@ final class PlacementStateMachineTests: XCTestCase {
 
         XCTAssertEqual(second.session.placements, original.placements)
         XCTAssertEqual(second.session.homeDisplay, homeID)
-        XCTAssertEqual(second.directive?.reason, .temporaryPrimaryEviction)
+        XCTAssertEqual(second.directive?.reason, .followPrimaryDisplay)
     }
 
-    func testHomeReturnRestoresRememberedPlacement() throws {
+    func testAvailableHomeDoesNotOverrideCurrentPrimaryDisplay() throws {
         let original = try makeSession()
         let displaced = try PlacementStateMachine.reconcileTopology(
             session: original,
@@ -61,13 +60,15 @@ final class PlacementStateMachineTests: XCTestCase {
             primaryDisplay: primaryID
         )
 
-        XCTAssertEqual(restored.session, original)
-        XCTAssertEqual(restored.directive?.targetDisplay, homeID)
-        XCTAssertEqual(restored.directive?.reason, .restoreReturnedHome)
-        XCTAssertEqual(restored.directive?.frame, original.placements[homeID]?.absoluteFrame)
+        XCTAssertEqual(restored.session.placements, original.placements)
+        XCTAssertEqual(restored.session.homeDisplay, homeID)
+        XCTAssertEqual(restored.session.presentation, .temporarilyDisplaced(to: primaryID))
+        XCTAssertEqual(restored.directive?.targetDisplay, primaryID)
+        XCTAssertEqual(restored.directive?.reason, .followPrimaryDisplay)
+        XCTAssertEqual(restored.directive?.frame, CGRect(x: 600, y: 250, width: 400, height: 300))
     }
 
-    func testChangedHomeGeometryRestoresAnchorWithoutMutatingRecord() throws {
+    func testChangedNonPrimaryGeometryDoesNotMovePortalOffPrimary() throws {
         let original = try makeSession()
         let changedHome = descriptor(homeID, x: -2000, width: 2000, height: 1000)
         let transition = try PlacementStateMachine.reconcileTopology(
@@ -77,12 +78,12 @@ final class PlacementStateMachineTests: XCTestCase {
         )
 
         XCTAssertEqual(transition.session.placements, original.placements)
-        XCTAssertEqual(transition.directive?.reason, .refreshHomeGeometry)
-        XCTAssertEqual(transition.directive?.frame.origin, CGPoint(x: -1200, y: 350))
+        XCTAssertEqual(transition.directive?.reason, .followPrimaryDisplay)
+        XCTAssertEqual(transition.directive?.frame.origin, CGPoint(x: 600, y: 250))
         XCTAssertEqual(transition.directive?.frame.size, CGSize(width: 400, height: 300))
     }
 
-    func testRearrangementUsesChangedGeometryWithoutChangingHome() throws {
+    func testNonPrimaryRearrangementDoesNotChangePrimaryPresentation() throws {
         let original = try makeSession()
         let rearranged = descriptor(homeID, x: 1200, width: 1600)
         let transition = try PlacementStateMachine.reconcileTopology(
@@ -93,7 +94,8 @@ final class PlacementStateMachineTests: XCTestCase {
 
         XCTAssertEqual(transition.session.homeDisplay, homeID)
         XCTAssertEqual(transition.session.placements, original.placements)
-        XCTAssertEqual(transition.directive?.frame.origin, CGPoint(x: 1800, y: 250))
+        XCTAssertEqual(transition.directive?.targetDisplay, primaryID)
+        XCTAssertEqual(transition.directive?.frame.origin, CGPoint(x: 600, y: 250))
     }
 
     func testSystemFrameChangeNeverWritesPlacement() throws {
@@ -150,7 +152,7 @@ final class PlacementStateMachineTests: XCTestCase {
         XCTAssertEqual(transition.directive?.frame, userFrame)
     }
 
-    func testUnrelatedSavedDisplayDoesNotStealHome() throws {
+    func testUnrelatedSavedDisplayDoesNotOverridePrimaryPresentation() throws {
         let original = try makeSession()
         let other = descriptor(otherID, x: 2000, width: 1000)
         let otherRecord = try PlacementGeometry.capture(
@@ -175,7 +177,34 @@ final class PlacementStateMachineTests: XCTestCase {
         )
 
         XCTAssertEqual(transition.session.homeDisplay, homeID)
-        XCTAssertEqual(transition.directive?.targetDisplay, homeID)
+        XCTAssertEqual(transition.directive?.targetDisplay, primaryID)
+        XCTAssertEqual(transition.session.placements, placements)
+    }
+
+    func testRememberedPrimaryPlacementWinsOverHomeProjection() throws {
+        let original = try makeSession()
+        let primary = descriptor(primaryID, x: 0, width: 1200)
+        let primaryFrame = CGRect(x: 100, y: 120, width: 400, height: 300)
+        let primaryRecord = try PlacementGeometry.capture(
+            windowFrame: primaryFrame,
+            visibleFrame: primary.visibleFrame
+        )
+        var placements = original.placements
+        placements[primaryID] = primaryRecord
+        let session = try PlacementSession(
+            placements: placements,
+            homeDisplay: homeID,
+            presentation: .active(on: homeID)
+        )
+
+        let transition = try PlacementStateMachine.reconcileTopology(
+            session: session,
+            displays: [primary, descriptor(homeID, x: -1600, width: 1600)],
+            primaryDisplay: primaryID
+        )
+
+        XCTAssertEqual(transition.directive?.targetDisplay, primaryID)
+        XCTAssertEqual(transition.directive?.frame, primaryFrame)
         XCTAssertEqual(transition.session.placements, placements)
     }
 
@@ -228,7 +257,7 @@ final class PlacementStateMachineTests: XCTestCase {
         let directive = try XCTUnwrap(transition.directive)
         XCTAssertEqual((directive.frame.minX - primary.visibleFrame.minX).truncatingRemainder(dividingBy: 50), 0)
         XCTAssertEqual((directive.frame.minY - primary.visibleFrame.minY).truncatingRemainder(dividingBy: 50), 0)
-        XCTAssertEqual(directive.frame, CGRect(x: 305, y: 200, width: 410, height: 310))
+        XCTAssertEqual(directive.frame, CGRect(x: 405, y: 150, width: 410, height: 310))
         assertContained(directive.frame, in: primary.visibleFrame)
     }
 
@@ -252,19 +281,21 @@ final class PlacementStateMachineTests: XCTestCase {
         ) { XCTAssertEqual($0 as? PlacementStateError, .primaryDisplayUnavailable(primaryID)) }
     }
 
-    func testHomeRestoreDoesNotRequirePrimaryWhenNoEvictionIsNeeded() throws {
+    func testReconciliationRequiresDeclaredPrimaryDisplay() throws {
         let session = try makeSession()
-        let transition = try PlacementStateMachine.reconcileTopology(
+        XCTAssertThrowsError(try PlacementStateMachine.reconcileTopology(
             session: session,
             displays: [descriptor(homeID, x: -1600, width: 1600)],
             primaryDisplay: primaryID
-        )
-
-        XCTAssertEqual(transition.session, session)
-        XCTAssertEqual(transition.directive?.targetDisplay, homeID)
+        )) { error in
+            XCTAssertEqual(
+                error as? PlacementStateError,
+                .primaryDisplayUnavailable(primaryID)
+            )
+        }
     }
 
-    func testChangedGeometryHomeReturnRestoresWithoutWritingMemory() throws {
+    func testNonPrimaryReturnNeverOverridesPrimaryOrWritesMemory() throws {
         let original = try makeSession()
         let displaced = try PlacementStateMachine.reconcileTopology(
             session: original,
@@ -280,8 +311,9 @@ final class PlacementStateMachineTests: XCTestCase {
 
         XCTAssertEqual(restored.session.placements, original.placements)
         XCTAssertEqual(restored.session.homeDisplay, homeID)
-        XCTAssertEqual(restored.directive?.reason, .restoreReturnedHome)
-        XCTAssertEqual(restored.directive?.frame, CGRect(x: -1200, y: 350, width: 400, height: 300))
+        XCTAssertEqual(restored.directive?.reason, .followPrimaryDisplay)
+        XCTAssertEqual(restored.directive?.targetDisplay, primaryID)
+        XCTAssertEqual(restored.directive?.frame, CGRect(x: 600, y: 250, width: 400, height: 300))
     }
 
     func testFallbackMovesToNewPrimaryWithoutWritingMemory() throws {
@@ -302,7 +334,7 @@ final class PlacementStateMachineTests: XCTestCase {
         XCTAssertEqual(second.session.homeDisplay, homeID)
         XCTAssertEqual(second.session.presentation, .temporarilyDisplaced(to: otherID))
         XCTAssertEqual(second.directive?.targetDisplay, otherID)
-        XCTAssertEqual(second.directive?.frame, CGRect(x: 2100, y: 200, width: 400, height: 300))
+        XCTAssertEqual(second.directive?.frame, CGRect(x: 2400, y: 150, width: 400, height: 300))
     }
 
     func testTopologyFailuresLeaveCompleteSessionUnchanged() throws {
@@ -356,7 +388,7 @@ final class PlacementStateMachineTests: XCTestCase {
         XCTAssertNil(transition.directive)
     }
 
-    func testDisplayAfterEmptyTopologyContinuesEviction() throws {
+    func testDisplayAfterEmptyTopologyContinuesPrimaryFollowing() throws {
         let original = try makeSession()
         let waiting = try PlacementStateMachine.reconcileTopology(
             session: original,
@@ -371,7 +403,7 @@ final class PlacementStateMachineTests: XCTestCase {
 
         XCTAssertEqual(resumed.session.homeDisplay, homeID)
         XCTAssertEqual(resumed.session.presentation, .temporarilyDisplaced(to: primaryID))
-        XCTAssertEqual(resumed.directive?.reason, .temporaryPrimaryEviction)
+        XCTAssertEqual(resumed.directive?.reason, .followPrimaryDisplay)
     }
 
     func testInvalidUserFrameDoesNotMutateSession() throws {

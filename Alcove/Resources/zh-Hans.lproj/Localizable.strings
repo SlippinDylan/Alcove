@@ -85,6 +85,14 @@
 "application.settings.backup.import_error" = "无法导入布局";
 "application.settings.backup.export_error" = "无法导出布局";
 "application.settings.backup.import_busy" = "请先结束当前的面板操作，再导入布局。";
+"application.settings.position_repair.section" = "面板位置";
+"application.settings.position_repair.title" = "修复面板位置";
+"application.settings.position_repair.description" = "将离屏或冲突的面板移回可见区域，位置正常的面板不会移动。";
+"application.settings.position_repair.action" = "修复面板位置";
+"application.settings.position_repair.no_changes" = "所有面板都已正常显示。";
+"application.settings.position_repair.completed" = "面板位置已修复。";
+"application.settings.position_repair.error" = "无法修复面板位置";
+"application.settings.position_repair.busy" = "请先结束当前的面板操作，再修复面板位置。";
 "portal.placement.unavailable.title" = "无法放置面板";
 "portal.placement.unavailable.detail" = "请选择一块空白区域，并与屏幕边缘及其他面板保持所设间距。";
 "portal.state.not_loaded" = "面板状态尚未加载完成。";

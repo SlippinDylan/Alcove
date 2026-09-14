@@ -71,7 +71,7 @@ final class TabBarView: NSView {
         alert.addButton(withTitle: NSLocalizedString("action.cancel", comment: "Cancel"))
         alert.buttons.first?.hasDestructiveAction = true
         alert.layout()
-        if let visibleFrame = window?.screen?.visibleFrame ?? NSScreen.main?.visibleFrame {
+        if let visibleFrame = window?.screen?.visibleFrame ?? NSScreen.screens.first?.visibleFrame {
             alert.window.setFrameOrigin(PortalRemovalConfirmationGeometry.centeredOrigin(
                 windowSize: alert.window.frame.size,
                 visibleFrame: visibleFrame
@@ -499,7 +499,7 @@ final class PortalSettingsWindowController: NSWindowController {
 
     func present(on screen: NSScreen?) {
         guard let window else { return }
-        let visibleFrame = screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+        let visibleFrame = screen?.visibleFrame ?? NSScreen.screens.first?.visibleFrame
         if let visibleFrame {
             window.setFrameOrigin(
                 NSPoint(

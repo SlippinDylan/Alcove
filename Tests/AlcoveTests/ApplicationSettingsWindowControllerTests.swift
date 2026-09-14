@@ -27,6 +27,18 @@ private final class ApplicationLayoutBackupControllerSpy: ApplicationLayoutBacku
     }
 }
 
+@MainActor
+private final class PanelPositionRepairerSpy: PanelPositionRepairing {
+    private(set) var repairCount = 0
+    var onRepair: (() -> Void)?
+
+    func repairPanelPositions() async throws -> Int {
+        repairCount += 1
+        onRepair?()
+        return 0
+    }
+}
+
 final class ApplicationSettingsWindowControllerTests: XCTestCase {
     @MainActor
     func testPortalAppearancePreferencesUseDefaultsAndPersistFiveStepValues() throws {
@@ -158,6 +170,12 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         let card = try XCTUnwrap(views.first {
             $0.identifier?.rawValue == "application-settings.backup.card"
         })
+        XCTAssertNotNil(views.first {
+            $0.identifier?.rawValue == "application-settings.position-repair.card"
+        })
+        XCTAssertNotNil(views.compactMap { $0 as? NSButton }.first {
+            $0.identifier?.rawValue == "application-settings.position-repair.action"
+        })
         let importButton = try XCTUnwrap(views.compactMap { $0 as? NSButton }.first {
             $0.identifier?.rawValue == "application-settings.backup.import"
         })
@@ -176,6 +194,37 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         exportButton.performClick(nil)
         XCTAssertEqual(backupController.importCount, 1)
         XCTAssertEqual(backupController.exportCount, 1)
+        controller.close()
+    }
+
+    @MainActor
+    func testAdvancedPositionRepairButtonInvokesRepairer() async throws {
+        let repairer = PanelPositionRepairerSpy()
+        let invoked = expectation(description: "Position repair invoked")
+        repairer.onRepair = { invoked.fulfill() }
+        let controller = ApplicationSettingsWindowController(
+            launchAtLoginController: LaunchAtLoginControllerSpy(),
+            panelPositionRepairer: repairer,
+            metadata: ApplicationMetadata(infoDictionary: [:]),
+            applicationIcon: NSImage(size: NSSize(width: 128, height: 128))
+        )
+        controller.selectCategory(.advanced)
+        let button = try XCTUnwrap(
+            descendants(of: controller.settingsViewController.view)
+                .compactMap { $0 as? NSButton }
+                .first {
+                    $0.identifier?.rawValue == "application-settings.position-repair.action"
+                }
+        )
+
+        button.performClick(nil)
+        await fulfillment(of: [invoked], timeout: 1)
+        await Task.yield()
+
+        XCTAssertEqual(repairer.repairCount, 1)
+        if let sheet = controller.window?.attachedSheet {
+            controller.window?.endSheet(sheet)
+        }
         controller.close()
     }
 

@@ -62,8 +62,7 @@ final class PortalFrameSelector: PortalFrameSelecting {
 
     func selectFrame() async -> PortalFrameSelection? {
         guard activeOverlay == nil else { return nil }
-        let mouseLocation = NSEvent.mouseLocation
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) else {
+        guard let screen = NSScreen.screens.first else {
             return nil
         }
 

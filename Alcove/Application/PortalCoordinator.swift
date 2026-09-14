@@ -15,7 +15,7 @@ protocol PortalCoordinating: AnyObject {
 }
 
 @MainActor
-final class PortalCoordinator: PortalCoordinating {
+final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
     private let locationValidator: FolderLocationValidator
     private let store: any PortalStoring
     private let windowFactory: any PortalWindowBuilding
@@ -31,6 +31,7 @@ final class PortalCoordinator: PortalCoordinating {
     private var placementSessions: [PortalID: PlacementSession] = [:]
     private var deferredTopologyPortals = Set<PortalID>()
     private var spacingLayoutNeedsRetry = false
+    private var lastDisplaySnapshot: DisplaySnapshot?
     private var pendingUserPlacements: [PortalID: PendingUserPlacement] = [:]
     private var pendingPlacementAttempts: [PortalID: UInt64] = [:]
     private var nextUserPlacementGeneration: UInt64 = 0
@@ -165,10 +166,7 @@ final class PortalCoordinator: PortalCoordinating {
             }
             let snapshot = try currentDisplaySnapshot()
             let requestedFrame = frame ?? Self.defaultFrame(on: snapshot.primaryDescriptor)
-            let display = try LegacyFrameDisplayResolver.resolve(
-                frame: requestedFrame,
-                in: snapshot
-            )
+            let display = snapshot.primaryDescriptor
             let initialFrame = Self.frameFittingCapacity(
                 requestedFrame,
                 iconLayout: iconLayout,
@@ -292,6 +290,111 @@ final class PortalCoordinator: PortalCoordinating {
 
     func occupiedPortalFrames() -> [NSRect] {
         runtimePortalFrames(excluding: nil)
+    }
+
+    func repairPanelPositions() async throws -> Int {
+        var repairedCount = 0
+        try await performMutation { [weak self] in
+            guard let self else { return }
+            guard hasLoadedPersistentState else {
+                throw PortalCoordinatorError.persistentStateNotLoaded
+            }
+            guard pendingUserPlacements.isEmpty,
+                  !windows.values.contains(where: \.isUserPlacementInteractionActive) else {
+                throw PortalCoordinatorError.layoutRepairBusy
+            }
+
+            let snapshot = try currentDisplaySnapshot()
+            let primary = snapshot.primaryDescriptor
+            let missingWindowIDs = portalStates.compactMap { portal in
+                windows[portal.id] == nil ? portal.id : nil
+            }
+            if !missingWindowIDs.isEmpty {
+                applyDisplayTopology(.success(snapshot))
+                guard missingWindowIDs.allSatisfy({ windows[$0] != nil }) else {
+                    throw PortalCoordinatorError.placementUnavailable
+                }
+                repairedCount += missingWindowIDs.count
+            }
+            let currentFrames = portalStates.map { portal in
+                windows[portal.id]?.presentedFrame ?? portal.frame
+            }
+            let fixedIndices = try PrimaryDisplayLayout.containedIndices(
+                in: currentFrames,
+                visibleFrame: primary.visibleFrame,
+                minimumGap: portalAppearance.spacing.points
+            )
+            guard fixedIndices.count != currentFrames.count else {
+                lastDisplaySnapshot = snapshot
+                return
+            }
+
+            var candidates = currentFrames
+            for index in candidates.indices where !fixedIndices.contains(index) {
+                let sourceDisplay = try LegacyFrameDisplayResolver.resolve(
+                    frame: currentFrames[index],
+                    in: snapshot
+                )
+                candidates[index] = try PrimaryDisplayLayout.projectTopLeft(
+                    frame: currentFrames[index],
+                    from: sourceDisplay.visibleFrame,
+                    to: primary.visibleFrame
+                )
+            }
+            let repairedFrames = try PrimaryDisplayLayout.repairOverflow(
+                candidateFrames: candidates,
+                fixedIndices: fixedIndices,
+                visibleFrame: primary.visibleFrame,
+                minimumGap: portalAppearance.spacing.points,
+                minimumExposedHeight: PortalViewController.tabBarHeight
+            )
+            let repairedIndices = repairedFrames.indices.filter {
+                !fixedIndices.contains($0)
+            }
+            guard repairedIndices.allSatisfy({ index in
+                windows[portalStates[index].id] != nil
+            }) else {
+                throw PortalCoordinatorError.placementUnavailable
+            }
+
+            var updatedPortals = portalStates
+            for index in repairedIndices {
+                try updatedPortals[index].recordUserPlacement(
+                    frame: repairedFrames[index],
+                    display: primary
+                )
+            }
+            try await store.save(updatedPortals)
+
+            portalStates = updatedPortals
+            var appliedEveryRepair = true
+            for index in portalStates.indices {
+                let portal = portalStates[index]
+                placementSessions[portal.id] = try placementSession(for: portal)
+                if fixedIndices.contains(index) {
+                    spacingLayoutBaseFrames[portal.id] = currentFrames[index]
+                } else {
+                    spacingLayoutBaseFrames[portal.id] = repairedFrames[index]
+                    guard windows[portal.id]?.applySystemPlacement(
+                        frame: repairedFrames[index],
+                        animated: true
+                    ) == true else {
+                        appliedEveryRepair = false
+                        deferredTopologyPortals.insert(portal.id)
+                        continue
+                    }
+                    repairedCount += 1
+                }
+            }
+            guard appliedEveryRepair else {
+                spacingLayoutNeedsRetry = true
+                reconcileDisplayTopology(displaySnapshotProvider())
+                throw PortalCoordinatorError.layoutRepairBusy
+            }
+            lastDisplaySnapshot = snapshot
+            displayError = nil
+        }
+        return repairedCount
     }
 
     func replaceLayout(with backup: AlcoveLayoutBackup) async throws {
@@ -732,10 +835,7 @@ final class PortalCoordinator: PortalCoordinating {
             do {
                 let displaySnapshot = try snapshotResult.get()
                 resolvedSnapshot = displaySnapshot
-                let display = try LegacyFrameDisplayResolver.resolve(
-                    frame: pending.frame,
-                    in: displaySnapshot
-                )
+                let display = displaySnapshot.primaryDescriptor
                 var portal = portalStates[index]
                 if let gridCapacity = pending.gridCapacity {
                     portal.updateGridCapacity(gridCapacity)
@@ -758,7 +858,6 @@ final class PortalCoordinator: PortalCoordinating {
                         portalID: portalID,
                         generation: pending.generation
                     )
-                    reconcile(portalID: portalID, with: displaySnapshot)
                     throw PortalCoordinatorError.placementUnavailable
                 }
                 try portal.recordUserPlacement(frame: committedFrame, display: display)
@@ -779,7 +878,11 @@ final class PortalCoordinator: PortalCoordinating {
                     return
                 }
                 if let resolvedSnapshot {
-                    reconcile(portalID: portalID, with: resolvedSnapshot)
+                    clearPendingUserPlacement(
+                        portalID: portalID,
+                        generation: pending.generation
+                    )
+                    applyDisplayTopology(.success(resolvedSnapshot))
                 }
                 throw error
             }
@@ -1062,35 +1165,60 @@ final class PortalCoordinator: PortalCoordinating {
     ) {
         switch result {
         case .success(let snapshot):
-            displayError = nil
-            for portal in portalStates {
-                if let pending = pendingUserPlacements[portal.id] {
-                    if pendingPlacementAttempts[portal.id] != pending.generation {
-                        pendingPlacementAttempts[portal.id] = pending.generation
-                        enqueueUserPlacement(
-                            pending,
-                            portalID: portal.id,
-                            snapshotResult: .success(snapshot)
-                        )
-                    }
-                    continue
-                }
-                if windows[portal.id] == nil {
-                    do {
-                        let transition = try placementTransition(
-                            for: portal,
-                            topology: snapshot
-                        )
-                        present(portal, transition: transition)
-                    } catch {
-                        displayError = error
-                    }
-                } else {
-                    reconcile(portalID: portal.id, with: snapshot)
-                }
+            for (portalID, pending) in pendingUserPlacements
+            where pendingPlacementAttempts[portalID] != pending.generation {
+                pendingPlacementAttempts[portalID] = pending.generation
+                enqueueUserPlacement(
+                    pending,
+                    portalID: portalID,
+                    snapshotResult: .success(snapshot)
+                )
             }
-            if pendingUserPlacements.isEmpty {
-                applyCurrentPortalSpacingLayout(snapshot: snapshot, animated: false)
+            if !pendingUserPlacements.isEmpty
+                || windows.values.contains(where: \.isUserPlacementInteractionActive) {
+                deferredTopologyPortals.formUnion(portalStates.map(\.id))
+                spacingLayoutNeedsRetry = true
+                return
+            }
+            do {
+                let plan = try primaryDisplayLayoutPlan(snapshot: snapshot)
+                var appliedEveryFrame = true
+                for portal in portalStates {
+                    guard let session = plan.sessions[portal.id],
+                          let frame = plan.frames[portal.id] else {
+                        continue
+                    }
+                    let plannedTransition = PlacementTransition(
+                        session: session,
+                        directive: PlacementDirective(
+                            targetDisplay: snapshot.primaryDisplay,
+                            frame: frame,
+                            reason: .followPrimaryDisplay
+                        )
+                    )
+                    if windows[portal.id] == nil {
+                        present(portal, transition: plannedTransition)
+                    } else {
+                        placementSessions[portal.id] = plannedTransition.session
+                        if windows[portal.id]?.applySystemPlacement(frame: frame) == true {
+                            spacingLayoutBaseFrames[portal.id] = frame
+                            deferredTopologyPortals.remove(portal.id)
+                        } else {
+                            appliedEveryFrame = false
+                            deferredTopologyPortals.insert(portal.id)
+                        }
+                    }
+                }
+                if appliedEveryFrame {
+                    lastDisplaySnapshot = snapshot
+                    deferredTopologyPortals.removeAll()
+                    displayError = nil
+                    spacingLayoutNeedsRetry = false
+                } else {
+                    spacingLayoutNeedsRetry = true
+                }
+            } catch {
+                displayError = error
             }
         case .failure(let error) where error == .noScreensAvailable
             || error == .missingPrimaryScreen:
@@ -1113,30 +1241,103 @@ final class PortalCoordinator: PortalCoordinating {
         }
     }
 
-    private func reconcile(portalID: PortalID, with snapshot: DisplaySnapshot) {
-        guard let session = placementSessions[portalID],
-              let window = windows[portalID],
-              let portal = portalStates.first(where: { $0.id == portalID }) else {
-            return
+    private func primaryDisplayLayoutPlan(
+        snapshot: DisplaySnapshot
+    ) throws -> PrimaryDisplayLayoutPlan {
+        var sessions: [PortalID: PlacementSession] = [:]
+        var candidates: [NSRect] = []
+        candidates.reserveCapacity(portalStates.count)
+        let primaryChanged = lastDisplaySnapshot?.primaryDisplay != snapshot.primaryDisplay
+        let rememberedPrimaryLayout: [PortalID: DisplayPlacementEntry]? = if primaryChanged {
+            Dictionary(
+                uniqueKeysWithValues: portalStates.compactMap { portal in
+                    portal.placement.framesByDisplay[snapshot.primaryDisplay].map {
+                        (portal.id, $0)
+                    }
+                }
+            )
+        } else {
+            nil
         }
-        do {
-            let transition = try PlacementStateMachine.reconcileTopology(
+        let completeRememberedPrimaryLayout = rememberedPrimaryLayout?.count
+            == portalStates.count ? rememberedPrimaryLayout : nil
+
+        for portal in portalStates {
+            let session: PlacementSession
+            if let existingSession = placementSessions[portal.id] {
+                session = existingSession
+            } else {
+                session = try placementSession(for: portal)
+            }
+            let updatedSession = try PlacementStateMachine.reconcilePresentation(
                 session: session,
                 displays: snapshot.displays,
-                primaryDisplay: snapshot.primaryDisplay,
-                gridSpacing: placementGridSpacing(for: portal)
+                primaryDisplay: snapshot.primaryDisplay
             )
-            placementSessions[portalID] = transition.session
-            guard let directive = transition.directive else { return }
-            if window.applySystemPlacement(frame: directive.frame) {
-                spacingLayoutBaseFrames[portalID] = directive.frame
-                deferredTopologyPortals.remove(portalID)
+            sessions[portal.id] = updatedSession
+
+            let source: (frame: NSRect, visibleFrame: NSRect)
+            if let previousSnapshot = lastDisplaySnapshot,
+               previousSnapshot.primaryDisplay == snapshot.primaryDisplay,
+               let baseFrame = spacingLayoutBaseFrames[portal.id]
+                    ?? windows[portal.id]?.presentedFrame {
+                source = (
+                    Self.frame(baseFrame, withSize: portal.frame.size),
+                    previousSnapshot.primaryDescriptor.visibleFrame
+                )
+            } else if let primaryEntry = completeRememberedPrimaryLayout?[portal.id] {
+                source = (
+                    Self.frame(primaryEntry.absoluteFrame, withSize: portal.frame.size),
+                    primaryEntry.referenceVisibleFrame
+                )
+            } else if let previousSnapshot = lastDisplaySnapshot,
+                      let baseFrame = spacingLayoutBaseFrames[portal.id]
+                        ?? windows[portal.id]?.presentedFrame {
+                source = (
+                    Self.frame(baseFrame, withSize: portal.frame.size),
+                    previousSnapshot.primaryDescriptor.visibleFrame
+                )
             } else {
-                deferredTopologyPortals.insert(portalID)
+                let homeEntry = portal.placement.homeEntry
+                source = (
+                    homeEntry.absoluteFrame,
+                    homeEntry.referenceVisibleFrame
+                )
             }
-        } catch {
-            displayError = error
+            candidates.append(try PrimaryDisplayLayout.projectTopLeft(
+                frame: source.frame,
+                from: source.visibleFrame,
+                to: snapshot.primaryDescriptor.visibleFrame
+            ))
         }
+
+        let fixedIndices = try PrimaryDisplayLayout.containedIndices(
+            in: candidates,
+            visibleFrame: snapshot.primaryDescriptor.visibleFrame,
+            minimumGap: portalAppearance.spacing.points
+        )
+        let repaired = try PrimaryDisplayLayout.repairOverflow(
+            candidateFrames: candidates,
+            fixedIndices: fixedIndices,
+            visibleFrame: snapshot.primaryDescriptor.visibleFrame,
+            minimumGap: portalAppearance.spacing.points,
+            minimumExposedHeight: PortalViewController.tabBarHeight
+        )
+        let finalFrames: [NSRect]
+        if lastDisplaySnapshot == nil,
+           let initialReflow = try PortalFrameReflow.reflowedFrames(
+                repaired,
+                visibleFrame: snapshot.primaryDescriptor.visibleFrame,
+                minimumGap: portalAppearance.spacing.points
+           ) {
+            finalFrames = initialReflow
+        } else {
+            finalFrames = repaired
+        }
+        return PrimaryDisplayLayoutPlan(
+            frames: Dictionary(uniqueKeysWithValues: zip(portalStates.map(\.id), finalFrames)),
+            sessions: sessions
+        )
     }
 
     private func placementSession(for portal: Portal) throws -> PlacementSession {
@@ -1144,18 +1345,6 @@ final class PortalCoordinator: PortalCoordinating {
             placements: portal.placement.framesByDisplay,
             homeDisplay: portal.placement.homeDisplay,
             presentation: .active(on: portal.placement.homeDisplay)
-        )
-    }
-
-    private func placementTransition(
-        for portal: Portal,
-        topology: DisplaySnapshot
-    ) throws -> PlacementTransition {
-        try PlacementStateMachine.reconcileTopology(
-            session: placementSession(for: portal),
-            displays: topology.displays,
-            primaryDisplay: topology.primaryDisplay,
-            gridSpacing: placementGridSpacing(for: portal)
         )
     }
 
@@ -1191,13 +1380,13 @@ final class PortalCoordinator: PortalCoordinating {
     private func constrainedUserDragFrame(
         currentFrame: NSRect,
         proposedFrame: NSRect,
-        pointer: NSPoint,
+        pointer _: NSPoint,
         portalID: PortalID
     ) -> NSRect {
         guard case .success(let snapshot) = displaySnapshotProvider() else {
             return currentFrame
         }
-        let destination = Self.display(containingOrNearestTo: pointer, in: snapshot)
+        let destination = snapshot.primaryDescriptor
         let otherFrames = runtimePortalFrames(excluding: portalID)
         let spacing = portalAppearance.spacing.points
 
@@ -1239,7 +1428,7 @@ final class PortalCoordinator: PortalCoordinating {
         in snapshot: DisplaySnapshot,
         excluding portalID: PortalID?
     ) throws -> Bool {
-        let display = try LegacyFrameDisplayResolver.resolve(frame: frame, in: snapshot)
+        let display = snapshot.primaryDescriptor
         return try PortalFrameConstraints.isValidPlacement(
             frame: frame,
             visibleFrame: display.visibleFrame,
@@ -1253,7 +1442,7 @@ final class PortalCoordinator: PortalCoordinating {
         snapshot: DisplaySnapshot,
         portalID: PortalID
     ) throws -> Bool {
-        let display = try LegacyFrameDisplayResolver.resolve(frame: frame, in: snapshot)
+        let display = snapshot.primaryDescriptor
         let spacing = portalAppearance.spacing.points
         // Existing layouts may predate the screen-edge spacing preference. Icon
         // changes preserve their top-left anchor, while still enforcing screen
@@ -1421,22 +1610,6 @@ final class PortalCoordinator: PortalCoordinating {
         }
     }
 
-    private static func display(
-        containingOrNearestTo point: NSPoint,
-        in snapshot: DisplaySnapshot
-    ) -> DisplayDescriptor {
-        snapshot.displays.min { first, second in
-            squaredDistance(from: point, to: first.visibleFrame)
-                < squaredDistance(from: point, to: second.visibleFrame)
-        } ?? snapshot.primaryDescriptor
-    }
-
-    private static func squaredDistance(from point: NSPoint, to frame: NSRect) -> CGFloat {
-        let dx = max(max(frame.minX - point.x, 0), point.x - frame.maxX)
-        let dy = max(max(frame.minY - point.y, 0), point.y - frame.maxY)
-        return dx * dx + dy * dy
-    }
-
     private static func frameClampedToVisibleBounds(
         _ frame: NSRect,
         visibleFrame: NSRect,
@@ -1546,6 +1719,16 @@ final class PortalCoordinator: PortalCoordinating {
         )
         return NSRect(origin: origin, size: size)
     }
+
+    private static func frame(_ frame: NSRect, withSize size: NSSize) -> NSRect {
+        NSRect(
+            x: frame.minX,
+            y: frame.maxY - size.height,
+            width: size.width,
+            height: size.height
+        )
+    }
+
 }
 
 private enum FrameResizeAnchor {
@@ -1559,10 +1742,16 @@ private struct PendingUserPlacement {
     let gridCapacity: GridCapacity?
 }
 
+private struct PrimaryDisplayLayoutPlan {
+    let frames: [PortalID: NSRect]
+    let sessions: [PortalID: PlacementSession]
+}
+
 enum PortalCoordinatorError: Error, Equatable {
     case persistentStateNotLoaded
     case placementUnavailable
     case layoutImportBusy
+    case layoutRepairBusy
 }
 
 extension PortalCoordinatorError: LocalizedError {
@@ -1582,6 +1771,11 @@ extension PortalCoordinatorError: LocalizedError {
             NSLocalizedString(
                 "application.settings.backup.import_busy",
                 comment: "Layout import busy error"
+            )
+        case .layoutRepairBusy:
+            NSLocalizedString(
+                "application.settings.position_repair.busy",
+                comment: "Panel position repair busy error"
             )
         }
     }
