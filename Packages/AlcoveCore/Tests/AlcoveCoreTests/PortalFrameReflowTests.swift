@@ -88,4 +88,98 @@ final class PortalFrameReflowTests: XCTestCase {
 
         XCTAssertNil(result)
     }
+
+    func testSizeContractionKeepsPreChangeVerticalAttachment() throws {
+        let visibleFrame = CGRect(x: 0, y: 0, width: 1000, height: 900)
+        let referenceFrames = [
+            CGRect(x: 12, y: 500, width: 400, height: 300),
+            CGRect(x: 12, y: 288, width: 400, height: 200),
+        ]
+        let targetFrames = [
+            CGRect(x: 12, y: 600, width: 320, height: 200),
+            CGRect(x: 12, y: 288, width: 320, height: 200),
+        ]
+
+        let result = try XCTUnwrap(PortalFrameReflow.reflowedFrames(
+            targetFrames,
+            attachmentReferenceFrames: referenceFrames,
+            visibleFrame: visibleFrame,
+            minimumGap: 12
+        ))
+
+        XCTAssertEqual(result[0].maxY, referenceFrames[0].maxY)
+        XCTAssertEqual(result[0].minY - result[1].maxY, 12)
+        XCTAssertEqual(result[1].minY, 388)
+    }
+
+    func testSizeExpansionUsesPreChangeAttachmentAfterTargetsOverlap() throws {
+        let visibleFrame = CGRect(x: 0, y: 0, width: 1000, height: 900)
+        let referenceFrames = [
+            CGRect(x: 12, y: 600, width: 320, height: 200),
+            CGRect(x: 12, y: 388, width: 320, height: 200),
+        ]
+        let overlappingTargets = [
+            CGRect(x: 12, y: 500, width: 400, height: 300),
+            CGRect(x: 12, y: 388, width: 400, height: 200),
+        ]
+
+        let result = try XCTUnwrap(PortalFrameReflow.reflowedFrames(
+            overlappingTargets,
+            attachmentReferenceFrames: referenceFrames,
+            visibleFrame: visibleFrame,
+            minimumGap: 12
+        ))
+
+        XCTAssertEqual(result[0].maxY, referenceFrames[0].maxY)
+        XCTAssertEqual(result[0].minY - result[1].maxY, 12)
+        XCTAssertEqual(result[1].minY, 288)
+    }
+
+    func testHorizontalSizeExpansionPushesTheAttachedPortal() throws {
+        let referenceFrames = [
+            CGRect(x: 100, y: 400, width: 300, height: 200),
+            CGRect(x: 412, y: 400, width: 300, height: 200),
+        ]
+        let overlappingTargets = [
+            CGRect(x: 100, y: 400, width: 400, height: 240),
+            CGRect(x: 412, y: 400, width: 350, height: 240),
+        ]
+
+        let result = try XCTUnwrap(PortalFrameReflow.reflowedFrames(
+            overlappingTargets,
+            attachmentReferenceFrames: referenceFrames,
+            visibleFrame: CGRect(x: 0, y: 0, width: 1200, height: 900),
+            minimumGap: 12
+        ))
+
+        XCTAssertEqual(result[1].minX - result[0].maxX, 12)
+        XCTAssertEqual(result[1].minX, 512)
+    }
+
+    func testSizeAwareReflowRejectsMismatchedAndInvalidReferenceFrames() throws {
+        XCTAssertThrowsError(try PortalFrameReflow.reflowedFrames(
+            [CGRect(x: 0, y: 0, width: 100, height: 100)],
+            attachmentReferenceFrames: [],
+            visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 900),
+            minimumGap: 12
+        )) { error in
+            XCTAssertEqual(
+                error as? PortalFrameReflowError,
+                .mismatchedFrameCounts(targets: 1, references: 0)
+            )
+        }
+        XCTAssertThrowsError(try PortalFrameReflow.reflowedFrames(
+            [CGRect(x: 0, y: 0, width: 100, height: 100)],
+            attachmentReferenceFrames: [
+                CGRect(x: CGFloat.nan, y: 0, width: 100, height: 100),
+            ],
+            visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 900),
+            minimumGap: 12
+        )) { error in
+            XCTAssertEqual(
+                error as? PortalFrameReflowError,
+                .invalidReferenceFrame(index: 0)
+            )
+        }
+    }
 }

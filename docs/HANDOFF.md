@@ -116,7 +116,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 - 所有 Portal 共享全局 Small、Medium 或 Large 内容尺寸，设置界面使用三档离散滑块。
 - 不读取 Finder 设置，不发送 Apple Events，也不申请 Finder Automation 权限。
-- 图标尺寸改变时保持 `GridCapacity` 和 Portal 左上角不变，按所选 preset 向右、向下重算像素 frame；优先使用当前 home display 的 `visibleFrame`，无法取得当前 descriptor 时使用其记住的 reference frame。
+- 内容尺寸改变时保持每个 Portal 的 `GridCapacity`，以改变前的实际 frame 识别贴屏和面板相邻关系，再用新尺寸统一重排。同组面板在放大和缩小时都保持所选精确间距；自由面板保留左上角意图。每块屏幕完整预演后才统一动画，任一布局放不下则整次拒绝。
 - 新建 Portal 的骨架和最终 Portal 都使用 Medium。
 
 ### 3.8 窗口、显示器与系统行为

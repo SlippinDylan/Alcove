@@ -4,6 +4,11 @@
 import CoreGraphics
 import Foundation
 
+public enum PortalFrameReflowError: Error, Sendable, Equatable {
+    case mismatchedFrameCounts(targets: Int, references: Int)
+    case invalidReferenceFrame(index: Int)
+}
+
 /// Repositions fixed-size portal frames by the minimum amount needed to satisfy
 /// display-edge and inter-portal spacing. Input order is the stable priority:
 /// earlier portals keep their intended positions before later portals are placed.
@@ -19,12 +24,47 @@ public enum PortalFrameReflow {
         minimumGap: CGFloat,
         attachmentThreshold: CGFloat = defaultAttachmentThreshold
     ) throws -> [CGRect]? {
+        try reflowedFrames(
+            frames,
+            attachmentReferenceFrames: frames,
+            visibleFrame: visibleFrame,
+            minimumGap: minimumGap,
+            attachmentThreshold: attachmentThreshold
+        )
+    }
+
+    /// Reflows target frames while deriving edge and portal attachments from a
+    /// separate pre-change snapshot. This preserves relationships when a size
+    /// increase makes the unadjusted target frames overlap.
+    public static func reflowedFrames(
+        _ targetFrames: [CGRect],
+        attachmentReferenceFrames: [CGRect],
+        visibleFrame: CGRect,
+        minimumGap: CGFloat,
+        attachmentThreshold: CGFloat = defaultAttachmentThreshold
+    ) throws -> [CGRect]? {
+        guard targetFrames.count == attachmentReferenceFrames.count else {
+            throw PortalFrameReflowError.mismatchedFrameCounts(
+                targets: targetFrames.count,
+                references: attachmentReferenceFrames.count
+            )
+        }
+        for (index, frame) in attachmentReferenceFrames.enumerated() {
+            guard frame.origin.x.isFinite,
+                  frame.origin.y.isFinite,
+                  frame.width.isFinite,
+                  frame.height.isFinite,
+                  frame.width >= 0,
+                  frame.height >= 0 else {
+                throw PortalFrameReflowError.invalidReferenceFrame(index: index)
+            }
+        }
         var placedFrames: [CGRect] = []
-        for (index, frame) in frames.enumerated() {
+        for (index, targetFrame) in targetFrames.enumerated() {
             let intendedFrame = intendedFrame(
-                for: frame,
+                for: targetFrame,
                 at: index,
-                originalFrames: frames,
+                attachmentReferenceFrames: attachmentReferenceFrames,
                 placedFrames: placedFrames,
                 visibleFrame: visibleFrame,
                 spacing: minimumGap,
@@ -44,16 +84,18 @@ public enum PortalFrameReflow {
     }
 
     private static func intendedFrame(
-        for frame: CGRect,
+        for targetFrame: CGRect,
         at index: Int,
-        originalFrames: [CGRect],
+        attachmentReferenceFrames: [CGRect],
         placedFrames: [CGRect],
         visibleFrame: CGRect,
         spacing: CGFloat,
         attachmentThreshold: CGFloat
     ) -> CGRect {
+        let referenceFrame = attachmentReferenceFrames[index]
         var origin = edgeAdjustedOrigin(
-            for: frame,
+            for: targetFrame,
+            referenceFrame: referenceFrame,
             visibleFrame: visibleFrame,
             spacing: spacing,
             attachmentThreshold: attachmentThreshold
@@ -62,23 +104,23 @@ public enum PortalFrameReflow {
         var verticalAttachment: (distance: CGFloat, value: CGFloat)?
 
         for priorIndex in placedFrames.indices {
-            let originalPrior = originalFrames[priorIndex]
+            let referencePrior = attachmentReferenceFrames[priorIndex]
             let placedPrior = placedFrames[priorIndex]
 
             if rangesOverlap(
-                frame.minY...frame.maxY,
-                originalPrior.minY...originalPrior.maxY
+                referenceFrame.minY...referenceFrame.maxY,
+                referencePrior.minY...referencePrior.maxY
             ) {
-                if frame.maxX <= originalPrior.minX {
-                    let distance = originalPrior.minX - frame.maxX
+                if referenceFrame.maxX <= referencePrior.minX {
+                    let distance = referencePrior.minX - referenceFrame.maxX
                     selectNearest(
                         distance: distance,
-                        value: placedPrior.minX - spacing - frame.width,
+                        value: placedPrior.minX - spacing - targetFrame.width,
                         attachment: &horizontalAttachment,
                         threshold: attachmentThreshold
                     )
-                } else if originalPrior.maxX <= frame.minX {
-                    let distance = frame.minX - originalPrior.maxX
+                } else if referencePrior.maxX <= referenceFrame.minX {
+                    let distance = referenceFrame.minX - referencePrior.maxX
                     selectNearest(
                         distance: distance,
                         value: placedPrior.maxX + spacing,
@@ -89,19 +131,19 @@ public enum PortalFrameReflow {
             }
 
             if rangesOverlap(
-                frame.minX...frame.maxX,
-                originalPrior.minX...originalPrior.maxX
+                referenceFrame.minX...referenceFrame.maxX,
+                referencePrior.minX...referencePrior.maxX
             ) {
-                if frame.maxY <= originalPrior.minY {
-                    let distance = originalPrior.minY - frame.maxY
+                if referenceFrame.maxY <= referencePrior.minY {
+                    let distance = referencePrior.minY - referenceFrame.maxY
                     selectNearest(
                         distance: distance,
-                        value: placedPrior.minY - spacing - frame.height,
+                        value: placedPrior.minY - spacing - targetFrame.height,
                         attachment: &verticalAttachment,
                         threshold: attachmentThreshold
                     )
-                } else if originalPrior.maxY <= frame.minY {
-                    let distance = frame.minY - originalPrior.maxY
+                } else if referencePrior.maxY <= referenceFrame.minY {
+                    let distance = referenceFrame.minY - referencePrior.maxY
                     selectNearest(
                         distance: distance,
                         value: placedPrior.maxY + spacing,
@@ -118,32 +160,33 @@ public enum PortalFrameReflow {
         if let verticalAttachment {
             origin.y = verticalAttachment.value
         }
-        return CGRect(origin: origin, size: frame.size)
+        return CGRect(origin: origin, size: targetFrame.size)
     }
 
     private static func edgeAdjustedOrigin(
-        for frame: CGRect,
+        for targetFrame: CGRect,
+        referenceFrame: CGRect,
         visibleFrame: CGRect,
         spacing: CGFloat,
         attachmentThreshold: CGFloat
     ) -> CGPoint {
-        var origin = frame.origin
-        let leftDistance = frame.minX - visibleFrame.minX
-        let rightDistance = visibleFrame.maxX - frame.maxX
+        var origin = targetFrame.origin
+        let leftDistance = referenceFrame.minX - visibleFrame.minX
+        let rightDistance = visibleFrame.maxX - referenceFrame.maxX
         if isAttached(leftDistance, threshold: attachmentThreshold),
            leftDistance <= rightDistance {
             origin.x = visibleFrame.minX + spacing
         } else if isAttached(rightDistance, threshold: attachmentThreshold) {
-            origin.x = visibleFrame.maxX - spacing - frame.width
+            origin.x = visibleFrame.maxX - spacing - targetFrame.width
         }
 
-        let bottomDistance = frame.minY - visibleFrame.minY
-        let topDistance = visibleFrame.maxY - frame.maxY
+        let bottomDistance = referenceFrame.minY - visibleFrame.minY
+        let topDistance = visibleFrame.maxY - referenceFrame.maxY
         if isAttached(bottomDistance, threshold: attachmentThreshold),
            bottomDistance <= topDistance {
             origin.y = visibleFrame.minY + spacing
         } else if isAttached(topDistance, threshold: attachmentThreshold) {
-            origin.y = visibleFrame.maxY - spacing - frame.height
+            origin.y = visibleFrame.maxY - spacing - targetFrame.height
         }
         return origin
     }

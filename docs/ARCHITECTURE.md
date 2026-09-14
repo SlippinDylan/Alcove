@@ -84,7 +84,7 @@ Domain models and pure layout math. Zero AppKit imports.
 - `PlacementGeometry` — captures and restores per-display frames with normalized movable-range anchors
 - `PlacementStateMachine` — preserves user-confirmed home placement while emitting transient topology directives
 - `PortalFrameConstraints` — pure validation and swept-AABB drag geometry for display-edge and inter-Portal spacing; fast pointer motion cannot tunnel through another Portal
-- `PortalFrameReflow` — deterministically derives fixed-size runtime frames from saved frames, current `visibleFrame`, stable Portal order, and the selected spacing. Screen-edge and inter-Portal gaps within the maximum 20pt attachment range are normalized to the selected exact value; unrelated free placements remain at their intended coordinates. It clamps earlier Portals first and places each later Portal at its nearest legal candidate; failure leaves the existing layout and preference unchanged.
+- `PortalFrameReflow` — deterministically derives runtime frames from a pre-change attachment snapshot, target sizes, current `visibleFrame`, stable Portal order, and the selected spacing. Keeping reference frames separate from targets preserves screen-edge and inter-Portal relationships even when larger targets initially overlap. Unrelated free placements remain at their intended coordinates when legal; failure leaves the existing layout and preference unchanged.
 
 ### 3.2 AlcoveApp
 
@@ -128,7 +128,7 @@ Visual chrome inside each portal window.
 - `FolderPathBarView` — a plain reserved bottom row derived from the selected tab URL; it abbreviates the home directory as `~`, keeps Terminal and Copy fixed at the trailing edge with flexible space after the path, and copies the absolute path to `NSPasteboard`
 - `PortalChromeMaterialView` — the content surface keeps an always-active `.popover`-material `NSVisualEffectView` at full strength; global background level controls overlay strength while each Portal selects a persisted neutral/red/orange/yellow/green/blue/indigo/purple hue
 - Layout: tab bar at top, a fixed path row at bottom, and the icon grid between them. Both chrome rows are included in creation, minimum-size, live-resize, and persisted-capacity geometry
-- Portal size intent is `GridCapacity`, not a remembered pixel size. Creation and manual icon-size changes derive the content frame from the same `GridMetrics`; changing Small/Medium/Large preserves capacity and the Portal's top-left position while recomputing the physical frame toward the trailing and bottom edges. The resize uses the current home-display `visibleFrame` when available and falls back to its remembered reference frame when a current descriptor is unavailable. New Portal creation starts at Medium.
+- Portal size intent is `GridCapacity`, not a remembered pixel size. Creation and content-size changes derive the content frame from the same `GridMetrics`. Changing Small/Medium/Large keeps each free Portal's top-left intent, while attached Portals and screen-edge relationships move together to retain the selected exact gap. The complete per-display resize is preflighted before all windows animate; an impossible layout rejects the preference without a partial update. New Portal creation starts at Medium.
 - Rendering hierarchy: the background material, file grid, top control row,
   bottom path row, and two full-width separators are sibling layers in a plain root
   container. The top and bottom rows add no full-width capsule material; only

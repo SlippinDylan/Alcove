@@ -87,6 +87,29 @@ final class PortalCoordinator: PortalCoordinating {
             guard let self else { return }
             let storedPortals = try await store.load()
             let currentSnapshot = try? displaySnapshotProvider().get()
+            let restoredSizePlan: [PortalID: NSRect]?
+            if let currentSnapshot {
+                let reflowablePortals = storedPortals.filter {
+                    currentSnapshot.display(with: $0.placement.homeDisplay) != nil
+                }
+                if reflowablePortals.contains(where: {
+                    $0.iconSize != portalAppearance.iconSize
+                }) {
+                    restoredSizePlan = portalIconSizeLayoutPlan(
+                        snapshot: currentSnapshot,
+                        iconSize: portalAppearance.iconSize,
+                        spacing: portalAppearance.spacing.points,
+                        portals: reflowablePortals,
+                        referenceFrames: Dictionary(
+                            uniqueKeysWithValues: reflowablePortals.map { ($0.id, $0.frame) }
+                        )
+                    )
+                } else {
+                    restoredSizePlan = nil
+                }
+            } else {
+                restoredSizePlan = nil
+            }
             var portals = storedPortals
             for index in portals.indices {
                 let iconSizeChanged = portals[index].iconSize != portalAppearance.iconSize
@@ -94,7 +117,16 @@ final class PortalCoordinator: PortalCoordinating {
                     portals[index].updateIconSize(portalAppearance.iconSize)
                 }
                 portals[index].updateBackgroundStyle(portalAppearance.backgroundStyle)
-                if iconSizeChanged {
+                if let frame = restoredSizePlan?[portals[index].id],
+                   let currentSnapshot {
+                    let display = try LegacyFrameDisplayResolver.resolve(
+                        frame: frame,
+                        in: currentSnapshot
+                    )
+                    if frame != portals[index].frame {
+                        try portals[index].recordUserPlacement(frame: frame, display: display)
+                    }
+                } else if iconSizeChanged {
                     portals[index] = try portalSnappingFrame(
                         portals[index],
                         currentSnapshot: currentSnapshot
@@ -196,7 +228,8 @@ final class PortalCoordinator: PortalCoordinating {
         }
         let spacingChanged = portalAppearance.spacing != appearance.spacing
         let spacingPlan: [PortalID: NSRect]?
-        if spacingChanged {
+        let iconSizeChanged = portalAppearance.iconSize != appearance.iconSize
+        if spacingChanged, !iconSizeChanged {
             guard let plan = portalSpacingLayoutPlan(
                       snapshot: snapshot,
                       spacing: appearance.spacing.points
@@ -208,14 +241,12 @@ final class PortalCoordinator: PortalCoordinating {
             spacingPlan = nil
         }
 
-        let iconSizeChanged = portalAppearance.iconSize != appearance.iconSize
         let sizePlan: [PortalID: NSRect]?
         if iconSizeChanged {
             guard let plan = portalIconSizeLayoutPlan(
                 snapshot: snapshot,
                 iconSize: appearance.iconSize,
-                spacing: appearance.spacing.points,
-                baseFrames: spacingPlan
+                spacing: appearance.spacing.points
             ) else {
                 return false
             }
@@ -1290,14 +1321,18 @@ final class PortalCoordinator: PortalCoordinating {
         snapshot: DisplaySnapshot,
         iconSize: IconSize,
         spacing: CGFloat,
-        baseFrames: [PortalID: NSRect]?
+        portals: [Portal]? = nil,
+        referenceFrames: [PortalID: NSRect]? = nil
     ) -> [PortalID: NSRect]? {
         let iconLayout = PortalIconLayout.fixed(iconSize)
-        var plan: [PortalID: NSRect] = [:]
-        var displays: [PortalID: DisplayDescriptor] = [:]
+        var portalsByDisplay: [DisplayIdentity: [(
+            id: PortalID,
+            referenceFrame: NSRect,
+            targetFrame: NSRect
+        )]] = [:]
 
-        for portal in portalStates {
-            guard let currentFrame = baseFrames?[portal.id]
+        for portal in portals ?? portalStates {
+            guard let currentFrame = referenceFrames?[portal.id]
                     ?? windows[portal.id]?.presentedFrame else {
                 continue
             }
@@ -1315,26 +1350,36 @@ final class PortalCoordinator: PortalCoordinating {
                 forContentRect: NSRect(origin: .zero, size: contentSize),
                 styleMask: [.resizable]
             ).size
-            plan[portal.id] = NSRect(
+            let targetFrame = NSRect(
                 x: currentFrame.minX,
                 y: currentFrame.maxY - frameSize.height,
                 width: frameSize.width,
                 height: frameSize.height
             )
-            displays[portal.id] = display
+            portalsByDisplay[display.identity, default: []].append((
+                id: portal.id,
+                referenceFrame: currentFrame,
+                targetFrame: targetFrame
+            ))
         }
 
-        for (portalID, frame) in plan {
-            guard let display = displays[portalID],
-                  (try? PortalFrameConstraints.isValidPlacement(
-                    frame: frame,
+        var plan: [PortalID: NSRect] = [:]
+        for display in snapshot.displays {
+            guard let entries = portalsByDisplay[display.identity] else { continue }
+            let result: [NSRect]?
+            do {
+                result = try PortalFrameReflow.reflowedFrames(
+                    entries.map(\.targetFrame),
+                    attachmentReferenceFrames: entries.map(\.referenceFrame),
                     visibleFrame: display.visibleFrame,
-                    otherPortalFrames: plan.compactMap { id, frame in
-                        id == portalID ? nil : frame
-                    },
                     minimumGap: spacing
-                  )) == true else {
+                )
+            } catch {
                 return nil
+            }
+            guard let reflowedFrames = result else { return nil }
+            for (entry, frame) in zip(entries, reflowedFrames) {
+                plan[entry.id] = frame
             }
         }
         return plan
