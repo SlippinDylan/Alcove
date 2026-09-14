@@ -108,26 +108,26 @@ Each spike records its findings in `docs/SPIKE_<name>.md`. The candidate archite
 
 ---
 
-### Spike 0.6 — Apple Development / Ad-hoc DMG Launch Behavior
+### Spike 0.6 — Apple Development DMG Launch Behavior
 
-**Question:** What is the actual user experience when installing and launching an app signed with a free Apple Development identity vs. ad-hoc signed, across macOS 15 and 26?
+**Question:** What is the actual user experience when installing and launching the selected free Apple Development-signed artifact across macOS 15 and 26?
 
 **Scheduling:** This release-gate spike may run in parallel with Phase 1 and does not block product implementation. It must be resolved before the first public GitHub Release.
 
 **Approach:**
-- Build a minimal test app, sign with free Apple Development identity, package as DMG.
+- Build a minimal arm64 test app, sign with the free Apple Development identity, and package it as a drag-to-Applications DMG.
 - On macOS 15 and 26: mount DMG, drag to Applications, attempt to launch.
 - Document every Gatekeeper dialog, quarantine warning, and `xattr` removal step required.
-- Repeat with ad-hoc signing (`codesign -s -`).
+- Inspect the signature, embedded provisioning profile if present, and certificate lifetime.
 - Test: does the 7-day profile expiry actually kill the app silently, or does it show a dialog?
 - Test: does `sudo xattr -rd com.apple.quarantine /Applications/Alcove.app` reliably remove quarantine?
 - Test: does right-click → Open bypass the warning on both macOS versions?
 
 **Exit Gate:**
-- [ ] Document the exact installation and first-launch UX for both signing methods.
+- [ ] Document the exact installation and first-launch UX for the selected signing method.
 - [ ] Document the quarantine removal steps to include in README/DMG.
 - [ ] Spike 0.6 must inspect the built artifact and launch after expiry to confirm the 7-day expiry behavior (dialog vs. silent kill). Do not assert Alcove's non-sandboxed manually signed build necessarily embeds a Personal Team provisioning profile until inspected.
-- [ ] Recommend the signing strategy for CI releases.
+- [x] Select Apple Development signing for CI releases; do not fall back automatically.
 
 ---
 
@@ -142,7 +142,7 @@ Each slice produces a runnable, observable increment and adds only the domain or
 **Entry Gate:** The production module boundaries and replaceable development defaults are recorded. Phase 0.1D supplies the provisional window default; unresolved manual system behavior remains an MVP exit gate rather than a blocker for the app shell. Spike 0.6 is not an entry requirement.
 
 **Deliverables:**
-- Xcode project with universal binary target (arm64 + x86_64).
+- Xcode project with an Apple Silicon (`arm64`) distribution target.
 - `Info.plist` with `LSUIElement = true`.
 - `NSStatusItem` with Alcove icon.
 - Menu with disabled "New Portal", separator, and "Quit".
@@ -150,11 +150,11 @@ Each slice produces a runnable, observable increment and adds only the domain or
 
 **Tests:**
 - Unit: app delegate registers the status item and expected menu commands.
-- Build: deployment target macOS 15 with macOS 26 SDK for arm64 and x86_64.
+- Build: deployment target macOS 15 with macOS 26 SDK for arm64.
 - Manual: app launches, menu-bar icon appears, no Dock icon, Quit works.
 
 **Exit Gate:**
-- [x] Universal target builds for arm64 and x86_64.
+- [x] The distribution target builds for arm64.
 - [ ] Menu-bar icon is visible; no Dock icon appears.
 - [ ] Quit exits cleanly.
 
@@ -419,12 +419,12 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - Evidence-backed Liquid Glass chrome on macOS 26 and `NSVisualEffectView` fallback on macOS 15.
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
 - Performance validation for defined NFR directory sizes.
-- PR CI for build, tests, and unsigned artifacts.
-- Release inputs and verification requirements are documented; workflow and DMG implementation belong to the separate release gate after Spike 0.6 selects signing and installation behavior.
+- Push/PR CI for checks, tests, and unsigned arm64 build verification without artifact publication.
+- Version/CHANGELOG release inputs, Apple Development signing, DMG verification, GitHub publication, and Feishu notifications are implemented; manual installation behavior remains a separate release gate.
 
 **Tests:**
 - Unit/integration: portal management, error mapping, icon presets, layout limits, and accessibility metadata.
-- Build/test: universal architecture and deployment-target checks.
+- Build/test: arm64 architecture and deployment-target checks.
 - Manual: complete macOS 15/26 compatibility matrix on available hardware; unavailable cells remain unverified risk.
 - Release-gate verification (not a Slice 10 product exit condition): signature, provisioning profile, Gatekeeper/quarantine, DMG structure, install, launch, and expiry checks required by Spike 0.6.
 
@@ -493,8 +493,8 @@ Test each combination and record pass/fail/known-issue. If hardware for a specif
 Primary GitHub CI uses `macos-26` with pinned Xcode 26.x because the app compiles against the 26 SDK. macOS 15 runtime compatibility requires real hardware, a VM/self-hosted runner, or a separately supported runner capable of running an artifact built with the 26 SDK; never claim both OS versions run automatically on every PR without confirmed infrastructure.
 
 ```
-PR opened
-  ├─ Build (arm64 + x86_64, macOS 26 SDK, deployment target macOS 15)
+Push or PR opened
+  ├─ Build (arm64, macOS 26 SDK, deployment target macOS 15)
   │   └─ FAIL → block merge
   ├─ Unit tests (macOS 26 runner)
   │   └─ FAIL → block merge
@@ -502,23 +502,23 @@ PR opened
   │   └─ FAIL → block merge
   ├─ Lint (SwiftLint, if configured)
   │   └─ WARN → allow merge, log issue
-  └─ Produce unsigned .app artifact
-      └─ Archive for manual testing
+  └─ Verify the unsigned arm64 .app contract without publishing an artifact
 ```
 
 GUI Quick Look, window, Spaces, and Stage Manager tests are manual or dedicated-host smoke tests, not ordinary headless XCTest guarantees.
 
 ### Main Branch Release Gate
 
-No public main-branch release workflow is final until Spike 0.6 resolves Apple Development versus ad-hoc artifact behavior. The workflow below is the current Apple Development candidate, not a confirmed end-user distribution path. If Spike 0.6 selects it, the workflow tests first, reads `MARKETING_VERSION`, skips publication if that tag already exists, imports the P12 in a temporary keychain, builds universal Release, verifies, tests DMG structure, then publishes. It must fail closed if the selected signing inputs or verification fail; it must never silently switch signing modes. An ad-hoc artifact, if retained by the spike decision, uses a separately invoked workflow.
+The implemented workflow is the selected Apple Development candidate, not yet a manually validated end-user distribution path. Every push and PR runs CI. After a successful main push, the release planner reads `Config/Release/manifest.json`; it continues only when `release` is true, the version has not been published, and `CHANGELOG.md` contains one exact non-empty matching section. Planning happens on Ubuntu before any signing runner is allocated. The release job imports the P12 in a temporary keychain, builds arm64, verifies the app and mounted DMG, creates or resumes a draft release, uploads one DMG, then publishes. It fails closed and never switches signing modes.
 
 ```
 First public release after Spike 0.6 is resolved
   ├─ Full CI suite passes
-  ├─ Read MARKETING_VERSION; skip if tag already exists
+  ├─ Read and validate `x.y.z[-alpha.n|-beta.n]`; skip unless release is enabled and unpublished
+  ├─ Require an exact, unique, non-empty CHANGELOG section
   ├─ Import P12 in temporary keychain
   │   └─ FAIL → fail closed (do not silently switch to ad-hoc)
-  ├─ Build universal Release (arm64 + x86_64)
+  ├─ Build arm64 Release
   ├─ Sign with Apple Development identity
   ├─ Package DMG (app + Applications symlink)
   ├─ Verify:
@@ -526,18 +526,16 @@ First public release after Spike 0.6 is resolved
   │   ├─ `spctl --assess --type exec` — rejection expected for this unsupported non-Developer-ID path; record it without treating rejection as successful trust
   │   ├─ DMG structure verified
   │   └─ App launches after `sudo xattr -rd com.apple.quarantine /Applications/Alcove.app` on macOS 26
-  ├─ Tag release (semver: `v0.x.0` during MVP, `v1.0.0` at MVP completion)
-  ├─ Attach DMG to GitHub Release
-  └─ Release notes: changes, known issues, installation instructions
+  ├─ Automatically tag `v<version>`
+  ├─ Attach only `Alcove.<version>.dmg` to the GitHub Release
+  └─ Release notes: exact CHANGELOG section plus installation instructions
 ```
-
-Ad-hoc signing (`codesign -s -`) remains a Spike 0.6 candidate. If the final decision retains it, it is a separately invoked explicit workflow, not an automatic fallback.
 
 ### Artifact Verification Checklist
 
 For each release artifact, verify before publishing:
 
-- [ ] `lipo -info Alcove.app/Contents/MacOS/Alcove` → shows `arm64` and `x86_64`.
+- [ ] `lipo -archs Alcove.app/Contents/MacOS/Alcove` → shows exactly `arm64`.
 - [ ] `codesign --verify --strict --all-architectures Alcove.app` passes.
 - [ ] `codesign -dv --verbose=4 Alcove.app` → matches the signing mode selected and documented by Spike 0.6.
 - [ ] `otool -L Alcove.app/Contents/MacOS/Alcove` → no unexpected dynamic libraries.
@@ -554,7 +552,7 @@ For each release artifact, verify before publishing:
 | Unit test fails | Block merge; fix test or code |
 | Integration test fails | Block merge; investigate and fix |
 | Manual test fails (release gate) | Block release; document issue; fix or document as known issue |
-| Signing fails | Fail closed; do not silently switch to ad-hoc. Ad-hoc is a separately invoked fallback workflow. |
+| Signing fails | Fail closed; do not publish an ad-hoc or unsigned fallback. |
 | DMG verification fails | Block release; re-package and re-verify |
 
 ---

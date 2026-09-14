@@ -14,15 +14,15 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 >
 > The documentation baseline and automated portions of Spikes 0.1A–0.5C7 are complete. Manual
 > system-behavior matrices and remaining integration evidence are still in progress. Production
-> Slices 1–10 now provide the tested universal AppKit shell, multi-tab portals,
+> Slices 1–10 now provide the tested Apple Silicon AppKit shell, multi-tab portals,
 > Finder-style interaction and icon tiles, transactional empty-portal creation, Quick Look, v11 portal
 > persistence, primary-display-following recovery, automatic FSEvents folder refresh,
 > menu-bar portal management, global Small/Medium/Large content sizing and five-step frosted-background control, global five-step panel spacing and corner radius, a system-shadow toggle, collision-safe placement, adaptive macOS 26
 > Glass/macOS 15 fallback chrome, accessibility display-option handling, and
 > explicit recovery from missing, replaced, permission, read, and persistence
 > failures. Portals can be pinned against user movement and resizing, browse mapped subdirectories, expose Finder/Terminal/path actions, and localize all user-facing UI into English, Simplified Chinese, or Traditional Chinese. The menu bar provides portal show/hide commands and an application-settings window for global style, position repair, and layout backup. Three production-wide code review passes are complete, and CI tests
-> and publishes an unsigned universal verification artifact. Manual system
-> behavior and the separate signing release gate remain open.
+> and performs unsigned arm64 build verification. Version-gated Apple Development signing and
+> drag-to-install DMG publishing are implemented; manual Gatekeeper and installation evidence remains open.
 
 ## Platform
 
@@ -31,9 +31,34 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 | Deployment target | macOS 15 (Sequoia) |
 | Primary design target | macOS 26 (Tahoe) |
 | Build SDK | Xcode / macOS 26 SDK |
-| Architecture | arm64 + x86_64 (universal) |
+| Architecture | Apple Silicon (arm64) |
 | App type | Menu-bar LSUIElement (accessory), non-sandboxed |
-| Distribution | GitHub Releases — unsigned PR builds; main releases signed with free Apple Development identity |
+| Distribution | Version-gated GitHub Releases with one Apple Development-signed, non-notarized DMG |
+
+## 安装与发布
+
+GitHub Release 只上传一个 `Alcove.<版本号>.dmg`。打开 DMG 后，将 `Alcove.app`
+拖到 `Applications`。Release 使用免费的 Apple Development 证书签名但不经过 Apple
+公证；首次打开前需要按对应 Release Notes 的说明移除下载隔离属性：
+
+```bash
+sudo xattr -rd com.apple.quarantine /Applications/Alcove.app
+```
+
+所有 push 和 Pull Request 都执行 unsigned arm64 CI。发布配置位于
+[`Config/Release/manifest.json`](Config/Release/manifest.json)：只有 main CI 成功、
+`release` 为 `true`、该版本尚未发布，并且 [`CHANGELOG.md`](CHANGELOG.md) 存在唯一、
+非空且完全同名的版本章节时，Release workflow 才会签名、打包并发布 DMG。
+
+支持 `x.y.z`、`x.y.z-alpha.n` 和 `x.y.z-beta.n`。Alpha/Beta 后缀用于 Release、tag、
+DMG 与 CHANGELOG；App 的 `CFBundleShortVersionString` 使用对应的纯数字 `x.y.z`。
+
+Release workflow 使用以下 GitHub Actions repository secrets：
+
+- `CERTIFICATES_P12`：Apple Development P12 的 Base64 内容
+- `CERTIFICATES_PASSWORD`：P12 导出密码
+- `FEISHU_WEBHOOK`：飞书自定义机器人的 Webhook
+- `FEISHU_SECRET`：飞书自定义机器人的签名密钥
 
 ## Key Design Decisions
 

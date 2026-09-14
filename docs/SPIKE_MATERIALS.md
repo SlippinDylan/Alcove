@@ -125,7 +125,7 @@ These tests inspect types, hierarchy, constraints, event delivery, and lifecycle
 
 ## Known Issues and Gate Status
 
-- The build is arm64-only because this is a disposable spike; production remains universal.
+- The disposable spike and current production distribution both target arm64.
 - `.headerView`, `.behindWindow`, `.followsWindowActiveState`, Glass radius, and grouping spacing are unselected candidates.
 - No macOS 15 runtime was available, so the fallback is structurally constructed on macOS 26 but not runtime-validated on macOS 15.
 - Accessibility appearance and readable contrast require human observation under real system settings.

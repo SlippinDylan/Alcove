@@ -286,7 +286,7 @@ The following require real macOS GUI interaction and **cannot** be verified by h
 ## 8. Known Issues
 
 1. **No automated GUI assertions.** Compilation, artifact checks, and structural model tests passed, but Claude did not execute GUI interaction tests.
-2. **Single architecture.** Build targets `arm64` only. Universal binary (arm64 + x86_64) is deferred to production.
+2. **Single architecture.** The spike and current production distribution both target `arm64`.
 3. **No key-window activation verification.** Tests read both `canBecomeKey` override values, but do not prove either class actually becomes or remains non-key after ordering.
 4. **Diagnostics update on move/resize may lag** during rapid interaction due to notification coalescing.
 5. **Limited reactivation path.** With `LSUIElement = YES` and no status item, the app has no Dock or normal Command-Tab entry.

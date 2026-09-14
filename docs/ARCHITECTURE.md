@@ -931,13 +931,13 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 ### 16.6 Signing, DMG, and Gatekeeper — Spike 0.6 Release Gate
 
-**Provisional claim:** An Apple Development-signed or explicitly ad-hoc-signed DMG can support a documented self-hosted installation path.
+**Selected implementation:** A version-gated, Apple Development-signed arm64 DMG provides the project’s self-hosted installation candidate. It contains `Alcove.app` and an `/Applications` symlink, is not notarized, and never silently falls back to ad-hoc or unsigned publication.
 
 **Gate criteria:**
 
-- Inspect both artifacts for signatures and embedded provisioning profiles.
+- Inspect the signed artifact for its signature and any embedded provisioning profile.
 - Record quarantine, right-click Open, `xattr`, `spctl`, expiry, and post-expiry launch behavior on the available macOS 15 and 26 matrix.
-- Choose and document the release signing strategy; the main workflow must fail closed and never silently switch to ad-hoc.
+- Confirm the selected Apple Development workflow fails closed and the mounted DMG preserves the arm64 app, signature, and Applications symlink.
 
 **If gate fails:** Block the first public GitHub Release and revise the distribution plan. Product implementation may continue independently.
 

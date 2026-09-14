@@ -278,16 +278,16 @@ column capacity remains authoritative while the physical frame width follows tho
 
 ## 10. Distribution
 
-The table below is the current release candidate, not a confirmed final-user distribution path. Spike 0.6 may run in parallel with MVP implementation, but must resolve the Apple Development and ad-hoc artifact behavior before the first public GitHub Release. Until then, no document may claim free Apple Development signing is a validated end-user distribution solution.
+The table below is the implemented release candidate, not a confirmed final-user distribution path. Apple Development is the selected signing mode; Spike 0.6 must still resolve its actual Gatekeeper, expiry, and installation behavior before the first public GitHub Release. Until then, no document may claim free Apple Development signing is a validated end-user distribution solution.
 
 | Aspect | Detail |
 |--------|--------|
 | PR builds | Unsigned; CI test gate only |
-| Main branch releases | Provisional Apple Development candidate: imported P12 in CI, not notarized; final signing mode is selected by Spike 0.6 |
+| Main branch releases | Selected Apple Development implementation: imported P12 in CI, arm64 only, not notarized; manual installation evidence remains gated by Spike 0.6 |
 | First launch / quarantine | Spike 0.6 determines and documents the verified steps; right-click → Open and `sudo xattr -rd com.apple.quarantine /Applications/Alcove.app` are candidates to test, not assumed universal requirements |
 | DMG packaging | Standard DMG with app bundle and Applications symlink |
-| GitHub Releases | Tagged releases with DMG attached |
-| Explicit fallback workflow | Separately invoked ad-hoc signing (`codesign -s -`); the main release never switches signing modes automatically |
+| GitHub Releases | A manifest version plus explicit release switch gates an automatically tagged release with one `Alcove.<version>.dmg` |
+| Release notes | `CHANGELOG.md` must contain one non-empty section whose full stable/alpha/beta version exactly matches the manifest |
 
 **Note:** Apple reserves customer distribution and notarization for paid Developer ID certificates. The free Apple Development identity is for development and testing; Personal Team provisioning profiles, if generated or embedded, expire after 7 days. This is an unsupported self-hosted distribution compromise, not official free distribution. Right-click → Open is Apple's official guidance for unidentified developers; the `xattr` quarantine removal is a project operational workaround, not an Apple-endorsed method. See [Apple Membership Comparison](https://developer.apple.com/support/compare-memberships/), [Developer ID](https://developer.apple.com/support/developer-id/), and [Apple Support — Open apps from unidentified developer](https://support.apple.com/en-us/102445).
 
@@ -314,7 +314,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-13 | Folder contents update automatically when files are added/removed | FR-15, FR-16 |
 | AC-14 | Command-Delete moves the selected items to Trash, invalidates Quick Look immediately, and reports a recycle failure | FR-26 |
 | AC-15 | App is a menu-bar utility with no Dock icon | FR-11 |
-| AC-16 | Universal binary (arm64 + x86_64) builds and runs on both architectures | Distribution target |
+| AC-16 | The CI and release artifact build for Apple Silicon (`arm64`) and reject an unexpected architecture | Distribution target |
 | AC-17 | Folder creation and re-mapping accept only resolved directories on internal fixed local storage and reject removable, ejectable, external, and network-volume locations without persisting partial state | FR-19 |
 | AC-18 | Spike 0.6 validates the selected signed DMG installation and launch procedure on the supported test matrix, and the verified steps are documented | Spike 0.6 release gate |
 | AC-19 | A pinned Portal cannot be dragged or resized by the user, restores that state after relaunch, and can still be relocated by display recovery | FR-20 |

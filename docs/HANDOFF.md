@@ -2,7 +2,7 @@
 
 > 快照日期：2026-09-15（Asia/Tokyo）
 >
-> 适用基线：`HEAD 00d2bc4`；主显示器跟随与位置修复改动尚未提交
+> 适用基线：`HEAD b0f8e63`；CI、Release、飞书通知和发布文档改动尚未提交
 >
 > 用途：让新的开发对话在不依赖历史聊天记录的情况下接管项目
 
@@ -30,10 +30,11 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 - 原生 AppKit 应用，最低 macOS 15，主要视觉目标 macOS 26。
 - `LSUIElement` 菜单栏应用，不显示 Dock 图标。
-- 通用架构：`arm64 + x86_64`。
+- 发布与 CI 架构：Apple Silicon `arm64`；不再生成 x86_64 或 universal 制品。
 - macOS 26 使用适用的 Liquid Glass；macOS 15 使用原生 `NSVisualEffectView` 回退。Apple 在 macOS 15 后直接采用年份版本号 26，不存在 macOS 16～25 产品版本。
-- 正式签名、证书和最终 DMG 发布不是当前 UI 功能工作的阻塞项；用户已明确要求暂时不要处理正式签名。
-- GitHub CI 和无签名通用验证制品已经存在，但最近的用户工作约定是：每轮完成后可以本地 commit，**不要自动 push，也不要监控 CI**，除非用户重新明确要求。
+- Apple Development 签名、版本/CHANGELOG 门禁、拖拽式 arm64 DMG 和 GitHub Release workflow 已实现；Gatekeeper、证书到期和安装体验仍需 Spike 0.6 人工验证。
+- 所有 push/PR 都运行无签名 arm64 CI；普通 CI 不上传 App 制品。未经用户明确要求，不自动 push 或监控 CI。
+- 当前发布清单为 `0.1.0-beta.1` 且 `release=false`；现阶段只验证 CI 和飞书通知，不触发签名、DMG 或 GitHub Release。
 
 ### 3.2 文件夹来源
 
@@ -389,18 +390,26 @@ Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
 
 `DELIVERY_PLAN.md` 和 Spike 文档中的未勾选项包含早期计划状态，其中一部分已有自动化实现但仍缺人工证据。下一段对话不能只看 checkbox 就断言功能不存在，也不能因为代码存在就宣称真机矩阵已通过。
 
+### 7.4 发布自动化验证
+
+- 发布清单与飞书通知共 19 项 Node 测试通过；actionlint 1.7.12 与 ShellCheck 0.11.0 对三条 workflow 检查通过，zizmor 1.30.1 在三个已解释的可信触发器 ignore 之外无发现。
+- AlcoveCore 159 项和 hosted app 260 项测试通过。
+- 本地 unsigned Release 确认为单一 arm64 slice、minimum macOS 15、`LSUIElement=true`。
+- `Scripts/create-dmg.sh` 生成的测试 DMG 可正常挂载；其中只有 `Alcove.app` 与指向 `/Applications` 的符号链接，挂载后的 App 仍为 arm64。
+- GitHub Secrets 中 P12 的真实签名构建、远端 draft/publish 和飞书 Webhook 只能在 push 后由 GitHub Actions 验证；本轮没有读取或导出 Secret 值，也没有 push。
+
 ## 8. Git 状态与提交边界
 
-主显示器跟随、一键位置修复、本地化、测试和相关文档改动尚未提交。
-`Alcove.xcodeproj/project.pbxproj` 本轮未修改；新 Swift 文件通过现有同步文件组进入构建。
+CI、Release、飞书通知、版本/CHANGELOG 门禁、DMG 脚本和相关文档改动尚未提交。
+`Alcove.xcodeproj/project.pbxproj` 和应用功能源码本轮未修改。
 
 快照时：
 
 ```text
-HEAD:        00d2bc4 feat: cap portal folder tabs
+HEAD:        b0f8e63 feat: keep panels on the primary display
 origin/main: 666b709 feat: reflow attached portals with content size
-ahead:       3 commits
-worktree:    本轮主显示器跟随与位置修复改动，未提交
+ahead:       4 commits
+worktree:    本轮发布自动化与文档改动，未提交
 ```
 
 尚未 push 的功能提交：
@@ -409,6 +418,7 @@ worktree:    本轮主显示器跟随与位置修复改动，未提交
 0193501 feat: refine portal chrome appearance
 5bd8b2e feat: adopt native portal glass styling
 00d2bc4 feat: cap portal folder tabs
+b0f8e63 feat: keep panels on the primary display
 ```
 
 ## 9. 当前协作约定
@@ -419,7 +429,7 @@ worktree:    本轮主显示器跟随与位置修复改动，未提交
 - UI 修改不主动启动截图或申请屏幕录制权限；由用户 `Cmd + R` 验收并提供截图。
 - 不覆盖工作区既有改动，不做无关重构或顺手优化。
 - 用户指出 UI 不符合参考图时，先确认交互形态和系统组件层级，不要仅凭文字近似实现。例如“设置窗口”已经明确意味着独立 `NSWindow`，不是菜单或 Popover。
-- 正式签名暂不处理；开发期间可以使用 Xcode 的 Apple ID/Personal Team，但不要把用户的签名配置混入无关提交。
+- 发布固定使用仓库 Secrets 中的免费 Apple Development P12；不得把本机签名配置、证书或 ad-hoc fallback 混入无关改动。
 
 ## 10. 下一段对话建议的第一步
 
