@@ -80,7 +80,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     private let contextActionPerformer: any FileContextActionPerforming
     private let fileRenamer: any FileRenaming
     private let fileDuplicator: any FileDuplicating
-    private let fileInspectorPresenter: any FileInspectorPresenting
+    private let finderInfoOpener: any FinderInfoOpening
     private let fileCompressor: any FileCompressing
     private var metrics: GridMetrics
     private var gridCapacity: GridCapacity
@@ -104,7 +104,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         contextActionPerformer: any FileContextActionPerforming = SystemFileContextActionPerformer(),
         fileRenamer: any FileRenaming = CoordinatedFileRenamingService(),
         fileDuplicator: any FileDuplicating = SystemFileDuplicator(),
-        fileInspectorPresenter: any FileInspectorPresenting = SystemFileInspectorPresenter(),
+        finderInfoOpener: any FinderInfoOpening = FinderInfoAppleEventOpener(),
         fileCompressor: any FileCompressing = DittoFileCompressionService(),
         iconSize: IconSize = .medium,
         textSize: CGFloat = 12,
@@ -118,7 +118,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         self.contextActionPerformer = contextActionPerformer
         self.fileRenamer = fileRenamer
         self.fileDuplicator = fileDuplicator
-        self.fileInspectorPresenter = fileInspectorPresenter
+        self.finderInfoOpener = finderInfoOpener
         self.fileCompressor = fileCompressor
         metrics = GridMetrics(iconSize: iconSize, labelFontSize: textSize)
         self.gridCapacity = gridCapacity
@@ -514,7 +514,11 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     @objc private func inspectFromContextMenu() {
         let selectedItems = selectedItemsInGridOrder
         guard selectedItems.count == 1, let item = selectedItems.first else { return }
-        fileInspectorPresenter.showInspector(for: item.url)
+        do {
+            try finderInfoOpener.openInfo(for: item.url)
+        } catch {
+            fileOperationFailurePresenter.present(error)
+        }
     }
 
     @objc private func trashFromContextMenu() {

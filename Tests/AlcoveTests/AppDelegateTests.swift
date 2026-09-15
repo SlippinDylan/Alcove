@@ -137,7 +137,7 @@ final class AppDelegateTests: XCTestCase {
         XCTAssertEqual(stopCount, 0)
     }
 
-    func testInfoPlistDoesNotRequestFinderAutomation() throws {
+    func testInfoPlistDeclaresScopedFinderAutomationUsage() throws {
         let repositoryRoot = URL(filePath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -150,7 +150,20 @@ final class AppDelegateTests: XCTestCase {
                 as? [String: Any]
         )
 
-        XCTAssertNil(plist["NSAppleEventsUsageDescription"])
+        XCTAssertEqual(
+            plist["NSAppleEventsUsageDescription"] as? String,
+            "Alcove uses Finder automation only when you choose Get Info for a file or folder."
+        )
+        for language in ["en", "zh-Hans", "zh-Hant"] {
+            let localizationData = try Data(contentsOf: repositoryRoot.appending(
+                path: "Alcove/Resources/\(language).lproj/InfoPlist.strings"
+            ))
+            let localization = try XCTUnwrap(
+                PropertyListSerialization.propertyList(from: localizationData, format: nil)
+                    as? [String: String]
+            )
+            XCTAssertFalse(localization["NSAppleEventsUsageDescription", default: ""].isEmpty)
+        }
     }
 
 }

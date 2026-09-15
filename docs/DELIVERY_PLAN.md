@@ -448,18 +448,18 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - A native `NSMenu` follows Finder right-click selection behavior and provides Open, Quick Look, Finder reveal, Get Info, Rename, Compress, Duplicate, Trash, AirDrop, absolute-path copying, and Apple Terminal.
 - Single-item inline rename commits with Return/focus loss, cancels with Escape, preserves the extension selection, coordinates the move, never overwrites, and migrates path-based selection.
 - `NSWorkspace.duplicate` owns Finder-compatible duplicate naming and returns the new URL selection.
-- A read-only AppKit inspector shows system metadata; folder size is asynchronous, cancellable, fail-closed on enumeration errors, and never follows symlinks.
+- Single-item Get Info uses Finder's public scripting dictionary to open its actual information window. Paths travel as Apple Event arguments, Automation consent is declared/localized, and denial fails visibly.
 - `/usr/bin/ditto` creates Finder-compatible single- and multi-item ZIP files through argument arrays only. Conflict-safe naming never overwrites, subprocess cancellation cleans temporary state, and success selects the archive.
 - No Finder Sync extension, global Finder menu injection, full Share menu, alias creation, tags, Services, Quick Actions, new-folder creation, Keep Both, overwrite, or file-operation undo.
 
 **Tests:**
-- Unit: modifier resolution, drop-target eligibility, transfer/rename/compression plans, context selection and menu validation, rename editor commands, duplicate mapping, inspector metadata/folder size, and archive naming.
+- Unit: modifier resolution, drop-target eligibility, transfer/rename/compression plans, context selection and menu validation, rename editor commands, duplicate mapping, Finder Info script compilation/event arguments/error mapping, and archive naming.
 - Integration: coordinated copy/move and case-only rename, real `NSWorkspace.duplicate`, real `ditto` single/multi ZIP contents, cancellation-driven process termination, and post-operation selection migration.
-- Manual: right-click placement and enabled states, inline field-editor focus, AirDrop sheet, Apple Terminal launch, inspector presentation/cancellation, Finder/Desktop drag badges, and Archive Utility extraction.
+- Manual: right-click placement and enabled states, inline field-editor focus, AirDrop sheet, Apple Terminal launch, Finder Automation consent/Get Info presentation, Finder/Desktop drag badges, and Archive Utility extraction.
 
 **Exit Gate:**
 - [x] All new file-operation unit and integration tests pass with the complete app test suite.
-- [x] Public Apple APIs or the system `ditto` contract back every system-facing action; no Finder automation or shell command construction is used.
+- [x] Public Apple APIs, Finder's public scripting dictionary, or the system `ditto` contract back every system-facing action; Finder automation is limited to user-requested Get Info and no shell command construction is used.
 - [x] Automated paths never overwrite, and partial/failure states are surfaced explicitly.
 - [ ] System UI presentation and real Finder/Desktop drag gestures pass the manual macOS 15/26 compatibility matrix.
 

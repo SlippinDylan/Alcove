@@ -1,4 +1,6 @@
 import AlcoveCore
+import AppKit
+import Carbon
 import XCTest
 @testable import Alcove
 
@@ -573,8 +575,8 @@ final class FileGridViewControllerTests: XCTestCase {
 
     @MainActor
     func testGetInfoContextActionRequiresOneItemAndRoutesItsURL() throws {
-        let inspector = FileInspectorPresenterSpy()
-        let controller = FileGridViewController(fileInspectorPresenter: inspector)
+        let opener = FinderInfoOpenerSpy()
+        let controller = FileGridViewController(finderInfoOpener: opener)
         controller.loadView()
         let items = makeItems(count: 2)
         controller.setItems(items)
@@ -584,48 +586,63 @@ final class FileGridViewControllerTests: XCTestCase {
 
         XCTAssertTrue(controller.validateMenuItem(getInfo))
         performMenuItem(titled: localized("portal.files.get_info"), in: menu)
-        XCTAssertEqual(inspector.inspectedURLs, [items[1].url])
+        XCTAssertEqual(opener.openedURLs, [items[1].url])
 
         controller.handleClick(index: 0, modifiers: .command)
         XCTAssertFalse(controller.validateMenuItem(getInfo))
     }
 
-    func testInspectorLoaderReportsMetadataAndDoesNotTraverseSymlinks() async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let external = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: external, withIntermediateDirectories: true)
-        defer {
-            try? FileManager.default.removeItem(at: root)
-            try? FileManager.default.removeItem(at: external)
-        }
-        let file = root.appendingPathComponent("first.bin")
-        let nested = root.appendingPathComponent("Nested", isDirectory: true)
-        let nestedFile = nested.appendingPathComponent("second.bin")
-        let externalFile = external.appendingPathComponent("outside.bin")
-        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
-        try Data(repeating: 1, count: 3).write(to: file)
-        try Data(repeating: 2, count: 5).write(to: nestedFile)
-        try Data(repeating: 3, count: 100).write(to: externalFile)
-        try FileManager.default.createSymbolicLink(
-            at: root.appendingPathComponent("External Link"),
-            withDestinationURL: external
+    @MainActor
+    func testGetInfoContextActionReportsFinderAutomationFailure() throws {
+        let opener = FinderInfoOpenerSpy(error: .automationDenied)
+        let failurePresenter = FileOperationFailurePresenterSpy()
+        let controller = FileGridViewController(
+            fileOperationFailurePresenter: failurePresenter,
+            finderInfoOpener: opener
         )
-        let loader = FileInspectorLoader()
+        controller.loadView()
+        controller.setItems(makeItems(count: 1))
+        let menu = try XCTUnwrap(controller.contextMenu(forItemAt: 0))
 
-        let fileMetadata = try await loader.metadata(for: file)
-        let folderMetadata = try await loader.metadata(for: root)
-        let folderSize = try await loader.folderSize(for: root)
+        performMenuItem(titled: localized("portal.files.get_info"), in: menu)
 
-        XCTAssertEqual(fileMetadata.name, "first.bin")
-        XCTAssertFalse(fileMetadata.localizedType.isEmpty)
-        XCTAssertEqual(fileMetadata.fileSize, 3)
-        XCTAssertFalse(fileMetadata.calculatesFolderSize)
-        XCTAssertNil(folderMetadata.fileSize)
-        XCTAssertTrue(folderMetadata.calculatesFolderSize)
-        XCTAssertEqual(folderSize, 8)
+        XCTAssertEqual(
+            failurePresenter.errors.first as? FinderInfoError,
+            .automationDenied
+        )
+    }
+
+    @MainActor
+    func testFinderInfoScriptCompilesAndPassesPathAsAnEventArgument() throws {
+        let script = try XCTUnwrap(NSAppleScript(
+            source: FinderInfoAppleEventOpener.scriptSource
+        ))
+        var compilationError: NSDictionary?
+        XCTAssertTrue(script.compileAndReturnError(&compilationError))
+        XCTAssertNil(compilationError)
+
+        let path = "/tmp/quote-'-and-\"-characters"
+        let event = FinderInfoAppleEventOpener.subroutineEvent(path: path)
+        XCTAssertEqual(
+            event.paramDescriptor(forKeyword: AEKeyword(keyASSubroutineName))?.stringValue,
+            "showInfo"
+        )
+        let arguments = try XCTUnwrap(
+            event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))
+        )
+        XCTAssertEqual(arguments.atIndex(1)?.stringValue, path)
+        XCTAssertFalse(FinderInfoAppleEventOpener.scriptSource.contains(path))
+        XCTAssertEqual(
+            FinderInfoAppleEventOpener.error(from: [
+                NSAppleScript.errorNumber: Int(errAEEventNotPermitted),
+            ]),
+            .automationDenied
+        )
+        XCTAssertThrowsError(try FinderInfoAppleEventOpener().openInfo(
+            for: URL(fileURLWithPath: "/tmp/Alcove-missing-\(UUID().uuidString)")
+        )) { error in
+            XCTAssertEqual(error as? FinderInfoError, .itemUnavailable)
+        }
     }
 
     func testCompressionPlanUsesFinderNamesWithoutOverwriting() throws {
@@ -1321,11 +1338,19 @@ private final class FileDuplicatorSpy: FileDuplicating {
 }
 
 @MainActor
-private final class FileInspectorPresenterSpy: FileInspectorPresenting {
-    private(set) var inspectedURLs: [URL] = []
+private final class FinderInfoOpenerSpy: FinderInfoOpening {
+    private let error: FinderInfoError?
+    private(set) var openedURLs: [URL] = []
 
-    func showInspector(for url: URL) {
-        inspectedURLs.append(url)
+    init(error: FinderInfoError? = nil) {
+        self.error = error
+    }
+
+    func openInfo(for url: URL) throws {
+        openedURLs.append(url)
+        if let error {
+            throw error
+        }
     }
 }
 

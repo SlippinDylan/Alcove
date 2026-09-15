@@ -462,12 +462,14 @@ protocol FileOperationFailurePresenting: AnyObject {
 @MainActor
 final class FileOperationFailurePresenter: FileOperationFailurePresenting {
     func present(_ error: Error) {
-        let alert = NSAlert(error: error)
+        let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = NSLocalizedString(
             "portal.files.operation_failed",
             comment: "File operation failure title"
         )
+        alert.informativeText = error.localizedDescription
+        alert.addButton(withTitle: NSLocalizedString("OK", comment: "Confirmation button"))
         alert.runModal()
     }
 }
