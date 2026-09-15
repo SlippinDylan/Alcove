@@ -211,7 +211,7 @@ jobs:
           app="$RUNNER_TEMP/DerivedData/Build/Products/Release/Alcove.app"
           binary="$app/Contents/MacOS/Alcove"
           test "$(lipo -archs "$binary")" = 'arm64'
-          test "$(vtool -show-build "$binary" | grep -c 'minos 15.0')" -eq 1
+          test "$(vtool -show-build "$binary" | grep -c 'minos 26.0')" -eq 1
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" = "$MARKETING_VERSION"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" = '${{ github.run_number }}'
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$app/Contents/Info.plist")" = 'true'

@@ -28,7 +28,6 @@ final class NotificationObservation {
 final class MaterialWindowController: NSWindowController {
     typealias AccessibilityProvider = @MainActor () -> AccessibilityDisplayOptions
 
-    private(set) var preference: MaterialPreference
     private(set) var levelCandidate: WindowLevelCandidate
     private(set) var resolvedPath: ResolvedMaterialPath
     private(set) var materialContainer: NSView?
@@ -50,16 +49,12 @@ final class MaterialWindowController: NSWindowController {
     }
 
     init(
-        preference: MaterialPreference = .automatic,
         levelCandidate: WindowLevelCandidate = .desktopCandidate,
         accessibilityProvider: @escaping AccessibilityProvider = { AccessibilityDisplayOptions.current() }
     ) {
-        self.preference = preference
         self.levelCandidate = levelCandidate
         self.accessibilityProvider = accessibilityProvider
         self.resolvedPath = MaterialResolver.resolve(
-            preference: preference,
-            supportsGlass: Self.runtimeSupportsGlass,
             accessibility: accessibilityProvider()
         )
 
@@ -87,12 +82,6 @@ final class MaterialWindowController: NSWindowController {
         nil
     }
 
-    func setPreference(_ newPreference: MaterialPreference) {
-        guard newPreference != preference else { return }
-        preference = newPreference
-        rebuildMaterial()
-    }
-
     func setLevelCandidate(_ candidate: WindowLevelCandidate) {
         guard candidate != levelCandidate else { return }
         levelCandidate = candidate
@@ -102,8 +91,6 @@ final class MaterialWindowController: NSWindowController {
 
     func rebuildMaterial() {
         resolvedPath = MaterialResolver.resolve(
-            preference: preference,
-            supportsGlass: Self.runtimeSupportsGlass,
             accessibility: accessibilityProvider()
         )
         buildLayout()
@@ -117,9 +104,9 @@ final class MaterialWindowController: NSWindowController {
         let token = center.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
             object: nil,
-            queue: nil
+            queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in
+            MainActor.assumeIsolated {
                 guard let self, self.activeObservationID == observationID else { return }
                 self.accessibilityChangeCount += 1
                 self.rebuildMaterial()
@@ -139,17 +126,12 @@ final class MaterialWindowController: NSWindowController {
         let accessibility = accessibilityProvider()
         let observerState = isAccessibilityObserverActive ? "active" : "inactive"
         diagnosticsText = """
-        Material: \(resolvedPath.description) | Preference: \(preference.description)
+        Material: \(resolvedPath.description)
         Window Level: \(levelCandidate.windowLevel.rawValue) | Candidate: \(levelCandidate.description)
         Reduce Transparency: \(accessibility.reduceTransparency) | Increase Contrast: \(accessibility.increaseContrast)
         Accessibility Observer: \(observerState)
         """
         diagnosticsLabel?.stringValue = diagnosticsText
-    }
-
-    private static var runtimeSupportsGlass: Bool {
-        if #available(macOS 26.0, *) { return true }
-        return false
     }
 
     private func applyLevel() {
@@ -212,18 +194,12 @@ final class MaterialWindowController: NSWindowController {
     private func buildMaterialAndChrome() -> (material: NSView, chrome: MaterialChromeView) {
         switch resolvedPath {
         case .glass:
-            if #available(macOS 26.0, *) {
-                return buildGlassMaterial()
-            }
-            return buildVisualEffectMaterial()
-        case .visualEffect:
-            return buildVisualEffectMaterial()
+            return buildGlassMaterial()
         case .opaqueAccessibility:
             return buildOpaqueMaterial()
         }
     }
 
-    @available(macOS 26.0, *)
     private func buildGlassMaterial() -> (material: NSView, chrome: MaterialChromeView) {
         let chrome = MaterialChromeView { content in
             let glass = NSGlassEffectView()
@@ -247,18 +223,6 @@ final class MaterialWindowController: NSWindowController {
             chrome.bottomAnchor.constraint(equalTo: content.bottomAnchor),
         ])
         return (container, chrome)
-    }
-
-    private func buildVisualEffectMaterial() -> (material: NSView, chrome: MaterialChromeView) {
-        let chrome = MaterialChromeView()
-        chrome.translatesAutoresizingMaskIntoConstraints = false
-        let effect = NSVisualEffectView()
-        effect.material = .headerView
-        effect.blendingMode = .behindWindow
-        effect.state = .followsWindowActiveState
-        effect.addSubview(chrome)
-        constrain(chrome, to: effect)
-        return (effect, chrome)
     }
 
     private func buildOpaqueMaterial() -> (material: NSView, chrome: MaterialChromeView) {

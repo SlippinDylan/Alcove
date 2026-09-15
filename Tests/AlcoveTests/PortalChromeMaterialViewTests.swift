@@ -5,112 +5,76 @@ import XCTest
 
 final class PortalChromeMaterialViewTests: XCTestCase {
     @MainActor
-    func testSurfaceCornerRadiusCanBeUpdatedWithoutRebuildingMaterial() {
+    func testSurfaceCornerRadiusUpdatesTheGlassWithoutRebuilding() throws {
         let view = PortalChromeMaterialView(
             contentView: NSView(),
-            role: .surface,
-            supportsGlass: false
+            notificationCenter: NotificationCenter()
         )
         let rebuildCount = view.rebuildCount
 
         view.updateCornerRadius(8)
 
+        let glass = try XCTUnwrap(view.materialView as? NSGlassEffectView)
         XCTAssertEqual(view.layer?.cornerRadius, 8)
-        XCTAssertEqual(view.materialView?.layer?.cornerRadius, 8)
+        XCTAssertEqual(glass.cornerRadius, 8)
         XCTAssertEqual(view.rebuildCount, rebuildCount)
     }
 
-    func testResolverPrioritizesReduceTransparencyAndSelectsVersionFallback() {
-        let standard = PortalAccessibilityOptions(
-            reduceTransparency: false,
-            increaseContrast: false,
-            reduceMotion: false
-        )
-        let reduced = PortalAccessibilityOptions(
-            reduceTransparency: true,
-            increaseContrast: true,
-            reduceMotion: true
-        )
-
+    func testResolverUsesGlassUnlessReduceTransparencyRequiresOpaqueMaterial() {
         XCTAssertEqual(
-            PortalChromeMaterialResolver.resolve(
-                role: .controlGroup,
-                supportsGlass: true,
-                accessibility: standard
-            ),
+            PortalChromeMaterialResolver.resolve(accessibility: .standard),
             .glass
         )
         XCTAssertEqual(
-            PortalChromeMaterialResolver.resolve(
-                role: .controlGroup,
-                supportsGlass: false,
-                accessibility: standard
-            ),
-            .visualEffect
-        )
-        XCTAssertEqual(
-            PortalChromeMaterialResolver.resolve(
-                role: .controlGroup,
-                supportsGlass: true,
-                accessibility: reduced
-            ),
+            PortalChromeMaterialResolver.resolve(accessibility: .reduced),
             .opaque
-        )
-        XCTAssertEqual(
-            PortalChromeMaterialResolver.resolve(
-                role: .surface,
-                supportsGlass: true,
-                accessibility: standard
-            ),
-            .glass
         )
     }
 
     @MainActor
-    func testFallbackAndOpaquePathsKeepContentInsideChromeBoundary() throws {
+    func testAccessibilityChangesRebuildBetweenGlassAndOpaqueMaterial() throws {
         let content = NSView()
         let options = AccessibilityOptionsBox(.standard)
         let host = PortalChromeMaterialView(
             contentView: content,
+            backgroundStyle: .lowTransparency,
             accessibilityProvider: { options.value },
-            supportsGlass: false,
             notificationCenter: NotificationCenter()
         )
-
-        let effect = try XCTUnwrap(host.materialView as? NSVisualEffectView)
+        let originalGlass = try XCTUnwrap(host.materialView as? NSGlassEffectView)
         let initialConstraintCount = host.constraints.count
-        XCTAssertEqual(effect.material, .popover)
-        XCTAssertEqual(effect.blendingMode, .behindWindow)
-        XCTAssertEqual(effect.state, .active)
-        XCTAssertTrue(content.isDescendant(of: effect))
+        XCTAssertTrue(content.isDescendant(of: originalGlass))
 
         options.value = .reduced
         host.rebuildMaterial()
 
-        XCTAssertNil(effect.superview)
+        XCTAssertNil(originalGlass.superview)
         XCTAssertEqual(host.constraints.count, initialConstraintCount)
         XCTAssertEqual(host.materialPath, .opaque)
-        XCTAssertFalse(host.materialView is NSVisualEffectView)
+        XCTAssertFalse(host.materialView is NSGlassEffectView)
         XCTAssertTrue(content.isDescendant(of: try XCTUnwrap(host.materialView)))
         XCTAssertEqual(host.layer?.borderWidth, 2)
         XCTAssertTrue(host.accessibility.reduceMotion)
+
+        options.value = .standard
+        host.rebuildMaterial()
+
+        let restoredGlass = try XCTUnwrap(host.materialView as? NSGlassEffectView)
+        XCTAssertEqual(host.materialPath, .glass)
+        XCTAssertEqual(restoredGlass.style, .regular)
+        XCTAssertEqual(try tintColor(of: restoredGlass).alphaComponent, 0.12, accuracy: 0.001)
     }
 
     @MainActor
-    func testAccessibilityNotificationRebuildsAndStopRejectsQueuedDelivery() async throws {
+    func testAccessibilityNotificationRebuildsAndStopRejectsQueuedDelivery() async {
         let center = NotificationCenter()
         let options = AccessibilityOptionsBox(.standard)
         let host = PortalChromeMaterialView(
             contentView: NSView(),
-            role: .surface,
-            backgroundStyle: .lowTransparency,
             accessibilityProvider: { options.value },
-            supportsGlass: false,
             notificationCenter: center
         )
         let initialCount = host.rebuildCount
-        XCTAssertEqual(host.alphaValue, 1, accuracy: 0.001)
-        XCTAssertEqual(try tintColor(of: host).alphaComponent, 0.26, accuracy: 0.001)
         options.value = .reduced
 
         center.post(
@@ -121,18 +85,6 @@ final class PortalChromeMaterialViewTests: XCTestCase {
 
         XCTAssertEqual(host.rebuildCount, initialCount + 1)
         XCTAssertEqual(host.materialPath, .opaque)
-        XCTAssertEqual(host.alphaValue, 1, accuracy: 0.001)
-        XCTAssertNil(host.surfaceTintView)
-
-        options.value = .standard
-        center.post(
-            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
-            object: nil
-        )
-        await Task.yield()
-        XCTAssertEqual(host.rebuildCount, initialCount + 2)
-        XCTAssertEqual(host.materialPath, .visualEffect)
-        XCTAssertEqual(try tintColor(of: host).alphaComponent, 0.26, accuracy: 0.001)
 
         center.post(
             name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
@@ -140,34 +92,14 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         )
         host.stopObserving()
         await Task.yield()
-        XCTAssertEqual(host.rebuildCount, initialCount + 2)
-    }
-
-    @MainActor
-    func testGlassPathUsesPublicGlassViewWhenRuntimeSupportsIt() throws {
-        guard #available(macOS 26.0, *) else { return }
-        let content = NSView()
-        let host = PortalChromeMaterialView(
-            contentView: content,
-            accessibilityProvider: { .standard },
-            supportsGlass: true,
-            notificationCenter: NotificationCenter()
-        )
-
-        let glass = try XCTUnwrap(host.materialView as? NSGlassEffectView)
-        XCTAssertTrue(content.isDescendant(of: glass))
-        XCTAssertEqual(glass.cornerRadius, 999)
-        XCTAssertEqual(glass.style, .regular)
+        XCTAssertEqual(host.rebuildCount, initialCount + 1)
     }
 
     @MainActor
     func testPortalSurfaceUsesUntintedNativeGlassByDefault() throws {
-        guard #available(macOS 26.0, *) else { return }
         let host = PortalChromeMaterialView(
             contentView: NSView(),
-            role: .surface,
             accessibilityProvider: { .standard },
-            supportsGlass: true,
             notificationCenter: NotificationCenter()
         )
 
@@ -177,18 +109,14 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         XCTAssertNil(glass.tintColor)
         XCTAssertEqual(glass.cornerRadius, 24)
         XCTAssertEqual(host.alphaValue, 1, accuracy: 0.001)
-        XCTAssertNil(host.surfaceTintView)
     }
 
     @MainActor
-    func testPortalGlassSurfaceMapsBackgroundStyleAndBuiltInTint() throws {
-        guard #available(macOS 26.0, *) else { return }
+    func testPortalGlassMapsEveryBackgroundStyleAndBuiltInTint() throws {
         let surface = PortalChromeMaterialView(
             contentView: NSView(),
-            role: .surface,
             backgroundStyle: .maximumTransparency,
             accessibilityProvider: { .standard },
-            supportsGlass: true,
             notificationCenter: NotificationCenter()
         )
         let glass = try XCTUnwrap(surface.materialView as? NSGlassEffectView)
@@ -197,78 +125,19 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         XCTAssertNil(glass.tintColor)
         surface.updateBackgroundStyle(.highTransparency)
         XCTAssertEqual(glass.style, .clear)
-        XCTAssertEqual(
-            try XCTUnwrap(glass.tintColor).alphaComponent,
-            0.06,
-            accuracy: 0.001
-        )
+        XCTAssertEqual(try tintColor(of: glass).alphaComponent, 0.06, accuracy: 0.001)
         surface.updateBackgroundStyle(.standard)
         XCTAssertEqual(glass.style, .regular)
         XCTAssertNil(glass.tintColor)
+        surface.updateBackgroundStyle(.lowTransparency)
+        XCTAssertEqual(try tintColor(of: glass).alphaComponent, 0.12, accuracy: 0.001)
+        surface.updateBackgroundStyle(.minimumTransparency)
+        XCTAssertEqual(try tintColor(of: glass).alphaComponent, 0.20, accuracy: 0.001)
 
         surface.updatePortalTint(.blue)
-        let standardBlue = try XCTUnwrap(glass.tintColor?.usingColorSpace(.sRGB))
-        XCTAssertEqual(standardBlue.blueComponent, 1, accuracy: 0.001)
-        XCTAssertEqual(standardBlue.alphaComponent, 0.16, accuracy: 0.001)
-        surface.updateBackgroundStyle(.lowTransparency)
-        XCTAssertEqual(
-            try XCTUnwrap(glass.tintColor).alphaComponent,
-            0.26,
-            accuracy: 0.001
-        )
-    }
-
-    @MainActor
-    func testPortalSurfaceMapsEveryBackgroundStyleWithoutDimmingControls() throws {
-        let surface = PortalChromeMaterialView(
-            contentView: NSView(),
-            role: .surface,
-            backgroundStyle: .maximumTransparency,
-            accessibilityProvider: { .standard },
-            supportsGlass: false,
-            notificationCenter: NotificationCenter()
-        )
-        let controls = PortalChromeMaterialView(
-            contentView: NSView(),
-            role: .controlGroup,
-            backgroundStyle: .highTransparency,
-            accessibilityProvider: { .standard },
-            supportsGlass: false,
-            notificationCenter: NotificationCenter()
-        )
-        let effect = try XCTUnwrap(surface.materialView as? NSVisualEffectView)
-
-        XCTAssertEqual(effect.material, .popover)
-        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.04, accuracy: 0.001)
-        surface.updateBackgroundStyle(.highTransparency)
-        XCTAssertEqual(effect.material, .popover)
-        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.08, accuracy: 0.001)
-        surface.updateBackgroundStyle(.standard)
-        XCTAssertEqual(effect.material, .popover)
-        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.16, accuracy: 0.001)
-        surface.updateBackgroundStyle(.lowTransparency)
-        XCTAssertEqual(effect.material, .popover)
-        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.26, accuracy: 0.001)
-        surface.updateBackgroundStyle(.minimumTransparency)
-        XCTAssertEqual(effect.material, .popover)
-        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.34, accuracy: 0.001)
-        let initialTint = try XCTUnwrap(surface.surfaceTintView)
-        XCTAssertNil(initialTint.hitTest(NSPoint(x: 10, y: 10)))
-        let materialIndex = try XCTUnwrap(surface.subviews.firstIndex(of: effect))
-        let tintIndex = try XCTUnwrap(surface.subviews.firstIndex(of: initialTint))
-        XCTAssertLessThan(materialIndex, tintIndex)
-        XCTAssertEqual(controls.alphaValue, 1, accuracy: 0.001)
-        XCTAssertNil(controls.surfaceTintView)
-
-        surface.rebuildMaterial()
-        XCTAssertNil(initialTint.superview)
-        XCTAssertNotNil(surface.surfaceTintView)
-        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.34, accuracy: 0.001)
+        let blue = try tintColor(of: glass)
+        XCTAssertEqual(blue.blueComponent, 1, accuracy: 0.001)
+        XCTAssertEqual(blue.alphaComponent, 0.34, accuracy: 0.001)
     }
 
     @MainActor
@@ -276,97 +145,66 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         for backgroundStyle in PortalBackgroundStyle.allCases {
             let surface = PortalChromeMaterialView(
                 contentView: NSView(),
-                role: .surface,
                 backgroundStyle: backgroundStyle,
                 accessibilityProvider: { .reduced },
-                supportsGlass: false,
                 notificationCenter: NotificationCenter()
             )
 
             XCTAssertEqual(surface.materialPath, .opaque)
             XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-            XCTAssertNil(surface.surfaceTintView)
+            XCTAssertFalse(surface.materialView is NSGlassEffectView)
         }
-    }
-
-    @MainActor
-    func testSavedSurfaceStyleResumesAfterReduceTransparencyTurnsOff() throws {
-        let options = AccessibilityOptionsBox(.reduced)
-        let surface = PortalChromeMaterialView(
-            contentView: NSView(),
-            role: .surface,
-            backgroundStyle: .lowTransparency,
-            accessibilityProvider: { options.value },
-            supportsGlass: false,
-            notificationCenter: NotificationCenter()
-        )
-        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-        XCTAssertNil(surface.surfaceTintView)
-
-        options.value = .standard
-        surface.rebuildMaterial()
-
-        let effect = try XCTUnwrap(surface.materialView as? NSVisualEffectView)
-        XCTAssertEqual(effect.material, .popover)
-        XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-        XCTAssertEqual(try tintColor(of: surface).alphaComponent, 0.26, accuracy: 0.001)
     }
 
     @MainActor
     func testSurfaceTintAdaptsBetweenNeutralLightAndDarkColors() throws {
         let surface = PortalChromeMaterialView(
             contentView: NSView(),
-            role: .surface,
+            backgroundStyle: .lowTransparency,
             accessibilityProvider: { .standard },
-            supportsGlass: false,
             notificationCenter: NotificationCenter()
         )
+        let glass = try XCTUnwrap(surface.materialView as? NSGlassEffectView)
         surface.appearance = NSAppearance(named: .aqua)
         surface.viewDidChangeEffectiveAppearance()
-        let light = try tintColor(of: surface)
+        let light = try tintColor(of: glass)
 
         surface.appearance = NSAppearance(named: .darkAqua)
         surface.viewDidChangeEffectiveAppearance()
-        let dark = try tintColor(of: surface)
+        let dark = try tintColor(of: glass)
 
         XCTAssertEqual(light.redComponent, 0.72, accuracy: 0.001)
-        XCTAssertEqual(light.greenComponent, 0.72, accuracy: 0.001)
-        XCTAssertEqual(light.blueComponent, 0.72, accuracy: 0.001)
         XCTAssertEqual(dark.redComponent, 0.18, accuracy: 0.001)
-        XCTAssertEqual(dark.greenComponent, 0.18, accuracy: 0.001)
-        XCTAssertEqual(dark.blueComponent, 0.18, accuracy: 0.001)
-        XCTAssertEqual(light.alphaComponent, 0.16, accuracy: 0.001)
-        XCTAssertEqual(dark.alphaComponent, 0.16, accuracy: 0.001)
+        XCTAssertEqual(light.alphaComponent, 0.12, accuracy: 0.001)
+        XCTAssertEqual(dark.alphaComponent, 0.12, accuracy: 0.001)
     }
 
     @MainActor
-    func testPortalTintChangesHueWithoutReplacingTheMaterial() throws {
+    func testPortalTintChangesHueWithoutReplacingTheGlass() throws {
         let surface = PortalChromeMaterialView(
             contentView: NSView(),
-            role: .surface,
             backgroundStyle: .lowTransparency,
             portalTint: .red,
             accessibilityProvider: { .standard },
-            supportsGlass: false,
             notificationCenter: NotificationCenter()
         )
         let material = surface.materialView
-
-        let red = try tintColor(of: surface)
+        let glass = try XCTUnwrap(material as? NSGlassEffectView)
+        let red = try tintColor(of: glass)
         XCTAssertGreaterThan(red.redComponent, red.greenComponent)
         XCTAssertEqual(red.alphaComponent, 0.26, accuracy: 0.001)
 
         surface.updatePortalTint(.blue)
 
-        let blue = try tintColor(of: surface)
+        let blue = try tintColor(of: glass)
         XCTAssertGreaterThan(blue.blueComponent, blue.redComponent)
         XCTAssertTrue(surface.materialView === material)
     }
 
     @MainActor
-    private func tintColor(of surface: PortalChromeMaterialView) throws -> NSColor {
-        let color = try XCTUnwrap(surface.surfaceTintView?.layer?.backgroundColor)
-        return try XCTUnwrap(NSColor(cgColor: color)?.usingColorSpace(.sRGB))
+    private func tintColor(of glass: NSGlassEffectView) throws -> NSColor {
+        let tint = try XCTUnwrap(glass.tintColor)
+        return try XCTUnwrap(tint.usingColorSpace(.sRGB))
     }
 }
 

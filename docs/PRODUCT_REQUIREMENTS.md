@@ -16,7 +16,7 @@ Alcove is **not** a Finder replacement or a full desktop shell. It is a focused 
 | G-2 | Match Finder's selection and opening semantics for familiar, low-friction interaction |
 | G-3 | Offer Quick Look for selected items without leaving the portal |
 | G-4 | Keep the complete multi-Portal layout on the menu-bar primary display and migrate it when the primary display changes |
-| G-5 | Adopt Liquid Glass on macOS 26 while remaining fully functional on macOS 15 |
+| G-5 | Require macOS 26 or later and use its native Liquid Glass APIs directly |
 
 ## 3. Non-Goals (MVP)
 
@@ -202,8 +202,8 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-09 | Multiple portals supported simultaneously | MVP |
 | FR-10 | Multiple connected displays are supported as topology inputs, but all Portal windows and new-Portal creation remain on the menu-bar primary display | MVP |
 | FR-11 | Menu-bar icon with portal management menu | MVP |
-| FR-12 | All Portals share one global content-size preset and one global five-step background level on always-active frosted content materials; changing size is preflighted for every Portal before any frame changes. Lightweight separators distinguish the top controls and bottom path row without additional capsule materials. Clicking the top controls or draggable background activates the Portal just like clicking its grid or path row. | MVP |
-| FR-13 | NSVisualEffectView fallback on macOS 15 | MVP |
+| FR-12 | All Portals share one global content-size preset and one global five-step background level on native Liquid Glass surfaces; changing size is preflighted for every Portal before any frame changes. Lightweight separators distinguish the top controls and bottom path row without additional capsule materials. Clicking the top controls or draggable background activates the Portal just like clicking its grid or path row. | MVP |
+| FR-13 | Require macOS 26 or later, use `NSGlassEffectView` without an older-system material branch, and honor Reduce Transparency with an opaque accessibility surface | MVP |
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
@@ -320,7 +320,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-08 | All Portal frames follow the menu-bar primary display after disconnect/reconnect or a primary-display switch; fitting frames retain left/top point offsets and overflow uses new right-hand columns | FR-08, FR-10 |
 | AC-09 | Portal frames restore correctly after resolution/scaling change | FR-08 |
 | AC-10 | Portal coexists with Spaces and Stage Manager without permanent eviction | G-1; Spike 0.1 product gate |
-| AC-11 | App runs on macOS 15 with NSVisualEffectView materials | FR-13 |
+| AC-11 | The app binary declares macOS 26.0 as its minimum system and uses native Glass or the Reduce Transparency opaque accessibility surface | FR-13 |
 | AC-12 | App uses Liquid Glass on macOS 26 for the centered folder-tab capsule group, preserves active visual contrast when the portal loses focus, and restores each portal's independently selected frosted-background transparency after restart | FR-12 |
 | AC-13 | Folder contents update automatically when files are added/removed | FR-15, FR-16 |
 | AC-14 | Command-Delete moves the selected items to Trash, invalidates Quick Look immediately, and reports a recycle failure | FR-26 |
@@ -344,7 +344,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 - Portal creation, display, selection, opening, Quick Look
 - Multiple tabs (add, switch, close, creation-order persistence, selected-tab persistence), multiple portals, and primary-display-following multi-display recovery
 - Stable display identity and frame persistence
-- Liquid Glass (macOS 26) and NSVisualEffectView (macOS 15) compatibility
+- Native Liquid Glass on macOS 26 and macOS 27, with an opaque Reduce Transparency path
 - Menu-bar management UI
 - Trash selected items and copy/move file-URL drops with fail-closed conflict handling
 - GitHub distribution readiness; signing mode and installation procedure remain gated by Spike 0.6

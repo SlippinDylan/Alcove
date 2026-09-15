@@ -22,7 +22,7 @@ build/folder-access-probe all
 ```
 
 The scripts use Swift 6 complete strict concurrency, warnings as errors, and
-`arm64-apple-macosx15.0`. Only Foundation, Dispatch, Darwin, and Swift runtimes
+`arm64-apple-macosx26.0`. Only Foundation, Dispatch, Darwin, and Swift runtimes
 are linked.
 
 ## Evidence Boundary
@@ -116,8 +116,8 @@ A directly invoked standalone probe lacks that outer owner in this exceptional
 path and can leave its uniquely named temporary root for later cleanup; this is
 one reason the harness is not production recovery code.
 
-The final probe is arm64, minimum macOS 15.0, SDK 26.5, system/Swift-only, and
-linker ad-hoc signed. This inspects the deployment target; it is not a macOS 15
+The final probe is arm64, minimum macOS 26.0, SDK 26.5, system/Swift-only, and
+linker ad-hoc signed. This inspects the deployment target; it is not a macOS 27
 runtime result.
 
 ## Codex Review
@@ -137,6 +137,6 @@ are superseded.
 - Physical removable-volume ejection and reattachment.
 - An available network-volume mount.
 - Dropped/revoke recovery and the observer/recovery policy decision.
-- Actual macOS 15 execution.
+- Actual macOS 27 execution.
 
 No observer is selected. Full Spike 0.5 remains incomplete.

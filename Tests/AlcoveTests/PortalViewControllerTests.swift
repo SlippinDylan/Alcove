@@ -52,7 +52,7 @@ final class PortalViewControllerTests: XCTestCase {
 
         let materials = descendants(of: controller.view)
             .compactMap { $0 as? PortalChromeMaterialView }
-        let surface = try XCTUnwrap(materials.first { $0.role == .surface })
+        let surface = try XCTUnwrap(materials.first)
         XCTAssertNotNil(surface.materialView)
         XCTAssertEqual(materials.count, 1)
         XCTAssertEqual(controller.topSeparator.boxType, .separator)
@@ -220,7 +220,7 @@ final class PortalViewControllerTests: XCTestCase {
         pathBar.update(folderURL: URL(fileURLWithPath: "/Users/example/Folder"))
         pathBar.layoutSubtreeIfNeeded()
 
-        XCTAssertFalse(pathBar.contentView is NSVisualEffectView)
+        XCTAssertFalse(pathBar.contentView is NSGlassEffectView)
         XCTAssertNil(pathBar.contentView.layer)
         XCTAssertNil(pathBar.contentView.layer?.backgroundColor)
         let terminalFrame = pathBar.terminalButton.convert(
@@ -260,7 +260,7 @@ final class PortalViewControllerTests: XCTestCase {
         let surface = try XCTUnwrap(
             descendants(of: controller.view)
                 .compactMap { $0 as? PortalChromeMaterialView }
-                .first { $0.role == .surface }
+                .first
         )
 
         portal.updateBackgroundStyle(.lowTransparency)
@@ -269,20 +269,15 @@ final class PortalViewControllerTests: XCTestCase {
         XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
         switch surface.materialPath {
         case .opaque:
-            XCTAssertNil(surface.surfaceTintView)
-        case .visualEffect:
-            let tintColor = try XCTUnwrap(surface.surfaceTintView?.layer?.backgroundColor)
-            XCTAssertEqual(tintColor.alpha, 0.26, accuracy: 0.001)
+            XCTAssertFalse(surface.materialView is NSGlassEffectView)
         case .glass:
-            if #available(macOS 26.0, *) {
-                let glass = try XCTUnwrap(surface.materialView as? NSGlassEffectView)
-                XCTAssertEqual(glass.style, .regular)
-                XCTAssertEqual(
-                    try XCTUnwrap(glass.tintColor).alphaComponent,
-                    0.12,
-                    accuracy: 0.001
-                )
-            }
+            let glass = try XCTUnwrap(surface.materialView as? NSGlassEffectView)
+            XCTAssertEqual(glass.style, .regular)
+            XCTAssertEqual(
+                try XCTUnwrap(glass.tintColor).alphaComponent,
+                0.12,
+                accuracy: 0.001
+            )
         }
         XCTAssertEqual(controller.presentationState, .items(1))
         XCTAssertEqual(invalidationCount, 0)

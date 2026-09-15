@@ -32,7 +32,7 @@ bash compare.sh
 ```
 
 All scripts reject arguments with exit 64. Builds use Swift 6 complete strict
-concurrency, warnings as errors, and target `arm64-apple-macosx15.0`.
+concurrency, warnings as errors, and target `arm64-apple-macosx26.0`.
 
 ## Measurement Boundary
 
@@ -129,7 +129,7 @@ observer.
 
 ## Artifact and API Boundary
 
-The probe is arm64 with minimum macOS 15.0, uses Apple system frameworks and the
+The probe is arm64 with minimum macOS 26.0, uses Apple system frameworks and the
 Swift runtime only, and has a linker-generated ad-hoc signature. It uses public
 Foundation, Dispatch, CoreServices/CoreFoundation, and Darwin APIs. There are no
 third-party dependencies or AppKit components.
@@ -142,7 +142,7 @@ Not run or not implemented here:
 - missing-directory, move, revoke, and dropped-event recovery;
 - TCC-protected Desktop, Documents, and Downloads behavior;
 - removable media, physical ejection, and reattachment;
-- actual macOS 15 runtime;
+- actual macOS 27 runtime;
 - network volumes;
 - long-running mutation load and multiple simultaneous observers.
 

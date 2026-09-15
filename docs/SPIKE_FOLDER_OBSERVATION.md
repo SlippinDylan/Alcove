@@ -20,7 +20,7 @@ spikes/folder-observation/
 └── test.sh
 ```
 
-The scripts compile with Swift 6 complete strict concurrency, warnings as errors, and `arm64-apple-macosx15.0`. The harness uses only Foundation, Dispatch, and Darwin public APIs.
+The scripts compile with Swift 6 complete strict concurrency, warnings as errors, and `arm64-apple-macosx26.0`. The harness uses only Foundation, Dispatch, and Darwin public APIs.
 
 ## Commands
 
@@ -79,7 +79,7 @@ Final verification on 2026-08-02 ran `bash test.sh` three consecutive times. Eac
 
 The latency values and negative-event windows are local bounded observations, not platform guarantees.
 
-`bash build.sh` exited 0 and produced an arm64 Mach-O probe with minimum macOS 15.0, SDK 26.5, system/Swift runtime dependencies only, and a linker-generated ad-hoc signature. Repeated one-second probe runs observed one or two real `.write` callbacks for the same spaced create/delete sequence, demonstrating local coalescing variability; each exited 0 with descriptor teardown confirmed.
+`bash build.sh` exited 0 and produced an arm64 Mach-O probe with minimum macOS 26.0, SDK 26.5, system/Swift runtime dependencies only, and a linker-generated ad-hoc signature. Repeated one-second probe runs observed one or two real `.write` callbacks for the same spaced create/delete sequence, demonstrating local coalescing variability; each exited 0 with descriptor teardown confirmed.
 
 Error-path verification:
 
@@ -100,7 +100,7 @@ The local test provides two-sided evidence that a source follows the opened obje
 |---|---|
 | TCC-protected Desktop/Documents/Downloads access | NR |
 | Removable volume and physical ejection / `.revoke` | NR |
-| Actual macOS 15 runtime | NR |
+| Actual macOS 27 runtime | NR |
 | Symlink root and child behavior | NR |
 | Network volume behavior | NR |
 | 500/1000/5000-item CPU and memory measurements | NR |

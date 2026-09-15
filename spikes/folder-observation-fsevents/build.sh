@@ -47,7 +47,7 @@ xcrun swiftc \
     -swift-version 6 \
     -strict-concurrency=complete \
     -warnings-as-errors \
-    -target arm64-apple-macosx15.0 \
+    -target arm64-apple-macosx26.0 \
     -o "${PROBE_BINARY}" \
     "${SOURCES[@]}"
 

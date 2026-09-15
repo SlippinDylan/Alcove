@@ -41,7 +41,7 @@ The disposable Swift package under `spikes/display-placement/` contains the UI-f
 
 ```
 spikes/display-placement/
-├── Package.swift                          # Swift 6, macOS 15, no dependencies
+├── Package.swift                          # Swift 6, macOS 26, no dependencies
 ├── Sources/DisplayPlacement/
 │   ├── PlacementGeometry.swift             # Pure geometry operations
 │   └── PlacementStateMachine.swift         # Pure eviction-safe transitions
@@ -114,7 +114,7 @@ swift build -Xswiftc -warnings-as-errors
 
 **Result on 2026-08-02 in the current logged-in session:** both commands exited 0 and emitted decodable JSON. The snapshot contained three screens with unique array indices, exactly one main screen, positive finite geometry, scale factor 2, and an available canonical UUID result for each screen. UUID values are intentionally omitted here. The 0.2-second unchanged observation captured zero events; this proves bounded exit only, not notification coverage.
 
-The executable is arm64, has minimum macOS 15.0 and SDK 26.5, uses only system frameworks, and is ad-hoc signed by SwiftPM.
+The executable is arm64, has minimum macOS 26.0 and SDK 26.5, uses only system frameworks, and is ad-hoc signed by SwiftPM.
 
 ---
 

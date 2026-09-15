@@ -33,7 +33,7 @@ build/observer-load-probe \
 ```
 
 The build uses Swift 6 complete strict concurrency, warnings as errors, and
-`arm64-apple-macosx15.0`. It links only Apple system frameworks and Swift
+`arm64-apple-macosx26.0`. It links only Apple system frameworks and Swift
 runtimes.
 
 ## Evidence Method
@@ -107,9 +107,9 @@ samples affected by process startup, filesystem cache, candidate latency, and
 the test machine; they are not comparative benchmarks or platform guarantees.
 
 `bash build.sh invalid`, `bash test.sh invalid`, and a probe without arguments
-each exited 64. The probe is an arm64 Mach-O with minimum macOS 15.0 and SDK
+each exited 64. The probe is an arm64 Mach-O with minimum macOS 26.0 and SDK
 26.5, Apple system/Swift dependencies only, and a linker-generated ad-hoc
-signature. This is deployment-target inspection, not an actual macOS 15 run.
+signature. This is deployment-target inspection, not an actual macOS 27 run.
 
 ## Codex Review Notes and Limitations
 

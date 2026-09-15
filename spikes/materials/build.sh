@@ -38,7 +38,7 @@ xcrun swiftc \
     -swift-version 6 \
     -strict-concurrency=complete \
     -warnings-as-errors \
-    -target arm64-apple-macosx15.0 \
+    -target arm64-apple-macosx26.0 \
     -framework AppKit \
     -framework CoreGraphics \
     -framework Foundation \
@@ -69,7 +69,7 @@ cat > "${CONTENTS_DIR}/Info.plist" << 'PLIST'
     <key>CFBundleExecutable</key>
     <string>AlcoveSpike</string>
     <key>LSMinimumSystemVersion</key>
-    <string>15.0</string>
+    <string>26.0</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSSupportsAutomaticTermination</key>

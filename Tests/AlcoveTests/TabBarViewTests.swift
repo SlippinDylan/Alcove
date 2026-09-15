@@ -217,11 +217,9 @@ final class TabBarViewTests: XCTestCase {
                 as? NSColor,
             .alternateSelectedControlTextColor
         )
-        if #available(macOS 26.0, *) {
-            XCTAssertEqual(addButton.bezelStyle, .glass)
-            XCTAssertEqual(addButton.tintProminence, .primary)
-            XCTAssertEqual(addButton.borderShape, .capsule)
-        }
+        XCTAssertEqual(addButton.bezelStyle, .glass)
+        XCTAssertEqual(addButton.tintProminence, .primary)
+        XCTAssertEqual(addButton.borderShape, .capsule)
         addButton.performClick(nil)
         settingsViewController.reorderFolder(first.id, to: 2)
         try folderActionButton(

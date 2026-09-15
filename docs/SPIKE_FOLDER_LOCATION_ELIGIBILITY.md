@@ -55,7 +55,7 @@ The standalone probe classified the repository directory with actual metadata:
 `isEjectable=false`. The resulting decision was eligible. This is a local fact
 from the current macOS 26 runtime, not a cross-version API-behavior guarantee.
 
-The probe is an arm64 Mach-O with minimum macOS 15.0, SDK 26.5, Foundation and
+The probe is an arm64 Mach-O with minimum macOS 26.0, SDK 26.5, Foundation and
 system/Swift runtime dependencies only, and a linker-generated ad-hoc signature.
 
 ## Gate Status

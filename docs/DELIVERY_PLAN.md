@@ -67,20 +67,20 @@ Each spike records its findings in `docs/SPIKE_<name>.md`. The candidate archite
 
 ---
 
-### Spike 0.4 — Liquid Glass and Fallback
+### Spike 0.4 — Liquid Glass and Accessibility
 
-**Question:** Can `NSGlassEffectView` and `NSGlassEffectContainerView` be used for portal chrome (tab bar, title area, controls) on macOS 26, and does `NSVisualEffectView` provide an acceptable visual fallback on macOS 15?
+**Question:** Can `NSGlassEffectView` and `NSGlassEffectContainerView` be used for portal chrome on macOS 26+, while Reduce Transparency switches cleanly to an opaque accessibility surface?
 
 **Approach:**
 - On macOS 26: create a window with a tab bar and controls using `NSGlassEffectView` for the chrome area and `NSGlassEffectContainerView` to group them. Verify the glass effect renders correctly at desktop-icon window level.
-- On macOS 15 (or a macOS 15 VM): create the same layout using `NSVisualEffectView` with material selected by spike validation.
+- With Reduce Transparency enabled: create the same layout using an explicitly opaque AppKit surface.
 - Verify both approaches respect `Reduce Transparency` in Accessibility settings.
 - Measure the material behavior at the leading window strategies from Spike 0.1 rather than assuming one fixed level.
-- Confirm the availability check: `if #available(macOS 26, *)`.
+- Confirm direct Glass construction at the macOS 26 deployment baseline.
 
 **Exit Gate:**
 - [ ] `NSGlassEffectView` renders correctly on macOS 26 at desktop-icon level for chrome elements.
-- [ ] `NSVisualEffectView` renders acceptably on macOS 15 for the same layout.
+- [x] The opaque accessibility surface preserves the same layout and ownership boundaries.
 - [ ] Both respect `Reduce Transparency`.
 - [ ] Document the `@available` guard pattern and any layout differences.
 
@@ -110,13 +110,13 @@ Each spike records its findings in `docs/SPIKE_<name>.md`. The candidate archite
 
 ### Spike 0.6 — Apple Development DMG Launch Behavior
 
-**Question:** What is the actual user experience when installing and launching the selected free Apple Development-signed artifact across macOS 15 and 26?
+**Question:** What is the actual user experience when installing and launching the selected free Apple Development-signed artifact across macOS 26 and 27?
 
 **Scheduling:** This release-gate spike may run in parallel with Phase 1 and does not block product implementation. It must be resolved before the first public GitHub Release.
 
 **Approach:**
 - Build a minimal arm64 test app, sign with the free Apple Development identity, and package it as a drag-to-Applications DMG.
-- On macOS 15 and 26: mount DMG, drag to Applications, attempt to launch.
+- On macOS 26 and 27: mount DMG, drag to Applications, attempt to launch.
 - Document every Gatekeeper dialog, quarantine warning, and `xattr` removal step required.
 - Inspect the signature, embedded provisioning profile if present, and certificate lifetime.
 - Test: does the 7-day profile expiry actually kill the app silently, or does it show a dialog?
@@ -150,7 +150,7 @@ Each slice produces a runnable, observable increment and adds only the domain or
 
 **Tests:**
 - Unit: app delegate registers the status item and expected menu commands.
-- Build: deployment target macOS 15 with macOS 26 SDK for arm64.
+- Build: deployment target macOS 26 with the selected macOS SDK for arm64.
 - Manual: app launches, menu-bar icon appears, no Dock icon, Quit works.
 
 **Exit Gate:**
@@ -416,7 +416,7 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - Per-portal Small/Medium/Large icon sizing, fixed equal tile spacing, resize snap, and 3×1 minimum.
 - Per-portal five-step frosted-background control, persisted independently with an accessibility-driven opaque override.
 - Application-global five-step edge/inter-Portal spacing and corner radius, plus a system-shadow toggle; creation, dragging, live resize, and icon-preset resize reject collisions, while spacing changes preflight and animate a reversible runtime reflow of existing Portals.
-- Evidence-backed Liquid Glass chrome on macOS 26 and `NSVisualEffectView` fallback on macOS 15.
+- Evidence-backed Liquid Glass chrome on macOS 26+ and an opaque Reduce Transparency surface.
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
 - Performance validation for defined NFR directory sizes.
 - Push/PR CI for checks, tests, and unsigned arm64 build verification without artifact publication.
@@ -425,7 +425,7 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 **Tests:**
 - Unit/integration: portal management, error mapping, icon presets, layout limits, and accessibility metadata.
 - Build/test: arm64 architecture and deployment-target checks.
-- Manual: complete macOS 15/26 compatibility matrix on available hardware; unavailable cells remain unverified risk.
+- Manual: complete macOS 26/27 compatibility matrix on available hardware; unavailable cells remain unverified risk.
 - Release-gate verification (not a Slice 10 product exit condition): signature, provisioning profile, Gatekeeper/quarantine, DMG structure, install, launch, and expiry checks required by Spike 0.6.
 
 **Product Exit Gate:**
@@ -461,7 +461,7 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - [x] All new file-operation unit and integration tests pass with the complete app test suite.
 - [x] Public Apple APIs, Finder's public scripting dictionary, or the system `ditto` contract back every system-facing action; Finder automation is limited to user-requested Get Info and no shell command construction is used.
 - [x] Automated paths never overwrite, and partial/failure states are surfaced explicitly.
-- [ ] System UI presentation and real Finder/Desktop drag gestures pass the manual macOS 15/26 compatibility matrix.
+- [ ] System UI presentation and real Finder/Desktop drag gestures pass the manual macOS 26/27 compatibility matrix.
 
 ---
 
@@ -491,7 +491,7 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 
 Test each combination and record pass/fail/known-issue. If hardware for a specific combination is unavailable, report it as "unverified risk", not pretend verification.
 
-| Scenario | macOS 15 (1 display) | macOS 15 (2 displays) | macOS 26 (1 display) | macOS 26 (2 displays) |
+| Scenario | macOS 26 (1 display) | macOS 26 (2 displays) | macOS 27 (1 display) | macOS 27 (2 displays) |
 |----------|----------------------|----------------------|----------------------|----------------------|
 | Portal creation (drag rect) | | | | |
 | Portal persistence (restart) | | | | |
@@ -519,11 +519,11 @@ Test each combination and record pass/fail/known-issue. If hardware for a specif
 
 ### CI Pipeline (Every PR)
 
-Primary GitHub CI uses `macos-26` with pinned Xcode 26.x because the app compiles against the 26 SDK. macOS 15 runtime compatibility requires real hardware, a VM/self-hosted runner, or a separately supported runner capable of running an artifact built with the 26 SDK; never claim both OS versions run automatically on every PR without confirmed infrastructure.
+Primary GitHub CI uses `macos-26` with pinned Xcode 26.x because macOS 26 is the minimum deployment target. macOS 27 compatibility requires an available runner, real hardware, a VM, or a self-hosted runner; never claim both OS versions run automatically on every PR without confirmed infrastructure.
 
 ```
 Push or PR opened
-  ├─ Build (arm64, macOS 26 SDK, deployment target macOS 15)
+  ├─ Build (arm64, deployment target macOS 26)
   │   └─ FAIL → block merge
   ├─ Unit tests (macOS 26 runner)
   │   └─ FAIL → block merge
@@ -570,7 +570,7 @@ For each release artifact, verify before publishing:
 - [ ] `otool -L Alcove.app/Contents/MacOS/Alcove` → no unexpected dynamic libraries.
 - [ ] DMG mounts cleanly on macOS 26.
 - [ ] App launches using the installation and quarantine procedure selected and documented by Spike 0.6 on macOS 26.
-- [ ] Manual macOS 15 compatibility matrix — if hardware unavailable, report as "unverified risk".
+- [ ] Manual macOS 26/27 compatibility matrix — if hardware unavailable, report as "unverified risk".
 - [ ] Menu-bar icon appears; no Dock icon.
 
 ### Failure Policy
@@ -597,7 +597,7 @@ A feature is **done** when all of the following are true:
 5. **Persistence verified:** State survives app restart, display topology changes, and sleep/wake.
 6. **No regressions:** Previously passing features remain passing.
 7. **Code review:** PR reviewed and approved.
-8. **Documentation:** Any user-facing behavior differences between macOS 15 and 26 are documented. Unexecuted verification items and remaining risk are explicitly listed.
+8. **Documentation:** Any user-facing behavior differences between macOS 26 and 27 are documented. Unexecuted verification items and remaining risk are explicitly listed.
 
 MVP feature implementation is **done** when all acceptance criteria in `PRODUCT_REQUIREMENTS.md` unrelated to publication satisfy the above definition. The product is **release-ready** only when Spike 0.6 is resolved and the selected release artifact also passes the verification checklist. Definition of done follows actually available verification; anything unexecuted is explicitly listed with remaining risk.
 

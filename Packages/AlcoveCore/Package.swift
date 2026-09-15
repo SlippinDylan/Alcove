@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "AlcoveCore",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS("26.0")],
     products: [
         .library(name: "AlcoveCore", targets: ["AlcoveCore"])
     ],

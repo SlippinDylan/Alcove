@@ -187,7 +187,6 @@ final class PortalViewController: NSViewController {
         self.portalContentView = portalContentView
         portalMaterialView = PortalChromeMaterialView(
             contentView: NSView(),
-            role: .surface,
             backgroundStyle: portal.backgroundStyle,
             portalTint: portal.tint
         )

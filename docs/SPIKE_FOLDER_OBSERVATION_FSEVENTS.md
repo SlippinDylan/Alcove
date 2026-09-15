@@ -33,7 +33,7 @@ build/folder-observer-fsevents-probe <existing-directory> [duration-seconds]
 ```
 
 Both scripts use Swift 6 complete strict concurrency, warnings as errors, and
-`arm64-apple-macosx15.0`. The harness uses public CoreServices, CoreFoundation,
+`arm64-apple-macosx26.0`. The harness uses public CoreServices, CoreFoundation,
 Foundation, Dispatch, and Darwin APIs only. The bounded probe accepts durations
 up to 60 seconds.
 
@@ -116,7 +116,7 @@ assertions with 0 failures**. The observed first-event latency samples were
 
 `bash build.sh` exited 0. A two-second probe observed an actual create/delete
 mutation as one coalesced item record and exited 0 after `stopAndWait`. Artifact
-inspection reported an arm64 Mach-O executable, minimum macOS 15.0, SDK 26.5,
+inspection reported an arm64 Mach-O executable, minimum macOS 26.0, SDK 26.5,
 system/Swift runtime dependencies only, and a linker-generated ad-hoc signature.
 
 | Error-path command | Exit |
@@ -150,7 +150,7 @@ All entries remain not run (`NR`):
 
 - TCC-protected Desktop, Documents, and Downloads access;
 - removable volumes, physical ejection, and reattachment;
-- an actual macOS 15 runtime;
+- an actual macOS 27 runtime;
 - symlink roots and children, network volumes, and missing-root recovery;
 - 500/1000/5000-item CPU and memory measurements;
 - long-running load and multiple simultaneous observers;

@@ -35,7 +35,7 @@ spikes/quick-look/
 └── test.sh
 ```
 
-The `swiftc` scripts keep the disposable harness deterministic and independent of a production Xcode project. Both app and test targets use Swift 6 complete strict concurrency, warnings as errors, and `arm64-apple-macosx15.0`.
+The `swiftc` scripts keep the disposable harness deterministic and independent of a production Xcode project. Both app and test targets use Swift 6 complete strict concurrency, warnings as errors, and `arm64-apple-macosx26.0`.
 
 ## Responder and Ownership Design
 
@@ -92,7 +92,7 @@ The final clean verification on 2026-08-02 produced:
 - selection replacement updates the snapshot and repairs an invalid panel index: pass;
 - ownership-aware reference cleanup preserves references replaced by another participant: pass;
 - app clean build: pass;
-- app artifact: arm64 Mach-O, minimum macOS 15.0, SDK 26.5, system frameworks only, ad-hoc signed;
+- app artifact: arm64 Mach-O, minimum macOS 26.0, SDK 26.5, system frameworks only, ad-hoc signed;
 - process launch and Apple-event quit: pass.
 
 The automated panel test establishes controller discovery, presentation-state observation, reference cleanup, and idempotent teardown. It does **not** establish that previews rendered correctly or that dismissal visibly completed.

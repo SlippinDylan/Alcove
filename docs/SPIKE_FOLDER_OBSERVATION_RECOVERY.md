@@ -99,9 +99,9 @@ Error coverage includes invalid arguments (exit 64), a real FSEvents 0.001-secon
 event timeout (exit 1 with the named evidence step and probe cleanup), and an
 outer TERM/SIGKILL watchdog that confirms process exit before reading pipes.
 
-`bash build.sh` exited 0. The probe is an arm64 Mach-O with minimum macOS 15.0,
+`bash build.sh` exited 0. The probe is an arm64 Mach-O with minimum macOS 26.0,
 SDK 26.5, Apple system frameworks/Swift runtime only, and a linker-generated
-ad-hoc signature. This is build-target evidence, not an actual macOS 15 run.
+ad-hoc signature. This is build-target evidence, not an actual macOS 27 run.
 
 ## Codex Review Corrections
 
@@ -119,7 +119,7 @@ MiMo metrics and behavioral claims are superseded.
 - Optional false results are bounded local absence, not guaranteed non-delivery.
 - DispatchSource cannot identify the child path that caused `.write`.
 - FSEvents latency/coalescing and results may differ across OS/filesystems.
-- Actual macOS 15, TCC-protected folders, removable/ejected volumes, network
+- Actual macOS 27, TCC-protected folders, removable/ejected volumes, network
   volumes, dropped-event/revoke recovery, sustained load, and multiple observers
   remain unverified.
 

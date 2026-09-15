@@ -6,7 +6,6 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var controller: MaterialWindowController?
-    private(set) var preference: MaterialPreference = .automatic
     private(set) var levelCandidate: WindowLevelCandidate = .desktopCandidate
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -24,7 +23,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func createWindow() {
         controller?.close()
         let newController = MaterialWindowController(
-            preference: preference,
             levelCandidate: levelCandidate
         )
         newController.onClose = { [weak self, weak newController] in
@@ -37,11 +35,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         newController.window?.makeKeyAndOrderFront(nil)
     }
 
-    func setMaterialPreference(_ newPreference: MaterialPreference) {
-        preference = newPreference
-        controller?.setPreference(newPreference)
-    }
-
     func setWindowLevel(_ newLevel: WindowLevelCandidate) {
         levelCandidate = newLevel
         controller?.setLevelCandidate(newLevel)
@@ -52,10 +45,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appItem = NSMenuItem()
         appItem.submenu = buildAppMenu()
         mainMenu.addItem(appItem)
-
-        let materialItem = NSMenuItem()
-        materialItem.submenu = buildMaterialMenu()
-        mainMenu.addItem(materialItem)
 
         let levelItem = NSMenuItem()
         levelItem.submenu = buildLevelMenu()
@@ -76,21 +65,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         quit.target = NSApp
         menu.addItem(quit)
-        return menu
-    }
-
-    private func buildMaterialMenu() -> NSMenu {
-        let menu = NSMenu(title: "Material")
-        for preference in MaterialPreference.allCases {
-            let item = NSMenuItem(
-                title: preference.description,
-                action: #selector(switchMaterial(_:)),
-                keyEquivalent: preference.menuKeyEquivalent
-            )
-            item.target = self
-            item.representedObject = preference.rawValue
-            menu.addItem(item)
-        }
         return menu
     }
 
@@ -126,13 +100,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         close.target = self
         menu.addItem(close)
         return menu
-    }
-
-    @objc private func switchMaterial(_ sender: NSMenuItem) {
-        guard let rawValue = sender.representedObject as? String,
-              let preference = MaterialPreference(rawValue: rawValue)
-        else { return }
-        setMaterialPreference(preference)
     }
 
     @objc private func switchLevel(_ sender: NSMenuItem) {

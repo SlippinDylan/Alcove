@@ -735,13 +735,9 @@ final class PortalSettingsViewController: NSViewController {
             button.imagePosition = .imageLeading
             button.imageHugsTitle = true
         }
-        if #available(macOS 26.0, *) {
-            button.bezelStyle = .glass
-            button.tintProminence = .primary
-            button.borderShape = .capsule
-        } else {
-            button.bezelStyle = .rounded
-        }
+        button.bezelStyle = .glass
+        button.tintProminence = .primary
+        button.borderShape = .capsule
         button.controlSize = controlSize
         button.bezelColor = bezelColor
         button.attributedTitle = NSAttributedString(

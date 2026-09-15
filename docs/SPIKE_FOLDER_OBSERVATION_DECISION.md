@@ -55,7 +55,7 @@ replacement, and device replacement.
 
 Standalone probes decoded real public flag constants for `MustScanSubDirs` and
 `UserDropped` and selected `rebuildObservation`. Invalid build, test, and probe
-arguments each exited 64. The probe is arm64, targets macOS 15.0 with SDK 26.5,
+arguments each exited 64. The probe is arm64, targets macOS 26.0 with SDK 26.5,
 uses system/Foundation/Swift dependencies, and has a linker-generated ad-hoc
 signature.
 
@@ -63,7 +63,7 @@ signature.
 
 - [x] Verify the recovery orchestration in production `FolderAccess` integration.
 - Record controlled TCC denial and recovery with an actual Alcove app identity.
-- Run the relevant compatibility matrix on an actual macOS 15 environment.
+- Run the relevant compatibility matrix on an actual macOS 27 environment.
 
 These remaining items keep full Spike 0.5 open, but they no longer block the
 observer mechanism decision.

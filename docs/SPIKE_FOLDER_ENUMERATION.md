@@ -19,7 +19,7 @@ build/folder-enumeration-probe <existing-directory>
 ```
 
 The scripts compile nine source files with Swift 6 complete strict concurrency,
-warnings as errors, and `arm64-apple-macosx15.0`. Only public Foundation,
+warnings as errors, and `arm64-apple-macosx26.0`. Only public Foundation,
 Dispatch, and Darwin APIs are used.
 
 ## Design
@@ -67,7 +67,7 @@ On 2026-08-02, three consecutive clean test runs each passed **67 assertions wit
 
 `bash build.sh` exited 0. An isolated probe enumerated one directory and two files
 in deterministic order with zero metadata errors and exited 0. The arm64 Mach-O
-has minimum macOS 15.0, SDK 26.5, system/Swift runtime dependencies only, and a
+has minimum macOS 26.0, SDK 26.5, system/Swift runtime dependencies only, and a
 linker-generated ad-hoc signature.
 
 | Error path | Exit |
@@ -79,7 +79,7 @@ linker-generated ad-hoc signature.
 
 ## Deferred Evidence
 
-This work unit still lacks an actual macOS 15 runtime and production AppKit
+This work unit still lacks an actual macOS 27 runtime and production AppKit
 async/completion integration. Removable, ejectable, and network-volume folders
 are now rejected by product scope. Resource/load and observer comparisons are
 recorded in the later Phase 0.5C2–0.5C7 evidence.

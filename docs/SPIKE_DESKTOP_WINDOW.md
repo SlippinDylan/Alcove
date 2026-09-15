@@ -118,7 +118,7 @@ Both properties require manual testing against Show Desktop, Spaces, Stage Manag
 
 Both `NSWindow` and `NSPanel` share one construction path after creation:
 1. Factory creates the appropriate concrete subclass (`AlcoveSpikeWindow` or `AlcoveSpikePanel`).
-2. Shared setup applies: title, titlebar transparency, movable-by-background, level, collection behavior, and `NSVisualEffectView` background.
+2. Shared setup applies: title, titlebar transparency, movable-by-background, level, collection behavior, and `NSGlassEffectView` background.
 3. Class-specific setup (panel experimental properties) branches only where the class actually requires it.
 
 #### Key Eligibility
@@ -196,8 +196,8 @@ open spikes/desktop-window/build/AlcoveSpike.app
 
 | Check | Result |
 |-------|--------|
-| Swift 6 strict-concurrency `xcrun swiftc` compilation (arm64, macOS 15 target) — app | **Pass** — exit code 0, warnings treated as errors |
-| Swift 6 strict-concurrency `xcrun swiftc` compilation (arm64, macOS 15 target) — tests | **Pass** — exit code 0, warnings treated as errors |
+| Swift 6 strict-concurrency `xcrun swiftc` compilation (arm64, macOS 26 target) — app | **Pass** — exit code 0, warnings treated as errors |
+| Swift 6 strict-concurrency `xcrun swiftc` compilation (arm64, macOS 26 target) — tests | **Pass** — exit code 0, warnings treated as errors |
 | App binary exists in `.app` bundle | **Pass** — `AlcoveSpike` Mach-O arm64 |
 | Info.plist contains `LSUIElement = YES` | **Pass** |
 | Ad-hoc code signing | **Pass** — build script `xcrun codesign --force --sign -` succeeded |

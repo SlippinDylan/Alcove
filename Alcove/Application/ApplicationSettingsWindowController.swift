@@ -675,11 +675,7 @@ final class ApplicationSettingsViewController: NSViewController {
         )
         button.identifier = NSUserInterfaceItemIdentifier(identifier)
         button.controlSize = .large
-        if #available(macOS 26.0, *) {
-            button.bezelStyle = .glass
-        } else {
-            button.bezelStyle = .rounded
-        }
+        button.bezelStyle = .glass
         return button
     }
 

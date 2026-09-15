@@ -14,7 +14,7 @@ If a spike fails, Alcove may revise either the candidate architecture or the aff
 | P-4 | **Main actor for UI, explicit off-main I/O boundary** | `@MainActor` on all view/window controllers; `FolderLoadingActor` coordinates loading state while blocking file-system work crosses a dedicated, verified background execution boundary |
 | P-5 | **Stale results are rejected, not applied** | Every async pipeline carries a monotonic generation counter; UI discards out-of-order completions |
 | P-6 | **System-driven moves never overwrite user placement** | Display-placement state machine distinguishes user vs. system origin before writing |
-| P-7 | **Prototype gates are explicit** | Window strategy, display identity/placement, Quick Look, Liquid Glass/fallback, folder observation/permissions, and signing/distribution remain provisional until their corresponding spikes are resolved |
+| P-7 | **Prototype gates are explicit** | Window strategy, display identity/placement, Quick Look, Liquid Glass/accessibility behavior, folder observation/permissions, and signing/distribution remain provisional until their corresponding spikes are resolved |
 | P-8 | **Folder-source eligibility is validated at selection boundaries** | Resolve the selected directory's hosting volume and reject removable, ejectable, or network volumes before a tab can reference it |
 
 ---
@@ -129,7 +129,7 @@ Visual chrome inside each portal window.
 - `PortalViewController` — root view controller per portal
 - `TabBarView` — one centered, shadow-free segmented capsule and a fixed trailing settings icon. The outer capsule contains at most four equal-width folder segments; Small/Medium/Large prefer `56/64/72pt` segment widths and heights `26/28/30pt`. A segment never stretches beyond its preset width, and when the symmetric Back/settings reservations leave less room, all segments compress equally without horizontal scrolling. Long titles truncate at the tail while tooltips and accessibility labels retain the complete folder name. Selection uses one neutral inner capsule rather than independent or accent-blue buttons. The Back button remains a separate action and groups its image and title with `imageHugsTitle`. The gear menu uses SF Symbols for pin, sort, settings, and removal. Portal settings expose a current-count/maximum row, disable Add Folder at four, show all sort choices as native radio buttons, and show all eight built-in tints as circular single-selection swatches. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
 - `FolderPathBarView` — a plain reserved bottom row derived from the selected tab URL; it abbreviates the home directory as `~`, keeps Terminal and Copy fixed at the trailing edge with flexible space after the path, and copies the absolute path to `NSPasteboard`
-- `PortalChromeMaterialView` — the standard macOS 26 surface is an untinted `.regular` `NSGlassEffectView`; other background levels select public `.clear`/`.regular` styles and tint strengths, while built-in colors use `NSGlassEffectView.tintColor`. macOS 15 keeps the active `.popover` `NSVisualEffectView` plus overlay fallback. Reduce Transparency selects the opaque path on both systems.
+- `PortalChromeMaterialView` — the macOS 26+ standard surface is an untinted `.regular` `NSGlassEffectView`; other background levels select public `.clear`/`.regular` styles and tint strengths, while built-in colors use `NSGlassEffectView.tintColor`. Reduce Transparency selects the opaque accessibility path.
 - Layout: tab bar at top, a fixed path row at bottom, and the icon grid between them. Both chrome rows are included in creation, minimum-size, live-resize, and persisted-capacity geometry
 - Portal size intent is `GridCapacity`, not a remembered pixel size. Creation and content-size changes derive the content frame from the same `GridMetrics`. Changing Small/Medium/Large keeps each free Portal's top-left intent, while attached Portals and screen-edge relationships move together to retain the selected exact gap. The complete per-display resize is preflighted before all windows animate; an impossible layout rejects the preference without a partial update. New Portal creation starts at Medium.
 - Rendering hierarchy: the background material, file grid, top control row,
@@ -640,7 +640,7 @@ PortalWindowController / NSApplication
 - A tab switch invalidates the outgoing selection and relinquishes control. Window close detaches the responder and clears owned panel references.
 - Dismissal behavior when the portal loses key-window status remains manual/spike-validated; do not assume it always dismisses merely because the portal loses key status.
 
-**Prototype Gate:** Automated tests verify selection ordering, explicit ownership, takeover safety, second-Space dismissal policy, and responder restoration. Actual preview rendering, carousel navigation, focus handoff, and desktop-level behavior across macOS 15 and macOS 26 still require manual validation.
+**Prototype Gate:** Automated tests verify selection ordering, explicit ownership, takeover safety, second-Space dismissal policy, and responder restoration. Actual preview rendering, carousel navigation, focus handoff, and desktop-level behavior across macOS 26 and macOS 27 still require manual validation.
 
 ---
 
@@ -649,7 +649,6 @@ PortalWindowController / NSApplication
 | macOS Version | Material API | Scope |
 |---------------|-------------|-------|
 | 26+ | Untinted `.regular` `NSGlassEffectView` for the standard content surface; public Glass style/tint variants for user-selected appearance | System-adaptive Portal background with native settings controls |
-| 15 | Active `NSVisualEffectView`; rounded native settings controls | Same Portal layout with a deliberate material fallback |
 
 The portal uses a plain root container whose surface material, file grid, top
 control row, bottom path row, and separators are siblings. The Portal itself has
@@ -660,32 +659,24 @@ its Portal is key; the inactive selection remains neutral but receives an explic
 outline for legibility.
 
 The file grid remains ordinary content on the portal surface. AppKit does not expose
-Notification Center's private card recipe as a semantic material. On macOS 26 the closest
+Notification Center's private card recipe as a semantic material. On macOS 26+ the closest
 public system-adaptive surface is `.regular` `NSGlassEffectView`; the standard default leaves
 `tintColor` unset. The two lighter levels use `.clear`, the two heavier levels add neutral
-Glass tint, and explicit rainbow presets use the same public `tintColor` property. macOS 15
-uses active `.popover` `NSVisualEffectView` with overlay alpha values 0.04, 0.08, 0.16, 0.26,
-and 0.34. Reduce
-Transparency removes the overlay and uses the existing opaque accessibility surface
+Glass tint, and explicit rainbow presets use the same public `tintColor` property. Reduce
+Transparency replaces Glass with an opaque accessibility surface
 without changing the saved preference. File cells and selection highlights do not create glass layers: icons
 stay as standard `NSImage` values from `NSWorkspace`, preserving readability and
 avoiding per-item rendering cost.
 
-**Availability check pattern:**
+**Construction pattern:**
 
 ```swift
 func makePortalChrome() -> NSView {
-    if #available(macOS 26.0, *) {
-        return NSGlassEffectView()
-    } else {
-        let blur = NSVisualEffectView()
-        // Material selected during spike validation
-        return blur
-    }
+    NSGlassEffectView()
 }
 ```
 
-Glass effects are a visual enhancement, not a functional dependency. Spike 0.4 must verify both the macOS 26 glass path and the macOS 15 `NSVisualEffectView` path at the selected window level. If either fails, the architecture or visual scope is revised explicitly; an untested fallback is not treated as a successful gate result.
+Liquid Glass is part of the macOS 26+ product baseline. Spike 0.4 verifies the Glass and opaque accessibility paths at the selected window level. If either fails, the architecture or visual scope is revised explicitly.
 
 ---
 
@@ -880,7 +871,7 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 - A switchable harness begins with `desktopIconWindow + 1`, `.canJoinAllSpaces`, `.stationary`, and `.ignoresCycle`, but does not privilege it as final.
 - Compare `.stationary`, `.moveToActiveSpace`, `.fullScreenAuxiliary`, use or omission of `.canJoinAllSpaces`, `NSWindow` versus `NSPanel`, and whether the portal may become key.
-- Record Show Desktop, Spaces, Stage Manager, full-screen interaction, lock, and sleep/wake behavior on the available macOS 15 and 26 matrix.
+- Record Show Desktop, Spaces, Stage Manager, full-screen interaction, lock, and sleep/wake behavior on the available macOS 26 and 27 matrix.
 - Select the final window strategy from measured results.
 
 **If gate fails:** Record the failure and make an explicit product-feasibility or scope decision. Test additional public-API strategies if justified; do not silently substitute an unverified fallback.
@@ -906,19 +897,19 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 - Space presents and dismisses Quick Look for single and multiple selected items.
 - Verify responder ownership, explicit data-source/delegate assignment, portal key-window transitions, and cleanup.
-- Test common file types on the available macOS 15 and 26 matrix.
+- Test common file types on the available macOS 26 and 27 matrix.
 
 **If gate fails:** Revise the responder-chain integration or product scope. Explicit assignment is a candidate to test, not a presumed successful fallback.
 
-### 16.4 Liquid Glass and Compatibility Material — Spike 0.4
+### 16.4 Liquid Glass and Accessibility Material — Spike 0.4
 
-**Current scope:** macOS 26 uses one native Glass surface for the complete Portal; macOS 15 uses the `NSVisualEffectView` fallback. The former nested control-group Glass is removed: Tab/navigation controls are flat Layer-backed controls on the single surface, with separators retaining the larger structural boundaries.
+**Current scope:** macOS 26+ uses one native Glass surface for the complete Portal. Reduce Transparency replaces it with an opaque accessibility surface. Tab/navigation controls are flat Layer-backed controls on the single surface, with separators retaining the larger structural boundaries.
 
 **Gate criteria:**
 
 - Verify the active surface at the selected desktop window level.
 - Verify Reduce Transparency, Increase Contrast, readability, and separator visibility.
-- Verify settings Glass actions and their native fallback without applying Glass to Portal content.
+- Verify settings Glass actions and the opaque accessibility path without applying additional Glass to Portal content.
 
 **If gate fails:** Revise the material boundary or visual scope explicitly; do not describe an untested fallback as validated compatibility.
 
@@ -943,7 +934,7 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 **Gate criteria:**
 
 - Inspect the signed artifact for its signature and any embedded provisioning profile.
-- Record quarantine, right-click Open, `xattr`, `spctl`, expiry, and post-expiry launch behavior on the available macOS 15 and 26 matrix.
+- Record quarantine, right-click Open, `xattr`, `spctl`, expiry, and post-expiry launch behavior on the available macOS 26 and 27 matrix.
 - Confirm the selected Apple Development workflow fails closed and the mounted DMG preserves the arm64 app, signature, and Applications symlink.
 
 **If gate fails:** Block the first public GitHub Release and revise the distribution plan. Product implementation may continue independently.

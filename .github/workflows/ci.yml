@@ -89,5 +89,5 @@ jobs:
           app='build/DerivedData-Release/Build/Products/Release/Alcove.app'
           binary="$app/Contents/MacOS/Alcove"
           test "$(lipo -archs "$binary")" = 'arm64'
-          test "$(vtool -show-build "$binary" | grep -c 'minos 15.0')" -eq 1
+          test "$(vtool -show-build "$binary" | grep -c 'minos 26.0')" -eq 1
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$app/Contents/Info.plist")" = 'true'

@@ -86,13 +86,10 @@ final class ExperimentWindowController: NSWindowController, NSWindowDelegate {
         window.level = preset.windowLevel
         window.collectionBehavior = preset.collectionBehavior
 
-        // Translucent background via NSVisualEffectView
-        let visualEffect = NSVisualEffectView()
-        visualEffect.material = .underPageBackground
-        visualEffect.blendingMode = .behindWindow
-        visualEffect.state = .active
-        visualEffect.appearance = NSAppearance(named: .darkAqua)
-        window.contentView = visualEffect
+        let glass = NSGlassEffectView()
+        glass.style = .regular
+        glass.cornerRadius = 24
+        window.contentView = glass
 
         return window
     }
