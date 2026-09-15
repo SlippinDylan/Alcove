@@ -223,9 +223,27 @@ final class QuickLookIntegration: NSResponder,
 
     private func presentPreview() {
         guard let panel = panelProvider() else { return }
-        panel.updateController()
-        guard panel.currentController === self, ownsControl(of: panel) else { return }
+        if let currentController = panel.currentController,
+           currentController !== self {
+            return
+        }
+
+        // QLPreviewPanel discovers its controller as part of presentation. Asking it to
+        // resolve the responder chain while it is still hidden can leave it controllerless.
         panel.present()
+        panel.updateController()
+        guard !ownsControl(of: panel) else { return }
+
+        // The system panel can complete its key-window transition on the next run-loop turn.
+        // Retry discovery without claiming ownership or mutating panel state directly.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, panel.isVisible else { return }
+            if let currentController = panel.currentController,
+               currentController !== self {
+                return
+            }
+            panel.updateController()
+        }
     }
 
     func beginControl(of panel: any QuickLookPanelManaging) {

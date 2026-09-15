@@ -44,6 +44,18 @@ final class QuickLookIntegrationTests: XCTestCase {
     }
 
     @MainActor
+    func testHiddenPanelIsPresentedBeforeControllerDiscovery() {
+        let panel = QuickLookPanelSpy()
+        let integration = makeIntegration(panel: panel)
+
+        integration.handleSpace(for: [URL(fileURLWithPath: "/tmp/preview.txt")])
+
+        XCTAssertEqual(panel.lifecycle, [.present, .updateController])
+        XCTAssertTrue(panel.currentController === integration)
+        XCTAssertTrue(panel.dataSource === integration)
+    }
+
+    @MainActor
     func testSpaceWithEmptySelectionDoesNotRequestPanel() {
         let panel = QuickLookPanelSpy()
         let integration = makeIntegration(panel: panel)
@@ -215,12 +227,20 @@ private final class QuickLookPanelSpy: QuickLookPanelManaging {
     private(set) var reloadCount = 0
     private(set) var presentationCount = 0
     private(set) var dismissalCount = 0
+    private(set) var lifecycle: [LifecycleEvent] = []
+
+    enum LifecycleEvent: Equatable {
+        case present
+        case updateController
+    }
 
     func reloadData() {
         reloadCount += 1
     }
 
     func updateController() {
+        lifecycle.append(.updateController)
+        guard isVisible else { return }
         guard let controllerCandidate else {
             return
         }
@@ -235,6 +255,7 @@ private final class QuickLookPanelSpy: QuickLookPanelManaging {
     }
 
     func present() {
+        lifecycle.append(.present)
         presentationCount += 1
         isVisible = true
     }

@@ -59,6 +59,7 @@
 | Claim | Classification | Evidence |
 |-------|---------------|----------|
 | `QLPreviewPanel` is the system Quick Look panel, usable via responder chain integration | **Confirmed by Apple** | [Apple Developer — QLPreviewPanel](https://developer.apple.com/documentation/quicklookui/qlpreviewpanel) |
+| `QLPreviewPanel` has no controller until it asks the responder chain during its control lifecycle; the panel itself sends accept/begin/end messages, and clients must not mutate it unless they control it | **Confirmed by Apple** | [Apple Developer — QLPreviewPanel controller lifecycle](https://developer.apple.com/documentation/quicklookui/qlpreviewpanel) |
 | Quick Look supports responder-chain integration with a controller that provides panel data source/delegate ownership; Alcove's borderless desktop-level key-window combination is not guaranteed | **Confirmed by Apple** (mechanism); Alcove window behavior is **prototype-required** | [Apple Developer — QLPreviewPanel](https://developer.apple.com/documentation/quicklookui/qlpreviewpanel) |
 
 ### 1.5 Visual Effects — Liquid Glass

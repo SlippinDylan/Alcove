@@ -107,6 +107,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 双击普通目录在当前 Tab 内进入；Package 和符号链接交给系统默认 App。每个 Tab 独立保留运行时 currentURL、返回历史、选择和滚动位置，重启回到映射根目录。
 - 子目录中顶部左侧显示原生返回按钮；底部路径栏跟随 currentURL，路径可在 Finder 打开，并提供 Apple Terminal 与最右侧绝对路径复制按钮。
 - Space 使用 `QLPreviewPanel` 打开或关闭 Quick Look。
+- 右键“快速查看”和 Space 共用同一条 `QLPreviewPanel` 路径。必须先请求系统面板展示，再调用 `updateController()` 让它从 responder chain 自行选择 controller；隐藏状态下预先要求 `currentController` 会形成循环依赖并导致两个入口都无响应。不得直接调用 `beginPreviewPanelControl` 或抢占其他 responder 的可见面板。
 - Command-Delete 冻结当前有序 URL、立即清空选择并使 Quick Look 失效，再通过 `NSWorkspace.recycle` 移入废纸篓；失败必须显示错误。
 - 文件或文件夹右键使用原生 `NSMenu`：右键已选项目保留多选，右键未选项目只选中该项，右键空白不显示文件菜单也不改变选择。当前菜单集中提供打开、快速查看、在 Finder 中显示、显示简介、重新命名、复制、移到废纸篓、隔空投送、复制绝对路径和在 Apple Terminal 中打开；多选路径按网格顺序逐行复制，Terminal 对文件使用父目录并去重。
 - “显示简介”仅在单选时可用，打开 Alcove 自己的只读 AppKit 窗口，展示名称、系统本地化种类、位置、创建/修改时间和大小。普通文件大小随基础元数据返回；普通文件夹大小异步递归计算，窗口关闭或切换对象即取消，不跟随符号链接，任何枚举错误都显示不可用而不是伪造部分总数。

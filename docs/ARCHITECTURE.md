@@ -168,6 +168,7 @@ Visual chrome inside each portal window.
 - A dedicated `QuickLookIntegration` responder implements `QLPreviewPanelDataSource` and `QLPreviewPanelDelegate`
 - `PortalWindowController` inserts it between `PortalWindow` and the window's previous responder, then restores the exact previous link on detach
 - The integration owns an ordered URL snapshot, presents on Space when selection is non-empty, and dismisses on second Space only while Alcove still owns the visible panel
+- Presentation makes the shared panel visible before requesting controller refresh, matching `QLPreviewPanel`'s responder-chain discovery lifecycle. A next-run-loop retry covers the key-window transition without directly claiming control; an existing controller owned by another responder is never displaced.
 - Tab switches invalidate the old URL snapshot and relinquish panel control; window teardown clears only data-source/delegate references still owned by that integration
 - **Prototype gate:** responder chain behavior requires spike validation on each macOS version target
 
