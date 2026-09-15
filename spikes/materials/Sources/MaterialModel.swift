@@ -4,16 +4,37 @@
 
 import AppKit
 
+enum BackgroundType: String, CaseIterable, Sendable {
+    case liquidGlass = "liquid-glass"
+    case frostedGlass = "frosted-glass"
+
+    var description: String {
+        switch self {
+        case .liquidGlass: "Liquid Glass"
+        case .frostedGlass: "Frosted Glass"
+        }
+    }
+
+    var menuKeyEquivalent: String {
+        switch self {
+        case .liquidGlass: "1"
+        case .frostedGlass: "2"
+        }
+    }
+}
+
 // MARK: - Resolved Material Path
 
 /// The actual material construction path selected by the resolver.
 enum ResolvedMaterialPath: String, Sendable {
     case glass = "glass"
+    case frosted = "frosted"
     case opaqueAccessibility = "opaque-accessibility"
 
     var description: String {
         switch self {
         case .glass: return "Liquid Glass"
+        case .frosted: return "Frosted Glass"
         case .opaqueAccessibility: return "Opaque (accessibility)"
         }
     }
@@ -47,9 +68,16 @@ enum MaterialResolver {
     /// - Parameter accessibility: Current accessibility display options.
     /// - Returns: The resolved material path.
     static func resolve(
+        backgroundType: BackgroundType,
         accessibility: AccessibilityDisplayOptions
     ) -> ResolvedMaterialPath {
-        accessibility.reduceTransparency ? .opaqueAccessibility : .glass
+        if accessibility.reduceTransparency {
+            return .opaqueAccessibility
+        }
+        return switch backgroundType {
+        case .liquidGlass: .glass
+        case .frostedGlass: .frosted
+        }
     }
 }
 

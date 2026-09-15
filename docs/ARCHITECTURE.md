@@ -94,7 +94,7 @@ App entry point and global coordination.
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
 - `StatusMenuController` — builds the localized New Portal / per-Portal Show, Hide, Pin, Settings, and confirmed Remove / application Settings / Quit hierarchy. Every actionable item uses an SF Symbol; Portal settings and removal route back through the existing window-owned presentation path. Removal uses an independent app-modal alert centered horizontally and vertically in that Portal screen's current `visibleFrame`, never a sheet attached to the Portal.
-- `ApplicationSettingsWindowController` — owns the preference-style General/Style/Advanced/About window. General adapts `SMAppService.mainApp` for launch-at-login registration; Style stores global content size, background level, spacing, corner radius, and shadow in `UserDefaults`, with a separator between every option row; Advanced presents position repair and layout backup import/export; About reads version metadata and the compiled Icon Composer application icon
+- `ApplicationSettingsWindowController` — owns the preference-style General/Style/Advanced/About window. General adapts `SMAppService.mainApp` for launch-at-login registration; Style stores global content size, background type/material level, spacing, corner radius, and shadow in `UserDefaults`, with native radio buttons for the two background types and a separator between option rows; Advanced presents position repair and layout backup import/export; About reads version metadata and the compiled Icon Composer application icon
 - `ApplicationLayoutBackupController` — presents JSON-constrained `NSOpenPanel`/`NSSavePanel` sheets, performs blocking read/atomic write on an actor, confirms replace-only imports, and reports errors as sheets
 - `NewPortalOverlay` — menu-bar-primary-display overlay with a dashed `3×1` rounded frame, full-width separators, complete object tiles, half-cell candidate feedback, and whole-capacity snapping constrained to the inset `visibleFrame`; occupied candidates remain editable and cannot commit
 - Info.plist: `LSUIElement = YES`, `LSBackgroundOnly = NO`
@@ -129,7 +129,7 @@ Visual chrome inside each portal window.
 - `PortalViewController` — root view controller per portal
 - `TabBarView` — one centered, shadow-free segmented capsule and a fixed trailing settings icon. The outer capsule contains at most four equal-width folder segments; Small/Medium/Large prefer `56/64/72pt` segment widths and heights `26/28/30pt`. A segment never stretches beyond its preset width, and when the symmetric Back/settings reservations leave less room, all segments compress equally without horizontal scrolling. Long titles truncate at the tail while tooltips and accessibility labels retain the complete folder name. Selection uses one neutral inner capsule rather than independent or accent-blue buttons. The Back button remains a separate action and groups its image and title with `imageHugsTitle`. The gear menu uses SF Symbols for pin, sort, settings, and removal. Portal settings expose a current-count/maximum row, disable Add Folder at four, show all sort choices as native radio buttons, and show all eight built-in tints as circular single-selection swatches. A close-only standard titlebar remains above a native preference-style `NSToolbar`; an explicit system separator divides it from scrollable grouped content. An `NSTableView` in plain style displays home-abbreviated folder paths without automatic row insets and provides native gap feedback for atomic drag reordering. Per-Portal size/background controls are absent because those values are application-global.
 - `FolderPathBarView` — a plain reserved bottom row derived from the selected tab URL; it abbreviates the home directory as `~`, keeps Terminal and Copy fixed at the trailing edge with flexible space after the path, and copies the absolute path to `NSPasteboard`
-- `PortalChromeMaterialView` — the macOS 26+ standard surface is an untinted `.regular` `NSGlassEffectView`; other background levels select public `.clear`/`.regular` styles and tint strengths, while built-in colors use `NSGlassEffectView.tintColor`. Reduce Transparency selects the opaque accessibility path.
+- `PortalChromeMaterialView` — resolves the global background type plus accessibility state into Liquid Glass, Frosted Glass, or opaque. Liquid Glass uses `.clear`/`.regular` `NSGlassEffectView` and `tintColor`; Frosted Glass uses one active `.underWindowBackground` `NSVisualEffectView` with `.behindWindow` blending and a non-interactive tint layer below Portal content. The same five global strength levels and per-Portal colors drive both types. Reduce Transparency overrides either type with the opaque accessibility path.
 - Layout: tab bar at top, a fixed path row at bottom, and the icon grid between them. Both chrome rows are included in creation, minimum-size, live-resize, and persisted-capacity geometry
 - Portal size intent is `GridCapacity`, not a remembered pixel size. Creation and content-size changes derive the content frame from the same `GridMetrics`. Changing Small/Medium/Large keeps each free Portal's top-left intent, while attached Portals and screen-edge relationships move together to retain the selected exact gap. The complete per-display resize is preflighted before all windows animate; an impossible layout rejects the preference without a partial update. New Portal creation starts at Medium.
 - Rendering hierarchy: the background material, file grid, top control row,
@@ -208,7 +208,7 @@ Versioned JSON storage with atomic replacement.
 - Write strategy: write to `.tmp` file, then `FileManager.replaceItemAt` for atomic swap
 - Read strategy: read file → check `version` → dispatch to appropriate decoder → return typed result or migration error
 - No Core Data or SQLite. Versioned Portal state remains JSON; `UserDefaults` is used only for application-global preferences and does not duplicate per-Portal v11 sort/tint state.
-- The public layout-backup envelope has its own `com.alcove.layout-backup` format marker and version lifecycle. Version 1 stores semantic global appearance values plus each Portal's normalized anchor, capacity, sort, tint, pin, and home-relative/absolute folder paths. It excludes launch-at-login and does not expose the machine-specific internal v11 placement envelope.
+- The public layout-backup envelope has its own `com.alcove.layout-backup` format marker and version lifecycle. Version 1 stores semantic global appearance values, including optional `background_type`, plus each Portal's normalized anchor, capacity, sort, tint, pin, and home-relative/absolute folder paths. Older v1 files without that additive key restore Liquid Glass. It excludes launch-at-login and does not expose the machine-specific internal v11 placement envelope.
 - Import maps every Portal to a fresh primary-display placement, derives physical size from imported capacity and global icon metrics, reflows the complete layout at the imported spacing, and calls `PortalStore.save` once before replacing any runtime windows. Import never merges and accepts missing folder paths so the existing recoverable missing-folder state remains authoritative.
 - AppKit strings use `en`, `zh-Hans`, and `zh-Hant` bundle resources. English is the development region and fallback for every other system language
 
@@ -648,7 +648,8 @@ PortalWindowController / NSApplication
 
 | macOS Version | Material API | Scope |
 |---------------|-------------|-------|
-| 26+ | Untinted `.regular` `NSGlassEffectView` for the standard content surface; public Glass style/tint variants for user-selected appearance | System-adaptive Portal background with native settings controls |
+| 26+ Liquid Glass | Untinted `.regular` `NSGlassEffectView` for the standard surface; public Glass style/tint variants for user-selected appearance | Bright adaptive Glass option |
+| 26+ Frosted Glass | Active `.underWindowBackground` `NSVisualEffectView`, `.behindWindow`, with a tint layer below content | Broad, stable desktop-background blur for file content |
 
 The portal uses a plain root container whose surface material, file grid, top
 control row, bottom path row, and separators are siblings. The Portal itself has
@@ -676,7 +677,7 @@ func makePortalChrome() -> NSView {
 }
 ```
 
-Liquid Glass is part of the macOS 26+ product baseline. Spike 0.4 verifies the Glass and opaque accessibility paths at the selected window level. If either fails, the architecture or visual scope is revised explicitly.
+Native AppKit materials are part of the macOS 26+ product baseline. Spike 0.4 verifies Liquid Glass, Frosted Glass, and opaque accessibility paths at the selected window level. If any path fails, the architecture or visual scope is revised explicitly.
 
 ---
 

@@ -59,13 +59,15 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         controller.setPortalCornerRadius(.small)
         controller.setPortalSpacing(.maximum)
         controller.setPortalIconSize(.large)
+        controller.setPortalBackgroundType(.frostedGlass)
         controller.setPortalBackgroundStyle(.highTransparency)
         controller.setPortalShadowEnabled(false)
         controller.setPortalShadowEnabled(false)
 
-        XCTAssertEqual(changes.count, 5)
+        XCTAssertEqual(changes.count, 6)
         let restored = ApplicationPreferencesController(userDefaults: defaults)
         XCTAssertEqual(restored.portalAppearance.iconSize, .large)
+        XCTAssertEqual(restored.portalAppearance.backgroundType, .frostedGlass)
         XCTAssertEqual(restored.portalAppearance.backgroundStyle, .highTransparency)
         XCTAssertEqual(restored.portalAppearance.cornerRadius, .small)
         XCTAssertEqual(restored.portalAppearance.spacing, .maximum)
@@ -100,6 +102,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         }
         let imported = PortalAppearancePreferences(
             iconSize: .large,
+            backgroundType: .frostedGlass,
             backgroundStyle: .minimumTransparency,
             cornerRadius: .small,
             spacing: .maximum,
@@ -118,8 +121,14 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
 
     @MainActor
     func testStyleSettingsExposeGlobalContentAndAppearanceControls() throws {
+        let suiteName = "ApplicationSettingsStyleTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let preferences = ApplicationPreferencesController(userDefaults: defaults)
+        preferences.onPortalAppearanceChanged = { _ in true }
         let controller = ApplicationSettingsWindowController(
             launchAtLoginController: LaunchAtLoginControllerSpy(),
+            preferencesController: preferences,
             metadata: ApplicationMetadata(infoDictionary: [:]),
             applicationIcon: NSImage(size: NSSize(width: 128, height: 128))
         )
@@ -147,6 +156,20 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertEqual(transparency.numberOfTickMarks, 5)
         XCTAssertTrue(contentSize.allowsTickMarkValuesOnly)
         XCTAssertTrue(transparency.allowsTickMarkValuesOnly)
+        let buttons = descendants(of: controller.settingsViewController.view)
+            .compactMap { $0 as? NSButton }
+        let liquid = try XCTUnwrap(buttons.first {
+            $0.identifier?.rawValue == "application-settings.background-type.liquid_glass"
+        })
+        let frosted = try XCTUnwrap(buttons.first {
+            $0.identifier?.rawValue == "application-settings.background-type.frosted_glass"
+        })
+        XCTAssertEqual(liquid.state, .on)
+        XCTAssertEqual(frosted.state, .off)
+        frosted.performClick(nil)
+        XCTAssertEqual(preferences.portalAppearance.backgroundType, .frostedGlass)
+        XCTAssertEqual(liquid.state, .off)
+        XCTAssertEqual(frosted.state, .on)
         XCTAssertEqual(
             descendants(of: controller.settingsViewController.view).filter {
                 $0.identifier?.rawValue == "application-settings.row-separator"

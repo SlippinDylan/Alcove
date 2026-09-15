@@ -20,6 +20,7 @@ final class TestRunner {
     func run() -> Int32 {
         testResolutionMatrix()
         testGlassConstruction()
+        testFrostedConstruction()
         testOpaqueConstruction()
         testChromeCallbacksRemainStateless()
         testAccessibilityObserverLifecycle()
@@ -57,17 +58,58 @@ final class TestRunner {
         )
 
         expect(
-            MaterialResolver.resolve(accessibility: standard) == .glass,
+            MaterialResolver.resolve(
+                backgroundType: .liquidGlass,
+                accessibility: standard
+            ) == .glass,
             "macOS 26+ should use Glass by default"
         )
         expect(
-            MaterialResolver.resolve(accessibility: contrast) == .glass,
+            MaterialResolver.resolve(
+                backgroundType: .frostedGlass,
+                accessibility: standard
+            ) == .frosted,
+            "Frosted Glass should select the standard material path"
+        )
+        expect(
+            MaterialResolver.resolve(
+                backgroundType: .liquidGlass,
+                accessibility: contrast
+            ) == .glass,
             "Increase Contrast should retain the Glass path"
         )
         expect(
-            MaterialResolver.resolve(accessibility: reduced) == .opaqueAccessibility,
+            MaterialResolver.resolve(
+                backgroundType: .frostedGlass,
+                accessibility: reduced
+            ) == .opaqueAccessibility,
             "Reduce Transparency should select the opaque accessibility path"
         )
+    }
+
+    private func testFrostedConstruction() {
+        let options = AccessibilityDisplayOptions(
+            reduceTransparency: false,
+            increaseContrast: false
+        )
+        let controller = MaterialWindowController(
+            backgroundType: .frostedGlass,
+            accessibilityProvider: { options }
+        )
+        defer { controller.close() }
+
+        guard let effect = controller.materialContainer as? NSVisualEffectView,
+              let chrome = controller.chromeView,
+              let canvas = controller.canvasView else {
+            expect(false, "Frosted Glass should construct a visual effect and canvas")
+            return
+        }
+        expect(controller.resolvedPath == .frosted, "Frosted path should be reported")
+        expect(effect.material == .underWindowBackground, "Frosted path should use window material")
+        expect(effect.blendingMode == .behindWindow, "Frosted path should sample behind the window")
+        expect(effect.state == .active, "Frosted path should remain active on the desktop")
+        expect(chrome.isDescendant(of: effect), "chrome should remain inside the frosted material")
+        expect(!canvas.isDescendant(of: effect), "file canvas should stay outside spike chrome")
     }
 
     private func testGlassConstruction() {
@@ -187,6 +229,7 @@ final class TestRunner {
         _ = NSApplication.shared
         let delegate = AppDelegate()
         delegate.setWindowLevel(.normal)
+        delegate.setBackgroundType(.frostedGlass)
         delegate.createWindow()
         var firstController = delegate.controller
         let firstIdentity = firstController.map(ObjectIdentifier.init)
@@ -197,6 +240,10 @@ final class TestRunner {
             "recreate should replace the window controller"
         )
         expect(delegate.controller?.levelCandidate == .normal, "recreate should preserve level")
+        expect(
+            delegate.controller?.backgroundType == .frostedGlass,
+            "recreate should preserve background type"
+        )
         expect(firstController?.window == nil, "recreate should detach the old window")
         expect(
             firstController?.isAccessibilityObserverActive == false,

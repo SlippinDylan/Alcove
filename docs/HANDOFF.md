@@ -31,7 +31,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 原生 AppKit 应用，最低 macOS 26，并以 macOS 26/27 为兼容矩阵。
 - `LSUIElement` 菜单栏应用，不显示 Dock 图标。
 - 发布与 CI 架构：Apple Silicon `arm64`；不再生成 x86_64 或 universal 制品。
-- 直接使用 macOS 26+ Liquid Glass；只有系统 Reduce Transparency 会切换到不透明辅助功能表面。Apple 在 Sequoia 后直接采用年份版本号 26，不存在面向用户的 16～25 产品版本。
+- macOS 26+ 全局可选 Liquid Glass 或毛玻璃；只有系统 Reduce Transparency 会强制切换到不透明辅助功能表面。Apple 在 Sequoia 后直接采用年份版本号 26，不存在面向用户的 16～25 产品版本。
 - Apple Development 签名、版本/CHANGELOG 门禁、拖拽式 arm64 DMG 和 GitHub Release workflow 已实现；Gatekeeper、证书到期和安装体验仍需 Spike 0.6 人工验证。
 - 所有 push/PR 都运行无签名 arm64 CI；普通 CI 不上传 App 制品。未经用户明确要求，不自动 push 或监控 CI。
 - 当前发布清单为 `0.1.0-beta.1` 且 `release=false`；现阶段只验证 CI 和飞书通知，不触发签名、DMG 或 GitHub Release。
@@ -183,7 +183,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.10 菜单栏与本地化
 
 - 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；每个 Portal 名称的二级菜单提供带 SF Symbol 的 Show、Hide、Pin/Unpin、Panel Settings 和确认后 Remove。
-- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / Advanced / About。General 只提供系统登录时自动启动；Style 统一控制三档内容大小、五档背景透明度、五档面板间距、五档圆角和系统阴影；Advanced 通过独立的布局备份 v1 JSON 执行完整导入/导出；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观写入 `UserDefaults`，不复制 Portal v11 的单面板排序和颜色状态。
+- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / Advanced / About。General 只提供系统登录时自动启动；Style 统一控制 Liquid Glass/毛玻璃背景类型、五档玻璃材质、三档内容大小、五档面板间距、五档圆角和系统阴影；Advanced 通过独立的布局备份 v1 JSON 执行完整导入/导出；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观写入 `UserDefaults`，不复制 Portal v11 的单面板排序和颜色状态。
 - 全局 Style 卡片的每个设置行之间使用系统分割线；Advanced 备份卡片继续以一条系统分割线区分说明和操作按钮。
 - 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
 - English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
@@ -200,7 +200,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 | 窗口控制 | `Alcove/PortalWindowing/PortalWindowController.swift` | live resize 量化、容量提交、Quick Look/设置窗口生命周期 |
 | Portal 内容 | `Alcove/PortalPresentation/PortalViewController.swift` | Tab、分区线、网格、底部路径行、空态、加载/错误态、设置动作转发 |
 | Tab 与设置 | `Alcove/PortalPresentation/TabBarView.swift` | 原生 Glass Tab、齿轮管理菜单、单面板 General/Folders/Style 设置 |
-| 材质 | `Alcove/PortalPresentation/PortalChromeMaterialView.swift` | macOS 26+ Glass 与 Reduce Transparency 不透明表面 |
+| 材质 | `Alcove/PortalPresentation/PortalChromeMaterialView.swift` | 全局 Liquid Glass/毛玻璃、每面板 tint 与 Reduce Transparency 不透明表面 |
 | 文件网格 | `Alcove/FileGrid/FileGridViewController.swift` | collection view、row-major 布局接入、选择和键盘行为 |
 | 文件单元 | `Alcove/FileGrid/FileItemCell.swift` | Finder 风格对象、两行标题、选中视觉和无障碍 |
 | 文件读取 | `Alcove/FolderAccess/*` | 后台枚举、路径校验、FSEvents 和恢复 |
@@ -234,6 +234,8 @@ Tab 从左侧改为水平居中后，布局时机和材质层级共同导致单�
 ### 6.3 毛玻璃发黄
 
 macOS 26+ 的标准默认表面直接使用 `.regular` `NSGlassEffectView`，`tintColor == nil`，由系统根据壁纸决定原生 Glass 外观。最透明/较透明档使用 `.clear`，较不透明档使用 `.regular` 加轻量中性 tint；彩色预设通过 `NSGlassEffectView.tintColor` 着色，不叠加普通颜色 View。不要通过降低整个材质 View 的 alpha 调透明度，否则 Glass 强度也会丢失。
+
+全局背景类型另有“毛玻璃”：使用一层 active `.underWindowBackground` `NSVisualEffectView` 和 `.behindWindow`，对面板后的桌面做整块模糊；五档材质控制内容下方 tint 的强度。每个面板原有颜色继续独立保存并作用于该 tint。两种类型都由 UserDefaults 和 layout backup 的可选 `background_type` 保存；旧 v1 备份缺少该字段时恢复为 Liquid Glass。
 
 ### 6.4 图标尺寸只有三个稳定档位
 
@@ -399,7 +401,7 @@ Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
 ### 7.4 发布自动化验证
 
 - 发布清单与飞书通知共 19 项 Node 测试通过；actionlint 1.7.12 与 ShellCheck 0.11.0 对三条 workflow 检查通过，zizmor 1.30.1 在三个已解释的可信触发器 ignore 之外无发现。
-- AlcoveCore 159 项和 hosted app 277 项测试通过。
+- AlcoveCore 160 项和 hosted app 282 项测试通过。
 - 本地 unsigned Release 已确认为单一 arm64 slice、minimum macOS 26.0、SDK 26.5、`LSUIElement=true`。
 - macOS 27/Xcode 27 的 linked-on behavior 和真机矩阵尚未执行，继续按未验证风险处理。
 - `Scripts/create-dmg.sh` 生成的测试 DMG 可正常挂载；其中只有 `Alcove.app` 与指向 `/Applications` 的符号链接，挂载后的 App 仍为 arm64。

@@ -3,6 +3,7 @@ import AppKit
 
 enum PortalChromeMaterialPath: Equatable {
     case glass
+    case frosted
     case opaque
 }
 
@@ -24,9 +25,16 @@ struct PortalAccessibilityOptions: Equatable {
 
 enum PortalChromeMaterialResolver {
     static func resolve(
+        backgroundType: PortalBackgroundType,
         accessibility: PortalAccessibilityOptions
     ) -> PortalChromeMaterialPath {
-        accessibility.reduceTransparency ? .opaque : .glass
+        if accessibility.reduceTransparency {
+            return .opaque
+        }
+        return switch backgroundType {
+        case .liquidGlass: .glass
+        case .frostedGlass: .frosted
+        }
     }
 }
 
@@ -37,6 +45,7 @@ final class PortalChromeMaterialView: NSView {
     private let chromeContentView: NSView
     private let accessibilityProvider: AccessibilityProvider
     private let notificationCenter: NotificationCenter
+    private var backgroundType: PortalBackgroundType
     private var backgroundStyle: PortalBackgroundStyle
     private var portalTint: PortalTint
     private var surfaceCornerRadius: CGFloat
@@ -46,11 +55,13 @@ final class PortalChromeMaterialView: NSView {
 
     private(set) var materialPath: PortalChromeMaterialPath
     private(set) var materialView: NSView?
+    private(set) var surfaceTintView: NSView?
     private(set) var accessibility: PortalAccessibilityOptions
     private(set) var rebuildCount = 0
 
     init(
         contentView: NSView,
+        backgroundType: PortalBackgroundType = .liquidGlass,
         backgroundStyle: PortalBackgroundStyle = .standard,
         portalTint: PortalTint = .default,
         cornerRadius: CGFloat = 24,
@@ -62,11 +73,13 @@ final class PortalChromeMaterialView: NSView {
         chromeContentView = contentView
         self.accessibilityProvider = accessibilityProvider
         self.notificationCenter = notificationCenter
+        self.backgroundType = backgroundType
         self.backgroundStyle = backgroundStyle
         self.portalTint = portalTint
         surfaceCornerRadius = cornerRadius
         accessibility = accessibilityProvider()
         materialPath = PortalChromeMaterialResolver.resolve(
+            backgroundType: backgroundType,
             accessibility: accessibility
         )
         super.init(frame: .zero)
@@ -92,12 +105,14 @@ final class PortalChromeMaterialView: NSView {
     func rebuildMaterial() {
         accessibility = accessibilityProvider()
         materialPath = PortalChromeMaterialResolver.resolve(
+            backgroundType: backgroundType,
             accessibility: accessibility
         )
         chromeContentView.removeFromSuperview()
         NSLayoutConstraint.deactivate(materialConstraints)
         materialConstraints = []
         materialView?.removeFromSuperview()
+        surfaceTintView = nil
 
         let material = makeMaterialView()
         material.translatesAutoresizingMaskIntoConstraints = false
@@ -118,6 +133,12 @@ final class PortalChromeMaterialView: NSView {
     func updateBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) {
         self.backgroundStyle = backgroundStyle
         applySurfaceStyle()
+    }
+
+    func updateBackgroundType(_ backgroundType: PortalBackgroundType) {
+        guard self.backgroundType != backgroundType else { return }
+        self.backgroundType = backgroundType
+        rebuildMaterial()
     }
 
     func updatePortalTint(_ portalTint: PortalTint) {
@@ -170,6 +191,26 @@ final class PortalChromeMaterialView: NSView {
             glass.style = .regular
             glass.contentView = chromeContentView
             return glass
+        case .frosted:
+            let effect = NSVisualEffectView()
+            effect.material = .underWindowBackground
+            effect.blendingMode = .behindWindow
+            effect.state = .active
+            effect.wantsLayer = true
+            effect.layer?.cornerRadius = cornerRadius
+            effect.layer?.masksToBounds = true
+            let tint = PortalSurfaceTintView()
+            tint.translatesAutoresizingMaskIntoConstraints = false
+            effect.addSubview(tint)
+            installChromeContent(in: effect)
+            NSLayoutConstraint.activate([
+                tint.topAnchor.constraint(equalTo: effect.topAnchor),
+                tint.leadingAnchor.constraint(equalTo: effect.leadingAnchor),
+                tint.trailingAnchor.constraint(equalTo: effect.trailingAnchor),
+                tint.bottomAnchor.constraint(equalTo: effect.bottomAnchor),
+            ])
+            surfaceTintView = tint
+            return effect
         case .opaque:
             let opaque = PortalOpaqueChromeView()
             opaque.layer?.cornerRadius = cornerRadius
@@ -206,8 +247,23 @@ final class PortalChromeMaterialView: NSView {
 
     private func applySurfaceStyle() {
         alphaValue = 1
-        if let glass = materialView as? NSGlassEffectView {
+        switch materialPath {
+        case .glass:
+            guard let glass = materialView as? NSGlassEffectView else { return }
             applyGlassSurfaceStyle(glass)
+        case .frosted:
+            let tintAlpha: CGFloat = switch backgroundStyle {
+            case .maximumTransparency: 0.04
+            case .highTransparency: 0.08
+            case .standard: 0.16
+            case .lowTransparency: 0.26
+            case .minimumTransparency: 0.34
+            }
+            surfaceTintView?.layer?.backgroundColor = surfaceTintColor
+                .withAlphaComponent(tintAlpha)
+                .cgColor
+        case .opaque:
+            break
         }
     }
 
@@ -262,6 +318,23 @@ final class PortalChromeMaterialView: NSView {
             blue: color.blue,
             alpha: 1
         )
+    }
+}
+
+@MainActor
+private final class PortalSurfaceTintView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
     }
 }
 

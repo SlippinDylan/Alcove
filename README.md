@@ -17,7 +17,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 > Slices 1–11 now provide the tested Apple Silicon AppKit shell, multi-tab portals,
 > Finder-style interaction and icon tiles, transactional empty-portal creation, Quick Look, v11 portal
 > persistence, primary-display-following recovery, automatic FSEvents folder refresh,
-> menu-bar portal management, global Small/Medium/Large content sizing and five-step Glass-background control, global five-step panel spacing and corner radius, a system-shadow toggle, collision-safe placement, native macOS 26+
+> menu-bar portal management, global Small/Medium/Large content sizing, global Liquid Glass/Frosted Glass selection with five-step material strength, global five-step panel spacing and corner radius, a system-shadow toggle, collision-safe placement, native macOS 26+
 > Liquid Glass chrome, accessibility display-option handling, and
 > explicit recovery from missing, replaced, permission, read, and persistence
 > failures. Portals can be pinned against user movement and resizing, browse mapped subdirectories, expose Finder/Terminal/path actions, and localize all user-facing UI into English, Simplified Chinese, or Traditional Chinese. The menu bar provides portal show/hide commands and an application-settings window for global style, position repair, and layout backup. Three production-wide code review passes are complete, and CI tests
@@ -63,7 +63,7 @@ Release workflow 使用以下 GitHub Actions repository secrets：
 ## Key Design Decisions
 
 - **Native AppKit**, not WidgetKit
-- **Native Liquid Glass material** with an untinted `.regular` `NSGlassEffectView` as the standard Portal surface; nonstandard background levels and built-in colors use public Glass tint/style controls, while Reduce Transparency selects an opaque accessibility surface
+- **Native background materials** with global Liquid Glass or Frosted Glass selection: Liquid Glass uses `NSGlassEffectView`; Frosted Glass uses one active `.underWindowBackground` `NSVisualEffectView` with `.behindWindow` blending. Five global strength levels and per-Portal colors apply to either type, while Reduce Transparency selects an opaque accessibility surface
 - **Finder-consistent interaction**: click/Command/Shift and empty-space marquee selection, arrow navigation, Command-A, Quick Look, open, Trash, native file-URL drag in/out, and an AppKit contextual menu for Open, Quick Look, Finder reveal, Finder Get Info through user-authorized Apple Events, AirDrop, path copying, and Apple Terminal
 - **Finder-style icon tiles**: separate icon/title selection regions, two-line labels, a durable integer-capacity grid shared by rendering, keyboard navigation, creation, and live resizing, and persisted Small/Medium/Large icon presets
 - **Internal local folders only**: folder selection rejects removable, ejectable, and network-volume locations

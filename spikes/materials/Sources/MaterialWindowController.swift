@@ -28,6 +28,7 @@ final class NotificationObservation {
 final class MaterialWindowController: NSWindowController {
     typealias AccessibilityProvider = @MainActor () -> AccessibilityDisplayOptions
 
+    private(set) var backgroundType: BackgroundType
     private(set) var levelCandidate: WindowLevelCandidate
     private(set) var resolvedPath: ResolvedMaterialPath
     private(set) var materialContainer: NSView?
@@ -49,12 +50,15 @@ final class MaterialWindowController: NSWindowController {
     }
 
     init(
+        backgroundType: BackgroundType = .liquidGlass,
         levelCandidate: WindowLevelCandidate = .desktopCandidate,
         accessibilityProvider: @escaping AccessibilityProvider = { AccessibilityDisplayOptions.current() }
     ) {
+        self.backgroundType = backgroundType
         self.levelCandidate = levelCandidate
         self.accessibilityProvider = accessibilityProvider
         self.resolvedPath = MaterialResolver.resolve(
+            backgroundType: backgroundType,
             accessibility: accessibilityProvider()
         )
 
@@ -89,8 +93,15 @@ final class MaterialWindowController: NSWindowController {
         updateDiagnostics()
     }
 
+    func setBackgroundType(_ backgroundType: BackgroundType) {
+        guard self.backgroundType != backgroundType else { return }
+        self.backgroundType = backgroundType
+        rebuildMaterial()
+    }
+
     func rebuildMaterial() {
         resolvedPath = MaterialResolver.resolve(
+            backgroundType: backgroundType,
             accessibility: accessibilityProvider()
         )
         buildLayout()
@@ -126,7 +137,7 @@ final class MaterialWindowController: NSWindowController {
         let accessibility = accessibilityProvider()
         let observerState = isAccessibilityObserverActive ? "active" : "inactive"
         diagnosticsText = """
-        Material: \(resolvedPath.description)
+        Material: \(resolvedPath.description) | Type: \(backgroundType.description)
         Window Level: \(levelCandidate.windowLevel.rawValue) | Candidate: \(levelCandidate.description)
         Reduce Transparency: \(accessibility.reduceTransparency) | Increase Contrast: \(accessibility.increaseContrast)
         Accessibility Observer: \(observerState)
@@ -195,9 +206,23 @@ final class MaterialWindowController: NSWindowController {
         switch resolvedPath {
         case .glass:
             return buildGlassMaterial()
+        case .frosted:
+            return buildFrostedMaterial()
         case .opaqueAccessibility:
             return buildOpaqueMaterial()
         }
+    }
+
+    private func buildFrostedMaterial() -> (material: NSView, chrome: MaterialChromeView) {
+        let chrome = MaterialChromeView()
+        chrome.translatesAutoresizingMaskIntoConstraints = false
+        let effect = NSVisualEffectView()
+        effect.material = .underWindowBackground
+        effect.blendingMode = .behindWindow
+        effect.state = .active
+        effect.addSubview(chrome)
+        constrain(chrome, to: effect)
+        return (effect, chrome)
     }
 
     private func buildGlassMaterial() -> (material: NSView, chrome: MaterialChromeView) {

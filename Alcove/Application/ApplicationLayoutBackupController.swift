@@ -118,6 +118,7 @@ final class ApplicationLayoutBackupController: ApplicationLayoutBackupControllin
                 try await replaceHandler(backup)
                 let appearance = PortalAppearancePreferences(
                     iconSize: backup.global.iconSize,
+                    backgroundType: backup.global.backgroundType,
                     backgroundStyle: backup.global.backgroundStyle,
                     cornerRadius: backup.global.cornerRadius,
                     spacing: backup.global.spacing,

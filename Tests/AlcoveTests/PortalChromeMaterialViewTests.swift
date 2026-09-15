@@ -22,11 +22,24 @@ final class PortalChromeMaterialViewTests: XCTestCase {
 
     func testResolverUsesGlassUnlessReduceTransparencyRequiresOpaqueMaterial() {
         XCTAssertEqual(
-            PortalChromeMaterialResolver.resolve(accessibility: .standard),
+            PortalChromeMaterialResolver.resolve(
+                backgroundType: .liquidGlass,
+                accessibility: .standard
+            ),
             .glass
         )
         XCTAssertEqual(
-            PortalChromeMaterialResolver.resolve(accessibility: .reduced),
+            PortalChromeMaterialResolver.resolve(
+                backgroundType: .frostedGlass,
+                accessibility: .standard
+            ),
+            .frosted
+        )
+        XCTAssertEqual(
+            PortalChromeMaterialResolver.resolve(
+                backgroundType: .frostedGlass,
+                accessibility: .reduced
+            ),
             .opaque
         )
     }
@@ -112,6 +125,52 @@ final class PortalChromeMaterialViewTests: XCTestCase {
     }
 
     @MainActor
+    func testFrostedSurfaceUsesOneActiveBehindWindowMaterialBelowContent() throws {
+        let content = NSView()
+        let surface = PortalChromeMaterialView(
+            contentView: content,
+            backgroundType: .frostedGlass,
+            backgroundStyle: .standard,
+            accessibilityProvider: { .standard },
+            notificationCenter: NotificationCenter()
+        )
+
+        let effect = try XCTUnwrap(surface.materialView as? NSVisualEffectView)
+        let tint = try XCTUnwrap(surface.surfaceTintView)
+        XCTAssertEqual(surface.materialPath, .frosted)
+        XCTAssertEqual(effect.material, .underWindowBackground)
+        XCTAssertEqual(effect.blendingMode, .behindWindow)
+        XCTAssertEqual(effect.state, .active)
+        XCTAssertTrue(content.isDescendant(of: effect))
+        XCTAssertNil(tint.hitTest(NSPoint(x: 4, y: 4)))
+        XCTAssertLessThan(
+            try XCTUnwrap(effect.subviews.firstIndex(of: tint)),
+            try XCTUnwrap(effect.subviews.firstIndex(of: content))
+        )
+        let tintColor = try XCTUnwrap(tint.layer?.backgroundColor)
+        XCTAssertEqual(tintColor.alpha, 0.16, accuracy: 0.001)
+    }
+
+    @MainActor
+    func testChangingBackgroundTypeReplacesMaterialWithoutChangingContent() throws {
+        let content = NSView()
+        let surface = PortalChromeMaterialView(
+            contentView: content,
+            accessibilityProvider: { .standard },
+            notificationCenter: NotificationCenter()
+        )
+        let originalGlass = try XCTUnwrap(surface.materialView as? NSGlassEffectView)
+
+        surface.updateBackgroundType(.frostedGlass)
+
+        XCTAssertNil(originalGlass.superview)
+        XCTAssertEqual(surface.materialPath, .frosted)
+        XCTAssertTrue(content.isDescendant(
+            of: try XCTUnwrap(surface.materialView as? NSVisualEffectView)
+        ))
+    }
+
+    @MainActor
     func testPortalGlassMapsEveryBackgroundStyleAndBuiltInTint() throws {
         let surface = PortalChromeMaterialView(
             contentView: NSView(),
@@ -142,17 +201,21 @@ final class PortalChromeMaterialViewTests: XCTestCase {
 
     @MainActor
     func testReduceTransparencyMakesEverySurfaceStyleOpaque() {
-        for backgroundStyle in PortalBackgroundStyle.allCases {
-            let surface = PortalChromeMaterialView(
-                contentView: NSView(),
-                backgroundStyle: backgroundStyle,
-                accessibilityProvider: { .reduced },
-                notificationCenter: NotificationCenter()
-            )
+        for backgroundType in PortalBackgroundType.allCases {
+            for backgroundStyle in PortalBackgroundStyle.allCases {
+                let surface = PortalChromeMaterialView(
+                    contentView: NSView(),
+                    backgroundType: backgroundType,
+                    backgroundStyle: backgroundStyle,
+                    accessibilityProvider: { .reduced },
+                    notificationCenter: NotificationCenter()
+                )
 
-            XCTAssertEqual(surface.materialPath, .opaque)
-            XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-            XCTAssertFalse(surface.materialView is NSGlassEffectView)
+                XCTAssertEqual(surface.materialPath, .opaque)
+                XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
+                XCTAssertFalse(surface.materialView is NSGlassEffectView)
+                XCTAssertFalse(surface.materialView is NSVisualEffectView)
+            }
         }
     }
 
@@ -202,9 +265,40 @@ final class PortalChromeMaterialViewTests: XCTestCase {
     }
 
     @MainActor
+    func testPortalTintAndMaterialStrengthUpdateFrostedOverlayInPlace() throws {
+        let surface = PortalChromeMaterialView(
+            contentView: NSView(),
+            backgroundType: .frostedGlass,
+            backgroundStyle: .standard,
+            portalTint: .red,
+            accessibilityProvider: { .standard },
+            notificationCenter: NotificationCenter()
+        )
+        let material = surface.materialView
+        let tintView = try XCTUnwrap(surface.surfaceTintView)
+        var color = try frostedTintColor(of: tintView)
+        XCTAssertGreaterThan(color.redComponent, color.blueComponent)
+        XCTAssertEqual(color.alphaComponent, 0.16, accuracy: 0.001)
+
+        surface.updatePortalTint(.blue)
+        surface.updateBackgroundStyle(.lowTransparency)
+
+        color = try frostedTintColor(of: tintView)
+        XCTAssertGreaterThan(color.blueComponent, color.redComponent)
+        XCTAssertEqual(color.alphaComponent, 0.26, accuracy: 0.001)
+        XCTAssertTrue(surface.materialView === material)
+    }
+
+    @MainActor
     private func tintColor(of glass: NSGlassEffectView) throws -> NSColor {
         let tint = try XCTUnwrap(glass.tintColor)
         return try XCTUnwrap(tint.usingColorSpace(.sRGB))
+    }
+
+    @MainActor
+    private func frostedTintColor(of view: NSView) throws -> NSColor {
+        let color = try XCTUnwrap(view.layer?.backgroundColor)
+        return try XCTUnwrap(NSColor(cgColor: color)?.usingColorSpace(.sRGB))
     }
 }
 

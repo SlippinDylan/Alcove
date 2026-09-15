@@ -6,6 +6,7 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var controller: MaterialWindowController?
+    private(set) var backgroundType: BackgroundType = .liquidGlass
     private(set) var levelCandidate: WindowLevelCandidate = .desktopCandidate
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -23,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func createWindow() {
         controller?.close()
         let newController = MaterialWindowController(
+            backgroundType: backgroundType,
             levelCandidate: levelCandidate
         )
         newController.onClose = { [weak self, weak newController] in
@@ -40,11 +42,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller?.setLevelCandidate(newLevel)
     }
 
+    func setBackgroundType(_ newType: BackgroundType) {
+        backgroundType = newType
+        controller?.setBackgroundType(newType)
+    }
+
     private func buildMenu() {
         let mainMenu = NSMenu()
         let appItem = NSMenuItem()
         appItem.submenu = buildAppMenu()
         mainMenu.addItem(appItem)
+
+        let backgroundItem = NSMenuItem()
+        backgroundItem.submenu = buildBackgroundMenu()
+        mainMenu.addItem(backgroundItem)
 
         let levelItem = NSMenuItem()
         levelItem.submenu = buildLevelMenu()
@@ -65,6 +76,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         quit.target = NSApp
         menu.addItem(quit)
+        return menu
+    }
+
+    private func buildBackgroundMenu() -> NSMenu {
+        let menu = NSMenu(title: "Background")
+        for type in BackgroundType.allCases {
+            let item = NSMenuItem(
+                title: type.description,
+                action: #selector(switchBackground(_:)),
+                keyEquivalent: type.menuKeyEquivalent
+            )
+            item.target = self
+            item.representedObject = type.rawValue
+            menu.addItem(item)
+        }
         return menu
     }
 
@@ -107,6 +133,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let level = WindowLevelCandidate(rawValue: rawValue)
         else { return }
         setWindowLevel(level)
+    }
+
+    @objc private func switchBackground(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let type = BackgroundType(rawValue: rawValue) else { return }
+        setBackgroundType(type)
     }
 
     @objc private func recreateWindowAction() {
