@@ -61,7 +61,7 @@
 "application.settings.launch_at_login_error" = "Unable to Change Login Setting";
 "application.settings.portal_appearance" = "Panel Appearance";
 "application.settings.background" = "Background";
-"application.settings.background_type" = "Type";
+"application.settings.background_type" = "Style";
 "application.settings.background_type.liquid_glass" = "Liquid Glass";
 "application.settings.background_type.frosted_glass" = "Frosted Glass";
 "application.settings.glass_material" = "Glass Material";

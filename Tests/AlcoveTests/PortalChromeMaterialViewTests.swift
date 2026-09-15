@@ -152,6 +152,32 @@ final class PortalChromeMaterialViewTests: XCTestCase {
     }
 
     @MainActor
+    func testDefaultFrostedTintUsesCleanAppearanceAdaptiveNeutrals() throws {
+        let surface = PortalChromeMaterialView(
+            contentView: NSView(),
+            backgroundType: .frostedGlass,
+            backgroundStyle: .standard,
+            accessibilityProvider: { .standard },
+            notificationCenter: NotificationCenter()
+        )
+        let tintView = try XCTUnwrap(surface.surfaceTintView)
+
+        surface.appearance = NSAppearance(named: .aqua)
+        var color = try frostedTintColor(of: tintView)
+        XCTAssertEqual(color.redComponent, 1, accuracy: 0.001)
+        XCTAssertEqual(color.greenComponent, 1, accuracy: 0.001)
+        XCTAssertEqual(color.blueComponent, 1, accuracy: 0.001)
+        XCTAssertEqual(color.alphaComponent, 0.16, accuracy: 0.001)
+
+        surface.appearance = NSAppearance(named: .darkAqua)
+        color = try frostedTintColor(of: tintView)
+        XCTAssertEqual(color.redComponent, 0, accuracy: 0.001)
+        XCTAssertEqual(color.greenComponent, 0, accuracy: 0.001)
+        XCTAssertEqual(color.blueComponent, 0, accuracy: 0.001)
+        XCTAssertEqual(color.alphaComponent, 0.16, accuracy: 0.001)
+    }
+
+    @MainActor
     func testChangingBackgroundTypeReplacesMaterialWithoutChangingContent() throws {
         let content = NSView()
         let surface = PortalChromeMaterialView(

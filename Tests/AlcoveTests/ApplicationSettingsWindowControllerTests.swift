@@ -164,6 +164,14 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         let frosted = try XCTUnwrap(buttons.first {
             $0.identifier?.rawValue == "application-settings.background-type.frosted_glass"
         })
+        let backgroundTypes = try XCTUnwrap(liquid.superview as? NSStackView)
+        let backgroundTypeRow = try XCTUnwrap(backgroundTypes.superview as? NSStackView)
+        controller.settingsViewController.view.layoutSubtreeIfNeeded()
+        XCTAssertEqual(
+            backgroundTypes.frame.maxX,
+            backgroundTypeRow.bounds.maxX,
+            accuracy: 1
+        )
         XCTAssertEqual(liquid.state, .on)
         XCTAssertEqual(frosted.state, .off)
         frosted.performClick(nil)

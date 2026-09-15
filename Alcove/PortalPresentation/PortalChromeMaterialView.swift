@@ -259,7 +259,7 @@ final class PortalChromeMaterialView: NSView {
             case .lowTransparency: 0.26
             case .minimumTransparency: 0.34
             }
-            surfaceTintView?.layer?.backgroundColor = surfaceTintColor
+            surfaceTintView?.layer?.backgroundColor = frostedSurfaceTintColor
                 .withAlphaComponent(tintAlpha)
                 .cgColor
         case .opaque:
@@ -308,9 +308,6 @@ final class PortalChromeMaterialView: NSView {
     }
 
     private var surfaceTintColor: NSColor {
-        let isDarkAppearance = effectiveAppearance.bestMatch(
-            from: [.darkAqua, .aqua]
-        ) == .darkAqua
         let color = portalTint.resolvedColor(forDarkAppearance: isDarkAppearance)
         return NSColor(
             srgbRed: color.red,
@@ -318,6 +315,15 @@ final class PortalChromeMaterialView: NSView {
             blue: color.blue,
             alpha: 1
         )
+    }
+
+    private var frostedSurfaceTintColor: NSColor {
+        guard portalTint == .default else { return surfaceTintColor }
+        return isDarkAppearance ? .black : .white
+    }
+
+    private var isDarkAppearance: Bool {
+        effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
 }
 

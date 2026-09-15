@@ -771,6 +771,8 @@ final class ApplicationSettingsViewController: NSViewController {
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.spacing = 16
+        stack.setContentHuggingPriority(.required, for: .horizontal)
+        stack.setContentCompressionResistancePriority(.required, for: .horizontal)
         return stack
     }
 

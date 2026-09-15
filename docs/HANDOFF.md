@@ -235,7 +235,7 @@ Tab 从左侧改为水平居中后，布局时机和材质层级共同导致单�
 
 macOS 26+ 的标准默认表面直接使用 `.regular` `NSGlassEffectView`，`tintColor == nil`，由系统根据壁纸决定原生 Glass 外观。最透明/较透明档使用 `.clear`，较不透明档使用 `.regular` 加轻量中性 tint；彩色预设通过 `NSGlassEffectView.tintColor` 着色，不叠加普通颜色 View。不要通过降低整个材质 View 的 alpha 调透明度，否则 Glass 强度也会丢失。
 
-全局背景类型另有“毛玻璃”：使用一层 active `.underWindowBackground` `NSVisualEffectView` 和 `.behindWindow`，对面板后的桌面做整块模糊；五档材质控制内容下方 tint 的强度。每个面板原有颜色继续独立保存并作用于该 tint。两种类型都由 UserDefaults 和 layout backup 的可选 `background_type` 保存；旧 v1 备份缺少该字段时恢复为 Liquid Glass。
+全局背景类型另有“毛玻璃”：使用一层 active `.underWindowBackground` `NSVisualEffectView` 和 `.behindWindow`，对面板后的桌面做整块模糊；五档材质控制内容下方 tint 的强度。默认 tint 在浅色外观使用白色、深色外观使用黑色，避免固定中灰与壁纸混合后显得灰黄；每个面板原有彩色 tint 继续独立保存并原样生效。两种类型都由 UserDefaults 和 layout backup 的可选 `background_type` 保存；旧 v1 备份缺少该字段时恢复为 Liquid Glass。
 
 ### 6.4 图标尺寸只有三个稳定档位
 
@@ -401,7 +401,7 @@ Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
 ### 7.4 发布自动化验证
 
 - 发布清单与飞书通知共 19 项 Node 测试通过；actionlint 1.7.12 与 ShellCheck 0.11.0 对三条 workflow 检查通过，zizmor 1.30.1 在三个已解释的可信触发器 ignore 之外无发现。
-- AlcoveCore 160 项和 hosted app 282 项测试通过。
+- AlcoveCore 160 项和 hosted app 283 项测试通过。
 - 本地 unsigned Release 已确认为单一 arm64 slice、minimum macOS 26.0、SDK 26.5、`LSUIElement=true`。
 - macOS 27/Xcode 27 的 linked-on behavior 和真机矩阵尚未执行，继续按未验证风险处理。
 - `Scripts/create-dmg.sh` 生成的测试 DMG 可正常挂载；其中只有 `Alcove.app` 与指向 `/Applications` 的符号链接，挂载后的 App 仍为 arm64。

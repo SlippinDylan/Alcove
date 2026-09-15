@@ -61,7 +61,7 @@
 "application.settings.launch_at_login_error" = "無法更改登入啟動設定";
 "application.settings.portal_appearance" = "面板外觀";
 "application.settings.background" = "背景";
-"application.settings.background_type" = "類型";
+"application.settings.background_type" = "樣式";
 "application.settings.background_type.liquid_glass" = "液態玻璃";
 "application.settings.background_type.frosted_glass" = "磨砂玻璃";
 "application.settings.glass_material" = "玻璃材質";
