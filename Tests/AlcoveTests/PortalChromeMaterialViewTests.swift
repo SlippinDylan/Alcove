@@ -148,7 +148,7 @@ final class PortalChromeMaterialViewTests: XCTestCase {
             try XCTUnwrap(effect.subviews.firstIndex(of: content))
         )
         let tintColor = try XCTUnwrap(tint.layer?.backgroundColor)
-        XCTAssertEqual(tintColor.alpha, 0.36, accuracy: 0.001)
+        XCTAssertEqual(tintColor.alpha, 0.52, accuracy: 0.001)
     }
 
     @MainActor
@@ -167,14 +167,14 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         XCTAssertEqual(color.redComponent, 1, accuracy: 0.001)
         XCTAssertEqual(color.greenComponent, 1, accuracy: 0.001)
         XCTAssertEqual(color.blueComponent, 1, accuracy: 0.001)
-        XCTAssertEqual(color.alphaComponent, 0.36, accuracy: 0.001)
+        XCTAssertEqual(color.alphaComponent, 0.52, accuracy: 0.001)
 
         surface.appearance = NSAppearance(named: .darkAqua)
         color = try frostedTintColor(of: tintView)
         XCTAssertEqual(color.redComponent, 0, accuracy: 0.001)
         XCTAssertEqual(color.greenComponent, 0, accuracy: 0.001)
         XCTAssertEqual(color.blueComponent, 0, accuracy: 0.001)
-        XCTAssertEqual(color.alphaComponent, 0.36, accuracy: 0.001)
+        XCTAssertEqual(color.alphaComponent, 0.52, accuracy: 0.001)
     }
 
     @MainActor

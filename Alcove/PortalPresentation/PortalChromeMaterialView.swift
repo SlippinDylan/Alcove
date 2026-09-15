@@ -318,11 +318,11 @@ final class PortalChromeMaterialView: NSView {
     private var frostedTintAlpha: CGFloat {
         if portalTint == .default {
             return switch backgroundStyle {
-            case .maximumTransparency: 0.12
-            case .highTransparency: 0.24
-            case .standard: 0.36
-            case .lowTransparency: 0.48
-            case .minimumTransparency: 0.60
+            case .maximumTransparency: 0.20
+            case .highTransparency: 0.36
+            case .standard: 0.52
+            case .lowTransparency: 0.68
+            case .minimumTransparency: 0.82
             }
         }
         return switch backgroundStyle {
