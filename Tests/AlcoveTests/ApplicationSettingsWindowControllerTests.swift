@@ -49,7 +49,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
 
         XCTAssertEqual(controller.portalAppearance, .defaults)
         XCTAssertEqual(PortalCornerRadius.allCases.map(\.points), [0, 8, 14, 20, 24])
-        XCTAssertEqual(PortalSpacing.allCases.map(\.points), [4, 8, 12, 16, 20])
+        XCTAssertEqual(PortalSpacing.allCases.map(\.points), [2, 4, 6, 8, 10])
 
         var changes: [PortalAppearancePreferences] = []
         controller.onPortalAppearanceChanged = {

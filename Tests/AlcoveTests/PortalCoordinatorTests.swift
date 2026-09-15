@@ -66,18 +66,30 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         try await coordinator.restorePortals()
         let minimumFrames = try factory.windows.map { try XCTUnwrap($0.presentedFrame) }
-        XCTAssertEqual(minimumFrames[0].minX, 4)
-        XCTAssertEqual(minimumFrames[0].maxY, coordinatorTestDisplay.visibleFrame.maxY - 4)
-        XCTAssertEqual(minimumFrames[0].minY - minimumFrames[1].maxY, 4)
+        XCTAssertEqual(minimumFrames[0].minX, PortalSpacing.minimum.points)
+        XCTAssertEqual(
+            minimumFrames[0].maxY,
+            coordinatorTestDisplay.visibleFrame.maxY - PortalSpacing.minimum.points
+        )
+        XCTAssertEqual(
+            minimumFrames[0].minY - minimumFrames[1].maxY,
+            PortalSpacing.minimum.points
+        )
 
         var maximumAppearance = minimumAppearance
         maximumAppearance.spacing = .maximum
         XCTAssertTrue(coordinator.updatePortalAppearance(maximumAppearance))
 
         let maximumFrames = try factory.windows.map { try XCTUnwrap($0.presentedFrame) }
-        XCTAssertEqual(maximumFrames[0].minX, 20)
-        XCTAssertEqual(maximumFrames[0].maxY, coordinatorTestDisplay.visibleFrame.maxY - 20)
-        XCTAssertEqual(maximumFrames[0].minY - maximumFrames[1].maxY, 20)
+        XCTAssertEqual(maximumFrames[0].minX, PortalSpacing.maximum.points)
+        XCTAssertEqual(
+            maximumFrames[0].maxY,
+            coordinatorTestDisplay.visibleFrame.maxY - PortalSpacing.maximum.points
+        )
+        XCTAssertEqual(
+            maximumFrames[0].minY - maximumFrames[1].maxY,
+            PortalSpacing.maximum.points
+        )
         XCTAssertEqual(factory.windows.flatMap(\.systemPlacementAnimations).last, true)
 
         XCTAssertTrue(coordinator.updatePortalAppearance(minimumAppearance))

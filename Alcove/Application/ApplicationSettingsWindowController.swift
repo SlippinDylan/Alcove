@@ -39,11 +39,11 @@ enum PortalSpacing: Int, CaseIterable, Sendable {
 
     var points: CGFloat {
         switch self {
-        case .minimum: 4
-        case .small: 8
-        case .medium: 12
-        case .large: 16
-        case .maximum: 20
+        case .minimum: 2
+        case .small: 4
+        case .medium: 6
+        case .large: 8
+        case .maximum: 10
         }
     }
 }
