@@ -206,11 +206,11 @@ final class PortalChromeMaterialView: NSView {
 
     private var staticSurfaceAlpha: CGFloat {
         switch backgroundStyle {
-        case .maximumTransparency: 0.52
-        case .highTransparency: 0.62
-        case .standard: 0.72
-        case .lowTransparency: 0.82
-        case .minimumTransparency: 0.90
+        case .maximumTransparency: 0.22
+        case .highTransparency: 0.32
+        case .standard: 0.42
+        case .lowTransparency: 0.52
+        case .minimumTransparency: 0.62
         }
     }
 
