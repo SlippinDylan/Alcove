@@ -337,13 +337,6 @@ final class PortalTests: XCTestCase {
         )
     }
 
-    func testGlobalBackgroundTypeHasStablePersistenceValues() {
-        XCTAssertEqual(
-            PortalBackgroundType.allCases.map(\.rawValue),
-            ["liquid_glass", "frosted_glass"]
-        )
-    }
-
     func testPinnedStateDefaultsAndUpdatesIndependentlyOfPlacement() throws {
         var portal = try makePortal(path: "/tmp/folder")
         let placement = portal.placement

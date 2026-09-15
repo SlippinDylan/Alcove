@@ -450,7 +450,6 @@ final class PortalViewController: NSViewController {
     }
 
     func updateAppearance(_ appearance: PortalAppearancePreferences) {
-        portalMaterialView.updateBackgroundType(appearance.backgroundType)
         portalMaterialView.updateBackgroundStyle(appearance.backgroundStyle)
         portalMaterialView.updateCornerRadius(appearance.cornerRadius.points)
     }

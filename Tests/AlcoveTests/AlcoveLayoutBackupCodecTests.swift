@@ -15,7 +15,6 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         portal.updateGridCapacity(try GridCapacity(columns: 5, rows: 2))
         let appearance = PortalAppearancePreferences(
             iconSize: .large,
-            backgroundType: .frostedGlass,
             backgroundStyle: .highTransparency,
             cornerRadius: .small,
             spacing: .maximum,
@@ -30,7 +29,7 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         let json = try XCTUnwrap(String(data: data, encoding: .utf8))
         XCTAssertTrue(json.contains("\"format\" : \"com.alcove.layout-backup\""))
         XCTAssertTrue(json.contains("\"version\" : 1"))
-        XCTAssertTrue(json.contains("\"background_type\" : \"frosted_glass\""))
+        XCTAssertFalse(json.contains("background_type"))
         XCTAssertTrue(json.contains("\"background_style\" : \"high_transparency\""))
         XCTAssertTrue(json.contains("\"kind\" : \"home_relative\""))
         XCTAssertTrue(json.contains("\"path\" : \"Repo\\/Alcove\""))
@@ -39,7 +38,6 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
 
         let backup = try AlcoveLayoutBackupCodec.decode(data, homeDirectory: home)
         XCTAssertEqual(backup.global.iconSize, .large)
-        XCTAssertEqual(backup.global.backgroundType, .frostedGlass)
         XCTAssertEqual(backup.global.backgroundStyle, .highTransparency)
         XCTAssertEqual(backup.global.cornerRadius, .small)
         XCTAssertEqual(backup.global.spacing, .maximum)
@@ -81,11 +79,6 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
             produces: .invalidIconSize(72)
         )
         try assertReplacement(
-            "\"background_type\":\"liquid_glass\"",
-            with: "\"background_type\":\"smoke\"",
-            produces: .invalidBackgroundType("smoke")
-        )
-        try assertReplacement(
             "\"background_style\":\"standard\"",
             with: "\"background_style\":\"opaque\"",
             produces: .invalidBackgroundStyle("opaque")
@@ -102,13 +95,10 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         )
     }
 
-    func testVersionOneBackupWithoutBackgroundTypeDefaultsToLiquidGlass() throws {
-        let backup = try decode(validJSON.replacingOccurrences(
-            of: "\"background_type\":\"liquid_glass\",",
-            with: ""
-        ))
+    func testVersionOneBackupIgnoresRetiredBackgroundType() throws {
+        let backup = try decode(validJSON)
 
-        XCTAssertEqual(backup.global.backgroundType, .liquidGlass)
+        XCTAssertEqual(backup.global.backgroundStyle, .standard)
     }
 
     func testDecodeRejectsInvalidPerPortalEnumValues() throws {

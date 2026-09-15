@@ -433,7 +433,6 @@ final class PortalCoordinatorTests: XCTestCase {
         XCTAssertEqual(factory.windows.count, 2)
         XCTAssertEqual(factory.windows[0].closeCount, 1)
         XCTAssertEqual(factory.windows[1].presentCount, 1)
-        XCTAssertEqual(factory.windows[1].updatedAppearances.last?.backgroundType, .frostedGlass)
         XCTAssertEqual(factory.windows[1].updatedAppearances.last?.spacing, .maximum)
     }
 
@@ -514,7 +513,6 @@ final class PortalCoordinatorTests: XCTestCase {
         AlcoveLayoutBackup(
             global: AlcoveLayoutBackupGlobal(
                 iconSize: .large,
-                backgroundType: .frostedGlass,
                 backgroundStyle: .highTransparency,
                 spacing: .maximum,
                 cornerRadius: .small,
@@ -1654,37 +1652,6 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         let saves = await store.savedSnapshots()
         XCTAssertEqual(saves.last?.map(\.backgroundStyle), [.standard, .lowTransparency])
-    }
-
-    @MainActor
-    func testGlobalBackgroundTypeUpdatesEveryWindowWithoutChangingPortalTints() async throws {
-        var first = try makePortal(path: "/tmp/first", x: 10)
-        first.updateTint(.red)
-        var second = try makePortal(path: "/tmp/second", x: 400)
-        second.updateTint(.blue)
-        let store = PortalStoreSpy(portals: [first, second])
-        let factory = PortalWindowFactorySpy()
-        let snapshot = try DisplaySnapshot(
-            displays: [coordinatorTestDisplay],
-            primaryDisplay: coordinatorTestDisplay.identity
-        )
-        let coordinator = PortalCoordinator(
-            store: store,
-            windowFactory: factory,
-            displaySnapshotProvider: { .success(snapshot) }
-        )
-        try await coordinator.restorePortals()
-        var appearance = PortalAppearancePreferences.defaults
-        appearance.backgroundType = .frostedGlass
-
-        XCTAssertTrue(coordinator.updatePortalAppearance(appearance))
-
-        XCTAssertEqual(coordinator.portalStates.map(\.tint), [.red, .blue])
-        XCTAssertTrue(factory.windows.allSatisfy {
-            $0.updatedAppearances.last?.backgroundType == .frostedGlass
-        })
-        let saves = await store.savedSnapshots()
-        XCTAssertTrue(saves.isEmpty)
     }
 
     @MainActor

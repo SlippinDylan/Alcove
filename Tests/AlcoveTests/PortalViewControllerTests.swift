@@ -234,7 +234,7 @@ final class PortalViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testGlobalFrostedTypeAndPortalStyleUpdateOnlySurfaceWithoutInvalidatingSelection() async throws {
+    func testGlobalTransparencyUpdateOnlyChangesStaticSurfaceWithoutInvalidatingSelection() async throws {
         let root = URL(fileURLWithPath: "/tmp/portal")
         let item = FileItem(
             url: root.appendingPathComponent("one"),
@@ -263,22 +263,14 @@ final class PortalViewControllerTests: XCTestCase {
                 .first
         )
 
-        var appearance = PortalAppearancePreferences.defaults
-        appearance.backgroundType = .frostedGlass
-        controller.updateAppearance(appearance)
-
         portal.updateBackgroundStyle(.lowTransparency)
         controller.updatePortal(portal)
 
         XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-        XCTAssertEqual(surface.materialPath, .frosted)
-        let effect = try XCTUnwrap(surface.materialView as? NSVisualEffectView)
-        XCTAssertEqual(effect.material, .underWindowBackground)
-        XCTAssertEqual(effect.blendingMode, .behindWindow)
-        XCTAssertEqual(effect.state, .active)
+        XCTAssertEqual(surface.materialPath, .translucent)
         XCTAssertEqual(
-            try XCTUnwrap(surface.surfaceTintView?.layer?.backgroundColor).alpha,
-            0.68,
+            try XCTUnwrap(surface.materialView?.layer?.backgroundColor).alpha,
+            0.82,
             accuracy: 0.001
         )
         XCTAssertEqual(controller.presentationState, .items(1))

@@ -51,7 +51,6 @@ enum PortalSpacing: Int, CaseIterable, Sendable {
 struct PortalAppearancePreferences: Equatable, Sendable {
     static let defaults = PortalAppearancePreferences(
         iconSize: .medium,
-        backgroundType: .liquidGlass,
         backgroundStyle: .standard,
         cornerRadius: .maximum,
         spacing: .medium,
@@ -59,7 +58,6 @@ struct PortalAppearancePreferences: Equatable, Sendable {
     )
 
     var iconSize: IconSize
-    var backgroundType: PortalBackgroundType
     var backgroundStyle: PortalBackgroundStyle
     var cornerRadius: PortalCornerRadius
     var spacing: PortalSpacing
@@ -67,14 +65,12 @@ struct PortalAppearancePreferences: Equatable, Sendable {
 
     init(
         iconSize: IconSize = .medium,
-        backgroundType: PortalBackgroundType = .liquidGlass,
         backgroundStyle: PortalBackgroundStyle = .standard,
         cornerRadius: PortalCornerRadius,
         spacing: PortalSpacing,
         shadowEnabled: Bool
     ) {
         self.iconSize = iconSize
-        self.backgroundType = backgroundType
         self.backgroundStyle = backgroundStyle
         self.cornerRadius = cornerRadius
         self.spacing = spacing
@@ -86,7 +82,6 @@ struct PortalAppearancePreferences: Equatable, Sendable {
 protocol ApplicationPreferencesControlling: AnyObject {
     var portalAppearance: PortalAppearancePreferences { get }
     @discardableResult func setPortalIconSize(_ iconSize: IconSize) -> Bool
-    @discardableResult func setPortalBackgroundType(_ backgroundType: PortalBackgroundType) -> Bool
     @discardableResult func setPortalBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) -> Bool
     @discardableResult func setPortalCornerRadius(_ cornerRadius: PortalCornerRadius) -> Bool
     @discardableResult func setPortalSpacing(_ spacing: PortalSpacing) -> Bool
@@ -98,7 +93,6 @@ protocol ApplicationPreferencesControlling: AnyObject {
 final class ApplicationPreferencesController: ApplicationPreferencesControlling {
     private enum Key {
         static let portalIconSize = "portalAppearance.iconSize"
-        static let portalBackgroundType = "portalAppearance.backgroundType"
         static let portalBackgroundStyle = "portalAppearance.backgroundStyle"
         static let portalCornerRadius = "portalAppearance.cornerRadius"
         static let portalSpacing = "portalAppearance.spacing"
@@ -114,7 +108,6 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
         let defaults = PortalAppearancePreferences.defaults
         userDefaults.register(defaults: [
             Key.portalIconSize: Double(defaults.iconSize.rawValue),
-            Key.portalBackgroundType: defaults.backgroundType.rawValue,
             Key.portalBackgroundStyle: defaults.backgroundStyle.rawValue,
             Key.portalCornerRadius: defaults.cornerRadius.rawValue,
             Key.portalSpacing: defaults.spacing.rawValue,
@@ -131,27 +124,13 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
         ) ?? defaults.iconSize
         let backgroundStyle = userDefaults.string(forKey: Key.portalBackgroundStyle)
             .flatMap(PortalBackgroundStyle.init(rawValue:)) ?? defaults.backgroundStyle
-        let backgroundType = userDefaults.string(forKey: Key.portalBackgroundType)
-            .flatMap(PortalBackgroundType.init(rawValue:)) ?? defaults.backgroundType
         portalAppearance = PortalAppearancePreferences(
             iconSize: iconSize,
-            backgroundType: backgroundType,
             backgroundStyle: backgroundStyle,
             cornerRadius: cornerRadius,
             spacing: spacing,
             shadowEnabled: userDefaults.bool(forKey: Key.portalShadowEnabled)
         )
-    }
-
-    @discardableResult
-    func setPortalBackgroundType(_ backgroundType: PortalBackgroundType) -> Bool {
-        guard portalAppearance.backgroundType != backgroundType else { return true }
-        var updatedAppearance = portalAppearance
-        updatedAppearance.backgroundType = backgroundType
-        guard onPortalAppearanceChanged?(updatedAppearance) != false else { return false }
-        portalAppearance = updatedAppearance
-        userDefaults.set(backgroundType.rawValue, forKey: Key.portalBackgroundType)
-        return true
     }
 
     @discardableResult
@@ -214,7 +193,6 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
     func replacePortalAppearanceFromImport(_ appearance: PortalAppearancePreferences) {
         portalAppearance = appearance
         userDefaults.set(Double(appearance.iconSize.rawValue), forKey: Key.portalIconSize)
-        userDefaults.set(appearance.backgroundType.rawValue, forKey: Key.portalBackgroundType)
         userDefaults.set(appearance.backgroundStyle.rawValue, forKey: Key.portalBackgroundStyle)
         userDefaults.set(appearance.cornerRadius.rawValue, forKey: Key.portalCornerRadius)
         userDefaults.set(appearance.spacing.rawValue, forKey: Key.portalSpacing)
@@ -560,15 +538,8 @@ final class ApplicationSettingsViewController: NSViewController {
             card: ApplicationSettingsCardView(rows: [
                 settingRow(
                     title: NSLocalizedString(
-                        "application.settings.background_type",
-                        comment: "Portal background type setting"
-                    ),
-                    control: backgroundTypeControl()
-                ),
-                settingRow(
-                    title: NSLocalizedString(
-                        "application.settings.glass_material",
-                        comment: "Portal background material strength setting"
+                        "application.settings.transparency",
+                        comment: "Portal background transparency setting"
                     ),
                     control: backgroundStyleSlider()
                 ),
@@ -745,34 +716,11 @@ final class ApplicationSettingsViewController: NSViewController {
             action: #selector(changeBackgroundStyle(_:))
         )
         slider.setAccessibilityLabel(NSLocalizedString(
-            "application.settings.glass_material",
-            comment: "Portal background material strength setting"
+            "application.settings.transparency",
+            comment: "Portal background transparency setting"
         ))
         slider.setAccessibilityValue(backgroundStyleTitle(values[selectedIndex]))
         return slider
-    }
-
-    private func backgroundTypeControl() -> NSStackView {
-        let selectedType = preferencesController.portalAppearance.backgroundType
-        let buttons = PortalBackgroundType.allCases.enumerated().map { index, type in
-            let button = NSButton(
-                radioButtonWithTitle: backgroundTypeTitle(type),
-                target: self,
-                action: #selector(changeBackgroundType(_:))
-            )
-            button.identifier = NSUserInterfaceItemIdentifier(
-                "application-settings.background-type.\(type.rawValue)"
-            )
-            button.tag = index
-            button.state = type == selectedType ? .on : .off
-            return button
-        }
-        let stack = NSStackView(views: buttons)
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 16
-        stack.setContentCompressionResistancePriority(.required, for: .horizontal)
-        return stack
     }
 
     private func discreteSlider(
@@ -1030,21 +978,6 @@ final class ApplicationSettingsViewController: NSViewController {
         }
     }
 
-    @objc private func changeBackgroundType(_ sender: NSButton) {
-        let values = PortalBackgroundType.allCases
-        guard values.indices.contains(sender.tag) else { return }
-        let backgroundType = values[sender.tag]
-        let accepted = preferencesController.setPortalBackgroundType(backgroundType)
-        let selectedType = accepted
-            ? backgroundType
-            : preferencesController.portalAppearance.backgroundType
-        guard let stack = sender.superview as? NSStackView else { return }
-        for case let button as NSButton in stack.arrangedSubviews {
-            guard values.indices.contains(button.tag) else { continue }
-            button.state = values[button.tag] == selectedType ? .on : .off
-        }
-    }
-
     @objc private func changeCornerRadius(_ sender: NSSlider) {
         let values = PortalCornerRadius.allCases
         let index = Int(sender.doubleValue.rounded())
@@ -1120,21 +1053,6 @@ final class ApplicationSettingsViewController: NSViewController {
             NSLocalizedString("application.settings.transparency.low", comment: "Low transparency")
         case .minimumTransparency:
             NSLocalizedString("application.settings.transparency.minimum", comment: "Minimum transparency")
-        }
-    }
-
-    private func backgroundTypeTitle(_ type: PortalBackgroundType) -> String {
-        switch type {
-        case .liquidGlass:
-            NSLocalizedString(
-                "application.settings.background_type.liquid_glass",
-                comment: "Liquid Glass portal background type"
-            )
-        case .frostedGlass:
-            NSLocalizedString(
-                "application.settings.background_type.frosted_glass",
-                comment: "Frosted Glass portal background type"
-            )
         }
     }
 

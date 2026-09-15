@@ -67,21 +67,21 @@ Each spike records its findings in `docs/SPIKE_<name>.md`. The candidate archite
 
 ---
 
-### Spike 0.4 — Liquid Glass and Accessibility
+### Spike 0.4 — Portal Background and Accessibility
 
-**Question:** Can `NSGlassEffectView` and `NSGlassEffectContainerView` be used for portal chrome on macOS 26+, while Reduce Transparency switches cleanly to an opaque accessibility surface?
+**Question:** Which background remains visually stable for a desktop-level Portal across Spaces while Reduce Transparency switches cleanly to an opaque accessibility surface?
 
 **Approach:**
-- On macOS 26: create a window with a tab bar and controls using `NSGlassEffectView` for the chrome area and `NSGlassEffectContainerView` to group them. Verify the glass effect renders correctly at desktop-icon window level.
+- Compare `NSGlassEffectView`, behind-window `NSVisualEffectView`, and a plain static translucent surface at the selected desktop window level and `.canJoinAllSpaces` behavior.
 - With Reduce Transparency enabled: create the same layout using an explicitly opaque AppKit surface.
 - Verify both approaches respect `Reduce Transparency` in Accessibility settings.
 - Measure the material behavior at the leading window strategies from Spike 0.1 rather than assuming one fixed level.
-- Confirm direct Glass construction at the macOS 26 deployment baseline.
+- Confirm the selected production surface uses no WindowServer backdrop sampling.
 
 **Exit Gate:**
-- [ ] `NSGlassEffectView` renders correctly on macOS 26 at desktop-icon level for chrome elements.
+- [x] Space-transition evidence rejects both dynamic backdrop surfaces and selects static translucency.
 - [x] The opaque accessibility surface preserves the same layout and ownership boundaries.
-- [ ] Both respect `Reduce Transparency`.
+- [x] Static translucency and the opaque accessibility surface respect Reduce Transparency.
 - [ ] Document the `@available` guard pattern and any layout differences.
 
 ---
@@ -414,9 +414,9 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - Menu-bar portal list and portal removal management.
 - Final loading, empty, missing-folder, and permission states plus unsupported-folder-location selection feedback.
 - Per-portal Small/Medium/Large icon sizing, fixed equal tile spacing, resize snap, and 3×1 minimum.
-- Per-portal five-step frosted-background control, persisted independently with an accessibility-driven opaque override.
+- Per-Portal tint with one application-global five-step static-background transparency control and an accessibility-driven opaque override.
 - Application-global five-step edge/inter-Portal spacing and corner radius, plus a system-shadow toggle; creation, dragging, live resize, and icon-preset resize reject collisions, while spacing changes preflight and animate a reversible runtime reflow of existing Portals.
-- Evidence-backed global Liquid Glass/Frosted Glass backgrounds on macOS 26+, per-Portal tint preservation, and an opaque Reduce Transparency surface.
+- Evidence-backed static translucent backgrounds on macOS 26+, per-Portal tint preservation, Space-transition stability, and an opaque Reduce Transparency surface.
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
 - Performance validation for defined NFR directory sizes.
 - Push/PR CI for checks, tests, and unsigned arm64 build verification without artifact publication.

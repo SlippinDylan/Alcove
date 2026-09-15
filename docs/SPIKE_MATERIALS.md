@@ -1,4 +1,4 @@
-# Spike 0.4 — macOS 26+ Liquid Glass Boundary
+# Spike 0.4 — macOS 26+ Portal Background Boundary
 
 ## Scope
 
@@ -15,6 +15,13 @@ macOS 26+ product baseline:
 The harness builds for `arm64-apple-macosx26.0` with Swift 6 complete strict
 concurrency and warnings as errors. Frosted Glass is a current macOS 26+ visual
 choice, not an older-system compatibility branch.
+
+The harness now records rejected alternatives rather than the production surface.
+Real Space-transition testing showed that both Liquid Glass and Frosted Glass
+temporarily fall back to gray when a Portal uses `.canJoinAllSpaces`. Removing that
+flag prevents the artifact but violates all-Space visibility, and moving windows
+after the transition produces a visible pop-in. Production therefore uses a plain
+static translucent background with no backdrop sampling.
 
 ## Architecture
 
@@ -51,11 +58,10 @@ controller ownership. `build.sh` produces an ad-hoc signed arm64 app whose
 
 ## Evidence and remaining validation
 
-Automated structural coverage establishes that Glass content uses the public
-`contentView` APIs, Frosted Glass uses the semantic window-background material,
-and Reduce Transparency removes either translucent material rather than dimming it.
-Production tests cover the complete Portal surface's style/tint mapping and rebuild.
+Automated harness coverage preserves the construction evidence for the rejected
+Glass/Frosted alternatives. Production tests cover static alpha/tint mapping,
+light/dark appearance, accessibility rebuild, and the opaque Reduce Transparency path.
 
-Manual validation remains required on macOS 26 and macOS 27 for wallpaper-driven
-appearance, active/inactive contrast at the desktop window level, Increase
-Contrast, Reduce Transparency, and performance with multiple Portals.
+Manual validation remains required on macOS 26 and macOS 27 for static-background
+appearance, active/inactive contrast at the desktop window level, Increase Contrast,
+Reduce Transparency, and performance with multiple Portals.

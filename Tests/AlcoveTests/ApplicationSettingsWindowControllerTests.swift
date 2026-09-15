@@ -59,15 +59,13 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         controller.setPortalCornerRadius(.small)
         controller.setPortalSpacing(.maximum)
         controller.setPortalIconSize(.large)
-        controller.setPortalBackgroundType(.frostedGlass)
         controller.setPortalBackgroundStyle(.highTransparency)
         controller.setPortalShadowEnabled(false)
         controller.setPortalShadowEnabled(false)
 
-        XCTAssertEqual(changes.count, 6)
+        XCTAssertEqual(changes.count, 5)
         let restored = ApplicationPreferencesController(userDefaults: defaults)
         XCTAssertEqual(restored.portalAppearance.iconSize, .large)
-        XCTAssertEqual(restored.portalAppearance.backgroundType, .frostedGlass)
         XCTAssertEqual(restored.portalAppearance.backgroundStyle, .highTransparency)
         XCTAssertEqual(restored.portalAppearance.cornerRadius, .small)
         XCTAssertEqual(restored.portalAppearance.spacing, .maximum)
@@ -102,7 +100,6 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         }
         let imported = PortalAppearancePreferences(
             iconSize: .large,
-            backgroundType: .frostedGlass,
             backgroundStyle: .minimumTransparency,
             cornerRadius: .small,
             spacing: .maximum,
@@ -156,34 +153,14 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertEqual(transparency.numberOfTickMarks, 5)
         XCTAssertTrue(contentSize.allowsTickMarkValuesOnly)
         XCTAssertTrue(transparency.allowsTickMarkValuesOnly)
-        let buttons = descendants(of: controller.settingsViewController.view)
-            .compactMap { $0 as? NSButton }
-        let liquid = try XCTUnwrap(buttons.first {
-            $0.identifier?.rawValue == "application-settings.background-type.liquid_glass"
+        XCTAssertFalse(descendants(of: controller.settingsViewController.view).contains {
+            $0.identifier?.rawValue.hasPrefix("application-settings.background-type") == true
         })
-        let frosted = try XCTUnwrap(buttons.first {
-            $0.identifier?.rawValue == "application-settings.background-type.frosted_glass"
-        })
-        let backgroundTypes = try XCTUnwrap(liquid.superview as? NSStackView)
-        let backgroundTypeRow = try XCTUnwrap(backgroundTypes.superview as? NSStackView)
-        controller.settingsViewController.view.layoutSubtreeIfNeeded()
-        XCTAssertEqual(
-            frosted.frame.maxX,
-            backgroundTypes.bounds.maxX,
-            accuracy: 1
-        )
-        XCTAssertEqual(backgroundTypes.frame.maxX, backgroundTypeRow.bounds.maxX, accuracy: 1)
-        XCTAssertEqual(liquid.state, .on)
-        XCTAssertEqual(frosted.state, .off)
-        frosted.performClick(nil)
-        XCTAssertEqual(preferences.portalAppearance.backgroundType, .frostedGlass)
-        XCTAssertEqual(liquid.state, .off)
-        XCTAssertEqual(frosted.state, .on)
         XCTAssertEqual(
             descendants(of: controller.settingsViewController.view).filter {
                 $0.identifier?.rawValue == "application-settings.row-separator"
             }.count,
-            4
+            3
         )
         controller.close()
     }

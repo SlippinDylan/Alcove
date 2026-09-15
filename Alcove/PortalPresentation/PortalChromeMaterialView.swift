@@ -2,8 +2,7 @@ import AlcoveCore
 import AppKit
 
 enum PortalChromeMaterialPath: Equatable {
-    case glass
-    case frosted
+    case translucent
     case opaque
 }
 
@@ -24,17 +23,8 @@ struct PortalAccessibilityOptions: Equatable {
 }
 
 enum PortalChromeMaterialResolver {
-    static func resolve(
-        backgroundType: PortalBackgroundType,
-        accessibility: PortalAccessibilityOptions
-    ) -> PortalChromeMaterialPath {
-        if accessibility.reduceTransparency {
-            return .opaque
-        }
-        return switch backgroundType {
-        case .liquidGlass: .glass
-        case .frostedGlass: .frosted
-        }
+    static func resolve(accessibility: PortalAccessibilityOptions) -> PortalChromeMaterialPath {
+        accessibility.reduceTransparency ? .opaque : .translucent
     }
 }
 
@@ -45,7 +35,6 @@ final class PortalChromeMaterialView: NSView {
     private let chromeContentView: NSView
     private let accessibilityProvider: AccessibilityProvider
     private let notificationCenter: NotificationCenter
-    private var backgroundType: PortalBackgroundType
     private var backgroundStyle: PortalBackgroundStyle
     private var portalTint: PortalTint
     private var surfaceCornerRadius: CGFloat
@@ -55,13 +44,11 @@ final class PortalChromeMaterialView: NSView {
 
     private(set) var materialPath: PortalChromeMaterialPath
     private(set) var materialView: NSView?
-    private(set) var surfaceTintView: NSView?
     private(set) var accessibility: PortalAccessibilityOptions
     private(set) var rebuildCount = 0
 
     init(
         contentView: NSView,
-        backgroundType: PortalBackgroundType = .liquidGlass,
         backgroundStyle: PortalBackgroundStyle = .standard,
         portalTint: PortalTint = .default,
         cornerRadius: CGFloat = 24,
@@ -73,15 +60,11 @@ final class PortalChromeMaterialView: NSView {
         chromeContentView = contentView
         self.accessibilityProvider = accessibilityProvider
         self.notificationCenter = notificationCenter
-        self.backgroundType = backgroundType
         self.backgroundStyle = backgroundStyle
         self.portalTint = portalTint
         surfaceCornerRadius = cornerRadius
         accessibility = accessibilityProvider()
-        materialPath = PortalChromeMaterialResolver.resolve(
-            backgroundType: backgroundType,
-            accessibility: accessibility
-        )
+        materialPath = PortalChromeMaterialResolver.resolve(accessibility: accessibility)
         super.init(frame: .zero)
         wantsLayer = true
         layer?.cornerRadius = cornerRadius
@@ -104,15 +87,11 @@ final class PortalChromeMaterialView: NSView {
 
     func rebuildMaterial() {
         accessibility = accessibilityProvider()
-        materialPath = PortalChromeMaterialResolver.resolve(
-            backgroundType: backgroundType,
-            accessibility: accessibility
-        )
+        materialPath = PortalChromeMaterialResolver.resolve(accessibility: accessibility)
         chromeContentView.removeFromSuperview()
         NSLayoutConstraint.deactivate(materialConstraints)
         materialConstraints = []
         materialView?.removeFromSuperview()
-        surfaceTintView = nil
 
         let material = makeMaterialView()
         material.translatesAutoresizingMaskIntoConstraints = false
@@ -135,12 +114,6 @@ final class PortalChromeMaterialView: NSView {
         applySurfaceStyle()
     }
 
-    func updateBackgroundType(_ backgroundType: PortalBackgroundType) {
-        guard self.backgroundType != backgroundType else { return }
-        self.backgroundType = backgroundType
-        rebuildMaterial()
-    }
-
     func updatePortalTint(_ portalTint: PortalTint) {
         guard self.portalTint != portalTint else { return }
         self.portalTint = portalTint
@@ -152,9 +125,6 @@ final class PortalChromeMaterialView: NSView {
         surfaceCornerRadius = cornerRadius
         layer?.cornerRadius = cornerRadius
         materialView?.layer?.cornerRadius = cornerRadius
-        if let glass = materialView as? NSGlassEffectView {
-            glass.cornerRadius = cornerRadius
-        }
     }
 
     func startObserving() {
@@ -185,32 +155,12 @@ final class PortalChromeMaterialView: NSView {
 
     private func makeMaterialView() -> NSView {
         switch materialPath {
-        case .glass:
-            let glass = NSGlassEffectView()
-            glass.cornerRadius = cornerRadius
-            glass.style = .regular
-            glass.contentView = chromeContentView
-            return glass
-        case .frosted:
-            let effect = NSVisualEffectView()
-            effect.material = .underWindowBackground
-            effect.blendingMode = .behindWindow
-            effect.state = .active
-            effect.wantsLayer = true
-            effect.layer?.cornerRadius = cornerRadius
-            effect.layer?.masksToBounds = true
-            let tint = PortalSurfaceTintView()
-            tint.translatesAutoresizingMaskIntoConstraints = false
-            effect.addSubview(tint)
-            installChromeContent(in: effect)
-            NSLayoutConstraint.activate([
-                tint.topAnchor.constraint(equalTo: effect.topAnchor),
-                tint.leadingAnchor.constraint(equalTo: effect.leadingAnchor),
-                tint.trailingAnchor.constraint(equalTo: effect.trailingAnchor),
-                tint.bottomAnchor.constraint(equalTo: effect.bottomAnchor),
-            ])
-            surfaceTintView = tint
-            return effect
+        case .translucent:
+            let translucent = PortalStaticTranslucentChromeView()
+            translucent.layer?.cornerRadius = cornerRadius
+            translucent.layer?.masksToBounds = true
+            installChromeContent(in: translucent)
+            return translucent
         case .opaque:
             let opaque = PortalOpaqueChromeView()
             opaque.layer?.cornerRadius = cornerRadius
@@ -241,62 +191,26 @@ final class PortalChromeMaterialView: NSView {
         }
     }
 
-    private var cornerRadius: CGFloat {
-        surfaceCornerRadius
-    }
-
     private func applySurfaceStyle() {
-        alphaValue = 1
-        switch materialPath {
-        case .glass:
-            guard let glass = materialView as? NSGlassEffectView else { return }
-            applyGlassSurfaceStyle(glass)
-        case .frosted:
-            surfaceTintView?.layer?.backgroundColor = frostedSurfaceTintColor
-                .withAlphaComponent(frostedTintAlpha)
-                .cgColor
-        case .opaque:
-            break
-        }
+        guard materialPath == .translucent else { return }
+        materialView?.layer?.backgroundColor = staticSurfaceColor
+            .withAlphaComponent(staticSurfaceAlpha)
+            .cgColor
     }
 
-    private func applyGlassSurfaceStyle(_ glass: NSGlassEffectView) {
-        glass.style = switch backgroundStyle {
-        case .maximumTransparency, .highTransparency:
-            .clear
-        case .standard, .lowTransparency, .minimumTransparency:
-            .regular
-        }
+    private var staticSurfaceColor: NSColor {
+        let neutral = isDarkAppearance ? NSColor.black : NSColor.white
+        guard portalTint != .default else { return neutral }
+        return neutral.blended(withFraction: 0.20, of: surfaceTintColor) ?? neutral
+    }
 
-        let tintAlpha: CGFloat?
-        if portalTint == .default {
-            tintAlpha = switch backgroundStyle {
-            case .maximumTransparency, .standard:
-                nil
-            case .highTransparency:
-                0.06
-            case .lowTransparency:
-                0.12
-            case .minimumTransparency:
-                0.20
-            }
-        } else {
-            tintAlpha = switch backgroundStyle {
-            case .maximumTransparency:
-                0.04
-            case .highTransparency:
-                0.08
-            case .standard:
-                0.16
-            case .lowTransparency:
-                0.26
-            case .minimumTransparency:
-                0.34
-            }
-        }
-
-        glass.tintColor = tintAlpha.map {
-            surfaceTintColor.withAlphaComponent($0)
+    private var staticSurfaceAlpha: CGFloat {
+        switch backgroundStyle {
+        case .maximumTransparency: 0.52
+        case .highTransparency: 0.62
+        case .standard: 0.72
+        case .lowTransparency: 0.82
+        case .minimumTransparency: 0.90
         }
     }
 
@@ -310,37 +224,17 @@ final class PortalChromeMaterialView: NSView {
         )
     }
 
-    private var frostedSurfaceTintColor: NSColor {
-        guard portalTint == .default else { return surfaceTintColor }
-        return isDarkAppearance ? .black : .white
-    }
-
-    private var frostedTintAlpha: CGFloat {
-        if portalTint == .default {
-            return switch backgroundStyle {
-            case .maximumTransparency: 0.20
-            case .highTransparency: 0.36
-            case .standard: 0.52
-            case .lowTransparency: 0.68
-            case .minimumTransparency: 0.82
-            }
-        }
-        return switch backgroundStyle {
-        case .maximumTransparency: 0.04
-        case .highTransparency: 0.08
-        case .standard: 0.16
-        case .lowTransparency: 0.26
-        case .minimumTransparency: 0.34
-        }
-    }
-
     private var isDarkAppearance: Bool {
         effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    }
+
+    private var cornerRadius: CGFloat {
+        surfaceCornerRadius
     }
 }
 
 @MainActor
-private final class PortalSurfaceTintView: NSView {
+private final class PortalStaticTranslucentChromeView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
@@ -348,10 +242,6 @@ private final class PortalSurfaceTintView: NSView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
-        nil
-    }
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
         nil
     }
 }
