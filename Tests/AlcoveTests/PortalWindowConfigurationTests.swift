@@ -279,6 +279,40 @@ final class PortalWindowConfigurationTests: XCTestCase {
     }
 
     @MainActor
+    func testAnimatedSystemPlacementDoesNotCommitAsUserResize() throws {
+        let portal = try Portal(
+            folderURL: URL(fileURLWithPath: "/tmp/portal"),
+            frame: NSRect(x: 20, y: 30, width: 428, height: 316),
+            display: DisplayDescriptor(
+                identity: DisplayIdentity(rawValue: "test-display"),
+                visibleFrame: NSRect(x: 0, y: 0, width: 1440, height: 900)
+            )
+        )
+        let controller = PortalWindowController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(),
+            initialFrame: portal.frame
+        )
+        controller.present()
+        defer { controller.close() }
+        let window = try XCTUnwrap(controller.window as? PortalWindow)
+        var resizeCommitCount = 0
+        controller.onUserResizeCommit = { _, _ in resizeCommitCount += 1 }
+
+        let movedFrame = portal.frame.offsetBy(dx: 20, dy: -20)
+        XCTAssertTrue(controller.applySystemPlacement(frame: movedFrame, animated: true))
+        let resizedFrame = NSRect(
+            origin: movedFrame.origin,
+            size: NSSize(width: movedFrame.width + 40, height: movedFrame.height + 40)
+        )
+        XCTAssertTrue(controller.applySystemPlacement(frame: resizedFrame, animated: true))
+
+        XCTAssertEqual(window.frame, resizedFrame)
+        XCTAssertFalse(window.isUserPlacementInteractionActive)
+        XCTAssertEqual(resizeCommitCount, 0)
+    }
+
+    @MainActor
     func testControllerSnapsContentSizeBeforeCommittingLiveResize() throws {
         let portal = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/portal"),

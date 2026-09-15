@@ -65,6 +65,7 @@ final class PortalWindow: NSWindow {
     private let pointerLocationProvider: () -> NSPoint
     private var placementTracker = PortalWindowUserPlacementTracker()
     private var isPerformingLiveResize = false
+    private(set) var isPerformingSystemPlacement = false
     private var initialLiveResizeFrame: NSRect?
     private var lastValidLiveResizeFrame: NSRect?
     private var isRestoringLiveResizeFrame = false
@@ -80,6 +81,10 @@ final class PortalWindow: NSWindow {
 
     var isUserPlacementInteractionActive: Bool {
         placementTracker.isTracking || isPerformingLiveResize
+    }
+
+    var isUserResizeActive: Bool {
+        isPerformingLiveResize
     }
 
     var hasLiveResizeGeometryChanged: Bool {
@@ -160,6 +165,8 @@ final class PortalWindow: NSWindow {
         guard !isUserPlacementInteractionActive else {
             return false
         }
+        isPerformingSystemPlacement = true
+        defer { isPerformingSystemPlacement = false }
         setFrame(frame, display: true, animate: animated)
         return true
     }

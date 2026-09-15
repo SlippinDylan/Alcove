@@ -170,7 +170,11 @@ extension PortalWindowController: NSWindowDelegate {
 
     func windowWillStartLiveResize(_ notification: Notification) {
         pendingResizeCapacity = nil
-        (window as? PortalWindow)?.beginUserResize()
+        guard let portalWindow = window as? PortalWindow,
+              !portalWindow.isPerformingSystemPlacement else {
+            return
+        }
+        portalWindow.beginUserResize()
     }
 
     func windowWillResize(
@@ -216,7 +220,10 @@ extension PortalWindowController: NSWindowDelegate {
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
-        guard let portalWindow = window as? PortalWindow else { return }
+        guard let portalWindow = window as? PortalWindow,
+              portalWindow.isUserResizeActive else {
+            return
+        }
         guard portalWindow.hasLiveResizeGeometryChanged else {
             pendingResizeCapacity = nil
             portalWindow.endUserResize()
