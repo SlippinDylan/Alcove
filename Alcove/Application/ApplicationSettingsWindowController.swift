@@ -771,7 +771,6 @@ final class ApplicationSettingsViewController: NSViewController {
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.spacing = 16
-        stack.setContentHuggingPriority(.required, for: .horizontal)
         stack.setContentCompressionResistancePriority(.required, for: .horizontal)
         return stack
     }
@@ -907,8 +906,11 @@ final class ApplicationSettingsViewController: NSViewController {
     private func settingRow(title: String, control: NSView) -> NSStackView {
         let label = NSTextField(labelWithString: title)
         label.alignment = .left
-        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let row = NSStackView(views: [label, control])
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        control.setContentHuggingPriority(.required, for: .horizontal)
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let row = NSStackView(views: [label, spacer, control])
         row.orientation = .horizontal
         row.distribution = .fill
         row.alignment = .centerY

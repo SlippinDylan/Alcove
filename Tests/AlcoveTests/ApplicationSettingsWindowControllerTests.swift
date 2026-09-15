@@ -168,10 +168,11 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         let backgroundTypeRow = try XCTUnwrap(backgroundTypes.superview as? NSStackView)
         controller.settingsViewController.view.layoutSubtreeIfNeeded()
         XCTAssertEqual(
-            backgroundTypes.frame.maxX,
-            backgroundTypeRow.bounds.maxX,
+            frosted.frame.maxX,
+            backgroundTypes.bounds.maxX,
             accuracy: 1
         )
+        XCTAssertEqual(backgroundTypes.frame.maxX, backgroundTypeRow.bounds.maxX, accuracy: 1)
         XCTAssertEqual(liquid.state, .on)
         XCTAssertEqual(frosted.state, .off)
         frosted.performClick(nil)

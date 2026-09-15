@@ -278,7 +278,7 @@ final class PortalViewControllerTests: XCTestCase {
         XCTAssertEqual(effect.state, .active)
         XCTAssertEqual(
             try XCTUnwrap(surface.surfaceTintView?.layer?.backgroundColor).alpha,
-            0.26,
+            0.48,
             accuracy: 0.001
         )
         XCTAssertEqual(controller.presentationState, .items(1))

@@ -252,15 +252,8 @@ final class PortalChromeMaterialView: NSView {
             guard let glass = materialView as? NSGlassEffectView else { return }
             applyGlassSurfaceStyle(glass)
         case .frosted:
-            let tintAlpha: CGFloat = switch backgroundStyle {
-            case .maximumTransparency: 0.04
-            case .highTransparency: 0.08
-            case .standard: 0.16
-            case .lowTransparency: 0.26
-            case .minimumTransparency: 0.34
-            }
             surfaceTintView?.layer?.backgroundColor = frostedSurfaceTintColor
-                .withAlphaComponent(tintAlpha)
+                .withAlphaComponent(frostedTintAlpha)
                 .cgColor
         case .opaque:
             break
@@ -320,6 +313,25 @@ final class PortalChromeMaterialView: NSView {
     private var frostedSurfaceTintColor: NSColor {
         guard portalTint == .default else { return surfaceTintColor }
         return isDarkAppearance ? .black : .white
+    }
+
+    private var frostedTintAlpha: CGFloat {
+        if portalTint == .default {
+            return switch backgroundStyle {
+            case .maximumTransparency: 0.12
+            case .highTransparency: 0.24
+            case .standard: 0.36
+            case .lowTransparency: 0.48
+            case .minimumTransparency: 0.60
+            }
+        }
+        return switch backgroundStyle {
+        case .maximumTransparency: 0.04
+        case .highTransparency: 0.08
+        case .standard: 0.16
+        case .lowTransparency: 0.26
+        case .minimumTransparency: 0.34
+        }
     }
 
     private var isDarkAppearance: Bool {

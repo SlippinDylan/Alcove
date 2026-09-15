@@ -235,7 +235,7 @@ Tab 从左侧改为水平居中后，布局时机和材质层级共同导致单�
 
 macOS 26+ 的标准默认表面直接使用 `.regular` `NSGlassEffectView`，`tintColor == nil`，由系统根据壁纸决定原生 Glass 外观。最透明/较透明档使用 `.clear`，较不透明档使用 `.regular` 加轻量中性 tint；彩色预设通过 `NSGlassEffectView.tintColor` 着色，不叠加普通颜色 View。不要通过降低整个材质 View 的 alpha 调透明度，否则 Glass 强度也会丢失。
 
-全局背景类型另有“毛玻璃”：使用一层 active `.underWindowBackground` `NSVisualEffectView` 和 `.behindWindow`，对面板后的桌面做整块模糊；五档材质控制内容下方 tint 的强度。默认 tint 在浅色外观使用白色、深色外观使用黑色，避免固定中灰与壁纸混合后显得灰黄；每个面板原有彩色 tint 继续独立保存并原样生效。两种类型都由 UserDefaults 和 layout backup 的可选 `background_type` 保存；旧 v1 备份缺少该字段时恢复为 Liquid Glass。
+全局背景类型另有“毛玻璃”：使用一层 active `.underWindowBackground` `NSVisualEffectView` 和 `.behindWindow`，对面板后的桌面做整块模糊；五档材质控制内容下方 tint 的强度。默认 tint 在浅色外观使用更强的白色曲线、深色外观使用黑色曲线，抵消系统材质吸收壁纸颜色后产生的灰黄感；每个面板原有彩色 tint 继续独立保存并使用较轻的彩色曲线。两种类型都由 UserDefaults 和 layout backup 的可选 `background_type` 保存；旧 v1 备份缺少该字段时恢复为 Liquid Glass。
 
 ### 6.4 图标尺寸只有三个稳定档位
 
