@@ -108,11 +108,11 @@ test('reports main CI success and release workflow failure', () => {
   assert.equal(releaseFailure.color, 'red');
 });
 
-test('reports CI start and suppresses Release planning start', () => {
+test('reports CI request and suppresses Release planning request', () => {
   const sha = 'a'.repeat(40);
-  const ciStarted = buildNotification('workflow_run', {
+  const ciRequested = buildNotification('workflow_run', {
     repository,
-    action: 'in_progress',
+    action: 'requested',
     workflow_run: {
       name: 'CI',
       event: 'pull_request',
@@ -122,13 +122,13 @@ test('reports CI start and suppresses Release planning start', () => {
       html_url: 'https://github.com/owner/Alcove/actions/runs/12',
     },
   });
-  assert.equal(ciStarted.title, 'Alcove CI 已开始');
-  assert.equal(ciStarted.color, 'blue');
-  assert.ok(ciStarted.details.includes('提交：aaaaaaa'));
+  assert.equal(ciRequested.title, 'Alcove CI 已触发');
+  assert.equal(ciRequested.color, 'blue');
+  assert.ok(ciRequested.details.includes('提交：aaaaaaa'));
 
   assert.equal(buildNotification('workflow_run', {
     repository,
-    action: 'in_progress',
+    action: 'requested',
     workflow_run: { name: 'Release', head_branch: 'main' },
   }), null);
 });

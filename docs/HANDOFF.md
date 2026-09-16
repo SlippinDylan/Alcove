@@ -310,7 +310,7 @@ AlcoveCore 与 hosted app 测试；现行构建命令与制品契约以 CI workf
 
 ### 7.4 发布自动化验证
 
-- 发布清单与飞书通知共 22 项 Node 测试通过；飞书通知覆盖 CI 开始/完成、Release 打包开始与发布成功。actionlint 1.7.12 与 ShellCheck 0.11.0 对三条 workflow 检查通过，zizmor 1.30.1 在三个已解释的可信触发器 ignore 之外无发现。
+- 发布清单与飞书通知共 22 项 Node 测试通过；飞书通知覆盖 CI 触发/完成、Release 打包开始与发布成功。actionlint 1.7.12 与 ShellCheck 0.11.0 对三条 workflow 检查通过，zizmor 1.30.1 在三个已解释的可信触发器 ignore 之外无发现。
 - AlcoveCore 159 项和 hosted app 282 项测试通过；hosted tests 在 macOS 26.6.2 上执行。
 - 本地 Xcode 27 unsigned Release 已确认为单一 arm64 slice、minimum macOS 26.0、SDK 27.0、`LSUIElement=true`，且 warnings-as-errors 构建通过。
 - Xcode 27 编译已通过；macOS 27 真机 linked-on behavior 和系统矩阵仍按未验证风险处理。
