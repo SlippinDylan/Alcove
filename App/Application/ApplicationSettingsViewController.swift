@@ -46,6 +46,7 @@ final class ApplicationSettingsViewController: NSViewController {
     }
 
     private let launchAtLoginController: any LaunchAtLoginControlling
+    private let languageController: any ApplicationLanguageControlling
     private let preferencesController: any ApplicationPreferencesControlling
     private let layoutBackupController: any ApplicationLayoutBackupControlling
     private let panelPositionRepairer: any PanelPositionRepairing
@@ -57,6 +58,7 @@ final class ApplicationSettingsViewController: NSViewController {
 
     init(
         launchAtLoginController: any LaunchAtLoginControlling,
+        languageController: any ApplicationLanguageControlling,
         preferencesController: any ApplicationPreferencesControlling,
         layoutBackupController: any ApplicationLayoutBackupControlling,
         panelPositionRepairer: any PanelPositionRepairing,
@@ -64,6 +66,7 @@ final class ApplicationSettingsViewController: NSViewController {
         applicationIcon: NSImage
     ) {
         self.launchAtLoginController = launchAtLoginController
+        self.languageController = languageController
         self.preferencesController = preferencesController
         self.layoutBackupController = layoutBackupController
         self.panelPositionRepairer = panelPositionRepairer
@@ -157,6 +160,42 @@ final class ApplicationSettingsViewController: NSViewController {
             ),
             card: ApplicationSettingsCardView(rows: [row])
         )
+        addSection(
+            title: NSLocalizedString(
+                "application.settings.language.section",
+                comment: "Language settings section"
+            ),
+            card: ApplicationSettingsCardView(rows: [
+                settingRow(
+                    title: NSLocalizedString(
+                        "application.settings.language",
+                        comment: "Application language setting"
+                    ),
+                    control: languagePopUpButton()
+                ),
+            ])
+        )
+    }
+
+    private func languagePopUpButton() -> NSPopUpButton {
+        let popUpButton = NSPopUpButton(frame: .zero, pullsDown: false)
+        popUpButton.identifier = NSUserInterfaceItemIdentifier("application-settings.language")
+        popUpButton.target = self
+        popUpButton.action = #selector(changeLanguage(_:))
+        for language in ApplicationLanguage.allCases {
+            popUpButton.addItem(withTitle: languageTitle(language))
+            popUpButton.lastItem?.representedObject = language.rawValue
+        }
+        if let selectedIndex = ApplicationLanguage.allCases.firstIndex(
+            of: languageController.selectedLanguage
+        ) {
+            popUpButton.selectItem(at: selectedIndex)
+        }
+        popUpButton.setAccessibilityLabel(NSLocalizedString(
+            "application.settings.language",
+            comment: "Application language setting"
+        ))
+        return popUpButton
     }
 
     private func showStyleSettings() {
@@ -526,6 +565,58 @@ final class ApplicationSettingsViewController: NSViewController {
         } catch {
             sender.state = launchAtLoginController.isEnabled ? .on : .off
             presentLaunchAtLoginError(error)
+        }
+    }
+
+    @objc private func changeLanguage(_ sender: NSPopUpButton) {
+        guard
+            let rawValue = sender.selectedItem?.representedObject as? String,
+            let language = ApplicationLanguage(rawValue: rawValue),
+            languageController.setSelectedLanguage(language)
+        else {
+            return
+        }
+        presentLanguageRestartPrompt()
+    }
+
+    private func presentLanguageRestartPrompt() {
+        let alert = NSAlert()
+        alert.messageText = NSLocalizedString(
+            "application.settings.language.restart_title",
+            comment: "Restart required after an application language change"
+        )
+        alert.informativeText = NSLocalizedString(
+            "application.settings.language.restart_message",
+            comment: "Application language restart explanation"
+        )
+        alert.addButton(withTitle: NSLocalizedString(
+            "application.settings.language.quit",
+            comment: "Quit the application after changing its language"
+        ))
+        alert.addButton(withTitle: NSLocalizedString(
+            "application.settings.language.later",
+            comment: "Keep the application running after changing its language"
+        ))
+        guard let window = view.window else { return }
+        alert.beginSheetModal(for: window) { response in
+            guard response == .alertFirstButtonReturn else { return }
+            NSApplication.shared.terminate(nil)
+        }
+    }
+
+    private func languageTitle(_ language: ApplicationLanguage) -> String {
+        switch language {
+        case .system:
+            NSLocalizedString(
+                "application.settings.language.system",
+                comment: "Follow the system application language"
+            )
+        case .english:
+            "English"
+        case .simplifiedChinese:
+            "简体中文"
+        case .traditionalChinese:
+            "繁體中文"
         }
     }
 

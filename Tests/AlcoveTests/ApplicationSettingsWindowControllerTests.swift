@@ -41,6 +41,34 @@ private final class PanelPositionRepairerSpy: PanelPositionRepairing {
 
 final class ApplicationSettingsWindowControllerTests: XCTestCase {
     @MainActor
+    func testApplicationLanguagePreferencePersistsOverridesAndRestoresSystemDefault() throws {
+        let suiteName = "ApplicationLanguageControllerTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let controller = ApplicationLanguageController(userDefaults: defaults)
+
+        XCTAssertEqual(controller.selectedLanguage, .system)
+        XCTAssertTrue(controller.setSelectedLanguage(.english))
+        XCTAssertEqual(controller.selectedLanguage, .english)
+        XCTAssertEqual(defaults.string(forKey: "application.language"), "en")
+        XCTAssertEqual(defaults.stringArray(forKey: "AppleLanguages"), ["en"])
+        XCTAssertFalse(controller.setSelectedLanguage(.english))
+
+        XCTAssertTrue(controller.setSelectedLanguage(.simplifiedChinese))
+        XCTAssertEqual(controller.selectedLanguage, .simplifiedChinese)
+        XCTAssertEqual(defaults.stringArray(forKey: "AppleLanguages"), ["zh-Hans"])
+
+        XCTAssertTrue(controller.setSelectedLanguage(.traditionalChinese))
+        XCTAssertEqual(controller.selectedLanguage, .traditionalChinese)
+        XCTAssertEqual(defaults.stringArray(forKey: "AppleLanguages"), ["zh-Hant"])
+
+        XCTAssertTrue(controller.setSelectedLanguage(.system))
+        XCTAssertEqual(controller.selectedLanguage, .system)
+        XCTAssertEqual(defaults.string(forKey: "application.language"), "system")
+        XCTAssertNil(defaults.persistentDomain(forName: suiteName)?["AppleLanguages"])
+    }
+
+    @MainActor
     func testPortalAppearancePreferencesUseDefaultsAndPersistFiveStepValues() throws {
         let suiteName = "ApplicationSettingsWindowControllerTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -314,6 +342,33 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
 
         XCTAssertEqual(service.requestedValues, [true])
         XCTAssertEqual(toggle.state, .on)
+        controller.close()
+    }
+
+    @MainActor
+    func testGeneralSettingsExposeFourApplicationLanguageChoices() throws {
+        let suiteName = "ApplicationLanguageSettingsTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let languageController = ApplicationLanguageController(userDefaults: defaults)
+        languageController.setSelectedLanguage(.english)
+        let controller = ApplicationSettingsWindowController(
+            launchAtLoginController: LaunchAtLoginControllerSpy(),
+            languageController: languageController,
+            metadata: ApplicationMetadata(infoDictionary: [:]),
+            applicationIcon: NSImage(size: NSSize(width: 128, height: 128))
+        )
+        let popUpButton = try XCTUnwrap(
+            descendants(of: controller.settingsViewController.view)
+                .compactMap { $0 as? NSPopUpButton }
+                .first { $0.identifier?.rawValue == "application-settings.language" }
+        )
+
+        XCTAssertEqual(
+            popUpButton.itemArray.compactMap { $0.representedObject as? String },
+            ApplicationLanguage.allCases.map(\.rawValue)
+        )
+        XCTAssertEqual(popUpButton.selectedItem?.representedObject as? String, "en")
         controller.close()
     }
 

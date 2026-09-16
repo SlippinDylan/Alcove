@@ -9,6 +9,7 @@ final class ApplicationSettingsWindowController: NSWindowController {
 
     init(
         launchAtLoginController: any LaunchAtLoginControlling = LaunchAtLoginController(),
+        languageController: any ApplicationLanguageControlling = ApplicationLanguageController(),
         preferencesController: any ApplicationPreferencesControlling = ApplicationPreferencesController(),
         layoutBackupController: any ApplicationLayoutBackupControlling = DisabledApplicationLayoutBackupController(),
         panelPositionRepairer: any PanelPositionRepairing = DisabledPanelPositionRepairer(),
@@ -17,6 +18,7 @@ final class ApplicationSettingsWindowController: NSWindowController {
     ) {
         let settingsViewController = ApplicationSettingsViewController(
             launchAtLoginController: launchAtLoginController,
+            languageController: languageController,
             preferencesController: preferencesController,
             layoutBackupController: layoutBackupController,
             panelPositionRepairer: panelPositionRepairer,

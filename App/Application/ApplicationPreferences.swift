@@ -229,6 +229,52 @@ final class LaunchAtLoginController: LaunchAtLoginControlling {
     }
 }
 
+enum ApplicationLanguage: String, CaseIterable, Sendable {
+    case system
+    case english = "en"
+    case simplifiedChinese = "zh-Hans"
+    case traditionalChinese = "zh-Hant"
+}
+
+@MainActor
+protocol ApplicationLanguageControlling: AnyObject {
+    var selectedLanguage: ApplicationLanguage { get }
+    @discardableResult func setSelectedLanguage(_ language: ApplicationLanguage) -> Bool
+}
+
+@MainActor
+final class ApplicationLanguageController: ApplicationLanguageControlling {
+    private enum Key {
+        static let selection = "application.language"
+        static let appleLanguages = "AppleLanguages"
+    }
+
+    private let userDefaults: UserDefaults
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+        userDefaults.register(defaults: [Key.selection: ApplicationLanguage.system.rawValue])
+    }
+
+    var selectedLanguage: ApplicationLanguage {
+        userDefaults.string(forKey: Key.selection)
+            .flatMap(ApplicationLanguage.init(rawValue:)) ?? .system
+    }
+
+    @discardableResult
+    func setSelectedLanguage(_ language: ApplicationLanguage) -> Bool {
+        guard language != selectedLanguage else { return false }
+        userDefaults.set(language.rawValue, forKey: Key.selection)
+        switch language {
+        case .system:
+            userDefaults.removeObject(forKey: Key.appleLanguages)
+        case .english, .simplifiedChinese, .traditionalChinese:
+            userDefaults.set([language.rawValue], forKey: Key.appleLanguages)
+        }
+        return true
+    }
+}
+
 struct ApplicationMetadata: Equatable {
     let name: String
     let version: String

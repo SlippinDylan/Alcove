@@ -59,6 +59,13 @@
 "application.settings.startup" = "啟動";
 "application.settings.launch_at_login" = "登入時自動啟動";
 "application.settings.launch_at_login_error" = "無法更改登入啟動設定";
+"application.settings.language.section" = "語言";
+"application.settings.language" = "App 語言";
+"application.settings.language.system" = "跟隨系統";
+"application.settings.language.restart_title" = "結束 Alcove 以更改語言？";
+"application.settings.language.restart_message" = "下次開啟 Alcove 時將使用所選語言。";
+"application.settings.language.quit" = "結束 Alcove";
+"application.settings.language.later" = "稍後";
 "application.settings.portal_appearance" = "面板外觀";
 "application.settings.background" = "背景";
 "application.settings.content_size" = "內容大小";
