@@ -53,7 +53,7 @@ final class StatusMenuController: StatusMenuControlling {
         let item = statusBar.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
             if let image = NSImage(
-                systemSymbolName: "folder",
+                systemSymbolName: "tray.full",
                 accessibilityDescription: "Alcove"
             ) {
                 image.isTemplate = true

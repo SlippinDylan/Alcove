@@ -568,7 +568,7 @@ final class FileGridViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testCellUsesSeparateSelectionRegionsAndTwoLineCharacterWrapping() throws {
+    func testCellUsesFixedTwoLineNameWithMiddleTruncationOnTheSecondLine() throws {
         let item = FileItem(
             url: URL(fileURLWithPath: "/tmp/Sunrise_会员维护模型业务规则_v1.2.md"),
             name: "Sunrise_会员维护模型业务规则_v1.2.md",
@@ -588,12 +588,31 @@ final class FileGridViewControllerTests: XCTestCase {
         cell.view.frame = NSRect(origin: .zero, size: metrics.itemSize)
         cell.view.layoutSubtreeIfNeeded()
 
-        XCTAssertEqual(cell.nameLabel.lineBreakMode, .byCharWrapping)
-        XCTAssertEqual(cell.nameLabel.maximumNumberOfLines, 2)
+        XCTAssertEqual(cell.nameLabel.lineBreakMode, .byClipping)
+        XCTAssertEqual(cell.nameLabel.maximumNumberOfLines, 1)
+        XCTAssertEqual(cell.trailingNameLabel.lineBreakMode, .byTruncatingMiddle)
+        XCTAssertEqual(cell.trailingNameLabel.maximumNumberOfLines, 1)
+        XCTAssertFalse(cell.trailingNameLabel.isHidden)
+        XCTAssertEqual(
+            cell.nameLabel.stringValue + cell.trailingNameLabel.stringValue,
+            item.name
+        )
         XCTAssertEqual(cell.nameLabel.font?.pointSize, 12)
+        XCTAssertEqual(cell.trailingNameLabel.font?.pointSize, 12)
         XCTAssertEqual(cell.iconView.frame.size, NSSize(width: 64, height: 64))
         XCTAssertEqual(cell.iconSelectionView.frame.size, NSSize(width: 72, height: 72))
-        XCTAssertGreaterThan(cell.nameLabel.frame.height, 12)
+        XCTAssertGreaterThan(cell.nameLabel.frame.height, 0)
+        XCTAssertGreaterThan(cell.trailingNameLabel.frame.height, 0)
+        XCTAssertEqual(
+            cell.nameLabel.frame.midX,
+            cell.trailingNameLabel.frame.midX,
+            accuracy: 0.5
+        )
+        XCTAssertGreaterThan(cell.nameLabel.frame.width, 0)
+        XCTAssertGreaterThan(cell.trailingNameLabel.frame.width, 0)
+        XCTAssertLessThanOrEqual(cell.nameLabel.frame.width, metrics.itemSize.width)
+        XCTAssertLessThanOrEqual(cell.trailingNameLabel.frame.width, metrics.itemSize.width)
+        XCTAssertLessThanOrEqual(cell.labelSelectionView.frame.maxY, cell.view.bounds.maxY)
         XCTAssertEqual(cell.view.layer?.backgroundColor?.alpha ?? 0, 0)
         XCTAssertEqual(cell.view.layer?.borderWidth ?? 0, 0)
         XCTAssertNil(cell.view.layer?.borderColor)
@@ -603,8 +622,91 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertGreaterThan(cell.iconSelectionView.layer?.backgroundColor?.alpha ?? 0, 0)
         XCTAssertGreaterThan(cell.labelSelectionView.layer?.backgroundColor?.alpha ?? 0, 0)
         XCTAssertEqual(cell.nameLabel.textColor, .white)
+        XCTAssertEqual(cell.trailingNameLabel.textColor, .white)
         XCTAssertEqual(cell.view.layer?.backgroundColor?.alpha ?? 0, 0)
         XCTAssertEqual(cell.view.accessibilityLabel(), item.name)
+    }
+
+    @MainActor
+    func testCellKeepsShortNamesOnOneLineAndRestoresLongNameAfterRename() throws {
+        let metrics = GridMetrics(iconSize: .medium, labelFontSize: 12)
+        let cell = FileItemCell()
+        cell.loadView()
+        let shortItem = FileItem(
+            url: URL(fileURLWithPath: "/tmp/Notes.md"),
+            name: "Notes.md",
+            isDirectory: false,
+            isHidden: false
+        )
+        cell.configure(
+            with: shortItem,
+            metrics: metrics,
+            position: 1,
+            itemCount: 1,
+            onOpen: { true }
+        )
+        cell.view.frame = NSRect(origin: .zero, size: metrics.itemSize)
+        cell.view.layoutSubtreeIfNeeded()
+
+        XCTAssertEqual(cell.nameLabel.stringValue, shortItem.name)
+        XCTAssertTrue(cell.trailingNameLabel.isHidden)
+        XCTAssertGreaterThan(cell.nameLabel.frame.width, 0)
+        XCTAssertGreaterThan(cell.nameLabel.frame.height, 0)
+
+        let wrappingItem = FileItem(
+            url: URL(fileURLWithPath: "/tmp/Launch Checklist.txt"),
+            name: "Launch Checklist.txt",
+            isDirectory: false,
+            isHidden: false
+        )
+        cell.configure(
+            with: wrappingItem,
+            metrics: metrics,
+            position: 1,
+            itemCount: 1,
+            onOpen: { true }
+        )
+        cell.view.layoutSubtreeIfNeeded()
+
+        XCTAssertEqual(cell.nameLabel.stringValue, "Launch")
+        XCTAssertEqual(cell.trailingNameLabel.stringValue, "Checklist.txt")
+        XCTAssertEqual(
+            cell.nameLabel.frame.midX,
+            cell.trailingNameLabel.frame.midX,
+            accuracy: 0.5
+        )
+        XCTAssertGreaterThan(cell.trailingNameLabel.frame.width, cell.nameLabel.frame.width)
+
+        let longItem = FileItem(
+            url: URL(fileURLWithPath: "/tmp/Sunrise_会员维护模型业务规则_v1.2.md"),
+            name: "Sunrise_会员维护模型业务规则_v1.2.md",
+            isDirectory: false,
+            isHidden: false
+        )
+        cell.configure(
+            with: longItem,
+            metrics: metrics,
+            position: 1,
+            itemCount: 1,
+            onOpen: { true }
+        )
+        XCTAssertFalse(cell.trailingNameLabel.isHidden)
+
+        cell.beginRenaming(selecting: NSRange(location: 0, length: 7)) { _ in }
+
+        XCTAssertEqual(cell.nameLabel.stringValue, longItem.name)
+        XCTAssertTrue(cell.trailingNameLabel.isHidden)
+
+        XCTAssertTrue(cell.control(
+            cell.nameLabel,
+            textView: NSTextView(),
+            doCommandBy: #selector(NSResponder.cancelOperation(_:))
+        ))
+        XCTAssertFalse(cell.trailingNameLabel.isHidden)
+        XCTAssertEqual(
+            cell.nameLabel.stringValue + cell.trailingNameLabel.stringValue,
+            longItem.name
+        )
     }
 
     func makeItems(count: Int) -> [FileItem] {

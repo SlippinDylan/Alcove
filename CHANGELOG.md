@@ -29,6 +29,8 @@ All notable changes to Alcove releases are recorded here.
 - Release artifacts target Apple Silicon (`arm64`) and require macOS 26 or later.
 - Folder portals accept paths on internal fixed local storage only; removable, ejectable, external, and network volumes are not supported.
 - GitHub Actions checkouts are commit-pinned, do not persist credentials, and keep privileged triggers on trusted code paths.
+- Long file and folder names now retain their ending with middle truncation on the second display line without increasing tile height.
+- The menu-bar item now uses the `tray.full` system symbol to better represent Alcove as a container of shortcuts.
 
 ### Known Limitations
 

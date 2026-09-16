@@ -1,5 +1,6 @@
 import AlcoveCore
 import AppKit
+import CoreText
 
 @MainActor
 final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
@@ -7,8 +8,10 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
 
     private(set) var iconView = NSImageView()
     private(set) var nameLabel = NSTextField(labelWithString: "")
+    private(set) var trailingNameLabel = NSTextField(labelWithString: "")
     private(set) var iconSelectionView = NSView()
     private(set) var labelSelectionView = NSView()
+    private let nameStack = NSStackView()
     private var iconWidthConstraint: NSLayoutConstraint?
     private var iconHeightConstraint: NSLayoutConstraint?
     private var iconSelectionWidthConstraint: NSLayoutConstraint?
@@ -19,6 +22,8 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
     private var itemCount = 0
     private var onOpen: (() -> Bool)?
     private var renameState: RenameState?
+    private var fullName = ""
+    private var availableNameWidth = GridMetrics(iconSize: .medium).itemSize.width - 8
 
     private struct RenameState {
         let originalName: String
@@ -40,17 +45,23 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
         labelSelectionView.wantsLayer = true
         labelSelectionView.layer?.cornerRadius = 6
         labelSelectionView.translatesAutoresizingMaskIntoConstraints = false
-        nameLabel.alignment = .center
-        nameLabel.lineBreakMode = .byCharWrapping
-        nameLabel.maximumNumberOfLines = 2
-        nameLabel.cell?.truncatesLastVisibleLine = true
+        configureDisplayLabel(nameLabel, lineBreakMode: .byClipping)
+        configureDisplayLabel(trailingNameLabel, lineBreakMode: .byTruncatingMiddle)
+        trailingNameLabel.isHidden = true
         nameLabel.delegate = self
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        nameStack.orientation = .vertical
+        nameStack.alignment = .centerX
+        nameStack.distribution = .fill
+        nameStack.spacing = 0
+        nameStack.translatesAutoresizingMaskIntoConstraints = false
+        nameStack.addArrangedSubview(nameLabel)
+        nameStack.addArrangedSubview(trailingNameLabel)
 
         view.addSubview(iconSelectionView)
         iconSelectionView.addSubview(iconView)
         view.addSubview(labelSelectionView)
-        labelSelectionView.addSubview(nameLabel)
+        labelSelectionView.addSubview(nameStack)
         let iconWidthConstraint = iconView.widthAnchor.constraint(equalToConstant: 64)
         let iconHeightConstraint = iconView.heightAnchor.constraint(equalToConstant: 64)
         let iconSelectionWidthConstraint = iconSelectionView.widthAnchor.constraint(
@@ -87,11 +98,22 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
             labelSelectionView.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor),
             labelSelectionView.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor),
             labelMaximumWidthConstraint,
-            nameLabel.topAnchor.constraint(equalTo: labelSelectionView.topAnchor, constant: 2),
-            nameLabel.leadingAnchor.constraint(equalTo: labelSelectionView.leadingAnchor, constant: 4),
-            nameLabel.trailingAnchor.constraint(equalTo: labelSelectionView.trailingAnchor, constant: -4),
-            nameLabel.bottomAnchor.constraint(equalTo: labelSelectionView.bottomAnchor, constant: -2),
+            nameStack.topAnchor.constraint(equalTo: labelSelectionView.topAnchor),
+            nameStack.leadingAnchor.constraint(equalTo: labelSelectionView.leadingAnchor, constant: 4),
+            nameStack.trailingAnchor.constraint(equalTo: labelSelectionView.trailingAnchor, constant: -4),
+            nameStack.bottomAnchor.constraint(equalTo: labelSelectionView.bottomAnchor),
         ])
+    }
+
+    private func configureDisplayLabel(
+        _ label: NSTextField,
+        lineBreakMode: NSLineBreakMode
+    ) {
+        label.alignment = .center
+        label.lineBreakMode = lineBreakMode
+        label.maximumNumberOfLines = 1
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        label.translatesAutoresizingMaskIntoConstraints = false
     }
 
     override var isSelected: Bool {
@@ -121,8 +143,10 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
         labelMaximumWidthConstraint?.constant = metrics.itemSize.width
         iconLabelSpacingConstraint?.constant = metrics.iconLabelSpacing
         nameLabel.font = NSFont.systemFont(ofSize: metrics.labelFontSize)
-        nameLabel.preferredMaxLayoutWidth = metrics.itemSize.width - 8
-        nameLabel.stringValue = item.name
+        trailingNameLabel.font = nameLabel.font
+        availableNameWidth = metrics.itemSize.width - 8
+        fullName = item.name
+        updateDisplayedName()
         iconView.image = NSWorkspace.shared.icon(forFile: item.url.path)
         view.toolTip = item.name
         view.setAccessibilityElement(true)
@@ -157,7 +181,9 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
         onCommit: @escaping (String) -> Void
     ) {
         guard renameState == nil else { return }
-        renameState = RenameState(originalName: nameLabel.stringValue, onCommit: onCommit)
+        renameState = RenameState(originalName: fullName, onCommit: onCommit)
+        trailingNameLabel.isHidden = true
+        nameLabel.stringValue = fullName
         nameLabel.isEditable = true
         nameLabel.isSelectable = true
         nameLabel.maximumNumberOfLines = 1
@@ -194,9 +220,10 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
         nameLabel.abortEditing()
         nameLabel.isEditable = false
         nameLabel.isSelectable = false
-        nameLabel.maximumNumberOfLines = 2
-        nameLabel.lineBreakMode = .byCharWrapping
-        nameLabel.stringValue = state.originalName
+        nameLabel.maximumNumberOfLines = 1
+        nameLabel.lineBreakMode = .byClipping
+        fullName = state.originalName
+        updateDisplayedName()
         if commit {
             state.onCommit(proposedName)
         }
@@ -232,11 +259,52 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
                 ? NSColor.selectedContentBackgroundColor.cgColor
                 : NSColor.clear.cgColor
             nameLabel.textColor = isSelected ? .white : .labelColor
+            trailingNameLabel.textColor = nameLabel.textColor
         }
+    }
+
+    private func updateDisplayedName() {
+        let lines = displayLines(
+            for: fullName,
+            font: nameLabel.font ?? NSFont.systemFont(ofSize: 12),
+            width: availableNameWidth
+        )
+        nameLabel.stringValue = lines.first
+        trailingNameLabel.stringValue = lines.second ?? ""
+        trailingNameLabel.isHidden = lines.second == nil
+    }
+
+    private func displayLines(
+        for name: String,
+        font: NSFont,
+        width: CGFloat
+    ) -> (first: String, second: String?) {
+        guard !name.isEmpty, width > 0 else { return (name, nil) }
+        let attributedName = NSAttributedString(string: name, attributes: [.font: font])
+        let typesetter = CTTypesetterCreateWithAttributedString(attributedName)
+        let breakOffset = CTTypesetterSuggestLineBreak(typesetter, 0, Double(width))
+        guard breakOffset > 0, breakOffset < attributedName.length else {
+            return (name, nil)
+        }
+        let breakIndex = String.Index(utf16Offset: breakOffset, in: name)
+        return (
+            String(name[..<breakIndex]).dropTrailingWhitespace,
+            String(name[breakIndex...]).dropLeadingWhitespace
+        )
     }
 
     @objc func performAccessibilityOpen() -> Bool {
         onOpen?() ?? false
+    }
+}
+
+private extension String {
+    var dropLeadingWhitespace: String {
+        String(drop(while: { $0.isWhitespace }))
+    }
+
+    var dropTrailingWhitespace: String {
+        String(reversed().drop(while: { $0.isWhitespace }).reversed())
     }
 }
 

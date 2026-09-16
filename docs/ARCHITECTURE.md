@@ -93,7 +93,7 @@ App entry point and global coordination.
 
 - `AppDelegate` — `NSApplicationDelegate`, menu-bar `NSStatusItem` lifecycle
 - `PortalCoordinator` — creates/destroys portals, routes user actions
-- `StatusMenuController` — builds the localized New Portal / per-Portal Show, Hide, Pin, Settings, and confirmed Remove / application Settings / Quit hierarchy. Every actionable item uses an SF Symbol; Portal settings and removal route back through the existing window-owned presentation path. Removal uses an independent app-modal alert centered horizontally and vertically in that Portal screen's current `visibleFrame`, never a sheet attached to the Portal.
+- `StatusMenuController` — owns the template `tray.full` status item and builds the localized New Portal / per-Portal Show, Hide, Pin, Settings, and confirmed Remove / application Settings / Quit hierarchy. Every actionable item uses an SF Symbol; Portal settings and removal route back through the existing window-owned presentation path. Removal uses an independent app-modal alert centered horizontally and vertically in that Portal screen's current `visibleFrame`, never a sheet attached to the Portal.
 - `ApplicationSettingsWindowController` — owns the preference-style General/Style/Advanced/About window. General adapts `SMAppService.mainApp` for launch-at-login registration and persists a Follow System/English/Simplified Chinese/Traditional Chinese app-language choice that takes effect after relaunch; Style stores global content size, static-background transparency, spacing, corner radius, and shadow in `UserDefaults`, with a separator between option rows; Advanced presents position repair and layout backup import/export; About reads version metadata and the compiled Icon Composer application icon
 - `ApplicationLayoutBackupController` — presents JSON-constrained `NSOpenPanel`/`NSSavePanel` sheets, performs blocking read/atomic write on an actor, confirms replace-only imports, and reports errors as sheets
 - `NewPortalOverlay` — menu-bar-primary-display overlay with a dashed `3×1` rounded frame, full-width separators, complete object tiles, half-cell candidate feedback, and whole-capacity snapping constrained to the inset `visibleFrame`; occupied candidates remain editable and cannot commit
@@ -143,7 +143,7 @@ Visual chrome inside each portal window.
 - `PortalViewController` keeps a runtime-only navigation state per `FolderTabID`: the durable `FolderTab.folderURL` remains the root, while `currentURL`, back history, selection, and scroll position follow in-Portal navigation. Loading, FSEvents observation, the path bar, Finder, Terminal, and file-drop destination all consume the same current URL.
 - The controller explicitly keeps the document collection width equal to the scroll viewport width during layout. `GridCapacity.columns` is authoritative for the pure row-major `GridLayout`; window-border or clip-view rounding must never derive a different column count. Live-resize capacity changes invalidate the layout immediately, so items reflow in sequence in both directions.
 - Vertical overflow uses AppKit's mini overlay scroller with automatic hiding, so it does not reserve horizontal content space and retains native scrolling/accessibility behavior.
-- `FileItemCell` — one accessible borderless tile containing a padded system icon, a two-line title, and separate Finder-style icon/title selection regions
+- `FileItemCell` — one accessible borderless tile containing a padded system icon, a fixed-height two-line title, and separate Finder-style icon/title selection regions. The first title line uses a Core Text line break; the second is an independent single-line AppKit label that middle-truncates to retain the filename ending, while tooltips, accessibility, and inline rename keep the complete name
 - `FileGridDataSource` — bridges `FolderAccess` enumeration results to collection view items
 - `FileGridDelegate` — handles selection, double-click, keyboard events, native pasteboard writers, contextual menus, background drops, and `.on` drops targeting ordinary directory items; Quick Look remains a responder-chain concern
 - `FileCollectionView` forwards item mouse-down to AppKit so native multi-item drag sessions can cross the drag threshold. Empty-space mouse tracking is owned separately by a visible marquee layer; it intersects the custom layout's item attributes, autoscrolls at viewport edges, and never enters Portal title-row dragging.
@@ -605,7 +605,9 @@ PortalViewController
               ├─ Icon selection region
               │    └─ NSImageView (icon from NSWorkspace)
               └─ Title selection region
-                   └─ NSTextField (file name, two-line character wrapping)
+                   └─ NSStackView (file name, fixed two-line display)
+                      ├─ NSTextField (first line, Core Text split)
+                      └─ NSTextField (second line, middle truncation)
 ```
 
 - Each portal creates one `FileGridViewController` and reuses its collection view for every tab.
