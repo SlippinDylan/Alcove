@@ -12,10 +12,16 @@ final class PortalStoreTests: XCTestCase {
         )
     }
 
-    func testMissingStoreLoadsEmptyAndV11SaveRoundTrips() async throws {
+    func testMissingStoreLoadsEmptyAndV12SaveUsesGlobalAppearance() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
-            let store = PortalStore(url: storeURL)
+            var appearance = PortalAppearancePreferences.defaults
+            appearance.backgroundStyle = .maximumTransparency
+            let store = PortalStore(
+                url: storeURL,
+                globalIconSize: appearance.iconSize,
+                globalBackgroundStyle: appearance.backgroundStyle
+            )
             let initial = try await store.load()
             XCTAssertEqual(initial, [])
 
@@ -30,13 +36,14 @@ final class PortalStoreTests: XCTestCase {
             XCTAssertEqual(restored, [portal])
 
             let json = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(json.contains("\"version\" : 11"))
+            XCTAssertTrue(json.contains("\"version\" : 12"))
             XCTAssertTrue(json.contains("\"sort_order\" : \"creation_date\""))
             XCTAssertTrue(json.contains("\"tint\" : \"indigo\""))
             XCTAssertTrue(json.contains("\"is_pinned\" : true"))
             XCTAssertFalse(json.contains("icon_layout_mode"))
             XCTAssertFalse(json.contains("text_size"))
-            XCTAssertTrue(json.contains("\"background_style\" : \"maximum_transparency\""))
+            XCTAssertFalse(json.contains("icon_size"))
+            XCTAssertFalse(json.contains("background_style"))
             XCTAssertTrue(json.contains("\"columns\" : 5"))
             XCTAssertTrue(json.contains("\"rows\" : 2"))
             XCTAssertTrue(json.contains("\"selected_tab_id\""))
@@ -71,7 +78,7 @@ final class PortalStoreTests: XCTestCase {
         }
     }
 
-    func testV10MigratesToV11WithDefaultSortAndTintAndPreservesBackup() async throws {
+    func testV10MigratesToV12WithDefaultSortAndTintAndPreservesBackup() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let portal = try makePortal(path: "/tmp/first", x: 10)
@@ -87,13 +94,46 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 11"))
+            XCTAssertTrue(migrated.contains("\"version\" : 12"))
             XCTAssertTrue(migrated.contains("\"sort_order\" : \"name\""))
             XCTAssertTrue(migrated.contains("\"tint\" : \"default\""))
         }
     }
 
-    func testV5MigratesToV11AndPreservesBackup() async throws {
+    func testV11MigratesToV12WithoutDuplicatingGlobalAppearance() async throws {
+        try await withStoreDirectory { directory in
+            let storeURL = directory.appendingPathComponent("portals.json")
+            var portal = try makePortal(path: "/tmp/first", x: 10)
+            portal.updateIconSize(.large)
+            portal.updateBackgroundStyle(.highTransparency)
+            let legacy = try JSONEncoder().encode(PortalEnvelopeV11DTO(portals: [portal]))
+            try legacy.write(to: storeURL)
+            var appearance = PortalAppearancePreferences.defaults
+            appearance.iconSize = .large
+            appearance.backgroundStyle = .highTransparency
+            let store = PortalStore(
+                url: storeURL,
+                globalIconSize: appearance.iconSize,
+                globalBackgroundStyle: appearance.backgroundStyle
+            )
+
+            let loaded = try await store.load()
+
+            XCTAssertEqual(loaded, [portal])
+            XCTAssertEqual(
+                try Data(contentsOf: directory.appendingPathComponent("portals.v11.json.bak")),
+                legacy
+            )
+            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
+            XCTAssertTrue(migrated.contains("\"version\" : 12"))
+            XCTAssertFalse(migrated.contains("icon_size"))
+            XCTAssertFalse(migrated.contains("background_style"))
+            let reloaded = try await store.load()
+            XCTAssertEqual(reloaded, [portal])
+        }
+    }
+
+    func testV5MigratesToV12AndPreservesBackup() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let portal = try makePortal(path: "/tmp/first", x: 10)
@@ -112,11 +152,11 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 11"))
+            XCTAssertTrue(migrated.contains("\"version\" : 12"))
         }
     }
 
-    func testV6MigratesToV11WithAnUnpinnedExpandedPlacement() async throws {
+    func testV6MigratesToV12WithAnUnpinnedExpandedPlacement() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let portal = try makePortal(path: "/tmp/first", x: 10)
@@ -134,12 +174,12 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 11"))
+            XCTAssertTrue(migrated.contains("\"version\" : 12"))
             XCTAssertTrue(migrated.contains("\"is_pinned\" : false"))
         }
     }
 
-    func testV7MigratesToV11PreservingPinCapacityAndTopRightEdges() async throws {
+    func testV7MigratesToV12PreservingPinCapacityAndTopRightEdges() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             var portal = try makePortal(path: "/tmp/first", x: 10)
@@ -163,11 +203,11 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 11"))
+            XCTAssertTrue(migrated.contains("\"version\" : 12"))
         }
     }
 
-    func testV8MigratesToV11PreservingPinCapacityHeightAndRightEdge() async throws {
+    func testV8MigratesToV12PreservingPinCapacityHeightAndRightEdge() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             var portal = try makePortal(path: "/tmp/first", x: 500)
@@ -187,7 +227,7 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 11"))
+            XCTAssertTrue(migrated.contains("\"version\" : 12"))
         }
     }
 
@@ -213,7 +253,7 @@ final class PortalStoreTests: XCTestCase {
         }
     }
 
-    func testMultiplePortalsTabsAndDisplayPlacementsPreserveOrderAndValues() async throws {
+    func testMultiplePortalsPreserveLocalStateAndRestoreOneGlobalAppearance() async throws {
         try await withStoreDirectory { directory in
             var first = try makePortal(path: "/tmp/first", x: 10)
             let secondTab = try first.appendTab(
@@ -228,22 +268,28 @@ final class PortalStoreTests: XCTestCase {
             var second = try makePortal(path: "/tmp/second", x: 400)
             second.updateBackgroundStyle(.lowTransparency)
             second.updateIconSize(.large)
-            let store = PortalStore(url: directory.appendingPathComponent("portals.json"))
+            var appearance = PortalAppearancePreferences.defaults
+            appearance.iconSize = .small
+            appearance.backgroundStyle = .maximumTransparency
+            let store = PortalStore(
+                url: directory.appendingPathComponent("portals.json"),
+                globalIconSize: appearance.iconSize,
+                globalBackgroundStyle: appearance.backgroundStyle
+            )
 
             try await store.save([first, second])
             let loaded = try await store.load()
 
-            XCTAssertEqual(loaded, [first, second])
+            XCTAssertEqual(loaded.map(\.id), [first.id, second.id])
             XCTAssertEqual(loaded[0].tabs.map(\.folderURL.path), ["/tmp/first", "/tmp/second-tab"])
             XCTAssertEqual(loaded[0].selectedTabID, secondTab)
             XCTAssertEqual(loaded[0].placement.framesByDisplay.count, 2)
             XCTAssertEqual(loaded[0].placement.homeDisplay, secondaryDisplay.identity)
             XCTAssertEqual(
                 loaded.map(\.backgroundStyle),
-                [.highTransparency, .lowTransparency]
+                [.maximumTransparency, .maximumTransparency]
             )
-            XCTAssertEqual(loaded[0].iconLayout, .fixed(.medium))
-            XCTAssertEqual(loaded[1].iconLayout, .fixed(.large))
+            XCTAssertTrue(loaded.allSatisfy { $0.iconLayout == .fixed(.small) })
         }
     }
 
@@ -299,7 +345,7 @@ final class PortalStoreTests: XCTestCase {
             let backupURL = directory.appendingPathComponent("portals.v1.json.bak")
             XCTAssertEqual(try String(contentsOf: backupURL, encoding: .utf8), legacy)
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 11"))
+            XCTAssertTrue(migrated.contains("\"version\" : 12"))
             XCTAssertTrue(loaded.allSatisfy { $0.backgroundStyle == .standard })
             XCTAssertTrue(loaded.allSatisfy { $0.iconLayout == .fixed(.medium) })
             XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 4, rows: 2))
@@ -323,12 +369,12 @@ final class PortalStoreTests: XCTestCase {
                 XCTAssertEqual(url, storeURL)
             }
 
-            try Data("{\"version\":12,\"portals\":[]}".utf8).write(to: storeURL)
+            try Data("{\"version\":13,\"portals\":[]}".utf8).write(to: storeURL)
             do {
                 _ = try await PortalStore(url: storeURL).load()
                 XCTFail("Future version must fail")
             } catch let error as PortalStoreError {
-                XCTAssertEqual(error, .unsupportedVersion(12))
+                XCTAssertEqual(error, .unsupportedVersion(13))
             }
         }
     }
@@ -354,8 +400,8 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 11"))
-            XCTAssertTrue(migrated.contains("\"background_style\" : \"standard\""))
+            XCTAssertTrue(migrated.contains("\"version\" : 12"))
+            XCTAssertFalse(migrated.contains("background_style"))
             XCTAssertFalse(migrated.contains("icon_layout_mode"))
             XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 3, rows: 2))
         }
@@ -365,11 +411,14 @@ final class PortalStoreTests: XCTestCase {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
             let store = PortalStore(url: storeURL)
-            try await store.save([try makePortal(path: "/tmp/first", x: 10)])
-            let valid = try String(contentsOf: storeURL, encoding: .utf8)
+            let portal = try makePortal(path: "/tmp/first", x: 10)
+            let valid = String(
+                decoding: try JSONEncoder().encode(PortalEnvelopeV10DTO(portals: [portal])),
+                as: UTF8.self
+            )
             let invalid = valid.replacingOccurrences(
-                of: "\"background_style\" : \"standard\"",
-                with: "\"background_style\" : \"unknown\""
+                of: "\"background_style\":\"standard\"",
+                with: "\"background_style\":\"unknown\""
             )
             try Data(invalid.utf8).write(to: storeURL)
 
@@ -467,7 +516,7 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 11"))
+            XCTAssertTrue(migrated.contains("\"version\" : 12"))
             XCTAssertFalse(migrated.contains("icon_layout_mode"))
             XCTAssertFalse(migrated.contains("text_size"))
             XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 3, rows: 2))
@@ -524,7 +573,7 @@ final class PortalStoreTests: XCTestCase {
                 legacy
             )
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 11"))
+            XCTAssertTrue(migrated.contains("\"version\" : 12"))
             XCTAssertTrue(migrated.contains("\"columns\" : 3"))
             XCTAssertTrue(migrated.contains("\"rows\" : 2"))
         }

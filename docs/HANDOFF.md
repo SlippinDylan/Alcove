@@ -183,7 +183,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.10 菜单栏与本地化
 
 - 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；每个 Portal 名称的二级菜单提供带 SF Symbol 的 Show、Hide、Pin/Unpin、Panel Settings 和确认后 Remove。
-- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / Advanced / About。General 只提供系统登录时自动启动；Style 统一控制静态背景的五档透明程度、三档内容大小、五档面板间距、五档圆角和系统阴影；Advanced 通过独立的布局备份 v1 JSON 执行完整导入/导出；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观写入 `UserDefaults`，不复制 Portal v11 的单面板排序和颜色状态。
+- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / Advanced / About。General 只提供系统登录时自动启动；Style 统一控制静态背景的五档透明程度、三档内容大小、五档面板间距、五档圆角和系统阴影；Advanced 通过独立的布局备份 v1 JSON 执行完整导入/导出；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观只写入 `UserDefaults`，Portal v12 仅持久化单面板排序和颜色等局部状态。
 - 全局 Style 卡片的每个设置行之间使用系统分割线；Advanced 备份卡片继续以一条系统分割线区分说明和操作按钮。
 - 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
 - English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
@@ -206,20 +206,20 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 | 文件读取 | `Alcove/FolderAccess/*` | 后台枚举、路径校验、FSEvents 和恢复 |
 | Quick Look | `Alcove/QuickLookIntegration/QuickLookIntegration.swift` | responder chain 和 `QLPreviewPanel` 所有权 |
 | placement | `Alcove/DisplayPlacement/DisplayPlacement.swift` | 菜单栏主屏识别、NSScreen 快照、拓扑通知、legacy frame 解析 |
-| 持久化 | `Alcove/Persistence/*` | v11 DTO、v1–v10 迁移、同目录临时文件和原子替换 |
+| 持久化 | `Alcove/Persistence/*` | v12 DTO、v1–v11 迁移、同目录临时文件和原子替换 |
 | 布局备份 | `Alcove/Application/ApplicationLayoutBackupController.swift`、`Alcove/Persistence/AlcoveLayoutBackupCodec.swift` | JSON 面板、后台原子 I/O、公开 v1 codec 和替换式导入 |
 | 纯领域/几何 | `Packages/AlcoveCore/Sources/AlcoveCore/*` | Portal、GridCapacity、GridLayout、placement state machine、主屏投影/溢出恢复、selection |
 
 ## 5. 持久化现状
 
-- 当前 envelope 版本是 v11；每个 Portal 持久化排序方式和内置颜色预设。
+- 当前 envelope 版本是 v12；每个 Portal 持久化排序方式和内置颜色预设，但不再重复全局图标尺寸和背景透明度。
 - v6 引入的可选 `selected_tab_id` 和 v7 引入的必需 `is_pinned` 继续保留；v8 对应网格上下边距从 16pt 收紧到 8pt，v9 对应对象横向间距从 12pt 收紧到与纵向一致的 4pt。
 - v1–v4 会根据旧 frame 和当时 icon/text metrics 推导容量；v5 已包含 columns/rows。
-- v1–v10 都迁移为 v11；v10 缺少排序和颜色时使用 `.name` / `.default`。旧 `follow_desktop` 按最后保存的图标尺寸映射到最近的 Small/Medium/Large。迁移按当前 capacity 和 metrics 统一重算 frame，保持原顶部、右侧位置（显示器空间允许时）、容量、图钉和 Tab 顺序，并重新计算 normalized anchor。
+- v1–v11 都迁移为 v12；v10 缺少排序和颜色时使用 `.name` / `.default`。旧 `follow_desktop` 按最后保存的图标尺寸映射到最近的 Small/Medium/Large。迁移按当前 capacity 和 metrics 统一重算 frame，保持原顶部、右侧位置（显示器空间允许时）、容量、图钉和 Tab 顺序，并重新计算 normalized anchor。
 - 迁移前先写一次 `portals.vN.json.bak`；已有不同备份时停止，不能覆盖证据。
 - 当前存储路径：`~/Library/Application Support/Alcove/portals.json`。
 - 保存使用同目录临时文件后 replace/move；不要改成非原子覆盖写。
-- 布局备份是独立的 `com.alcove.layout-backup` v1 公共格式，不直接导出内部 v11 JSON。导入只支持完整替换：严格解码并预演主显示器布局，单次持久化成功后才关闭旧窗口；失败不改变运行时状态。开机自启动不进入备份。
+- 布局备份是独立的 `com.alcove.layout-backup` v1 公共格式，不直接导出内部 v12 JSON。导入只支持完整替换：严格解码并预演主显示器布局，单次持久化成功后才关闭旧窗口；失败不改变运行时状态。开机自启动不进入备份。
 
 ## 6. 已踩过的坑及禁止回退的错误方案
 
@@ -278,7 +278,7 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - 空白框选、Command-Delete 进废纸篓、原生文件 URL 拖出，以及以 currentURL 为目标的 Finder 拖入 Copy/Command-Move。
 - 本地固定磁盘目录校验；外置、可移除、可弹出、网络卷拒绝。
 - 后台文件枚举和 FSEvents 自动刷新。
-- v11 原子持久化及 v1–v10 迁移。
+- v12 原子持久化及 v1–v11 迁移。
 - 多显示器 placement state machine 和系统通知接入。
 - 所有 Portal 跟随菜单栏主显示器；保持左/上 pt 偏移、锁定仍可见面板、溢出向右开列、极端重叠露出顶栏，并提供 Advanced 一键位置修复。
 - 五档静态背景透明程度与 Reduce Transparency 不透明表面。

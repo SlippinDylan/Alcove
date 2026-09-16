@@ -1599,14 +1599,6 @@ final class PortalCoordinatorTests: XCTestCase {
         XCTAssertEqual(factory.windows[0].showPortalSettingsCount, 1)
         XCTAssertEqual(factory.windows[0].confirmPortalRemovalCount, 1)
 
-        await coordinator.setIconSize(.large, for: portal.id)
-
-        XCTAssertEqual(coordinator.portalStates[0].iconSize, .large)
-        XCTAssertEqual(factory.windows[0].updatedPortals.last?.iconSize, .large)
-        let saves = await store.savedSnapshots()
-        XCTAssertEqual(saves.last?.first?.iconSize, .large)
-        XCTAssertEqual(menus.last?.first?.title, "selected")
-
         await coordinator.removePortal(portal.id)
         XCTAssertTrue(coordinator.portalStates.isEmpty)
         XCTAssertEqual(factory.windows[0].closeCount, 1)
@@ -1626,17 +1618,11 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         try await coordinator.restorePortals()
 
-        await coordinator.setIconSize(.large, for: portal.id)
-        XCTAssertEqual(coordinator.portalStates, [portal])
-        XCTAssertEqual(factory.windows[0].updateCount, 0)
-        XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
-        XCTAssertEqual(persistenceErrors.errors.count, 1)
-
         await coordinator.removePortal(portal.id)
         XCTAssertEqual(coordinator.portalStates, [portal])
         XCTAssertEqual(factory.windows[0].closeCount, 0)
         XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
-        XCTAssertEqual(persistenceErrors.errors.count, 2)
+        XCTAssertEqual(persistenceErrors.errors.count, 1)
     }
 
     @MainActor
@@ -1687,49 +1673,6 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testBackgroundStyleUpdatesOnlyRequestedPortalAfterPersistence() async throws {
-        let first = try makePortal(path: "/tmp/first", x: 10)
-        let second = try makePortal(path: "/tmp/second", x: 400)
-        let store = PortalStoreSpy(portals: [first, second])
-        let factory = PortalWindowFactorySpy()
-        let coordinator = PortalCoordinator(store: store, windowFactory: factory)
-        try await coordinator.restorePortals()
-
-        await coordinator.setBackgroundStyle(.lowTransparency, for: second.id)
-
-        XCTAssertEqual(coordinator.portalStates[0].backgroundStyle, .standard)
-        XCTAssertEqual(coordinator.portalStates[1].backgroundStyle, .lowTransparency)
-        XCTAssertEqual(factory.windows[0].updateCount, 0)
-        XCTAssertEqual(
-            factory.windows[1].updatedPortals.last?.backgroundStyle,
-            .lowTransparency
-        )
-        let saves = await store.savedSnapshots()
-        XCTAssertEqual(saves.last?.map(\.backgroundStyle), [.standard, .lowTransparency])
-    }
-
-    @MainActor
-    func testBackgroundStyleSaveFailureLeavesPortalAndWindowUntouched() async throws {
-        let portal = try makePortal(path: "/tmp/first", x: 10)
-        let store = PortalStoreSpy(portals: [portal], saveError: .rejected)
-        let factory = PortalWindowFactorySpy()
-        let persistenceErrors = PersistenceErrorPresenterSpy()
-        let coordinator = PortalCoordinator(
-            store: store,
-            windowFactory: factory,
-            persistenceErrorPresenter: persistenceErrors
-        )
-        try await coordinator.restorePortals()
-
-        await coordinator.setBackgroundStyle(.highTransparency, for: portal.id)
-
-        XCTAssertEqual(coordinator.portalStates, [portal])
-        XCTAssertEqual(factory.windows[0].updateCount, 0)
-        XCTAssertEqual(coordinator.persistenceError as? PortalStoreFixtureError, .rejected)
-        XCTAssertEqual(persistenceErrors.errors.count, 1)
-    }
-
-    @MainActor
     func testPinnedStateSaveFailureLeavesPortalAndWindowUntouched() async throws {
         let portal = try makePortal(path: "/tmp/first", x: 10)
         let store = PortalStoreSpy(portals: [portal], saveError: .rejected)
@@ -1752,7 +1695,7 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testLargeIconPresetPersistsAndAppliesMinimumPlacement() async throws {
+    func testGlobalLargeIconPresetAppliesMinimumPlacementWithoutPortalSave() async throws {
         let portal = try makePortal(path: "/tmp/first", x: 10)
         let store = PortalStoreSpy(portals: [portal])
         let factory = PortalWindowFactorySpy()
@@ -1767,7 +1710,9 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         try await coordinator.restorePortals()
 
-        await coordinator.setIconSize(.large, for: portal.id)
+        var appearance = PortalAppearancePreferences.defaults
+        appearance.iconSize = .large
+        XCTAssertTrue(coordinator.updatePortalAppearance(appearance))
 
         let updated = coordinator.portalStates[0]
         XCTAssertEqual(updated.iconSize, .large)
@@ -1787,11 +1732,11 @@ final class PortalCoordinatorTests: XCTestCase {
         XCTAssertEqual(appliedFrame.size, updated.frame.size)
         XCTAssertTrue(coordinatorTestDisplay.visibleFrame.contains(appliedFrame))
         let saves = await store.savedSnapshots()
-        XCTAssertEqual(saves.last, [updated])
+        XCTAssertTrue(saves.isEmpty)
     }
 
     @MainActor
-    func testIconPresetExpansionIsRejectedWhenItWouldHitAnotherPortal() async throws {
+    func testGlobalIconPresetExpansionReflowsBothPortals() async throws {
         let first = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/first"),
             frame: NSRect(x: 100, y: 300, width: 320, height: 240),
@@ -1816,7 +1761,6 @@ final class PortalCoordinatorTests: XCTestCase {
             display: coordinatorTestDisplay
         )
         let store = PortalStoreSpy(portals: [first, second])
-        let errors = PersistenceErrorPresenterSpy()
         let snapshot = try DisplaySnapshot(
             displays: [coordinatorTestDisplay],
             primaryDisplay: coordinatorTestDisplay.identity
@@ -1824,18 +1768,15 @@ final class PortalCoordinatorTests: XCTestCase {
         let coordinator = PortalCoordinator(
             store: store,
             windowFactory: PortalWindowFactorySpy(),
-            persistenceErrorPresenter: errors,
             displaySnapshotProvider: { .success(snapshot) }
         )
         try await coordinator.restorePortals()
 
-        await coordinator.setIconSize(.large, for: first.id)
+        var appearance = PortalAppearancePreferences.defaults
+        appearance.iconSize = .large
+        XCTAssertTrue(coordinator.updatePortalAppearance(appearance))
 
-        XCTAssertEqual(coordinator.portalStates[0], first)
-        XCTAssertEqual(
-            errors.errors.compactMap { $0 as? PortalCoordinatorError },
-            [.placementUnavailable]
-        )
+        XCTAssertTrue(coordinator.portalStates.allSatisfy { $0.iconSize == .large })
         let saves = await store.savedSnapshots()
         XCTAssertTrue(saves.isEmpty)
     }
@@ -1858,7 +1799,9 @@ final class PortalCoordinatorTests: XCTestCase {
             iconLayout: .fixed(.large)
         )
 
-        await coordinator.setIconSize(.large, for: portal.id)
+        var appearance = PortalAppearancePreferences.defaults
+        appearance.iconSize = .large
+        XCTAssertTrue(coordinator.updatePortalAppearance(appearance))
 
         let updatedContentSize = NSWindow.contentRect(
             forFrameRect: NSRect(
@@ -1907,8 +1850,10 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         try await coordinator.restorePortals()
 
+        var appearance = PortalAppearancePreferences.defaults
         for iconSize: IconSize in [.large, .medium, .small] {
-            await coordinator.setIconSize(iconSize, for: portal.id)
+            appearance.iconSize = iconSize
+            XCTAssertTrue(coordinator.updatePortalAppearance(appearance))
             let frame = coordinator.portalStates[0].frame
             XCTAssertEqual(frame.minX, initialFrame.minX)
             XCTAssertEqual(frame.maxY, initialFrame.maxY)
@@ -1937,7 +1882,9 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         try await coordinator.restorePortals()
 
-        await coordinator.setIconSize(.large, for: portal.id)
+        var appearance = PortalAppearancePreferences.defaults
+        appearance.iconSize = .large
+        XCTAssertTrue(coordinator.updatePortalAppearance(appearance))
 
         let updated = coordinator.portalStates[0]
         XCTAssertEqual(updated.frame.maxY, currentDisplay.visibleFrame.maxY)
@@ -1976,7 +1923,9 @@ final class PortalCoordinatorTests: XCTestCase {
         coordinator.reconcileDisplayTopology(snapshotBox.result)
         await coordinator.waitForPersistenceForTesting()
 
-        await coordinator.setIconSize(.large, for: portal.id)
+        var appearance = PortalAppearancePreferences.defaults
+        appearance.iconSize = .large
+        XCTAssertTrue(coordinator.updatePortalAppearance(appearance))
 
         XCTAssertEqual(coordinator.portalStates[0].placement.homeDisplay, portal.placement.homeDisplay)
         XCTAssertTrue(fallback.visibleFrame.contains(try XCTUnwrap(factory.windows[0].systemFrames.last)))

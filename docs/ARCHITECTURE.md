@@ -203,12 +203,12 @@ Versioned JSON storage with atomic replacement.
 - Location: `~/Library/Application Support/Alcove/portals.json`
 - Format: JSON object with `version: Int` at top level, followed by data payload
 - Persistence uses versioned Codable DTOs and maps to validated domain models
-- Current schema is v11: v6's optional selected tab and v7's required `is_pinned` remain; v8 records compact 8pt vertical grid insets, v9 records equal 4pt tile spacing, v10 removes Finder-following state while expanding background control to five levels, and v11 adds per-Portal sort order and one of the built-in tint presets
+- Current schema is v12: v6's optional selected tab and v7's required `is_pinned` remain; v8 records compact 8pt vertical grid insets, v9 records equal 4pt tile spacing, v10 removes Finder-following state while expanding background control to five levels, v11 adds per-Portal sort order and one of the built-in tint presets, and v12 removes the duplicated per-Portal icon-size and background-style fields
 - Persistence is infrastructure outside AlcoveCore (contains domain/layout only); `PortalStore`, `NSScreen` lookup, `DisplayIdentity` adapters, and file I/O remain app infrastructure
 - Write strategy: write to `.tmp` file, then `FileManager.replaceItemAt` for atomic swap
 - Read strategy: read file → check `version` → dispatch to appropriate decoder → return typed result or migration error
-- No Core Data or SQLite. Versioned Portal state remains JSON; `UserDefaults` is used only for application-global preferences and does not duplicate per-Portal v11 sort/tint state.
-- The public layout-backup envelope has its own `com.alcove.layout-backup` format marker and version lifecycle. Version 1 stores semantic global appearance values plus each Portal's normalized anchor, capacity, sort, tint, pin, and home-relative/absolute folder paths. The retired `background_type` key in older v1 files is ignored. It excludes launch-at-login and does not expose the machine-specific internal v11 placement envelope.
+- No Core Data or SQLite. Versioned Portal state remains JSON; `UserDefaults` is the sole durable source for application-global appearance, while the v12 Portal envelope stores only per-Portal state such as sort and tint.
+- The public layout-backup envelope has its own `com.alcove.layout-backup` format marker and version lifecycle. Version 1 stores semantic global appearance values plus each Portal's normalized anchor, capacity, sort, tint, pin, and home-relative/absolute folder paths. The retired `background_type` key in older v1 files is ignored. It excludes launch-at-login and does not expose the machine-specific internal v12 placement envelope.
 - Import maps every Portal to a fresh primary-display placement, derives physical size from imported capacity and global icon metrics, reflows the complete layout at the imported spacing, and calls `PortalStore.save` once before replacing any runtime windows. Import never merges and accepts missing folder paths so the existing recoverable missing-folder state remains authoritative.
 - AppKit strings use `en`, `zh-Hans`, and `zh-Hant` bundle resources. English is the development region and fallback for every other system language
 
@@ -396,7 +396,7 @@ grid's top and bottom insets from 16pt to 8pt, and v9 reduces horizontal tile sp
 to the same 4pt used vertically. Version 10 removes `follow_desktop` from current data, maps any
 legacy followed icon size to the nearest Small/Medium/Large preset, adds the two outer background
 levels, and normalizes every migrated frame from its capacity and current metrics while preserving
-its former top-right position when the display permits. Versions 1–10 are atomically rewritten as v11.
+its former top-right position when the display permits. Versions 1–11 are atomically rewritten as v12.
 Before conversion the
 store writes the matching `portals.vN.json.bak` once and never
 replaces a different existing backup. Migrations remain explicit rather than using a
@@ -414,7 +414,7 @@ speculative generic framework.
 
 ### 5.5 Backup
 
-The v1/v2/v3/v4/v5/v6/v7/v8/v9/v10→v11 migrations preserve the original as the matching
+The v1/v2/v3/v4/v5/v6/v7/v8/v9/v10/v11→v12 migrations preserve the original as the matching
 `portals.vN.json.bak`. The first backup is write-once; a different existing backup stops
 migration instead of overwriting evidence.
 
@@ -506,7 +506,7 @@ This prevents Show Desktop, Spaces transitions, or Stage Manager reflow from ove
 6. Apply no window frame until the complete deterministic plan succeeds.
 ```
 
-Normalized anchors remain in the v11 persistence contract and migration path. Primary-display topology projection uses left/top point offsets instead of proportional normalization so panels that still fit do not drift when display size changes.
+Normalized anchors remain in the v12 persistence contract and migration path. Primary-display topology projection uses left/top point offsets instead of proportional normalization so panels that still fit do not drift when display size changes.
 
 ### 7.4 Manual repair
 

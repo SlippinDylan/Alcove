@@ -15,7 +15,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 > The documentation baseline and automated portions of Spikes 0.1A–0.5C7 are complete. Manual
 > system-behavior matrices and remaining integration evidence are still in progress. Production
 > Slices 1–11 now provide the tested Apple Silicon AppKit shell, multi-tab portals,
-> Finder-style interaction and icon tiles, transactional empty-portal creation, Quick Look, v11 portal
+> Finder-style interaction and icon tiles, transactional empty-portal creation, Quick Look, v12 portal
 > persistence, primary-display-following recovery, automatic FSEvents folder refresh,
 > menu-bar portal management, global Small/Medium/Large content sizing, a global five-step static translucent background, global five-step panel spacing and corner radius, a system-shadow toggle, collision-safe placement, accessibility display-option handling, and
 > explicit recovery from missing, replaced, permission, read, and persistence

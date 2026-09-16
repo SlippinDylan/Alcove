@@ -71,7 +71,9 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
     ) {
         self.locationValidator = locationValidator
         self.store = store ?? PortalStore(
-            legacyDisplayResolver: SystemLegacyDisplayResolver()
+            legacyDisplayResolver: SystemLegacyDisplayResolver(),
+            globalIconSize: portalAppearance.iconSize,
+            globalBackgroundStyle: portalAppearance.backgroundStyle
         )
         self.windowFactory = windowFactory
         self.tabFolderPicker = tabFolderPicker
@@ -501,42 +503,6 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
         }
     }
 
-    func setIconSize(_ iconSize: IconSize, for portalID: PortalID) async {
-        do {
-            try await performMutation { [weak self] in
-                guard let self,
-                      let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
-                    return
-                }
-                let currentSnapshot: DisplaySnapshot? = switch displaySnapshotProvider() {
-                case .success(let snapshot): snapshot
-                case .failure: nil
-                }
-                let previousFrame = portalStates[index].frame
-                var portal = portalStates[index]
-                portal.updateIconSize(iconSize)
-                portal = try portalSnappingFrame(portal, currentSnapshot: currentSnapshot)
-                if let currentSnapshot,
-                   currentSnapshot.display(with: portal.placement.homeDisplay) != nil,
-                   try !isValidIconResizeFrame(
-                       portal.frame,
-                       snapshot: currentSnapshot,
-                       portalID: portalID
-                   ) {
-                    throw PortalCoordinatorError.placementUnavailable
-                }
-                try await commit(portal, at: index)
-                if portal.frame != previousFrame {
-                    placementSessions[portalID] = try placementSession(for: portal)
-                    applyDisplayTopology(displaySnapshotProvider())
-                }
-            }
-            persistenceError = nil
-        } catch {
-            presentPersistenceError(error)
-        }
-    }
-
     private func portalSnappingFrame(
         _ portal: Portal,
         currentSnapshot: DisplaySnapshot?
@@ -660,26 +626,6 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
             ))
         }
         return AlcoveLayoutBackup(global: backup.global, portals: validatedPortals)
-    }
-
-    func setBackgroundStyle(
-        _ backgroundStyle: PortalBackgroundStyle,
-        for portalID: PortalID
-    ) async {
-        do {
-            try await performMutation { [weak self] in
-                guard let self,
-                      let index = portalStates.firstIndex(where: { $0.id == portalID }) else {
-                    return
-                }
-                var portal = portalStates[index]
-                portal.updateBackgroundStyle(backgroundStyle)
-                try await commit(portal, at: index)
-            }
-            persistenceError = nil
-        } catch {
-            presentPersistenceError(error)
-        }
     }
 
     func setPinned(_ isPinned: Bool, for portalID: PortalID) async {

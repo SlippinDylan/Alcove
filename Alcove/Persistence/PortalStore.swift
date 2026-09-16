@@ -28,15 +28,21 @@ actor PortalStore: PortalStoring {
     private let url: URL
     private let fileSystem: any PortalStoreFileSystem
     private let legacyDisplayResolver: any LegacyDisplayResolving
+    private let globalIconSize: IconSize
+    private let globalBackgroundStyle: PortalBackgroundStyle
 
     init(
         url: URL = PortalStore.defaultURL,
         fileSystem: any PortalStoreFileSystem = FoundationPortalStoreFileSystem(),
-        legacyDisplayResolver: any LegacyDisplayResolving = UnavailableLegacyDisplayResolver()
+        legacyDisplayResolver: any LegacyDisplayResolving = UnavailableLegacyDisplayResolver(),
+        globalIconSize: IconSize = .medium,
+        globalBackgroundStyle: PortalBackgroundStyle = .standard
     ) {
         self.url = url
         self.fileSystem = fileSystem
         self.legacyDisplayResolver = legacyDisplayResolver
+        self.globalIconSize = globalIconSize
+        self.globalBackgroundStyle = globalBackgroundStyle
     }
 
     func load() async throws -> [Portal] {
@@ -113,7 +119,12 @@ actor PortalStore: PortalStoring {
             try writeCurrentVersion(portals)
             return portals
         case PortalEnvelopeV11DTO.currentVersion:
-            return try loadV11(from: data)
+            try preserveLegacyBackup(data, version: 11)
+            let portals = try loadV11(from: data)
+            try writeCurrentVersion(portals)
+            return portals
+        case PortalEnvelopeV12DTO.currentVersion:
+            return try loadV12(from: data)
         default:
             throw PortalStoreError.unsupportedVersion(version)
         }
@@ -147,6 +158,16 @@ actor PortalStore: PortalStoring {
     private func loadV11(from data: Data) throws -> [Portal] {
         let envelope: PortalEnvelopeV11DTO = try decodeEnvelope(from: data)
         return try mapPortals(envelope.portals) { try $0.domainValue() }
+    }
+
+    private func loadV12(from data: Data) throws -> [Portal] {
+        let envelope: PortalEnvelopeV12DTO = try decodeEnvelope(from: data)
+        return try mapPortals(envelope.portals) {
+            try $0.domainValue(
+                iconSize: globalIconSize,
+                backgroundStyle: globalBackgroundStyle
+            )
+        }
     }
 
     private func loadV3(from data: Data) throws -> [Portal] {
@@ -354,7 +375,7 @@ actor PortalStore: PortalStoring {
     private func writeCurrentVersion(_ portals: [Portal]) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        var data = try encoder.encode(PortalEnvelopeV11DTO(portals: portals))
+        var data = try encoder.encode(PortalEnvelopeV12DTO(portals: portals))
         data.append(0x0a)
         try writeAtomically(data, to: url)
     }
