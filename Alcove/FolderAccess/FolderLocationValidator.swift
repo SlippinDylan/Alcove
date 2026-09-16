@@ -58,6 +58,15 @@ struct FolderLocationValidator {
         }
     }
 
+    func validateForRestoration(_ url: URL) async throws -> URL {
+        do {
+            return try await validate(url)
+        } catch let error as FolderAccessError {
+            guard case .folderNotFound = error else { throw error }
+            return url.standardizedFileURL
+        }
+    }
+
     private static func validateSynchronously(_ url: URL) throws -> URL {
         let resolvedURL = url.resolvingSymlinksInPath().standardizedFileURL
         let values: URLResourceValues

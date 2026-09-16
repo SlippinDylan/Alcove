@@ -482,6 +482,47 @@ final class PortalCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testLayoutImportValidatesExistingFoldersBeforeReplacingRuntimeState() async throws {
+        let existing = try makePortal(path: "/tmp/existing", x: 10)
+        let store = PortalStoreSpy(portals: [existing])
+        let factory = PortalWindowFactorySpy()
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try Data().write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        do {
+            try await coordinator.replaceLayout(
+                with: try makeLayoutBackup(
+                    portalID: PortalID(rawValue: UUID()),
+                    folderURLs: [fileURL]
+                )
+            )
+            XCTFail("An imported non-folder path must fail validation")
+        } catch let error as FolderAccessError {
+            guard case .notDirectory = error else {
+                return XCTFail("Expected notDirectory, got \(error)")
+            }
+        }
+
+        XCTAssertEqual(coordinator.portalStates, [existing])
+        XCTAssertEqual(factory.windows.count, 1)
+        XCTAssertEqual(factory.windows[0].closeCount, 0)
+        let saves = await store.savedSnapshots()
+        XCTAssertTrue(saves.isEmpty)
+    }
+
+    @MainActor
     func testLayoutImportPreflightFailureDoesNotSaveOrChangeRuntimeState() async throws {
         let existing = try makePortal(path: "/tmp/existing", x: 10)
         let store = PortalStoreSpy(portals: [existing])
@@ -520,7 +561,11 @@ final class PortalCoordinatorTests: XCTestCase {
     @MainActor
     private func makeLayoutBackup(
         portalID: PortalID,
-        gridCapacity: GridCapacity = .minimum
+        gridCapacity: GridCapacity = .minimum,
+        folderURLs: [URL] = [
+            URL(fileURLWithPath: "/missing/one"),
+            URL(fileURLWithPath: "/missing/two"),
+        ]
     ) throws -> AlcoveLayoutBackup {
         AlcoveLayoutBackup(
             global: AlcoveLayoutBackupGlobal(
@@ -539,11 +584,8 @@ final class PortalCoordinatorTests: XCTestCase {
                     normalizedAnchor: try NormalizedAnchor(x: 0.25, y: 0.75),
                     size: CGSize(width: 1, height: 1),
                     gridCapacity: gridCapacity,
-                    folderURLs: [
-                        URL(fileURLWithPath: "/missing/one"),
-                        URL(fileURLWithPath: "/missing/two"),
-                    ],
-                    selectedFolderIndex: 1
+                    folderURLs: folderURLs,
+                    selectedFolderIndex: folderURLs.isEmpty ? nil : folderURLs.count - 1
                 ),
             ]
         )

@@ -417,8 +417,9 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
                 spacing: backup.global.spacing,
                 shadowEnabled: backup.global.shadowEnabled
             )
+            let validatedBackup = try await backupWithValidatedFolderLocations(backup)
             let importedPortals = try portals(
-                from: backup,
+                from: validatedBackup,
                 appearance: appearance,
                 display: snapshot.primaryDescriptor
             )
@@ -631,6 +632,34 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
             )
         }
         return portals
+    }
+
+    private func backupWithValidatedFolderLocations(
+        _ backup: AlcoveLayoutBackup
+    ) async throws -> AlcoveLayoutBackup {
+        var validatedPortals: [AlcoveLayoutBackupPortal] = []
+        validatedPortals.reserveCapacity(backup.portals.count)
+        for portal in backup.portals {
+            var validatedFolderURLs: [URL] = []
+            validatedFolderURLs.reserveCapacity(portal.folderURLs.count)
+            for folderURL in portal.folderURLs {
+                validatedFolderURLs.append(
+                    try await locationValidator.validateForRestoration(folderURL)
+                )
+            }
+            validatedPortals.append(AlcoveLayoutBackupPortal(
+                id: portal.id,
+                sortOrder: portal.sortOrder,
+                tint: portal.tint,
+                isPinned: portal.isPinned,
+                normalizedAnchor: portal.normalizedAnchor,
+                size: portal.size,
+                gridCapacity: portal.gridCapacity,
+                folderURLs: validatedFolderURLs,
+                selectedFolderIndex: portal.selectedFolderIndex
+            ))
+        }
+        return AlcoveLayoutBackup(global: backup.global, portals: validatedPortals)
     }
 
     func setBackgroundStyle(
