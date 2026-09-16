@@ -53,6 +53,7 @@
 		A10000000000000000000013 /* FileGridTransferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* FileGridTransferTests.swift */; };
 		A10000000000000000000014 /* PortalViewNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* PortalViewNavigationTests.swift */; };
 		A10000000000000000000015 /* PortalViewObservationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* PortalViewObservationTests.swift */; };
+		A10000000000000000000016 /* PortalSettingsViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* PortalSettingsViewTests.swift */; };
 		100000000000000000000020 /* PortalStoreFileSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000022 /* PortalStoreFileSystem.swift */; };
 		100000000000000000000021 /* PortalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000023 /* PortalStore.swift */; };
 		100000000000000000000022 /* PortalStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000024 /* PortalStoreTests.swift */; };
@@ -151,6 +152,7 @@
 		A20000000000000000000013 /* FileGridTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridTransferTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000014 /* PortalViewNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalViewNavigationTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* PortalViewObservationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalViewObservationTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000016 /* PortalSettingsViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalSettingsViewTests.swift; sourceTree = "<group>"; };
 		200000000000000000000022 /* PortalStoreFileSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreFileSystem.swift; sourceTree = "<group>"; };
 		200000000000000000000023 /* PortalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStore.swift; sourceTree = "<group>"; };
 		200000000000000000000024 /* PortalStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreTests.swift; sourceTree = "<group>"; };
@@ -290,6 +292,7 @@
 				A20000000000000000000011 /* PortalCoordinatorTabTests.swift */,
 				200000000000000000000017 /* PortalCoordinatorTests.swift */,
 				200000000000000000000031 /* PortalChromeMaterialViewTests.swift */,
+				A20000000000000000000016 /* PortalSettingsViewTests.swift */,
 				200000000000000000000020 /* PortalCreationCoordinatorTests.swift */,
 				A2000000000000000000000D /* PortalStoreLegacyMigrationTests.swift */,
 				A2000000000000000000000C /* PortalStoreModernMigrationTests.swift */,
@@ -596,6 +599,7 @@
 				A10000000000000000000011 /* PortalCoordinatorTabTests.swift in Sources */,
 				100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */,
 				10000000000000000000002F /* PortalChromeMaterialViewTests.swift in Sources */,
+				A10000000000000000000016 /* PortalSettingsViewTests.swift in Sources */,
 				10000000000000000000001E /* PortalCreationCoordinatorTests.swift in Sources */,
 				A1000000000000000000000D /* PortalStoreLegacyMigrationTests.swift in Sources */,
 				A1000000000000000000000C /* PortalStoreModernMigrationTests.swift in Sources */,
