@@ -1348,43 +1348,20 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
             return nil
         }
 
-        var portalsByDisplay: [DisplayIdentity: [(id: PortalID, frame: NSRect)]] = [:]
+        var entries: [PortalLayoutPlanner.SpacingEntry] = []
         for portal in portalStates {
             guard let window = windows[portal.id],
                   let presentedFrame = window.presentedFrame else {
                 continue
             }
             let baseFrame = spacingLayoutBaseFrames[portal.id] ?? presentedFrame
-            guard let display = try? LegacyFrameDisplayResolver.resolve(
-                frame: baseFrame,
-                in: snapshot
-            ) else {
-                return nil
-            }
-            portalsByDisplay[display.identity, default: []].append((portal.id, baseFrame))
+            entries.append(.init(id: portal.id, frame: baseFrame))
         }
-
-        var plan: [PortalID: NSRect] = [:]
-        for display in snapshot.displays {
-            guard let entries = portalsByDisplay[display.identity] else { continue }
-            let result: [NSRect]?
-            do {
-                result = try PortalFrameReflow.reflowedFrames(
-                    entries.map(\.frame),
-                    visibleFrame: display.visibleFrame,
-                    minimumGap: spacing
-                )
-            } catch {
-                return nil
-            }
-            guard let reflowedFrames = result else {
-                return nil
-            }
-            for (entry, frame) in zip(entries, reflowedFrames) {
-                plan[entry.id] = frame
-            }
-        }
-        return plan
+        return PortalLayoutPlanner.spacingPlan(
+            snapshot: snapshot,
+            spacing: spacing,
+            entries: entries
+        )
     }
 
     private func portalIconSizeLayoutPlan(
@@ -1394,65 +1371,24 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
         portals: [Portal]? = nil,
         referenceFrames: [PortalID: NSRect]? = nil
     ) -> [PortalID: NSRect]? {
-        let iconLayout = PortalIconLayout.fixed(iconSize)
-        var portalsByDisplay: [DisplayIdentity: [(
-            id: PortalID,
-            referenceFrame: NSRect,
-            targetFrame: NSRect
-        )]] = [:]
-
+        var entries: [PortalLayoutPlanner.IconSizeEntry] = []
         for portal in portals ?? portalStates {
             guard let currentFrame = referenceFrames?[portal.id]
                     ?? windows[portal.id]?.presentedFrame else {
                 continue
             }
-            guard let display = try? LegacyFrameDisplayResolver.resolve(
-                frame: currentFrame,
-                in: snapshot
-            ) else {
-                return nil
-            }
-            let contentSize = PortalViewController.contentSize(
-                for: portal.gridCapacity,
-                iconLayout: iconLayout
-            )
-            let frameSize = NSWindow.frameRect(
-                forContentRect: NSRect(origin: .zero, size: contentSize),
-                styleMask: [.resizable]
-            ).size
-            let targetFrame = NSRect(
-                x: currentFrame.minX,
-                y: currentFrame.maxY - frameSize.height,
-                width: frameSize.width,
-                height: frameSize.height
-            )
-            portalsByDisplay[display.identity, default: []].append((
+            entries.append(.init(
                 id: portal.id,
-                referenceFrame: currentFrame,
-                targetFrame: targetFrame
+                gridCapacity: portal.gridCapacity,
+                referenceFrame: currentFrame
             ))
         }
-
-        var plan: [PortalID: NSRect] = [:]
-        for display in snapshot.displays {
-            guard let entries = portalsByDisplay[display.identity] else { continue }
-            let result: [NSRect]?
-            do {
-                result = try PortalFrameReflow.reflowedFrames(
-                    entries.map(\.targetFrame),
-                    attachmentReferenceFrames: entries.map(\.referenceFrame),
-                    visibleFrame: display.visibleFrame,
-                    minimumGap: spacing
-                )
-            } catch {
-                return nil
-            }
-            guard let reflowedFrames = result else { return nil }
-            for (entry, frame) in zip(entries, reflowedFrames) {
-                plan[entry.id] = frame
-            }
-        }
-        return plan
+        return PortalLayoutPlanner.iconSizePlan(
+            snapshot: snapshot,
+            iconSize: iconSize,
+            spacing: spacing,
+            entries: entries
+        )
     }
 
     private func applyCurrentPortalSpacingLayout(
