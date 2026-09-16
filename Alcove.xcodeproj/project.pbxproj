@@ -43,6 +43,10 @@
 		100000000000000000000022 /* PortalStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000024 /* PortalStoreTests.swift */; };
 		100000000000000000000023 /* PortalWindowFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000025 /* PortalWindowFactory.swift */; };
 		100000000000000000000024 /* TabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000026 /* TabBarView.swift */; };
+		A10000000000000000000001 /* PortalSettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* PortalSettingsWindowController.swift */; };
+		A10000000000000000000002 /* PortalSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* PortalSettingsViewController.swift */; };
+		A10000000000000000000003 /* PortalSettingsFolderListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* PortalSettingsFolderListView.swift */; };
+		A10000000000000000000004 /* PortalSettingsControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* PortalSettingsControls.swift */; };
 		100000000000000000000025 /* LastTabRemovalConfirmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000027 /* LastTabRemovalConfirmer.swift */; };
 		100000000000000000000026 /* TabBarViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000028 /* TabBarViewTests.swift */; };
 		100000000000000000000027 /* QuickLookIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000029 /* QuickLookIntegration.swift */; };
@@ -120,6 +124,10 @@
 		200000000000000000000024 /* PortalStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreTests.swift; sourceTree = "<group>"; };
 		200000000000000000000025 /* PortalWindowFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalWindowFactory.swift; sourceTree = "<group>"; };
 		200000000000000000000026 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
+		A20000000000000000000001 /* PortalSettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalSettingsWindowController.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* PortalSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalSettingsViewController.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* PortalSettingsFolderListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalSettingsFolderListView.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* PortalSettingsControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalSettingsControls.swift; sourceTree = "<group>"; };
 		200000000000000000000027 /* LastTabRemovalConfirmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastTabRemovalConfirmer.swift; sourceTree = "<group>"; };
 		200000000000000000000028 /* TabBarViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarViewTests.swift; sourceTree = "<group>"; };
 		200000000000000000000029 /* QuickLookIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookIntegration.swift; sourceTree = "<group>"; };
@@ -302,6 +310,10 @@
 				200000000000000000000027 /* LastTabRemovalConfirmer.swift */,
 				200000000000000000000030 /* PortalChromeMaterialView.swift */,
 				200000000000000000000012 /* PortalViewController.swift */,
+				A20000000000000000000004 /* PortalSettingsControls.swift */,
+				A20000000000000000000003 /* PortalSettingsFolderListView.swift */,
+				A20000000000000000000002 /* PortalSettingsViewController.swift */,
+				A20000000000000000000001 /* PortalSettingsWindowController.swift */,
 				200000000000000000000026 /* TabBarView.swift */,
 			);
 			path = PortalPresentation;
@@ -492,6 +504,10 @@
 				10000000000000000000001F /* PortalStoreModels.swift in Sources */,
 				100000000000000000000010 /* PortalViewController.swift in Sources */,
 				10000000000000000000002E /* PortalChromeMaterialView.swift in Sources */,
+				A10000000000000000000004 /* PortalSettingsControls.swift in Sources */,
+				A10000000000000000000003 /* PortalSettingsFolderListView.swift in Sources */,
+				A10000000000000000000002 /* PortalSettingsViewController.swift in Sources */,
+				A10000000000000000000001 /* PortalSettingsWindowController.swift in Sources */,
 				100000000000000000000024 /* TabBarView.swift in Sources */,
 				100000000000000000000025 /* LastTabRemovalConfirmer.swift in Sources */,
 				100000000000000000000011 /* PortalWindowStrategy.swift in Sources */,
