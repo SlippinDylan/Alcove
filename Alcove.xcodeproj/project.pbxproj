@@ -243,7 +243,7 @@
 				70000000000000000000000E /* Persistence */,
 				700000000000000000000004 /* Resources */,
 			);
-			path = Alcove;
+			path = App;
 			sourceTree = "<group>";
 		};
 		700000000000000000000003 /* Application */ = {
@@ -711,7 +711,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = DS4FSRW7VS;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Alcove/Resources/Info.plist;
+				INFOPLIST_FILE = App/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -735,7 +735,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = DS4FSRW7VS;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Alcove/Resources/Info.plist;
+				INFOPLIST_FILE = App/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

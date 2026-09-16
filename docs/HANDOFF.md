@@ -192,22 +192,22 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 | 范围 | 主要文件 | 当前职责 |
 |---|---|---|
-| 应用生命周期 | `Alcove/Application/AppDelegate.swift` | 菜单栏应用生命周期、持久状态恢复和终止协调 |
-| 全局协调 | `Alcove/Application/PortalCoordinator.swift` | Portal/Tab 事务、窗口回调、持久化和显示器协调 |
-| 新建 | `Alcove/PortalCreation/PortalFrameSelector.swift` | 当前屏幕 overlay、虚线骨架、整数容量选择 |
-| 新建事务 | `Alcove/PortalCreation/PortalCreationCoordinator.swift` | 选择 frame 后创建空 Portal |
-| Portal 窗口 | `Alcove/PortalWindowing/PortalWindow.swift` | 自定义拖动、用户交互边界、系统 placement 抑制 |
-| 窗口控制 | `Alcove/PortalWindowing/PortalWindowController.swift` | live resize 量化、容量提交、Quick Look/设置窗口生命周期 |
-| Portal 内容 | `Alcove/PortalPresentation/PortalViewController.swift` | Tab、分区线、网格、底部路径行、空态、加载/错误态、设置动作转发 |
-| Tab 与设置 | `Alcove/PortalPresentation/TabBarView.swift` | 原生 Glass Tab、齿轮管理菜单、单面板 General/Folders/Style 设置 |
-| 背景 | `Alcove/PortalPresentation/PortalChromeMaterialView.swift` | 静态半透明表面、每面板 tint 与 Reduce Transparency 不透明表面 |
-| 文件网格 | `Alcove/FileGrid/FileGridViewController.swift` | collection view、row-major 布局接入、选择和键盘行为 |
-| 文件单元 | `Alcove/FileGrid/FileItemCell.swift` | Finder 风格对象、两行标题、选中视觉和无障碍 |
-| 文件读取 | `Alcove/FolderAccess/*` | 后台枚举、路径校验、FSEvents 和恢复 |
-| Quick Look | `Alcove/QuickLookIntegration/QuickLookIntegration.swift` | responder chain 和 `QLPreviewPanel` 所有权 |
-| placement | `Alcove/DisplayPlacement/DisplayPlacement.swift` | 菜单栏主屏识别、NSScreen 快照、拓扑通知、legacy frame 解析 |
-| 持久化 | `Alcove/Persistence/*` | v12 DTO、v1–v11 迁移、同目录临时文件和原子替换 |
-| 布局备份 | `Alcove/Application/ApplicationLayoutBackupController.swift`、`Alcove/Persistence/AlcoveLayoutBackupCodec.swift` | JSON 面板、后台原子 I/O、公开 v1 codec 和替换式导入 |
+| 应用生命周期 | `App/Application/AppDelegate.swift` | 菜单栏应用生命周期、持久状态恢复和终止协调 |
+| 全局协调 | `App/Application/PortalCoordinator.swift` | Portal/Tab 事务、窗口回调、持久化和显示器协调 |
+| 新建 | `App/PortalCreation/PortalFrameSelector.swift` | 当前屏幕 overlay、虚线骨架、整数容量选择 |
+| 新建事务 | `App/PortalCreation/PortalCreationCoordinator.swift` | 选择 frame 后创建空 Portal |
+| Portal 窗口 | `App/PortalWindowing/PortalWindow.swift` | 自定义拖动、用户交互边界、系统 placement 抑制 |
+| 窗口控制 | `App/PortalWindowing/PortalWindowController.swift` | live resize 量化、容量提交、Quick Look/设置窗口生命周期 |
+| Portal 内容 | `App/PortalPresentation/PortalViewController.swift` | Tab、分区线、网格、底部路径行、空态、加载/错误态、设置动作转发 |
+| Tab 与设置 | `App/PortalPresentation/TabBarView.swift` | 原生 Glass Tab、齿轮管理菜单、单面板 General/Folders/Style 设置 |
+| 背景 | `App/PortalPresentation/PortalChromeMaterialView.swift` | 静态半透明表面、每面板 tint 与 Reduce Transparency 不透明表面 |
+| 文件网格 | `App/FileGrid/FileGridViewController.swift` | collection view、row-major 布局接入、选择和键盘行为 |
+| 文件单元 | `App/FileGrid/FileItemCell.swift` | Finder 风格对象、两行标题、选中视觉和无障碍 |
+| 文件读取 | `App/FolderAccess/*` | 后台枚举、路径校验、FSEvents 和恢复 |
+| Quick Look | `App/QuickLookIntegration/QuickLookIntegration.swift` | responder chain 和 `QLPreviewPanel` 所有权 |
+| placement | `App/DisplayPlacement/DisplayPlacement.swift` | 菜单栏主屏识别、NSScreen 快照、拓扑通知、legacy frame 解析 |
+| 持久化 | `App/Persistence/*` | v12 DTO、v1–v11 迁移、同目录临时文件和原子替换 |
+| 布局备份 | `App/Application/ApplicationLayoutBackupController.swift`、`App/Persistence/AlcoveLayoutBackupCodec.swift` | JSON 面板、后台原子 I/O、公开 v1 codec 和替换式导入 |
 | 纯领域/几何 | `Packages/AlcoveCore/Sources/AlcoveCore/*` | Portal、GridCapacity、GridLayout、placement state machine、主屏投影/溢出恢复、selection |
 
 ## 5. 持久化现状

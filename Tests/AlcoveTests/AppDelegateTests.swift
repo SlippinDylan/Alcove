@@ -143,7 +143,7 @@ final class AppDelegateTests: XCTestCase {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
         let data = try Data(
-            contentsOf: repositoryRoot.appending(path: "Alcove/Resources/Info.plist")
+            contentsOf: repositoryRoot.appending(path: "App/Resources/Info.plist")
         )
         let plist = try XCTUnwrap(
             PropertyListSerialization.propertyList(from: data, format: nil)
@@ -156,7 +156,7 @@ final class AppDelegateTests: XCTestCase {
         )
         for language in ["en", "zh-Hans", "zh-Hant"] {
             let localizationData = try Data(contentsOf: repositoryRoot.appending(
-                path: "Alcove/Resources/\(language).lproj/InfoPlist.strings"
+                path: "App/Resources/\(language).lproj/InfoPlist.strings"
             ))
             let localization = try XCTUnwrap(
                 PropertyListSerialization.propertyList(from: localizationData, format: nil)

@@ -45,7 +45,7 @@ jobs:
         run: |
           if grep -REn --include='*.swift' \
             'as!|try!|@unchecked Sendable|nonisolated\(unsafe\)' \
-            Alcove Packages/AlcoveCore/Sources; then
+            App Packages/AlcoveCore/Sources; then
             exit 1
           fi
           # File mutation is confined to the dedicated IO boundaries; UI sources stay read-only.
@@ -53,7 +53,7 @@ jobs:
             --exclude='FileCompression.swift' \
             --exclude='FileOperations.swift' \
             '\.(trashItem|recycleURLs|performFileOperation|moveItem|copyItem)[[:space:]]*\(' \
-            Alcove/FileGrid Alcove/PortalPresentation Alcove/PortalWindowing; then
+            App/FileGrid App/PortalPresentation App/PortalWindowing; then
             exit 1
           fi
 
