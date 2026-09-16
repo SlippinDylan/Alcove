@@ -165,23 +165,27 @@ actor CoordinatedFileRenamingService: FileRenaming {
             fileManager: fileManager
         )
         guard plan.sourceURL != plan.destinationURL else { return plan.destinationURL }
+        return try CoordinatedFileRenamer.rename(plan, using: fileManager)
+    }
+}
 
-        // The accessor is synchronous and the actor serializes every use of this handle.
-        let coordinator = SendableFileCoordinator()
+private enum CoordinatedFileRenamer {
+    static func rename(_ plan: FileRenamePlan, using fileManager: FileManager) throws -> URL {
+        let coordinator = NSFileCoordinator(filePresenter: nil)
         var coordinationError: NSError?
         var operationError: Error?
-        coordinator.value.coordinate(
+        coordinator.coordinate(
             writingItemAt: plan.sourceURL,
             options: .forMoving,
             error: &coordinationError
         ) { coordinatedSource in
             do {
-                coordinator.value.item(
+                coordinator.item(
                     at: coordinatedSource,
                     willMoveTo: plan.destinationURL
                 )
                 try fileManager.moveItem(at: coordinatedSource, to: plan.destinationURL)
-                coordinator.value.item(at: coordinatedSource, didMoveTo: plan.destinationURL)
+                coordinator.item(at: coordinatedSource, didMoveTo: plan.destinationURL)
             } catch {
                 operationError = error
             }
@@ -190,10 +194,6 @@ actor CoordinatedFileRenamingService: FileRenaming {
         if let operationError { throw operationError }
         return plan.destinationURL
     }
-}
-
-private final class SendableFileCoordinator: @unchecked Sendable {
-    let value = NSFileCoordinator(filePresenter: nil)
 }
 
 struct FileTransferPlan: Equatable, Sendable {

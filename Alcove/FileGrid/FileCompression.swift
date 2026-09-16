@@ -114,26 +114,15 @@ actor DittoFileCompressionService: FileCompressing {
 
     private func runDitto(arguments: [String]) async throws {
         try Task.checkCancellation()
-        let process = SendableProcess()
-        process.value.executableURL = executableURL
-        process.value.arguments = arguments
-        process.value.standardOutput = FileHandle.nullDevice
-        process.value.standardError = FileHandle.nullDevice
+        let process = CancellableProcess(
+            executableURL: executableURL,
+            arguments: arguments
+        )
 
         let terminationStatus: Int32 = try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                process.value.terminationHandler = { completedProcess in
-                    continuation.resume(returning: completedProcess.terminationStatus)
-                }
-                do {
-                    try process.run()
-                } catch {
-                    process.value.terminationHandler = nil
-                    continuation.resume(throwing: error)
-                }
-            }
+            try await process.run()
         } onCancel: {
-            process.cancel()
+            Task { await process.cancel() }
         }
         try Task.checkCancellation()
         guard terminationStatus == 0 else {
@@ -142,26 +131,40 @@ actor DittoFileCompressionService: FileCompressing {
     }
 }
 
-private final class SendableProcess: @unchecked Sendable {
-    let value = Process()
-    private let lock = NSLock()
+private actor CancellableProcess {
+    private let process: Process
     private var isCancelled = false
 
-    func run() throws {
-        lock.lock()
-        defer { lock.unlock() }
+    init(executableURL: URL, arguments: [String]) {
+        let process = Process()
+        process.executableURL = executableURL
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        self.process = process
+    }
+
+    func run() async throws -> Int32 {
         if isCancelled {
             throw CancellationError()
         }
-        try value.run()
+        return try await withCheckedThrowingContinuation { continuation in
+            process.terminationHandler = { completedProcess in
+                continuation.resume(returning: completedProcess.terminationStatus)
+            }
+            do {
+                try process.run()
+            } catch {
+                process.terminationHandler = nil
+                continuation.resume(throwing: error)
+            }
+        }
     }
 
     func cancel() {
-        lock.lock()
         isCancelled = true
-        if value.isRunning {
-            value.terminate()
+        if process.isRunning {
+            process.terminate()
         }
-        lock.unlock()
     }
 }

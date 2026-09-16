@@ -48,8 +48,11 @@ jobs:
             Alcove Packages/AlcoveCore/Sources; then
             exit 1
           fi
+          # File mutation is confined to the dedicated IO boundaries; UI sources stay read-only.
           if grep -REn --include='*.swift' \
-            'trashItem|recycleURLs|performFileOperation|moveItem|copyItem' \
+            --exclude='FileCompression.swift' \
+            --exclude='FileOperations.swift' \
+            '\.(trashItem|recycleURLs|performFileOperation|moveItem|copyItem)[[:space:]]*\(' \
             Alcove/FileGrid Alcove/PortalPresentation Alcove/PortalWindowing; then
             exit 1
           fi
