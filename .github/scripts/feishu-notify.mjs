@@ -39,6 +39,10 @@ function repositoryName(event) {
   return event.repository?.full_name ?? process.env.GITHUB_REPOSITORY ?? '未知仓库';
 }
 
+function productName(event) {
+  return repositoryName(event).split('/').at(-1) || 'Alcove';
+}
+
 function actorName(event) {
   return event.workflow_run?.actor?.login
     ?? event.release?.author?.login
@@ -83,7 +87,7 @@ function buildPush(event) {
   const commitUrl = SHA_PATTERN.test(sha ?? '') ? `${repoUrl}/commit/${sha}` : repoUrl;
 
   return {
-    title: 'Alcove 代码已推送',
+    title: `${productName(event)} 代码已推送`,
     details: commonDetails(event, [
       `分支：${branch}`,
       `提交：${event.size ?? (commits.length || (event.head_commit ? 1 : 0))} 个`,
@@ -94,16 +98,17 @@ function buildPush(event) {
   };
 }
 
-function pullRequestTitle(action, merged) {
-  if (action === 'closed' && merged) return 'Alcove PR 已合并';
+function pullRequestTitle(event) {
+  const product = productName(event);
+  if (event.action === 'closed' && event.pull_request?.merged) return `${product} PR 已合并`;
   const titles = {
-    opened: 'Alcove PR 已创建',
-    reopened: 'Alcove PR 已重新打开',
-    ready_for_review: 'Alcove PR 已可审查',
-    review_requested: 'Alcove PR 请求审查',
-    closed: 'Alcove PR 已关闭',
+    opened: `${product} PR 已创建`,
+    reopened: `${product} PR 已重新打开`,
+    ready_for_review: `${product} PR 已可审查`,
+    review_requested: `${product} PR 请求审查`,
+    closed: `${product} PR 已关闭`,
   };
-  return titles[action] ?? 'Alcove PR 已更新';
+  return titles[event.action] ?? `${product} PR 已更新`;
 }
 
 function buildPullRequest(event) {
@@ -111,7 +116,7 @@ function buildPullRequest(event) {
   const pullRequest = event.pull_request ?? {};
   const reviewer = event.requested_reviewer?.login ?? event.requested_team?.name;
   return {
-    title: pullRequestTitle(event.action, pullRequest.merged),
+    title: pullRequestTitle(event),
     details: commonDetails(event, [
       `PR #${pullRequest.number ?? event.number ?? '未知'}：${truncate(pullRequest.title, MAX_TITLE_LENGTH)}`,
       `状态：${pullRequest.merged ? '已合并' : pullRequest.draft ? '草稿' : pullRequest.state ?? '未知'}`,
@@ -135,7 +140,7 @@ function buildIssue(event) {
   const repoUrl = repositoryUrl(event);
   const issue = event.issue ?? {};
   return {
-    title: `Alcove Issue ${issueAction(event.action)}`,
+    title: `${productName(event)} Issue ${issueAction(event.action)}`,
     details: commonDetails(event, [
       `Issue #${issue.number ?? '未知'}：${truncate(issue.title, MAX_TITLE_LENGTH)}`,
       event.assignee?.login ? `负责人：${event.assignee.login}` : '',
@@ -151,7 +156,7 @@ function buildIssueComment(event) {
   const comment = event.comment ?? {};
   const kind = issue.pull_request ? 'PR' : 'Issue';
   return {
-    title: `Alcove ${kind} 有新评论`,
+    title: `${productName(event)} ${kind} 有新评论`,
     details: commonDetails(event, [
       `${kind} #${issue.number ?? '未知'}：${truncate(issue.title, MAX_TITLE_LENGTH)}`,
       `评论：${truncate(comment.body, MAX_CONTENT_LENGTH) || '（无文字内容）'}`,
@@ -167,7 +172,7 @@ function buildReview(event) {
   const review = event.review ?? {};
   const state = String(review.state ?? '未知').toLowerCase();
   return {
-    title: 'Alcove PR 收到审查',
+    title: `${productName(event)} PR 收到审查`,
     details: commonDetails(event, [
       `PR #${pullRequest.number ?? event.number ?? '未知'}：${truncate(pullRequest.title, MAX_TITLE_LENGTH)}`,
       `结论：${state}`,
@@ -194,7 +199,23 @@ function conclusionLabel(conclusion) {
 function buildWorkflowRun(event) {
   const repoUrl = repositoryUrl(event);
   const run = event.workflow_run ?? {};
+  const action = String(event.action ?? '').toLowerCase();
   const conclusion = String(run.conclusion ?? '').toLowerCase();
+
+  if (action === 'in_progress') {
+    if (run.name !== 'CI') return null;
+    return {
+      title: `${productName(event)} CI 已开始`,
+      details: commonDetails(event, [
+        `分支：${run.head_branch ?? '未知'}`,
+        `提交：${shortSha(run.head_sha)}`,
+        `运行：#${run.run_number ?? '未知'}`,
+        `触发：${run.event ?? '未知'}`,
+      ]),
+      button: { text: '查看运行', url: safeGitHubUrl(run.html_url, repoUrl) },
+      color: 'blue',
+    };
+  }
 
   if (run.name === 'Release' && conclusion === 'success') return null;
   if (run.name === 'CI' && conclusion === 'success' && run.event !== 'pull_request' && run.head_branch !== 'main') {
@@ -203,7 +224,7 @@ function buildWorkflowRun(event) {
 
   const workflowLabel = run.name === 'Release' ? '版本发布' : 'CI';
   return {
-    title: `Alcove ${workflowLabel}${conclusionLabel(conclusion)}`,
+    title: `${productName(event)} ${workflowLabel}${conclusionLabel(conclusion)}`,
     details: commonDetails(event, [
       `分支：${run.head_branch ?? '未知'}`,
       `提交：${shortSha(run.head_sha)}`,
@@ -231,7 +252,7 @@ function buildRelease(event) {
   const asset = release.assets?.find((candidate) => String(candidate.name ?? '').endsWith('.dmg'));
   const highlights = extractReleaseHighlights(release.body);
   return {
-    title: `Alcove ${version} 发布成功`,
+    title: `${productName(event)} ${version} 发布成功`,
     details: commonDetails(event, [
       `类型：${release.prerelease ? 'Pre-release' : 'Stable'}`,
       asset?.name ? `制品：${asset.name}` : '',
@@ -252,7 +273,7 @@ function buildReleaseDispatch(event) {
   const payload = event.client_payload ?? {};
   const highlights = extractReleaseHighlights(payload.changelog);
   return {
-    title: `Alcove ${payload.version ?? '未知版本'} 发布成功`,
+    title: `${productName(event)} ${payload.version ?? '未知版本'} 发布成功`,
     details: commonDetails(event, [
       `类型：${payload.prerelease ? 'Pre-release' : 'Stable'}`,
       payload.dmg_name ? `制品：${payload.dmg_name}` : '',
@@ -268,6 +289,28 @@ function buildReleaseDispatch(event) {
   };
 }
 
+function buildReleaseStarted(event) {
+  const repoUrl = repositoryUrl(event);
+  const payload = event.client_payload ?? {};
+  return {
+    title: `${productName(event)} ${payload.version ?? '未知版本'} 开始打包`,
+    details: commonDetails(event, [
+      `类型：${payload.prerelease ? 'Pre-release' : 'Stable'}`,
+      payload.dmg_name ? `制品：${payload.dmg_name}` : '',
+      '架构：arm64',
+      `提交：${shortSha(payload.sha)}`,
+    ]),
+    button: { text: '查看运行', url: safeGitHubUrl(payload.run_url, repoUrl) },
+    color: 'blue',
+  };
+}
+
+function buildRepositoryDispatch(event) {
+  if (event.action === 'release_started') return buildReleaseStarted(event);
+  if (event.action === 'release_published') return buildReleaseDispatch(event);
+  return null;
+}
+
 const BUILDERS = {
   push: buildPush,
   pull_request_target: buildPullRequest,
@@ -276,7 +319,7 @@ const BUILDERS = {
   pull_request_review: buildReview,
   workflow_run: buildWorkflowRun,
   release: buildRelease,
-  repository_dispatch: buildReleaseDispatch,
+  repository_dispatch: buildRepositoryDispatch,
 };
 
 export function buildNotification(eventName, event) {

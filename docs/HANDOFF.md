@@ -33,7 +33,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - 发布与 CI 架构仅支持 Apple Silicon `arm64`。
 - macOS 26+ 的 Portal 只使用稳定的静态半透明背景；不再使用会在 `.canJoinAllSpaces` 切换期间灰闪的动态 backdrop。只有系统 Reduce Transparency 会强制切换到不透明辅助功能表面。
 - Apple Development 签名、版本/CHANGELOG 门禁、拖拽式 arm64 DMG 和 GitHub Release workflow 已实现；Gatekeeper、证书到期和安装体验仍需 Spike 0.6 人工验证。
-- 所有 push/PR 都运行无签名 arm64 CI；普通 CI 不上传 App 制品。未经用户明确要求，不自动 push 或监控 CI。
+- `main` push 和面向 `main` 的 PR 始终运行轻量自动化检查；纯 README、docs、LICENSE 或 AGENTS.md 改动且未启用发布时跳过 macOS runner，其他改动运行完整无签名 arm64 测试与构建。普通 CI 不上传 App 制品。未经用户明确要求，不自动 push 或监控 CI。
 - 当前发布清单为 `0.1.0-beta.1` 且 `release=false`；现阶段只验证 CI 和飞书通知，不触发签名、DMG 或 GitHub Release。
 
 ### 3.2 文件夹来源
@@ -310,7 +310,7 @@ AlcoveCore 与 hosted app 测试；现行构建命令与制品契约以 CI workf
 
 ### 7.4 发布自动化验证
 
-- 发布清单与飞书通知共 19 项 Node 测试通过；actionlint 1.7.12 与 ShellCheck 0.11.0 对三条 workflow 检查通过，zizmor 1.30.1 在三个已解释的可信触发器 ignore 之外无发现。
+- 发布清单与飞书通知共 22 项 Node 测试通过；飞书通知覆盖 CI 开始/完成、Release 打包开始与发布成功。actionlint 1.7.12 与 ShellCheck 0.11.0 对三条 workflow 检查通过，zizmor 1.30.1 在三个已解释的可信触发器 ignore 之外无发现。
 - AlcoveCore 159 项和 hosted app 282 项测试通过；hosted tests 在 macOS 26.6.2 上执行。
 - 本地 Xcode 27 unsigned Release 已确认为单一 arm64 slice、minimum macOS 26.0、SDK 27.0、`LSUIElement=true`，且 warnings-as-errors 构建通过。
 - Xcode 27 编译已通过；macOS 27 真机 linked-on behavior 和系统矩阵仍按未验证风险处理。
@@ -319,27 +319,19 @@ AlcoveCore 与 hosted app 测试；现行构建命令与制品契约以 CI workf
 
 ## 8. Git 状态与提交边界
 
-本轮 macOS 26 AppKit 设置控件、文件菜单图标、Toolbar 和相关文档改动尚未提交。
-`Alcove.xcodeproj/project.pbxproj` 未修改。
+本轮 change-gated CI、发布开关和相关文档改动尚未提交。
+应用源码与 `Alcove.xcodeproj/project.pbxproj` 未修改。
 
 快照时：
 
 ```text
-HEAD:        8acca13 chore: rename app icon layers
-origin/main: ac32504 chore: add README feature gallery
-ahead:       5 commits
-worktree:    本轮 macOS 26 AppKit 优化与文档改动，未提交
+HEAD:        adac87c chore: enable beta release
+origin/main: adac87c chore: enable beta release
+ahead:       0 commits
+worktree:    本轮 change-gated CI、release=false 与文档改动，未提交
 ```
 
-尚未 push 的功能提交：
-
-```text
-131d780 chore: add release docs and Apache license
-cae619e fix: refine file labels and menu bar icon
-24cce02 chore: update app copyright notice
-69a9aa5 chore: move localized readmes into docs
-8acca13 chore: rename app icon layers
-```
+当前没有尚未 push 的提交。
 
 ## 9. 当前协作约定
 

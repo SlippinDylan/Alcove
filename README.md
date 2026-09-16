@@ -107,7 +107,10 @@ quarantine attribute as described in the release notes:
 sudo xattr -rd com.apple.quarantine /Applications/Alcove.app
 ```
 
-Every push and pull request runs unsigned arm64 CI. Release configuration lives in
+Pushes to `main` and pull requests always run lightweight release-automation checks.
+Changes limited to `README.md`, `docs/`, `LICENSE`, or `AGENTS.md` skip the macOS build
+unless publishing is enabled; all other changes run the complete test suite and an
+unsigned arm64 Release build. Release configuration lives in
 [`Config/Release/manifest.json`](Config/Release/manifest.json). The release workflow
 signs, packages, and publishes a DMG only after main CI succeeds, `release` is `true`,
 the version is unpublished, and [`CHANGELOG.md`](CHANGELOG.md) contains one unique,

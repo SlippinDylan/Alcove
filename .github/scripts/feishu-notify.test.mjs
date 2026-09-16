@@ -49,6 +49,16 @@ test('builds push and merged pull request notifications', () => {
   assert.equal(pullRequest.color, 'green');
 });
 
+test('derives the product name from the repository', () => {
+  const notification = buildNotification('issues', {
+    repository: { full_name: 'owner/Alcove-Preview' },
+    sender,
+    action: 'opened',
+    issue: { number: 2, title: 'Issue' },
+  });
+  assert.equal(notification.title, 'Alcove-Preview Issue 已创建');
+});
+
 test('normalizes every configured collaboration event', () => {
   const cases = [
     ['issues', { repository, sender, action: 'opened', issue: { number: 2, title: 'Issue' } }],
@@ -98,6 +108,31 @@ test('reports main CI success and release workflow failure', () => {
   assert.equal(releaseFailure.color, 'red');
 });
 
+test('reports CI start and suppresses Release planning start', () => {
+  const sha = 'a'.repeat(40);
+  const ciStarted = buildNotification('workflow_run', {
+    repository,
+    action: 'in_progress',
+    workflow_run: {
+      name: 'CI',
+      event: 'pull_request',
+      head_branch: 'feature',
+      head_sha: sha,
+      run_number: 12,
+      html_url: 'https://github.com/owner/Alcove/actions/runs/12',
+    },
+  });
+  assert.equal(ciStarted.title, 'Alcove CI 已开始');
+  assert.equal(ciStarted.color, 'blue');
+  assert.ok(ciStarted.details.includes('提交：aaaaaaa'));
+
+  assert.equal(buildNotification('workflow_run', {
+    repository,
+    action: 'in_progress',
+    workflow_run: { name: 'Release', head_branch: 'main' },
+  }), null);
+});
+
 test('extracts at most three release highlights', () => {
   assert.deepEqual(extractReleaseHighlights('- One\n- Two\nText\n* Three\n- Four'), [
     '• One',
@@ -106,7 +141,7 @@ test('extracts at most three release highlights', () => {
   ]);
 });
 
-test('builds a release card with a DMG download action', () => {
+test('builds an arm64 release card with a DMG download action', () => {
   const notification = buildNotification('release', {
     repository,
     sender,
@@ -124,12 +159,14 @@ test('builds a release card with a DMG download action', () => {
   const card = buildCard(notification);
   assert.equal(card.header.template, 'green');
   assert.equal(card.elements[1].actions.length, 2);
+  assert.ok(notification.details.includes('架构：arm64'));
 });
 
 test('builds an automated release dispatch card', () => {
   const notification = buildNotification('repository_dispatch', {
     repository,
     sender,
+    action: 'release_published',
     client_payload: {
       version: '0.2.0-beta.1',
       prerelease: true,
@@ -142,6 +179,27 @@ test('builds an automated release dispatch card', () => {
   const card = buildCard(notification);
   assert.equal(notification.title, 'Alcove 0.2.0-beta.1 发布成功');
   assert.equal(card.elements[1].actions.length, 2);
+  assert.ok(notification.details.includes('架构：arm64'));
+});
+
+test('builds a packaging-started dispatch card', () => {
+  const notification = buildNotification('repository_dispatch', {
+    repository,
+    sender,
+    action: 'release_started',
+    client_payload: {
+      version: '0.2.0-beta.1',
+      prerelease: true,
+      dmg_name: 'Alcove.0.2.0-beta.1.dmg',
+      sha: 'a'.repeat(40),
+      run_url: 'https://github.com/owner/Alcove/actions/runs/12',
+    },
+  });
+  assert.equal(notification.title, 'Alcove 0.2.0-beta.1 开始打包');
+  assert.equal(notification.color, 'blue');
+  assert.ok(notification.details.includes('架构：arm64'));
+  assert.ok(notification.details.includes('提交：aaaaaaa'));
+  assert.equal(notification.button.url, 'https://github.com/owner/Alcove/actions/runs/12');
 });
 
 test('retries transient Feishu responses and accepts a successful response', async () => {

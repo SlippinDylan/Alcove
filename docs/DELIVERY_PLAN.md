@@ -419,7 +419,7 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - Evidence-backed static translucent backgrounds on macOS 26+, per-Portal tint preservation, Space-transition stability, and an opaque Reduce Transparency surface.
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
 - Performance validation for defined NFR directory sizes.
-- Push/PR CI for checks, tests, and unsigned arm64 build verification without artifact publication.
+- Push/PR lightweight automation checks plus change-gated tests and unsigned arm64 build verification without artifact publication.
 - Version/CHANGELOG release inputs, Apple Development signing, DMG verification, GitHub publication, and Feishu notifications are implemented; manual installation behavior remains a separate release gate.
 
 **Tests:**
@@ -471,8 +471,8 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 
 | Layer | Framework | Scope | Runs On |
 |-------|-----------|-------|---------|
-| Unit | XCTest | `AlcoveCore` models, persistence, selection state, normalization, enumeration | Every PR, macOS 26 runner |
-| Integration | XCTest with protocol adapters plus bounded real-filesystem/system-tool fixtures | Portal coordination, tab switching, screen geometry, Quick Look ownership, file transfers, rename, duplicate, metadata enumeration, and ZIP creation/cancellation | Every PR, macOS 26 runner |
+| Unit | XCTest | `AlcoveCore` models, persistence, selection state, normalization, enumeration | Code-impacting PR or publishing run, macOS 26 runner |
+| Integration | XCTest with protocol adapters plus bounded real-filesystem/system-tool fixtures | Portal coordination, tab switching, screen geometry, Quick Look ownership, file transfers, rename, duplicate, metadata enumeration, and ZIP creation/cancellation | Code-impacting PR or publishing run, macOS 26 runner |
 | UI | Manual / dedicated-host smoke tests | Window behavior, grid rendering, selection gestures, Quick Look, Spaces, Stage Manager | PR smoke + release |
 
 **Unit test requirements:**
@@ -518,26 +518,24 @@ Test each combination and record pass/fail/known-issue. If hardware for a specif
 
 ### CI Pipeline (Every PR)
 
-Primary GitHub CI uses `macos-26` with pinned Xcode 26.x because macOS 26 is the minimum deployment target. macOS 27 compatibility requires an available runner, real hardware, a VM, or a self-hosted runner; never claim both OS versions run automatically on every PR without confirmed infrastructure.
+Every `main` push and pull request runs a lightweight Ubuntu validation job. Changes limited to `README.md`, `docs/`, `LICENSE`, or `AGENTS.md` skip the macOS job while publishing is disabled. Any other change, a manual dispatch, or `release=true` runs the complete suite on `macos-26` with pinned Xcode 26.x because macOS 26 is the minimum deployment target. A final `Build Check` job succeeds only when lightweight validation passes and the macOS job either passes or is intentionally skipped, so required checks never remain pending. macOS 27 compatibility requires an available runner, real hardware, a VM, or a self-hosted runner; never claim both OS versions run automatically without confirmed infrastructure.
 
 ```
-Push or PR opened
-  ├─ Build (arm64, deployment target macOS 26)
+Main push or PR opened
+  ├─ Lightweight automation validation (Ubuntu)
   │   └─ FAIL → block merge
-  ├─ Unit tests (macOS 26 runner)
-  │   └─ FAIL → block merge
-  ├─ Integration tests (macOS 26 runner)
-  │   └─ FAIL → block merge
-  ├─ Lint (SwiftLint, if configured)
-  │   └─ WARN → allow merge, log issue
-  └─ Verify the unsigned arm64 .app contract without publishing an artifact
+  ├─ Classify changed paths and release flag
+  │   ├─ docs-only + release=false → skip macOS job
+  │   └─ otherwise → tests + unsigned arm64 Release build on macOS 26
+  │       └─ FAIL → block merge
+  └─ Build Check accepts only lightweight success plus macOS success/intentional skip
 ```
 
 GUI Quick Look, window, Spaces, and Stage Manager tests are manual or dedicated-host smoke tests, not ordinary headless XCTest guarantees.
 
 ### Main Branch Release Gate
 
-The implemented workflow is the selected Apple Development candidate, not yet a manually validated end-user distribution path. Every push and PR runs CI. After a successful main push, the release planner reads `Config/Release/manifest.json`; it continues only when `release` is true, the version has not been published, and `CHANGELOG.md` contains one exact non-empty matching section. Planning happens on Ubuntu before any signing runner is allocated. The release job imports the P12 in a temporary keychain, builds arm64, verifies the app and mounted DMG, creates or resumes a draft release, uploads one DMG, then publishes. It fails closed and never switches signing modes.
+The implemented workflow is the selected Apple Development candidate, not yet a manually validated end-user distribution path. Every main push and PR runs lightweight CI; code-impacting or publishing changes additionally run the full macOS suite. After a successful main push, the release planner reads `Config/Release/manifest.json`; it continues only when `release` is true, the version has not been published, and `CHANGELOG.md` contains one exact non-empty matching section. Planning happens on Ubuntu before any signing runner is allocated. The release job sends a best-effort packaging-started notification, imports the P12 in a temporary keychain, builds arm64, verifies the app and mounted DMG, creates or resumes a draft release, uploads one DMG, publishes, and dispatches the success notification. It fails closed and never switches signing modes.
 
 ```
 First public release after Spike 0.6 is resolved
