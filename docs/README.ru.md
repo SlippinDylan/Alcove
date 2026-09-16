@@ -1,11 +1,11 @@
 <div align="center">
-  <img src="docs/images/readme/app-icon.png" width="160" height="160" alt="Значок приложения Alcove">
+  <img src="images/readme/app-icon.png" width="160" height="160" alt="Значок приложения Alcove">
   <h1>Alcove</h1>
   <p>Нативное приложение для строки меню macOS, которое размещает папки на рабочем столе в виде перемещаемых панелей с изменяемым размером.</p>
   <p>
     <a href="README.zh-CN.md">简体中文</a> ·
     <a href="README.zh-TW.md">繁體中文</a> ·
-    <a href="README.md">English</a> ·
+    <a href="../README.md">English</a> ·
     <a href="README.ja.md">日本語</a> ·
     <strong>Русский</strong>
   </p>
@@ -25,49 +25,49 @@ Alcove показывает локальные папки в виде лёгки
       <strong>Папки на рабочем столе</strong><br><br>
       Размещайте часто используемые локальные папки на рабочем столе. Панели можно перемещать, изменять их размер и переключать вкладки.
     </td>
-    <td width="68%"><img src="docs/images/readme/portal-overview.png" alt="Панель Alcove с двумя вкладками и сеткой нативных значков"></td>
+    <td width="68%"><img src="images/readme/portal-overview.png" alt="Панель Alcove с двумя вкладками и сеткой нативных значков"></td>
   </tr>
   <tr>
     <td>
       <strong>Работа с файлами в стиле Finder</strong><br><br>
       Нативное контекстное меню позволяет открыть или просмотреть файл, показать его в Finder, переименовать, сжать, дублировать, переместить в Корзину, отправить через AirDrop, скопировать путь или открыть в Терминале.
     </td>
-    <td><img src="docs/images/readme/file-actions.png" alt="Контекстное меню Alcove с операциями над файлами"></td>
+    <td><img src="images/readme/file-actions.png" alt="Контекстное меню Alcove с операциями над файлами"></td>
   </tr>
   <tr>
     <td>
       <strong>Создание панели перетаскиванием</strong><br><br>
       Нарисуйте новую панель прямо на рабочем столе. Во время создания Alcove показывает сетку, после чего можно выбрать папку на Mac.
     </td>
-    <td><img src="docs/images/readme/portal-creation.png" alt="Создание панели Alcove с предварительным просмотром сетки"></td>
+    <td><img src="images/readme/portal-creation.png" alt="Создание панели Alcove с предварительным просмотром сетки"></td>
   </tr>
   <tr>
     <td>
       <strong>Несколько вкладок с папками</strong><br><br>
       В одну панель можно добавить до четырёх папок, менять их порядок и удалять. Каждая вкладка сохраняет своё положение и выделение.
     </td>
-    <td align="center"><img src="docs/images/readme/folder-tabs.png" width="420" alt="Настройки панели Alcove с двумя вкладками папок"></td>
+    <td align="center"><img src="images/readme/folder-tabs.png" width="420" alt="Настройки панели Alcove с двумя вкладками папок"></td>
   </tr>
   <tr>
     <td>
       <strong>Управление панелью</strong><br><br>
       Закрепляйте панель, меняйте сортировку, открывайте настройки или удаляйте панель с рабочего стола через компактное меню.
     </td>
-    <td><img src="docs/images/readme/panel-controls.png" alt="Меню панели Alcove с закреплением, сортировкой, настройками и удалением"></td>
+    <td><img src="images/readme/panel-controls.png" alt="Меню панели Alcove с закреплением, сортировкой, настройками и удалением"></td>
   </tr>
   <tr>
     <td>
       <strong>Настройка внешнего вида</strong><br><br>
       Выбирайте прозрачность, размер содержимого, радиус скругления, расстояние между панелями и тень окна.
     </td>
-    <td align="center"><img src="docs/images/readme/appearance-settings.png" width="420" alt="Настройки прозрачности и внешнего вида панелей Alcove"></td>
+    <td align="center"><img src="images/readme/appearance-settings.png" width="420" alt="Настройки прозрачности и внешнего вида панелей Alcove"></td>
   </tr>
   <tr>
     <td>
       <strong>Язык и автозапуск</strong><br><br>
       Alcove может запускаться при входе в систему. Интерфейс доступен на английском, упрощённом и традиционном китайском; также можно использовать настройку языка macOS.
     </td>
-    <td align="center"><img src="docs/images/readme/language-settings.png" width="420" alt="Общие настройки Alcove с автозапуском и выбором языка"></td>
+    <td align="center"><img src="images/readme/language-settings.png" width="420" alt="Общие настройки Alcove с автозапуском и выбором языка"></td>
   </tr>
 </table>
 
@@ -96,7 +96,7 @@ Alcove показывает локальные папки в виде лёгки
 sudo xattr -rd com.apple.quarantine /Applications/Alcove.app
 ```
 
-Поддерживаются номера версий `x.y.z`, `x.y.z-alpha.n` и `x.y.z-beta.n`. Список изменений находится в [CHANGELOG.md](CHANGELOG.md).
+Поддерживаются номера версий `x.y.z`, `x.y.z-alpha.n` и `x.y.z-beta.n`. Список изменений находится в [CHANGELOG.md](../CHANGELOG.md).
 
 ## Основные решения
 
@@ -110,12 +110,12 @@ sudo xattr -rd com.apple.quarantine /Applications/Alcove.app
 
 | Документ | Содержание |
 |---|---|
-| [Current Handoff](docs/HANDOFF.md) | Текущие требования, состояние реализации, известные риски и заметки для передачи работы |
-| [Product Requirements](docs/PRODUCT_REQUIREMENTS.md) | Цели продукта, правила взаимодействия и критерии приёмки |
-| [Architecture](docs/ARCHITECTURE.md) | Границы модулей, модели данных, хранение и многопоточность |
-| [Research](docs/RESEARCH.md) | Исследование API, технические проверки и изученные проекты |
-| [Delivery Plan](docs/DELIVERY_PLAN.md) | Этапы разработки, матрица тестирования и условия выпуска |
+| [Current Handoff](HANDOFF.md) | Текущие требования, состояние реализации, известные риски и заметки для передачи работы |
+| [Product Requirements](PRODUCT_REQUIREMENTS.md) | Цели продукта, правила взаимодействия и критерии приёмки |
+| [Architecture](ARCHITECTURE.md) | Границы модулей, модели данных, хранение и многопоточность |
+| [Research](RESEARCH.md) | Исследование API, технические проверки и изученные проекты |
+| [Delivery Plan](DELIVERY_PLAN.md) | Этапы разработки, матрица тестирования и условия выпуска |
 
 ## Лицензия
 
-Copyright © 2025–2026 SlippinDylan Studio. Alcove распространяется по лицензии [Apache License 2.0](LICENSE).
+Copyright © 2025–2026 SlippinDylan Studio. Alcove распространяется по лицензии [Apache License 2.0](../LICENSE).
