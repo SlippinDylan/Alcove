@@ -37,7 +37,9 @@
 		10000000000000000000001C /* PortalCreationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001E /* PortalCreationCoordinator.swift */; };
 		10000000000000000000001D /* PortalFrameSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001F /* PortalFrameSelector.swift */; };
 		10000000000000000000001E /* PortalCreationCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000020 /* PortalCreationCoordinatorTests.swift */; };
-		10000000000000000000001F /* PortalStoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000021 /* PortalStoreModels.swift */; };
+		10000000000000000000001F /* PortalStoreSharedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000021 /* PortalStoreSharedModels.swift */; };
+		A10000000000000000000007 /* PortalStoreCurrentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* PortalStoreCurrentModels.swift */; };
+		A10000000000000000000008 /* PortalStoreLegacyModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* PortalStoreLegacyModels.swift */; };
 		100000000000000000000020 /* PortalStoreFileSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000022 /* PortalStoreFileSystem.swift */; };
 		100000000000000000000021 /* PortalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000023 /* PortalStore.swift */; };
 		100000000000000000000022 /* PortalStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000024 /* PortalStoreTests.swift */; };
@@ -120,7 +122,9 @@
 		20000000000000000000001E /* PortalCreationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCreationCoordinator.swift; sourceTree = "<group>"; };
 		20000000000000000000001F /* PortalFrameSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalFrameSelector.swift; sourceTree = "<group>"; };
 		200000000000000000000020 /* PortalCreationCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCreationCoordinatorTests.swift; sourceTree = "<group>"; };
-		200000000000000000000021 /* PortalStoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreModels.swift; sourceTree = "<group>"; };
+		200000000000000000000021 /* PortalStoreSharedModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreSharedModels.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* PortalStoreCurrentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreCurrentModels.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* PortalStoreLegacyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreLegacyModels.swift; sourceTree = "<group>"; };
 		200000000000000000000022 /* PortalStoreFileSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreFileSystem.swift; sourceTree = "<group>"; };
 		200000000000000000000023 /* PortalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStore.swift; sourceTree = "<group>"; };
 		200000000000000000000024 /* PortalStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreTests.swift; sourceTree = "<group>"; };
@@ -351,8 +355,10 @@
 			children = (
 				BA0000000000000000000003 /* AlcoveLayoutBackupCodec.swift */,
 				200000000000000000000023 /* PortalStore.swift */,
+				A20000000000000000000007 /* PortalStoreCurrentModels.swift */,
 				200000000000000000000022 /* PortalStoreFileSystem.swift */,
-				200000000000000000000021 /* PortalStoreModels.swift */,
+				A20000000000000000000008 /* PortalStoreLegacyModels.swift */,
+				200000000000000000000021 /* PortalStoreSharedModels.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -507,7 +513,9 @@
 				10000000000000000000001D /* PortalFrameSelector.swift in Sources */,
 				100000000000000000000021 /* PortalStore.swift in Sources */,
 				100000000000000000000020 /* PortalStoreFileSystem.swift in Sources */,
-				10000000000000000000001F /* PortalStoreModels.swift in Sources */,
+				A10000000000000000000007 /* PortalStoreCurrentModels.swift in Sources */,
+				A10000000000000000000008 /* PortalStoreLegacyModels.swift in Sources */,
+				10000000000000000000001F /* PortalStoreSharedModels.swift in Sources */,
 				A10000000000000000000005 /* FolderPathBarView.swift in Sources */,
 				100000000000000000000010 /* PortalViewController.swift in Sources */,
 				10000000000000000000002E /* PortalChromeMaterialView.swift in Sources */,
