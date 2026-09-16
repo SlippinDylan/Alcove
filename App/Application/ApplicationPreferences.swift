@@ -52,9 +52,9 @@ struct PortalAppearancePreferences: Equatable, Sendable {
     static let defaults = PortalAppearancePreferences(
         iconSize: .medium,
         backgroundStyle: .standard,
-        cornerRadius: .maximum,
+        cornerRadius: .medium,
         spacing: .medium,
-        shadowEnabled: true
+        shadowEnabled: false
     )
 
     var iconSize: IconSize

@@ -48,6 +48,11 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         let controller = ApplicationPreferencesController(userDefaults: defaults)
 
         XCTAssertEqual(controller.portalAppearance, .defaults)
+        XCTAssertEqual(controller.portalAppearance.iconSize, .medium)
+        XCTAssertEqual(controller.portalAppearance.backgroundStyle, .standard)
+        XCTAssertEqual(controller.portalAppearance.cornerRadius, .medium)
+        XCTAssertEqual(controller.portalAppearance.spacing, .medium)
+        XCTAssertFalse(controller.portalAppearance.shadowEnabled)
         XCTAssertEqual(PortalCornerRadius.allCases.map(\.points), [0, 8, 14, 20, 24])
         XCTAssertEqual(PortalSpacing.allCases.map(\.points), [2, 4, 6, 8, 10])
 
@@ -60,8 +65,8 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         controller.setPortalSpacing(.maximum)
         controller.setPortalIconSize(.large)
         controller.setPortalBackgroundStyle(.highTransparency)
-        controller.setPortalShadowEnabled(false)
-        controller.setPortalShadowEnabled(false)
+        controller.setPortalShadowEnabled(true)
+        controller.setPortalShadowEnabled(true)
 
         XCTAssertEqual(changes.count, 5)
         let restored = ApplicationPreferencesController(userDefaults: defaults)
@@ -69,7 +74,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertEqual(restored.portalAppearance.backgroundStyle, .highTransparency)
         XCTAssertEqual(restored.portalAppearance.cornerRadius, .small)
         XCTAssertEqual(restored.portalAppearance.spacing, .maximum)
-        XCTAssertFalse(restored.portalAppearance.shadowEnabled)
+        XCTAssertTrue(restored.portalAppearance.shadowEnabled)
     }
 
     @MainActor
