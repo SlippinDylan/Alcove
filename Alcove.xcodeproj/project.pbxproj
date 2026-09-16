@@ -43,6 +43,8 @@
 		A10000000000000000000009 /* PortalLayoutImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* PortalLayoutImporter.swift */; };
 		A1000000000000000000000A /* PortalLayoutPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* PortalLayoutPlanner.swift */; };
 		A1000000000000000000000B /* PortalGridCollectionViewLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* PortalGridCollectionViewLayout.swift */; };
+		A1000000000000000000000C /* PortalStoreModernMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* PortalStoreModernMigrationTests.swift */; };
+		A1000000000000000000000D /* PortalStoreLegacyMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* PortalStoreLegacyMigrationTests.swift */; };
 		100000000000000000000020 /* PortalStoreFileSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000022 /* PortalStoreFileSystem.swift */; };
 		100000000000000000000021 /* PortalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000023 /* PortalStore.swift */; };
 		100000000000000000000022 /* PortalStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000024 /* PortalStoreTests.swift */; };
@@ -131,6 +133,8 @@
 		A20000000000000000000009 /* PortalLayoutImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalLayoutImporter.swift; sourceTree = "<group>"; };
 		A2000000000000000000000A /* PortalLayoutPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalLayoutPlanner.swift; sourceTree = "<group>"; };
 		A2000000000000000000000B /* PortalGridCollectionViewLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalGridCollectionViewLayout.swift; sourceTree = "<group>"; };
+		A2000000000000000000000C /* PortalStoreModernMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreModernMigrationTests.swift; sourceTree = "<group>"; };
+		A2000000000000000000000D /* PortalStoreLegacyMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreLegacyMigrationTests.swift; sourceTree = "<group>"; };
 		200000000000000000000022 /* PortalStoreFileSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreFileSystem.swift; sourceTree = "<group>"; };
 		200000000000000000000023 /* PortalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStore.swift; sourceTree = "<group>"; };
 		200000000000000000000024 /* PortalStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreTests.swift; sourceTree = "<group>"; };
@@ -265,6 +269,8 @@
 				200000000000000000000017 /* PortalCoordinatorTests.swift */,
 				200000000000000000000031 /* PortalChromeMaterialViewTests.swift */,
 				200000000000000000000020 /* PortalCreationCoordinatorTests.swift */,
+				A2000000000000000000000D /* PortalStoreLegacyMigrationTests.swift */,
+				A2000000000000000000000C /* PortalStoreModernMigrationTests.swift */,
 				200000000000000000000024 /* PortalStoreTests.swift */,
 				20000000000000000000002A /* QuickLookIntegrationTests.swift */,
 				200000000000000000000028 /* TabBarViewTests.swift */,
@@ -561,6 +567,8 @@
 				100000000000000000000015 /* PortalCoordinatorTests.swift in Sources */,
 				10000000000000000000002F /* PortalChromeMaterialViewTests.swift in Sources */,
 				10000000000000000000001E /* PortalCreationCoordinatorTests.swift in Sources */,
+				A1000000000000000000000D /* PortalStoreLegacyMigrationTests.swift in Sources */,
+				A1000000000000000000000C /* PortalStoreModernMigrationTests.swift in Sources */,
 				100000000000000000000022 /* PortalStoreTests.swift in Sources */,
 				100000000000000000000028 /* QuickLookIntegrationTests.swift in Sources */,
 				100000000000000000000026 /* TabBarViewTests.swift in Sources */,

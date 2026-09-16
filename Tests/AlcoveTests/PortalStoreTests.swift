@@ -78,181 +78,6 @@ final class PortalStoreTests: XCTestCase {
         }
     }
 
-    func testV10MigratesToV12WithDefaultSortAndTintAndPreservesBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let portal = try makePortal(path: "/tmp/first", x: 10)
-            let legacy = try JSONEncoder().encode(PortalEnvelopeV10DTO(portals: [portal]))
-            try legacy.write(to: storeURL)
-
-            let loaded = try await PortalStore(url: storeURL).load()
-
-            XCTAssertEqual(loaded[0].sortOrder, .name)
-            XCTAssertEqual(loaded[0].tint, .default)
-            XCTAssertEqual(
-                try Data(contentsOf: directory.appendingPathComponent("portals.v10.json.bak")),
-                legacy
-            )
-            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 12"))
-            XCTAssertTrue(migrated.contains("\"sort_order\" : \"name\""))
-            XCTAssertTrue(migrated.contains("\"tint\" : \"default\""))
-        }
-    }
-
-    func testV11MigratesToV12WithoutDuplicatingGlobalAppearance() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            var portal = try makePortal(path: "/tmp/first", x: 10)
-            portal.updateIconSize(.large)
-            portal.updateBackgroundStyle(.highTransparency)
-            let legacy = try JSONEncoder().encode(PortalEnvelopeV11DTO(portals: [portal]))
-            try legacy.write(to: storeURL)
-            var appearance = PortalAppearancePreferences.defaults
-            appearance.iconSize = .large
-            appearance.backgroundStyle = .highTransparency
-            let store = PortalStore(
-                url: storeURL,
-                globalIconSize: appearance.iconSize,
-                globalBackgroundStyle: appearance.backgroundStyle
-            )
-
-            let loaded = try await store.load()
-
-            XCTAssertEqual(loaded, [portal])
-            XCTAssertEqual(
-                try Data(contentsOf: directory.appendingPathComponent("portals.v11.json.bak")),
-                legacy
-            )
-            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 12"))
-            XCTAssertFalse(migrated.contains("icon_size"))
-            XCTAssertFalse(migrated.contains("background_style"))
-            let reloaded = try await store.load()
-            XCTAssertEqual(reloaded, [portal])
-        }
-    }
-
-    func testV5MigratesToV12AndPreservesBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let portal = try makePortal(path: "/tmp/first", x: 10)
-            let legacy = try JSONEncoder().encode(PortalEnvelopeV5DTO(portals: [portal]))
-            try legacy.write(to: storeURL)
-
-            let loaded = try await PortalStore(url: storeURL).load()
-
-            XCTAssertEqual(loaded.count, 1)
-            XCTAssertEqual(loaded[0].tabs, portal.tabs)
-            XCTAssertFalse(loaded[0].isPinned)
-            XCTAssertEqual(loaded[0].frame.maxY, portal.frame.maxY)
-            XCTAssertEqual(loaded[0].frame.size, CGSize(width: 328, height: 204))
-            XCTAssertEqual(
-                try Data(contentsOf: directory.appendingPathComponent("portals.v5.json.bak")),
-                legacy
-            )
-            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 12"))
-        }
-    }
-
-    func testV6MigratesToV12WithAnUnpinnedExpandedPlacement() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let portal = try makePortal(path: "/tmp/first", x: 10)
-            let legacy = try JSONEncoder().encode(PortalEnvelopeV6DTO(portals: [portal]))
-            try legacy.write(to: storeURL)
-
-            let loaded = try await PortalStore(url: storeURL).load()
-
-            XCTAssertEqual(loaded.count, 1)
-            XCTAssertFalse(loaded[0].isPinned)
-            XCTAssertEqual(loaded[0].frame.maxY, portal.frame.maxY)
-            XCTAssertEqual(loaded[0].frame.size, CGSize(width: 328, height: 204))
-            XCTAssertEqual(
-                try Data(contentsOf: directory.appendingPathComponent("portals.v6.json.bak")),
-                legacy
-            )
-            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 12"))
-            XCTAssertTrue(migrated.contains("\"is_pinned\" : false"))
-        }
-    }
-
-    func testV7MigratesToV12PreservingPinCapacityAndTopRightEdges() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            var portal = try makePortal(path: "/tmp/first", x: 10)
-            try portal.recordUserPlacement(
-                frame: CGRect(x: 10, y: 100, width: 320, height: 240),
-                display: primaryDisplay
-            )
-            portal.updatePinned(true)
-            let legacy = try JSONEncoder().encode(PortalEnvelopeV7DTO(portals: [portal]))
-            try legacy.write(to: storeURL)
-
-            let loaded = try await PortalStore(url: storeURL).load()
-
-            XCTAssertEqual(loaded[0].isPinned, true)
-            XCTAssertEqual(loaded[0].gridCapacity, portal.gridCapacity)
-            XCTAssertEqual(loaded[0].frame.maxY, portal.frame.maxY)
-            XCTAssertEqual(loaded[0].frame.maxX, portal.frame.maxX)
-            XCTAssertEqual(loaded[0].frame.size, CGSize(width: 328, height: 204))
-            XCTAssertEqual(
-                try Data(contentsOf: directory.appendingPathComponent("portals.v7.json.bak")),
-                legacy
-            )
-            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 12"))
-        }
-    }
-
-    func testV8MigratesToV12PreservingPinCapacityHeightAndRightEdge() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            var portal = try makePortal(path: "/tmp/first", x: 500)
-            portal.updateGridCapacity(try GridCapacity(columns: 4, rows: 2))
-            portal.updatePinned(true)
-            let legacy = try JSONEncoder().encode(PortalEnvelopeV8DTO(portals: [portal]))
-            try legacy.write(to: storeURL)
-
-            let loaded = try await PortalStore(url: storeURL).load()
-
-            XCTAssertTrue(loaded[0].isPinned)
-            XCTAssertEqual(loaded[0].gridCapacity, portal.gridCapacity)
-            XCTAssertEqual(loaded[0].frame.maxX, portal.frame.maxX)
-            XCTAssertEqual(loaded[0].frame.size, CGSize(width: 428, height: 316))
-            XCTAssertEqual(
-                try Data(contentsOf: directory.appendingPathComponent("portals.v8.json.bak")),
-                legacy
-            )
-            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 12"))
-        }
-    }
-
-    func testV6MigrationNeverOverwritesAnExistingDifferentBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let backupURL = directory.appendingPathComponent("portals.v6.json.bak")
-            let portal = try makePortal(path: "/tmp/first", x: 10)
-            let legacy = try JSONEncoder().encode(PortalEnvelopeV6DTO(portals: [portal]))
-            let originalBackup = Data("first preserved v6".utf8)
-            try legacy.write(to: storeURL)
-            try originalBackup.write(to: backupURL)
-
-            do {
-                _ = try await PortalStore(url: storeURL).load()
-                XCTFail("Migration must not replace the first preserved backup")
-            } catch let error as PortalStoreError {
-                XCTAssertEqual(error, .migrationBackupConflict(url: backupURL))
-            }
-
-            XCTAssertEqual(try Data(contentsOf: backupURL), originalBackup)
-            XCTAssertEqual(try Data(contentsOf: storeURL), legacy)
-        }
-    }
-
     func testMultiplePortalsPreserveLocalStateAndRestoreOneGlobalAppearance() async throws {
         try await withStoreDirectory { directory in
             var first = try makePortal(path: "/tmp/first", x: 10)
@@ -293,68 +118,6 @@ final class PortalStoreTests: XCTestCase {
         }
     }
 
-    func testV1MigrationUsesResolvedDisplaysAndCompensatesPlacements() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let legacy = """
-            {
-              "version": 1,
-              "portals": [
-                {
-                  "id": "00000000-0000-0000-0000-000000000001",
-                  "tabs": [{
-                    "id": "00000000-0000-0000-0000-000000000002",
-                    "folder_path": "/tmp/secondary"
-                  }],
-                  "selected_tab_id": "00000000-0000-0000-0000-000000000002",
-                  "frame": {"x": -1100, "y": 20, "width": 500, "height": 300},
-                  "icon_size": 64
-                },
-                {
-                  "id": "00000000-0000-0000-0000-000000000003",
-                  "tabs": [{
-                    "id": "00000000-0000-0000-0000-000000000004",
-                    "folder_path": "/tmp/offscreen"
-                  }],
-                  "selected_tab_id": "00000000-0000-0000-0000-000000000004",
-                  "frame": {"x": 4000, "y": 20, "width": 500, "height": 300},
-                  "icon_size": 64
-                }
-              ]
-            }
-            """
-            try Data(legacy.utf8).write(to: storeURL)
-            let resolver = StubLegacyDisplayResolver(
-                negativeFrameDisplay: secondaryDisplay,
-                fallbackDisplay: primaryDisplay
-            )
-
-            let loaded = try await PortalStore(
-                url: storeURL,
-                legacyDisplayResolver: resolver
-            ).load()
-
-            XCTAssertEqual(loaded[0].placement.homeDisplay, secondaryDisplay.identity)
-            XCTAssertEqual(
-                loaded[0].placement.homeEntry.referenceVisibleFrame,
-                secondaryDisplay.visibleFrame
-            )
-            XCTAssertEqual(loaded[1].placement.homeDisplay, primaryDisplay.identity)
-            XCTAssertEqual(loaded[1].frame, CGRect(x: 1012, y: 4, width: 428, height: 316))
-
-            let backupURL = directory.appendingPathComponent("portals.v1.json.bak")
-            XCTAssertEqual(try String(contentsOf: backupURL, encoding: .utf8), legacy)
-            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 12"))
-            XCTAssertTrue(loaded.allSatisfy { $0.backgroundStyle == .standard })
-            XCTAssertTrue(loaded.allSatisfy { $0.iconLayout == .fixed(.medium) })
-            XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 4, rows: 2))
-            XCTAssertEqual(loaded[1].gridCapacity, try GridCapacity(columns: 4, rows: 2))
-            let reloaded = try await PortalStore(url: storeURL).load()
-            XCTAssertEqual(reloaded, loaded)
-        }
-    }
-
     func testMalformedAndFutureVersionsFailExplicitly() async throws {
         try await withStoreDirectory { directory in
             let storeURL = directory.appendingPathComponent("portals.json")
@@ -376,518 +139,6 @@ final class PortalStoreTests: XCTestCase {
             } catch let error as PortalStoreError {
                 XCTAssertEqual(error, .unsupportedVersion(13))
             }
-        }
-    }
-
-    func testV2MigrationDefaultsBackgroundAndPreservesBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let legacy = v2JSON(
-                homeDisplay: primaryDisplayUUID,
-                anchorX: 0.5,
-                preferredWidth: 300
-            )
-            try Data(legacy.utf8).write(to: storeURL)
-
-            let loaded = try await PortalStore(url: storeURL).load()
-
-            XCTAssertEqual(loaded.map(\.backgroundStyle), [.standard])
-            XCTAssertEqual(
-                try String(
-                    contentsOf: directory.appendingPathComponent("portals.v2.json.bak"),
-                    encoding: .utf8
-                ),
-                legacy
-            )
-            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 12"))
-            XCTAssertFalse(migrated.contains("background_style"))
-            XCTAssertFalse(migrated.contains("icon_layout_mode"))
-            XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 3, rows: 2))
-        }
-    }
-
-    func testInvalidV10BackgroundStyleFailsDomainMapping() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let store = PortalStore(url: storeURL)
-            let portal = try makePortal(path: "/tmp/first", x: 10)
-            let valid = String(
-                decoding: try JSONEncoder().encode(PortalEnvelopeV10DTO(portals: [portal])),
-                as: UTF8.self
-            )
-            let invalid = valid.replacingOccurrences(
-                of: "\"background_style\":\"standard\"",
-                with: "\"background_style\":\"unknown\""
-            )
-            try Data(invalid.utf8).write(to: storeURL)
-
-            do {
-                _ = try await store.load()
-                XCTFail("Unknown background style must not restore")
-            } catch let error as PortalStoreError {
-                guard case .invalidPortal(let index, let reason) = error else {
-                    return XCTFail("Expected invalidPortal, got \(error)")
-                }
-                XCTAssertEqual(index, 0)
-                XCTAssertTrue(reason.contains("invalidBackgroundStyle"))
-            }
-        }
-    }
-
-    func testInvalidV9IconLayoutValuesFailDomainMapping() async throws {
-        let portal = try makePortal(path: "/tmp/first", x: 10)
-        let valid = String(
-            decoding: try JSONEncoder().encode(PortalEnvelopeV9DTO(portals: [portal])),
-            as: UTF8.self
-        )
-        let invalidCases = [
-            valid.replacingOccurrences(
-                of: "\"icon_layout_mode\":\"fixed\"",
-                with: "\"icon_layout_mode\":\"unsupported\""
-            ),
-            valid.replacingOccurrences(of: "\"icon_size\":64", with: "\"icon_size\":15"),
-        ]
-
-        for invalid in invalidCases {
-            try await withStoreDirectory { directory in
-                let storeURL = directory.appendingPathComponent("portals.json")
-                try Data(invalid.utf8).write(to: storeURL)
-                do {
-                    _ = try await PortalStore(url: storeURL).load()
-                    XCTFail("Invalid v9 icon layout must not restore")
-                } catch let error as PortalStoreError {
-                    guard case .invalidPortal(let index, _) = error else {
-                        return XCTFail("Expected invalidPortal, got \(error)")
-                    }
-                    XCTAssertEqual(index, 0)
-                }
-            }
-        }
-    }
-
-    func testV9FollowDesktopMigratesToNearestManualPreset() async throws {
-        let portal = try makePortal(path: "/tmp/first", x: 10)
-        let valid = String(
-            decoding: try JSONEncoder().encode(PortalEnvelopeV9DTO(portals: [portal])),
-            as: UTF8.self
-        )
-        let cases: [(Double, IconSize)] = [(55, .small), (64, .medium), (72, .large)]
-
-        for (rawSize, expected) in cases {
-            try await withStoreDirectory { directory in
-                let storeURL = directory.appendingPathComponent("portals.json")
-                let legacy = valid
-                    .replacingOccurrences(
-                        of: "\"icon_layout_mode\":\"fixed\"",
-                        with: "\"icon_layout_mode\":\"follow_desktop\""
-                    )
-                    .replacingOccurrences(
-                        of: "\"icon_size\":64",
-                        with: "\"icon_size\":\(rawSize)"
-                    )
-                try Data(legacy.utf8).write(to: storeURL)
-
-                let loaded = try await PortalStore(url: storeURL).load()
-
-                XCTAssertEqual(loaded[0].iconLayout, .fixed(expected))
-                let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-                XCTAssertFalse(migrated.contains("follow_desktop"))
-                XCTAssertFalse(migrated.contains("icon_layout_mode"))
-            }
-        }
-    }
-
-    func testV3MigrationPreservesBackgroundAndWritesFixedLayoutBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let legacy = v3JSON(backgroundStyle: "low_transparency")
-            try Data(legacy.utf8).write(to: storeURL)
-
-            let loaded = try await PortalStore(url: storeURL).load()
-
-            XCTAssertEqual(loaded.map(\.backgroundStyle), [.lowTransparency])
-            XCTAssertEqual(loaded.map(\.iconLayout), [.fixed(.medium)])
-            XCTAssertEqual(
-                try String(
-                    contentsOf: directory.appendingPathComponent("portals.v3.json.bak"),
-                    encoding: .utf8
-                ),
-                legacy
-            )
-            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 12"))
-            XCTAssertFalse(migrated.contains("icon_layout_mode"))
-            XCTAssertFalse(migrated.contains("text_size"))
-            XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 3, rows: 2))
-        }
-    }
-
-    func testV3ToV5RewriteFailurePreservesSourceAndBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let legacy = v3JSON(backgroundStyle: "standard")
-            try Data(legacy.utf8).write(to: storeURL)
-            let store = PortalStore(
-                url: storeURL,
-                fileSystem: ReplaceFailingFileSystem()
-            )
-
-            do {
-                _ = try await store.load()
-                XCTFail("A failed v5 replacement must fail migration")
-            } catch let error as PortalStoreError {
-                guard case .writeFailed(let url, _) = error else {
-                    return XCTFail("Expected writeFailed, got \(error)")
-                }
-                XCTAssertEqual(url, storeURL)
-            }
-
-            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), legacy)
-            XCTAssertEqual(
-                try String(
-                    contentsOf: directory.appendingPathComponent("portals.v3.json.bak"),
-                    encoding: .utf8
-                ),
-                legacy
-            )
-        }
-    }
-
-    func testV4MigrationDerivesCapacityAndPreservesBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let legacyPortal = try makePortal(path: "/tmp/first", x: 10)
-            let legacy = try v4JSON(portal: legacyPortal)
-            try Data(legacy.utf8).write(to: storeURL)
-
-            let loaded = try await PortalStore(url: storeURL).load()
-
-            XCTAssertEqual(loaded.count, 1)
-            XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 3, rows: 2))
-            XCTAssertEqual(
-                try String(
-                    contentsOf: directory.appendingPathComponent("portals.v4.json.bak"),
-                    encoding: .utf8
-                ),
-                legacy
-            )
-            let migrated = try String(contentsOf: storeURL, encoding: .utf8)
-            XCTAssertTrue(migrated.contains("\"version\" : 12"))
-            XCTAssertTrue(migrated.contains("\"columns\" : 3"))
-            XCTAssertTrue(migrated.contains("\"rows\" : 2"))
-        }
-    }
-
-    func testV4ToV5RewriteFailurePreservesSourceAndBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let legacy = try v4JSON(portal: makePortal(path: "/tmp/first", x: 10))
-            try Data(legacy.utf8).write(to: storeURL)
-            let store = PortalStore(
-                url: storeURL,
-                fileSystem: ReplaceFailingFileSystem()
-            )
-
-            do {
-                _ = try await store.load()
-                XCTFail("A failed v5 replacement must fail migration")
-            } catch let error as PortalStoreError {
-                guard case .writeFailed(let url, _) = error else {
-                    return XCTFail("Expected writeFailed, got \(error)")
-                }
-                XCTAssertEqual(url, storeURL)
-            }
-
-            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), legacy)
-            XCTAssertEqual(
-                try String(
-                    contentsOf: directory.appendingPathComponent("portals.v4.json.bak"),
-                    encoding: .utf8
-                ),
-                legacy
-            )
-        }
-    }
-
-    func testV4MigrationNeverOverwritesAnExistingDifferentBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let backupURL = directory.appendingPathComponent("portals.v4.json.bak")
-            let legacy = try v4JSON(portal: makePortal(path: "/tmp/first", x: 10))
-            let originalBackup = Data("first preserved v4".utf8)
-            try Data(legacy.utf8).write(to: storeURL)
-            try originalBackup.write(to: backupURL)
-
-            do {
-                _ = try await PortalStore(url: storeURL).load()
-                XCTFail("Migration must not replace the first preserved backup")
-            } catch let error as PortalStoreError {
-                XCTAssertEqual(error, .migrationBackupConflict(url: backupURL))
-            }
-
-            XCTAssertEqual(try Data(contentsOf: backupURL), originalBackup)
-            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), legacy)
-        }
-    }
-
-    func testInvalidV10CapacityFailsDomainMapping() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let store = PortalStore(url: storeURL)
-            try await store.save([try makePortal(path: "/tmp/first", x: 10)])
-            let valid = try String(contentsOf: storeURL, encoding: .utf8)
-            let invalid = valid.replacingOccurrences(
-                of: "\"columns\" : 3",
-                with: "\"columns\" : 2"
-            )
-            try Data(invalid.utf8).write(to: storeURL)
-
-            do {
-                _ = try await store.load()
-                XCTFail("Invalid capacity must not restore")
-            } catch let error as PortalStoreError {
-                guard case .invalidPortal(let index, let reason) = error else {
-                    return XCTFail("Expected invalidPortal, got \(error)")
-                }
-                XCTAssertEqual(index, 0)
-                XCTAssertTrue(reason.contains("invalidGridCapacity"))
-            }
-        }
-    }
-
-    func testV3MigrationNeverOverwritesAnExistingDifferentBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let backupURL = directory.appendingPathComponent("portals.v3.json.bak")
-            let legacy = v3JSON(backgroundStyle: "standard")
-            let originalBackup = Data("first preserved v3".utf8)
-            try Data(legacy.utf8).write(to: storeURL)
-            try originalBackup.write(to: backupURL)
-
-            do {
-                _ = try await PortalStore(url: storeURL).load()
-                XCTFail("Migration must not replace the first preserved backup")
-            } catch let error as PortalStoreError {
-                XCTAssertEqual(error, .migrationBackupConflict(url: backupURL))
-            }
-
-            XCTAssertEqual(try Data(contentsOf: backupURL), originalBackup)
-            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), legacy)
-        }
-    }
-
-    func testV1MigrationRequiresDisplayResolver() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            try Data(validV1JSON.utf8).write(to: storeURL)
-
-            do {
-                _ = try await PortalStore(url: storeURL).load()
-                XCTFail("A legacy frame must not acquire a fabricated display identity")
-            } catch let error as PortalStoreError {
-                guard case .legacyDisplayResolutionFailed(let index, let reason) = error else {
-                    return XCTFail("Expected legacyDisplayResolutionFailed, got \(error)")
-                }
-                XCTAssertEqual(index, 0)
-                XCTAssertTrue(reason.contains("unavailable"))
-            }
-            XCTAssertEqual(
-                try String(
-                    contentsOf: directory.appendingPathComponent("portals.v1.json.bak"),
-                    encoding: .utf8
-                ),
-                validV1JSON
-            )
-            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), validV1JSON)
-        }
-    }
-
-    func testInvalidV2PlacementValuesFailDomainMapping() async throws {
-        try await withStoreDirectory { directory in
-            let invalidCases = [
-                v2JSON(homeDisplay: "missing", anchorX: 0.5, preferredWidth: 300),
-                v2JSON(homeDisplay: primaryDisplayUUID, anchorX: 1.5, preferredWidth: 300),
-                v2JSON(homeDisplay: primaryDisplayUUID, anchorX: 0.5, preferredWidth: -1)
-            ]
-
-            for (caseIndex, invalid) in invalidCases.enumerated() {
-                let storeURL = directory
-                    .appendingPathComponent("case-\(caseIndex)")
-                    .appendingPathComponent("portals.json")
-                try FileManager.default.createDirectory(
-                    at: storeURL.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-                try Data(invalid.utf8).write(to: storeURL)
-                do {
-                    _ = try await PortalStore(url: storeURL).load()
-                    XCTFail("Invalid placement must fail")
-                } catch let error as PortalStoreError {
-                    guard case .invalidPortal(let index, _) = error else {
-                        return XCTFail("Expected invalidPortal, got \(error)")
-                    }
-                    XCTAssertEqual(index, 0)
-                }
-            }
-        }
-    }
-
-    func testV2ToV3RewriteFailurePreservesSourceAndBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let legacy = v2JSON(
-                homeDisplay: primaryDisplayUUID,
-                anchorX: 0.5,
-                preferredWidth: 300
-            )
-            try Data(legacy.utf8).write(to: storeURL)
-            let store = PortalStore(
-                url: storeURL,
-                fileSystem: ReplaceFailingFileSystem()
-            )
-
-            do {
-                _ = try await store.load()
-                XCTFail("A failed v3 replacement must fail migration")
-            } catch let error as PortalStoreError {
-                guard case .writeFailed(let url, _) = error else {
-                    return XCTFail("Expected writeFailed, got \(error)")
-                }
-                XCTAssertEqual(url, storeURL)
-            }
-
-            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), legacy)
-            XCTAssertEqual(
-                try String(
-                    contentsOf: directory.appendingPathComponent("portals.v2.json.bak"),
-                    encoding: .utf8
-                ),
-                legacy
-            )
-        }
-    }
-
-    func testV2MigrationNeverOverwritesAnExistingDifferentBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let backupURL = directory.appendingPathComponent("portals.v2.json.bak")
-            let legacy = v2JSON(
-                homeDisplay: primaryDisplayUUID,
-                anchorX: 0.5,
-                preferredWidth: 300
-            )
-            let originalBackup = Data("first preserved v2".utf8)
-            try Data(legacy.utf8).write(to: storeURL)
-            try originalBackup.write(to: backupURL)
-
-            do {
-                _ = try await PortalStore(url: storeURL).load()
-                XCTFail("Migration must not replace the first preserved backup")
-            } catch let error as PortalStoreError {
-                XCTAssertEqual(error, .migrationBackupConflict(url: backupURL))
-            }
-
-            XCTAssertEqual(try Data(contentsOf: backupURL), originalBackup)
-            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), legacy)
-        }
-    }
-
-    func testInvalidV1FrameFailsBeforeDisplayResolution() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let invalid = validV1JSON.replacingOccurrences(
-                of: "\"width\": 300",
-                with: "\"width\": -300"
-            )
-            try Data(invalid.utf8).write(to: storeURL)
-
-            do {
-                _ = try await PortalStore(
-                    url: storeURL,
-                    legacyDisplayResolver: FailingIfCalledLegacyDisplayResolver()
-                ).load()
-                XCTFail("Invalid legacy geometry must fail")
-            } catch let error as PortalStoreError {
-                guard case .invalidPortal(let index, let reason) = error else {
-                    return XCTFail("Expected invalidPortal, got \(error)")
-                }
-                XCTAssertEqual(index, 0)
-                XCTAssertTrue(reason.contains("invalidFrame"))
-            }
-            XCTAssertEqual(
-                try String(
-                    contentsOf: directory.appendingPathComponent("portals.v1.json.bak"),
-                    encoding: .utf8
-                ),
-                invalid
-            )
-            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), invalid)
-        }
-    }
-
-    func testV2RewriteFailureLeavesV1SourceAndBackupIntact() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            try Data(validV1JSON.utf8).write(to: storeURL)
-            let store = PortalStore(
-                url: storeURL,
-                fileSystem: ReplaceFailingFileSystem(),
-                legacyDisplayResolver: StubLegacyDisplayResolver(
-                    negativeFrameDisplay: secondaryDisplay,
-                    fallbackDisplay: primaryDisplay
-                )
-            )
-
-            do {
-                _ = try await store.load()
-                XCTFail("A failed v2 replacement must fail migration")
-            } catch let error as PortalStoreError {
-                guard case .writeFailed(let url, _) = error else {
-                    return XCTFail("Expected writeFailed, got \(error)")
-                }
-                XCTAssertEqual(url, storeURL)
-            }
-
-            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), validV1JSON)
-            XCTAssertEqual(
-                try String(
-                    contentsOf: directory.appendingPathComponent("portals.v1.json.bak"),
-                    encoding: .utf8
-                ),
-                validV1JSON
-            )
-            XCTAssertEqual(
-                try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted(),
-                ["portals.json", "portals.v1.json.bak"]
-            )
-        }
-    }
-
-    func testV1MigrationNeverOverwritesAnExistingDifferentBackup() async throws {
-        try await withStoreDirectory { directory in
-            let storeURL = directory.appendingPathComponent("portals.json")
-            let backupURL = directory.appendingPathComponent("portals.v1.json.bak")
-            let originalBackup = Data("first preserved v1".utf8)
-            try Data(validV1JSON.utf8).write(to: storeURL)
-            try originalBackup.write(to: backupURL)
-            let store = PortalStore(
-                url: storeURL,
-                legacyDisplayResolver: StubLegacyDisplayResolver(
-                    negativeFrameDisplay: secondaryDisplay,
-                    fallbackDisplay: primaryDisplay
-                )
-            )
-
-            do {
-                _ = try await store.load()
-                XCTFail("Migration must not replace the first preserved backup")
-            } catch let error as PortalStoreError {
-                XCTAssertEqual(error, .migrationBackupConflict(url: backupURL))
-            }
-
-            XCTAssertEqual(try Data(contentsOf: backupURL), originalBackup)
-            XCTAssertEqual(try String(contentsOf: storeURL, encoding: .utf8), validV1JSON)
         }
     }
 
@@ -956,21 +207,21 @@ final class PortalStoreTests: XCTestCase {
         }
     }
 
-    private var primaryDisplay: DisplayDescriptor {
+    var primaryDisplay: DisplayDescriptor {
         DisplayDescriptor(
             identity: DisplayIdentity(rawValue: primaryDisplayUUID),
             visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 900)
         )
     }
 
-    private var secondaryDisplay: DisplayDescriptor {
+    var secondaryDisplay: DisplayDescriptor {
         DisplayDescriptor(
             identity: DisplayIdentity(rawValue: secondaryDisplayUUID),
             visibleFrame: CGRect(x: -1200, y: 0, width: 1200, height: 800)
         )
     }
 
-    private func makePortal(
+    func makePortal(
         id: PortalID = PortalID(),
         path: String,
         x: CGFloat
@@ -984,7 +235,7 @@ final class PortalStoreTests: XCTestCase {
     }
 }
 
-private let validV1JSON = """
+let validV1JSON = """
 {
   "version": 1,
   "portals": [{
@@ -1000,10 +251,10 @@ private let validV1JSON = """
 }
 """
 
-private let primaryDisplayUUID = "10000000-0000-0000-0000-000000000001"
-private let secondaryDisplayUUID = "20000000-0000-0000-0000-000000000002"
+let primaryDisplayUUID = "10000000-0000-0000-0000-000000000001"
+let secondaryDisplayUUID = "20000000-0000-0000-0000-000000000002"
 
-private func v4JSON(portal: Portal) throws -> String {
+func v4JSON(portal: Portal) throws -> String {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     return try String(
@@ -1012,7 +263,7 @@ private func v4JSON(portal: Portal) throws -> String {
     )
 }
 
-private func v2JSON(
+func v2JSON(
     homeDisplay: String,
     anchorX: Double,
     preferredWidth: Double,
@@ -1045,7 +296,7 @@ private func v2JSON(
     """
 }
 
-private func v3JSON(backgroundStyle: String) -> String {
+func v3JSON(backgroundStyle: String) -> String {
     v2JSON(
         homeDisplay: primaryDisplayUUID,
         anchorX: 0.5,
@@ -1058,7 +309,7 @@ private func v3JSON(backgroundStyle: String) -> String {
     )
 }
 
-private struct StubLegacyDisplayResolver: LegacyDisplayResolving {
+struct StubLegacyDisplayResolver: LegacyDisplayResolving {
     let negativeFrameDisplay: DisplayDescriptor
     let fallbackDisplay: DisplayDescriptor
 
@@ -1067,15 +318,15 @@ private struct StubLegacyDisplayResolver: LegacyDisplayResolving {
     }
 }
 
-private struct FailingIfCalledLegacyDisplayResolver: LegacyDisplayResolving {
+struct FailingIfCalledLegacyDisplayResolver: LegacyDisplayResolving {
     func resolveDisplay(forLegacyFrame frame: CGRect) throws -> DisplayDescriptor {
         throw UnexpectedResolverCall()
     }
 }
 
-private struct UnexpectedResolverCall: Error {}
+struct UnexpectedResolverCall: Error {}
 
-private struct ReplaceFailingFileSystem: PortalStoreFileSystem {
+struct ReplaceFailingFileSystem: PortalStoreFileSystem {
     private let base = FoundationPortalStoreFileSystem()
 
     func fileExists(at url: URL) -> Bool { base.fileExists(at: url) }
@@ -1091,7 +342,7 @@ private struct ReplaceFailingFileSystem: PortalStoreFileSystem {
     func removeItem(at url: URL) throws { try base.removeItem(at: url) }
 }
 
-private func withStoreDirectory(
+func withStoreDirectory(
     _ body: (URL) async throws -> Void
 ) async throws {
     let directory = FileManager.default.temporaryDirectory
@@ -1114,6 +365,6 @@ private func withStoreDirectory(
     try FileManager.default.removeItem(at: directory)
 }
 
-private enum StoreFixtureError: Error {
+enum StoreFixtureError: Error {
     case bodyAndCleanup(body: String, cleanup: String)
 }
