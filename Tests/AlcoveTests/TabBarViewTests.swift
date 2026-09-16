@@ -588,6 +588,7 @@ final class TabBarViewTests: XCTestCase {
             tabBar.subviews.compactMap { $0 as? PortalChromeMaterialView }.isEmpty
         )
         let group = try XCTUnwrap(tabBar.scrollView.documentView)
+        XCTAssertFalse(group.translatesAutoresizingMaskIntoConstraints)
         XCTAssertEqual(group.layer?.shadowOpacity, 0)
         XCTAssertEqual(group.layer?.borderWidth, 0.5)
         XCTAssertGreaterThan(group.layer?.backgroundColor?.alpha ?? 0, 0)

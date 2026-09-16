@@ -186,6 +186,9 @@ final class TabBarView: NSView {
     }
 
     private func configureView() {
+        // The scroll view owns the document frame. Prevent an intermediate zero-width
+        // autoresizing constraint from conflicting with NSStackView's arranged-subview constraints.
+        stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.orientation = .horizontal
         stackView.alignment = .centerY
         stackView.distribution = .fill
