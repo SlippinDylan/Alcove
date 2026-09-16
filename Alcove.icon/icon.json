@@ -20,7 +20,7 @@
           "glass" : false,
           "hidden" : false,
           "image-name" : "ChatGPT Image 2026年9月13日 00_28_53.png",
-          "name" : "ChatGPT Image 2026年9月13日 00_28_53",
+          "name" : "mascot-portal",
           "position" : {
             "scale" : 0.8,
             "translation-in-points" : [
@@ -46,7 +46,7 @@
           "glass" : false,
           "hidden" : false,
           "image-name" : "ChatGPT Image 2026年9月13日 00_14_32.png",
-          "name" : "ChatGPT Image 2026年9月13日 00_14_32",
+          "name" : "mascot-window-niche",
           "position" : {
             "scale" : 0.8,
             "translation-in-points" : [
@@ -74,7 +74,7 @@
           "glass" : false,
           "hidden" : false,
           "image-name" : "ChatGPT Image 2026年9月12日 14_14_00.png",
-          "name" : "ChatGPT Image 2026年9月12日 14_14_00",
+          "name" : "mascot-on-pushpin",
           "opacity" : 1,
           "position" : {
             "scale" : 0.7,
