@@ -210,12 +210,69 @@ jobs:
         run: |
           app="$RUNNER_TEMP/DerivedData/Build/Products/Release/Alcove.app"
           binary="$app/Contents/MacOS/Alcove"
+          signature_details="$RUNNER_TEMP/codesign-details.txt"
+          linked_libraries="$RUNNER_TEMP/linked-libraries.txt"
           test "$(lipo -archs "$binary")" = 'arm64'
           test "$(vtool -show-build "$binary" | grep -c 'minos 26.0')" -eq 1
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" = "$MARKETING_VERSION"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" = '${{ github.run_number }}'
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$app/Contents/Info.plist")" = 'true'
           codesign --verify --strict --all-architectures --verbose=2 "$app"
+
+          codesign --display --verbose=4 "$app" > /dev/null 2> "$signature_details"
+          cat "$signature_details"
+          grep -Fq 'Authority=Apple Development:' "$signature_details"
+          grep -Fq "TeamIdentifier=${{ steps.signing.outputs.team_id }}" "$signature_details"
+
+          entitlements="$(codesign --display --entitlements :- "$app" 2>/dev/null || true)"
+          if [[ -n "$entitlements" ]]; then
+            entitlements_path="$RUNNER_TEMP/app-entitlements.plist"
+            printf '%s' "$entitlements" > "$entitlements_path"
+            plutil -lint "$entitlements_path"
+            cat "$entitlements_path"
+            sandboxed="$(plutil -extract com.apple.security.app-sandbox raw \
+              -o - "$entitlements_path" 2>/dev/null || echo false)"
+            test "$sandboxed" != 'true'
+          else
+            echo 'No code-signing entitlements are embedded.'
+          fi
+
+          profile=''
+          for candidate in \
+            "$app/Contents/embedded.provisionprofile" \
+            "$app/Contents/embedded.mobileprovision"; do
+            if [[ -f "$candidate" ]]; then
+              profile="$candidate"
+              break
+            fi
+          done
+          if [[ -n "$profile" ]]; then
+            profile_plist="$RUNNER_TEMP/embedded-profile.plist"
+            security cms -D -i "$profile" -o "$profile_plist"
+            echo "Embedded profile: $(plutil -extract Name raw -o - "$profile_plist")"
+            echo "Profile UUID: $(plutil -extract UUID raw -o - "$profile_plist")"
+            echo "Profile expiration: $(plutil -extract ExpirationDate raw -o - "$profile_plist")"
+          else
+            echo 'No embedded provisioning profile is present.'
+          fi
+
+          otool -L "$binary" | tee "$linked_libraries"
+          unexpected_libraries="$(tail -n +2 "$linked_libraries" \
+            | awk '{ print $1 }' \
+            | grep -Ev '^(/System/Library/|/usr/lib/)' || true)"
+          if [[ -n "$unexpected_libraries" ]]; then
+            echo "Unexpected dynamic libraries:" >&2
+            echo "$unexpected_libraries" >&2
+            exit 1
+          fi
+
+          set +e
+          spctl_output="$(spctl --assess --type execute --verbose=4 "$app" 2>&1)"
+          spctl_status=$?
+          set -e
+          echo "spctl exit status: $spctl_status"
+          echo "$spctl_output"
+          echo 'The assessment is recorded only; Apple Development is not a Developer ID distribution identity.'
 
       - name: Package drag-to-install DMG
         run: |
