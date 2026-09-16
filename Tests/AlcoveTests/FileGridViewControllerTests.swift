@@ -595,9 +595,8 @@ final class FileGridViewControllerTests: XCTestCase {
         XCTAssertEqual(cell.iconSelectionView.frame.size, NSSize(width: 72, height: 72))
         XCTAssertGreaterThan(cell.nameLabel.frame.height, 12)
         XCTAssertEqual(cell.view.layer?.backgroundColor?.alpha ?? 0, 0)
-        XCTAssertEqual(cell.view.layer?.cornerRadius, 12)
-        XCTAssertEqual(cell.view.layer?.borderWidth, 1)
-        XCTAssertGreaterThan(cell.view.layer?.borderColor?.alpha ?? 0, 0)
+        XCTAssertEqual(cell.view.layer?.borderWidth ?? 0, 0)
+        XCTAssertNil(cell.view.layer?.borderColor)
 
         cell.isSelected = true
 

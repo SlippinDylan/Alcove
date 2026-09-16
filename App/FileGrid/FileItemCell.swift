@@ -31,9 +31,6 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
             self?.updateSelectionAppearance()
         }
         view = rootView
-        view.wantsLayer = true
-        view.layer?.cornerRadius = 12
-        view.layer?.borderWidth = 1
 
         iconView.imageScaling = .scaleProportionallyUpOrDown
         iconView.translatesAutoresizingMaskIntoConstraints = false
@@ -224,9 +221,6 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
 
     private func updateSelectionAppearance() {
         view.effectiveAppearance.performAsCurrentDrawingAppearance {
-            view.layer?.borderColor = NSColor.separatorColor
-                .withAlphaComponent(0.65)
-                .cgColor
             iconSelectionView.layer?.backgroundColor = isSelected
                 ? NSColor.selectedContentBackgroundColor.withAlphaComponent(0.18).cgColor
                 : NSColor.clear.cgColor
