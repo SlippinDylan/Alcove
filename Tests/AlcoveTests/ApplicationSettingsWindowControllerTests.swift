@@ -186,6 +186,14 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertEqual(transparency.numberOfTickMarks, 5)
         XCTAssertTrue(contentSize.allowsTickMarkValuesOnly)
         XCTAssertTrue(transparency.allowsTickMarkValuesOnly)
+        XCTAssertEqual(radius.neutralValue, Double(PortalCornerRadius.medium.rawValue))
+        XCTAssertEqual(spacing.neutralValue, Double(PortalSpacing.medium.rawValue))
+        XCTAssertEqual(contentSize.neutralValue, 1)
+        XCTAssertEqual(transparency.neutralValue, 2)
+        XCTAssertEqual(radius.tintProminence, .secondary)
+        XCTAssertEqual(spacing.tintProminence, .secondary)
+        XCTAssertEqual(contentSize.tintProminence, .secondary)
+        XCTAssertEqual(transparency.tintProminence, .secondary)
         XCTAssertFalse(descendants(of: controller.settingsViewController.view).contains {
             $0.identifier?.rawValue.hasPrefix("application-settings.background-type") == true
         })
@@ -295,6 +303,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertEqual(controller.window?.toolbarStyle, .preference)
         XCTAssertEqual(controller.window?.toolbar?.displayMode, .iconAndLabel)
         XCTAssertEqual(Set(controller.categoryItems.keys), Set(ApplicationSettingsViewController.Category.allCases))
+        XCTAssertTrue(controller.categoryItems.values.allSatisfy { !$0.isBordered })
         XCTAssertEqual(
             controller.window?.toolbar?.selectedItemIdentifier,
             ApplicationSettingsViewController.Category.general.toolbarItemIdentifier

@@ -30,8 +30,8 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 - 原生 AppKit 应用，最低 macOS 26，并以 macOS 26/27 为兼容矩阵。
 - `LSUIElement` 菜单栏应用，不显示 Dock 图标。
-- 发布与 CI 架构：Apple Silicon `arm64`；不再生成 x86_64 或 universal 制品。
-- macOS 26+ 的 Portal 只使用稳定的静态半透明背景；不再使用会在 `.canJoinAllSpaces` 切换期间灰闪的动态 backdrop。只有系统 Reduce Transparency 会强制切换到不透明辅助功能表面。Apple 在 Sequoia 后直接采用年份版本号 26，不存在面向用户的 16～25 产品版本。
+- 发布与 CI 架构仅支持 Apple Silicon `arm64`。
+- macOS 26+ 的 Portal 只使用稳定的静态半透明背景；不再使用会在 `.canJoinAllSpaces` 切换期间灰闪的动态 backdrop。只有系统 Reduce Transparency 会强制切换到不透明辅助功能表面。
 - Apple Development 签名、版本/CHANGELOG 门禁、拖拽式 arm64 DMG 和 GitHub Release workflow 已实现；Gatekeeper、证书到期和安装体验仍需 Spike 0.6 人工验证。
 - 所有 push/PR 都运行无签名 arm64 CI；普通 CI 不上传 App 制品。未经用户明确要求，不自动 push 或监控 CI。
 - 当前发布清单为 `0.1.0-beta.1` 且 `release=false`；现阶段只验证 CI 和飞书通知，不触发签名、DMG 或 GitHub Release。
@@ -291,102 +291,14 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 
 ### 7.2 最近验证结果
 
-主显示器跟随与一键位置修复实现后执行并通过：
-
-```bash
-swift test --package-path Packages/AlcoveCore
-
-xcodebuild test -quiet \
-  -project Alcove.xcodeproj \
-  -scheme Alcove \
-  -destination 'platform=macOS' \
-  -derivedDataPath /tmp/AlcovePrimaryDisplayRiskFixFinal \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY=''
-
-xcodebuild build -quiet \
-  -project Alcove.xcodeproj \
-  -scheme Alcove \
-  -configuration Release \
-  -destination 'generic/platform=macOS' \
-  -derivedDataPath /tmp/AlcovePrimaryDisplayRiskFixFinalRelease \
-  ARCHS='arm64 x86_64' \
-  ONLY_ACTIVE_ARCH=NO \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY=''
-```
-
-Core 共 159 项 XCTest 通过；hosted app 260 项测试通过；Release 为 `x86_64 + arm64`。覆盖菜单栏主屏识别、左上 pt
-偏移投影、`1–8` 溢出新列、有限重叠槽位优先耗尽、部分历史记录不与当前布局混用、
-冲突候选进入 overflow、旧主屏仍连接时全体跟随新主屏、手动修复只持久化离屏/冲突
-Portal、无修复时零写入、保存失败时 runtime 零变化，以及窗口拒绝应用时不误报成功。
-
-本轮图钉、路径栏、菜单、本地化与等距紧凑网格实现后执行并通过：
-
-```bash
-swift test --package-path Packages/AlcoveCore
-
-xcodebuild test -quiet \
-  -project Alcove.xcodeproj \
-  -scheme Alcove \
-  -destination 'platform=macOS' \
-  -derivedDataPath /tmp/AlcoveSettingsRedesignTests \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY=''
-
-xcodebuild build -quiet \
-  -project Alcove.xcodeproj \
-  -scheme Alcove \
-  -configuration Release \
-  -destination 'generic/platform=macOS' \
-  -derivedDataPath /tmp/AlcoveSettingsRedesignRelease \
-  ARCHS='arm64 x86_64' \
-  ONLY_ACTIVE_ARCH=NO \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY=''
-```
-
-Core 125 项测试和完整 AppKit 测试通过；Release 二进制经 `lipo -info` 确认为
-`x86_64 arm64`，应用 bundle 包含 `en`、`zh-Hans`、`zh-Hant` 的
-`Localizable.strings`。Finder Automation 权限说明已从 Info.plist 和资源中移除。
-
-在功能提交 `e73385b` 前执行并通过：
-
-```bash
-swift test --package-path Packages/AlcoveCore
-
-xcodebuild test -quiet \
-  -project Alcove.xcodeproj \
-  -scheme Alcove \
-  -destination 'platform=macOS' \
-  -derivedDataPath /tmp/AlcoveNativeSettingsFinal \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY=''
-
-xcodebuild build -quiet \
-  -project Alcove.xcodeproj \
-  -scheme Alcove \
-  -configuration Release \
-  -destination 'generic/platform=macOS' \
-  -derivedDataPath /tmp/AlcoveNativeSettingsRelease \
-  ARCHS='arm64 x86_64' \
-  ONLY_ACTIVE_ARCH=NO \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY=''
-```
-
-Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
+早期功能阶段的验证记录已由 7.4 节的当前 arm64-only 结果覆盖。主显示器跟随、
+位置修复、图钉、路径栏、菜单、本地化、等距网格和原生设置窗口均已纳入当前
+AlcoveCore 与 hosted app 测试；现行构建命令与制品契约以 CI workflow 为准。
 
 ### 7.3 仍需人工验证或尚未封闭
 
 - 最新独立设置窗口的视觉结果尚未收到用户截图确认；这是下一次 UI 对话最可能的第一项工作。
-- 设置窗口需人工核对：约 400×572 外框、当前屏幕居中、preference toolbar 的分类 icon/label 与选中背景、圆角卡片比例、Glass 按钮、滑块、字体和间距是否足够接近参考图。
+- 设置窗口需人工核对：400×450 内容区、当前屏幕居中、preference toolbar 的分类 icon/label 与选中背景、圆角卡片比例、Glass 按钮、滑块、字体和间距是否足够接近参考图。
 - Portal 的 desktop-level 窗口在 macOS 26/27、多个显示器、Spaces、Stage Manager、全屏应用、睡眠唤醒和缩放切换下仍需要真实系统矩阵。
 - 主屏在 27 英寸 4K、14 英寸内置屏和当前竖屏显示器之间切换时，左上偏移、溢出新列、返回旧布局和极端重叠仍需真机人工验证。
 - 显示器 UUID 跨断开/重连的稳定性不是 Apple 的通用保证，仍需真实硬件证据。
@@ -399,33 +311,34 @@ Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
 ### 7.4 发布自动化验证
 
 - 发布清单与飞书通知共 19 项 Node 测试通过；actionlint 1.7.12 与 ShellCheck 0.11.0 对三条 workflow 检查通过，zizmor 1.30.1 在三个已解释的可信触发器 ignore 之外无发现。
-- AlcoveCore 159 项和 hosted app 278 项测试通过。
-- 本地 unsigned Release 已确认为单一 arm64 slice、minimum macOS 26.0、SDK 26.5、`LSUIElement=true`。
-- macOS 27/Xcode 27 的 linked-on behavior 和真机矩阵尚未执行，继续按未验证风险处理。
+- AlcoveCore 159 项和 hosted app 282 项测试通过；hosted tests 在 macOS 26.6.2 上执行。
+- 本地 Xcode 27 unsigned Release 已确认为单一 arm64 slice、minimum macOS 26.0、SDK 27.0、`LSUIElement=true`，且 warnings-as-errors 构建通过。
+- Xcode 27 编译已通过；macOS 27 真机 linked-on behavior 和系统矩阵仍按未验证风险处理。
 - `Scripts/create-dmg.sh` 生成的测试 DMG 可正常挂载；其中只有 `Alcove.app` 与指向 `/Applications` 的符号链接，挂载后的 App 仍为 arm64。
 - GitHub Secrets 中 P12 的真实签名构建、远端 draft/publish 和飞书 Webhook 只能在 push 后由 GitHub Actions 验证；本轮没有读取或导出 Secret 值，也没有 push。
 
 ## 8. Git 状态与提交边界
 
-CI、Release、飞书通知、版本/CHANGELOG 门禁、DMG 脚本和相关文档改动尚未提交。
-`Alcove.xcodeproj/project.pbxproj` 和应用功能源码本轮未修改。
+本轮 macOS 26 AppKit 设置控件、文件菜单图标、Toolbar 和相关文档改动尚未提交。
+`Alcove.xcodeproj/project.pbxproj` 未修改。
 
 快照时：
 
 ```text
-HEAD:        b0f8e63 feat: keep panels on the primary display
-origin/main: 666b709 feat: reflow attached portals with content size
-ahead:       4 commits
-worktree:    本轮发布自动化与文档改动，未提交
+HEAD:        8acca13 chore: rename app icon layers
+origin/main: ac32504 chore: add README feature gallery
+ahead:       5 commits
+worktree:    本轮 macOS 26 AppKit 优化与文档改动，未提交
 ```
 
 尚未 push 的功能提交：
 
 ```text
-0193501 feat: refine portal chrome appearance
-5bd8b2e feat: adopt native portal glass styling
-00d2bc4 feat: cap portal folder tabs
-b0f8e63 feat: keep panels on the primary display
+131d780 chore: add release docs and Apache license
+cae619e fix: refine file labels and menu bar icon
+24cce02 chore: update app copyright notice
+69a9aa5 chore: move localized readmes into docs
+8acca13 chore: rename app icon layers
 ```
 
 ## 9. 当前协作约定

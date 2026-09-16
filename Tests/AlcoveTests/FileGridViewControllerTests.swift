@@ -294,6 +294,9 @@ final class FileGridViewControllerTests: XCTestCase {
                 localized("portal.files.open_in_terminal"),
             ]
         )
+        XCTAssertTrue(selectedMenu.items.filter { !$0.isSeparatorItem }.allSatisfy {
+            $0.image != nil
+        })
 
         XCTAssertNotNil(controller.contextMenu(forItemAt: 1))
         XCTAssertEqual(controller.selectionState.selectedIDs, [items[1].id])

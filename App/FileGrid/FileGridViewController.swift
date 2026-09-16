@@ -389,29 +389,82 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         }
 
         let menu = NSMenu()
-        menu.addItem(menuItem("portal.files.open", action: #selector(openFromContextMenu)))
-        menu.addItem(menuItem("portal.files.quick_look", action: #selector(quickLookFromContextMenu)))
-        menu.addItem(menuItem("portal.files.show_in_finder", action: #selector(revealFromContextMenu)))
-        menu.addItem(menuItem("portal.files.get_info", action: #selector(inspectFromContextMenu)))
+        menu.addItem(menuItem(
+            "portal.files.open",
+            symbolName: "arrow.up.forward.app",
+            action: #selector(openFromContextMenu)
+        ))
+        menu.addItem(menuItem(
+            "portal.files.quick_look",
+            symbolName: "eye",
+            action: #selector(quickLookFromContextMenu)
+        ))
+        menu.addItem(menuItem(
+            "portal.files.show_in_finder",
+            symbolName: "folder",
+            action: #selector(revealFromContextMenu)
+        ))
+        menu.addItem(menuItem(
+            "portal.files.get_info",
+            symbolName: "info.circle",
+            action: #selector(inspectFromContextMenu)
+        ))
         menu.addItem(.separator())
-        menu.addItem(menuItem("portal.files.rename", action: #selector(renameFromContextMenu)))
-        menu.addItem(menuItem("portal.files.compress", action: #selector(compressFromContextMenu)))
-        menu.addItem(menuItem("portal.files.duplicate", action: #selector(duplicateFromContextMenu)))
-        menu.addItem(menuItem("portal.files.move_to_trash", action: #selector(trashFromContextMenu)))
+        menu.addItem(menuItem(
+            "portal.files.rename",
+            symbolName: "pencil",
+            action: #selector(renameFromContextMenu)
+        ))
+        menu.addItem(menuItem(
+            "portal.files.compress",
+            symbolName: "archivebox",
+            action: #selector(compressFromContextMenu)
+        ))
+        menu.addItem(menuItem(
+            "portal.files.duplicate",
+            symbolName: "plus.square.on.square",
+            action: #selector(duplicateFromContextMenu)
+        ))
+        menu.addItem(menuItem(
+            "portal.files.move_to_trash",
+            symbolName: "trash",
+            action: #selector(trashFromContextMenu)
+        ))
         menu.addItem(.separator())
-        menu.addItem(menuItem("portal.files.airdrop", action: #selector(airDropFromContextMenu)))
-        menu.addItem(menuItem("portal.files.copy_path", action: #selector(copyPathFromContextMenu)))
-        menu.addItem(menuItem("portal.files.open_in_terminal", action: #selector(openInTerminalFromContextMenu)))
+        menu.addItem(menuItem(
+            "portal.files.airdrop",
+            symbolName: "square.and.arrow.up",
+            action: #selector(airDropFromContextMenu)
+        ))
+        menu.addItem(menuItem(
+            "portal.files.copy_path",
+            symbolName: "document.on.document",
+            action: #selector(copyPathFromContextMenu)
+        ))
+        menu.addItem(menuItem(
+            "portal.files.open_in_terminal",
+            symbolName: "terminal",
+            action: #selector(openInTerminalFromContextMenu)
+        ))
         return menu
     }
 
-    private func menuItem(_ localizationKey: String, action: Selector) -> NSMenuItem {
+    private func menuItem(
+        _ localizationKey: String,
+        symbolName: String,
+        action: Selector
+    ) -> NSMenuItem {
         let item = NSMenuItem(
             title: NSLocalizedString(localizationKey, comment: "File context menu item"),
             action: action,
             keyEquivalent: ""
         )
         item.target = self
+        item.image = NSImage(
+            systemSymbolName: symbolName,
+            accessibilityDescription: item.title
+        )
+        item.image?.isTemplate = true
         return item
     }
 

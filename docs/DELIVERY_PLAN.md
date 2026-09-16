@@ -82,7 +82,7 @@ The disposable harnesses and per-spike reports were removed after their producti
 - [x] Space-transition evidence rejects both dynamic backdrop surfaces and selects static translucency.
 - [x] The opaque accessibility surface preserves the same layout and ownership boundaries.
 - [x] Static translucency and the opaque accessibility surface respect Reduce Transparency.
-- [ ] Document the `@available` guard pattern and any layout differences.
+- [x] The macOS 26 minimum target uses one production surface without runtime availability branches.
 
 ---
 
@@ -511,7 +511,6 @@ Test each combination and record pass/fail/known-issue. If hardware for a specif
 | Quick Look: image, PDF, text, movie | | | | |
 | Quick Look: multiple selection | | | | |
 | External/network folder selection rejected | | | | |
-| Universal binary on Intel | | | | |
 
 ---
 

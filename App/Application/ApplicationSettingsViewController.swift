@@ -282,7 +282,7 @@ final class ApplicationSettingsViewController: NSViewController {
         let repairActions = NSStackView(views: [repairSpacer, repairButton])
         repairActions.orientation = .horizontal
         repairActions.alignment = .centerY
-        repairActions.heightAnchor.constraint(equalToConstant: 46).isActive = true
+        repairActions.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
 
         let repairCard = ApplicationSettingsCardView(rows: [repairLabels, repairActions])
         repairCard.identifier = NSUserInterfaceItemIdentifier(
@@ -331,7 +331,7 @@ final class ApplicationSettingsViewController: NSViewController {
         actions.orientation = .horizontal
         actions.alignment = .centerY
         actions.spacing = 10
-        actions.heightAnchor.constraint(equalToConstant: 46).isActive = true
+        actions.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
 
         let card = ApplicationSettingsCardView(rows: [labels, actions])
         card.identifier = NSUserInterfaceItemIdentifier("application-settings.backup.card")
@@ -363,6 +363,7 @@ final class ApplicationSettingsViewController: NSViewController {
             identifier: "application-settings.content-size",
             value: selectedIndex,
             maximum: values.count - 1,
+            neutralValue: 1,
             action: #selector(changeIconSize(_:))
         )
         slider.setAccessibilityLabel(NSLocalizedString(
@@ -382,6 +383,7 @@ final class ApplicationSettingsViewController: NSViewController {
             identifier: "application-settings.transparency",
             value: selectedIndex,
             maximum: values.count - 1,
+            neutralValue: 2,
             action: #selector(changeBackgroundStyle(_:))
         )
         slider.setAccessibilityLabel(NSLocalizedString(
@@ -396,6 +398,7 @@ final class ApplicationSettingsViewController: NSViewController {
         identifier: String,
         value: Int,
         maximum: Int,
+        neutralValue: Int,
         action: Selector
     ) -> NSSlider {
         let slider = NSSlider(
@@ -409,6 +412,8 @@ final class ApplicationSettingsViewController: NSViewController {
         slider.numberOfTickMarks = maximum + 1
         slider.allowsTickMarkValuesOnly = true
         slider.tickMarkPosition = .below
+        slider.neutralValue = Double(neutralValue)
+        slider.tintProminence = .secondary
         slider.widthAnchor.constraint(equalToConstant: 180).isActive = true
         return slider
     }
@@ -418,18 +423,13 @@ final class ApplicationSettingsViewController: NSViewController {
         let selectedIndex = values.firstIndex(
             of: preferencesController.portalAppearance.spacing
         ) ?? PortalSpacing.medium.rawValue
-        let slider = NSSlider(
-            value: Double(selectedIndex),
-            minValue: 0,
-            maxValue: Double(values.count - 1),
-            target: self,
+        let slider = discreteSlider(
+            identifier: "application-settings.spacing",
+            value: selectedIndex,
+            maximum: values.count - 1,
+            neutralValue: PortalSpacing.medium.rawValue,
             action: #selector(changeSpacing(_:))
         )
-        slider.identifier = NSUserInterfaceItemIdentifier("application-settings.spacing")
-        slider.numberOfTickMarks = values.count
-        slider.allowsTickMarkValuesOnly = true
-        slider.tickMarkPosition = .below
-        slider.widthAnchor.constraint(equalToConstant: 180).isActive = true
         slider.setAccessibilityLabel(NSLocalizedString(
             "application.settings.spacing",
             comment: "Portal spacing setting"
@@ -443,20 +443,13 @@ final class ApplicationSettingsViewController: NSViewController {
         let selectedIndex = values.firstIndex(
             of: preferencesController.portalAppearance.cornerRadius
         ) ?? values.count - 1
-        let slider = NSSlider(
-            value: Double(selectedIndex),
-            minValue: 0,
-            maxValue: Double(values.count - 1),
-            target: self,
+        let slider = discreteSlider(
+            identifier: "application-settings.corner-radius",
+            value: selectedIndex,
+            maximum: values.count - 1,
+            neutralValue: PortalCornerRadius.medium.rawValue,
             action: #selector(changeCornerRadius(_:))
         )
-        slider.identifier = NSUserInterfaceItemIdentifier(
-            "application-settings.corner-radius"
-        )
-        slider.numberOfTickMarks = values.count
-        slider.allowsTickMarkValuesOnly = true
-        slider.tickMarkPosition = .below
-        slider.widthAnchor.constraint(equalToConstant: 180).isActive = true
         slider.setAccessibilityLabel(NSLocalizedString(
             "application.settings.corner_radius",
             comment: "Portal corner radius setting"
@@ -532,7 +525,7 @@ final class ApplicationSettingsViewController: NSViewController {
         row.distribution = .fill
         row.alignment = .centerY
         row.spacing = 12
-        row.heightAnchor.constraint(equalToConstant: 40).isActive = true
+        row.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
         return row
     }
 

@@ -30,6 +30,7 @@ extension TabBarViewTests {
             Set(settingsController.categoryItems.keys),
             [.general, .folders, .style]
         )
+        XCTAssertTrue(settingsController.categoryItems.values.allSatisfy { !$0.isBordered })
         XCTAssertEqual(settingsViewController.selectedCategory, .general)
         XCTAssertEqual(
             settingsController.window?.toolbar?.selectedItemIdentifier,
