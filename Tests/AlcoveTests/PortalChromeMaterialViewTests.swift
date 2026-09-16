@@ -55,7 +55,7 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         host.rebuildMaterial()
 
         XCTAssertEqual(host.materialPath, .translucent)
-        XCTAssertEqual(try surfaceColor(of: host).alphaComponent, 0.52, accuracy: 0.001)
+        XCTAssertEqual(try surfaceColor(of: host).alphaComponent, 0.72, accuracy: 0.001)
     }
 
     @MainActor
@@ -108,14 +108,14 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         XCTAssertEqual(color.redComponent, 1, accuracy: 0.001)
         XCTAssertEqual(color.greenComponent, 1, accuracy: 0.001)
         XCTAssertEqual(color.blueComponent, 1, accuracy: 0.001)
-        XCTAssertEqual(color.alphaComponent, 0.42, accuracy: 0.001)
+        XCTAssertEqual(color.alphaComponent, 0.62, accuracy: 0.001)
     }
 
     @MainActor
     func testEveryTransparencyLevelUpdatesStaticSurfaceInPlace() throws {
         let surface = makeSurface(backgroundStyle: .maximumTransparency)
         let material = surface.materialView
-        let expectedAlphas: [CGFloat] = [0.22, 0.32, 0.42, 0.52, 0.62]
+        let expectedAlphas: [CGFloat] = [0.42, 0.52, 0.62, 0.72, 0.82]
 
         for (style, expectedAlpha) in zip(PortalBackgroundStyle.allCases, expectedAlphas) {
             surface.updateBackgroundStyle(style)
@@ -135,7 +135,7 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         var color = try surfaceColor(of: surface)
         XCTAssertGreaterThan(color.redComponent, color.blueComponent)
         XCTAssertLessThan(color.redComponent - color.blueComponent, 0.25)
-        XCTAssertEqual(color.alphaComponent, 0.42, accuracy: 0.001)
+        XCTAssertEqual(color.alphaComponent, 0.62, accuracy: 0.001)
 
         surface.updatePortalTint(.blue)
 
@@ -158,8 +158,8 @@ final class PortalChromeMaterialViewTests: XCTestCase {
 
         XCTAssertEqual(light.redComponent, 1, accuracy: 0.001)
         XCTAssertEqual(dark.redComponent, 0, accuracy: 0.001)
-        XCTAssertEqual(light.alphaComponent, 0.42, accuracy: 0.001)
-        XCTAssertEqual(dark.alphaComponent, 0.42, accuracy: 0.001)
+        XCTAssertEqual(light.alphaComponent, 0.62, accuracy: 0.001)
+        XCTAssertEqual(dark.alphaComponent, 0.62, accuracy: 0.001)
     }
 
     @MainActor
