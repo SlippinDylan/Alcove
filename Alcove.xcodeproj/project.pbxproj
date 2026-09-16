@@ -54,6 +54,9 @@
 		A10000000000000000000014 /* PortalViewNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* PortalViewNavigationTests.swift */; };
 		A10000000000000000000015 /* PortalViewObservationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* PortalViewObservationTests.swift */; };
 		A10000000000000000000016 /* PortalSettingsViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* PortalSettingsViewTests.swift */; };
+		A10000000000000000000017 /* ApplicationPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* ApplicationPreferences.swift */; };
+		A10000000000000000000018 /* ApplicationSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* ApplicationSettingsViewController.swift */; };
+		A10000000000000000000019 /* ApplicationSettingsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* ApplicationSettingsViews.swift */; };
 		100000000000000000000020 /* PortalStoreFileSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000022 /* PortalStoreFileSystem.swift */; };
 		100000000000000000000021 /* PortalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000023 /* PortalStore.swift */; };
 		100000000000000000000022 /* PortalStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000024 /* PortalStoreTests.swift */; };
@@ -153,6 +156,9 @@
 		A20000000000000000000014 /* PortalViewNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalViewNavigationTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* PortalViewObservationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalViewObservationTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000016 /* PortalSettingsViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalSettingsViewTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000017 /* ApplicationPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationPreferences.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* ApplicationSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSettingsViewController.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* ApplicationSettingsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSettingsViews.swift; sourceTree = "<group>"; };
 		200000000000000000000022 /* PortalStoreFileSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreFileSystem.swift; sourceTree = "<group>"; };
 		200000000000000000000023 /* PortalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStore.swift; sourceTree = "<group>"; };
 		200000000000000000000024 /* PortalStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreTests.swift; sourceTree = "<group>"; };
@@ -244,7 +250,10 @@
 			isa = PBXGroup;
 			children = (
 				BB0000000000000000000002 /* ApplicationLayoutBackupController.swift */,
+				A20000000000000000000017 /* ApplicationPreferences.swift */,
 				200000000000000000000035 /* ApplicationSettingsWindowController.swift */,
+				A20000000000000000000018 /* ApplicationSettingsViewController.swift */,
+				A20000000000000000000019 /* ApplicationSettingsViews.swift */,
 				200000000000000000000001 /* AppDelegate.swift */,
 				20000000000000000000000B /* PortalCoordinator.swift */,
 				A20000000000000000000009 /* PortalLayoutImporter.swift */,
@@ -533,7 +542,10 @@
 			files = (
 				BA0000000000000000000001 /* AlcoveLayoutBackupCodec.swift in Sources */,
 				BB0000000000000000000001 /* ApplicationLayoutBackupController.swift in Sources */,
+				A10000000000000000000017 /* ApplicationPreferences.swift in Sources */,
 				100000000000000000000031 /* ApplicationSettingsWindowController.swift in Sources */,
+				A10000000000000000000018 /* ApplicationSettingsViewController.swift in Sources */,
+				A10000000000000000000019 /* ApplicationSettingsViews.swift in Sources */,
 				100000000000000000000001 /* AppDelegate.swift in Sources */,
 				100000000000000000000009 /* PortalCoordinator.swift in Sources */,
 				A10000000000000000000009 /* PortalLayoutImporter.swift in Sources */,
