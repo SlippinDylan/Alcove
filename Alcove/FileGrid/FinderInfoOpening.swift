@@ -20,13 +20,11 @@ enum FinderInfoError: LocalizedError, Equatable {
     }
 }
 
-@MainActor
-protocol FinderInfoOpening: AnyObject {
-    func openInfo(for url: URL) throws
+protocol FinderInfoOpening: Sendable {
+    func openInfo(for url: URL) async throws
 }
 
-@MainActor
-final class FinderInfoAppleEventOpener: FinderInfoOpening {
+actor FinderInfoAppleEventOpener: FinderInfoOpening {
     static let scriptSource = """
         on showInfo(posixPath)
             tell application "Finder"

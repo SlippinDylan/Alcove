@@ -514,10 +514,12 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     @objc private func inspectFromContextMenu() {
         let selectedItems = selectedItemsInGridOrder
         guard selectedItems.count == 1, let item = selectedItems.first else { return }
-        do {
-            try finderInfoOpener.openInfo(for: item.url)
-        } catch {
-            fileOperationFailurePresenter.present(error)
+        Task { [weak self, finderInfoOpener] in
+            do {
+                try await finderInfoOpener.openInfo(for: item.url)
+            } catch {
+                self?.fileOperationFailurePresenter.present(error)
+            }
         }
     }
 

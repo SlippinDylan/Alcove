@@ -574,8 +574,10 @@ final class FileGridViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testGetInfoContextActionRequiresOneItemAndRoutesItsURL() throws {
+    func testGetInfoContextActionRequiresOneItemAndRoutesItsURL() async throws {
         let opener = FinderInfoOpenerSpy()
+        let opened = expectation(description: "Finder info opened")
+        opener.onOpen = { opened.fulfill() }
         let controller = FileGridViewController(finderInfoOpener: opener)
         controller.loadView()
         let items = makeItems(count: 2)
@@ -586,6 +588,7 @@ final class FileGridViewControllerTests: XCTestCase {
 
         XCTAssertTrue(controller.validateMenuItem(getInfo))
         performMenuItem(titled: localized("portal.files.get_info"), in: menu)
+        await fulfillment(of: [opened], timeout: 2)
         XCTAssertEqual(opener.openedURLs, [items[1].url])
 
         controller.handleClick(index: 0, modifiers: .command)
@@ -593,9 +596,11 @@ final class FileGridViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testGetInfoContextActionReportsFinderAutomationFailure() throws {
+    func testGetInfoContextActionReportsFinderAutomationFailure() async throws {
         let opener = FinderInfoOpenerSpy(error: .automationDenied)
         let failurePresenter = FileOperationFailurePresenterSpy()
+        let presented = expectation(description: "Finder automation failure presented")
+        failurePresenter.onPresent = { presented.fulfill() }
         let controller = FileGridViewController(
             fileOperationFailurePresenter: failurePresenter,
             finderInfoOpener: opener
@@ -605,6 +610,7 @@ final class FileGridViewControllerTests: XCTestCase {
         let menu = try XCTUnwrap(controller.contextMenu(forItemAt: 0))
 
         performMenuItem(titled: localized("portal.files.get_info"), in: menu)
+        await fulfillment(of: [presented], timeout: 2)
 
         XCTAssertEqual(
             failurePresenter.errors.first as? FinderInfoError,
@@ -613,13 +619,15 @@ final class FileGridViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testFinderInfoScriptCompilesAndPassesPathAsAnEventArgument() throws {
-        let script = try XCTUnwrap(NSAppleScript(
-            source: FinderInfoAppleEventOpener.scriptSource
-        ))
-        var compilationError: NSDictionary?
-        XCTAssertTrue(script.compileAndReturnError(&compilationError))
-        XCTAssertNil(compilationError)
+    func testFinderInfoScriptCompilesAndPassesPathAsAnEventArgument() async throws {
+        let didCompile = await Task.detached {
+            guard let script = NSAppleScript(source: FinderInfoAppleEventOpener.scriptSource) else {
+                return false
+            }
+            var compilationError: NSDictionary?
+            return script.compileAndReturnError(&compilationError) && compilationError == nil
+        }.value
+        XCTAssertTrue(didCompile)
 
         let path = "/tmp/quote-'-and-\"-characters"
         let event = FinderInfoAppleEventOpener.subroutineEvent(path: path)
@@ -638,9 +646,12 @@ final class FileGridViewControllerTests: XCTestCase {
             ]),
             .automationDenied
         )
-        XCTAssertThrowsError(try FinderInfoAppleEventOpener().openInfo(
-            for: URL(fileURLWithPath: "/tmp/Alcove-missing-\(UUID().uuidString)")
-        )) { error in
+        do {
+            try await FinderInfoAppleEventOpener().openInfo(
+                for: URL(fileURLWithPath: "/tmp/Alcove-missing-\(UUID().uuidString)")
+            )
+            XCTFail("Expected a missing item error")
+        } catch {
             XCTAssertEqual(error as? FinderInfoError, .itemUnavailable)
         }
     }
@@ -1341,13 +1352,15 @@ private final class FileDuplicatorSpy: FileDuplicating {
 private final class FinderInfoOpenerSpy: FinderInfoOpening {
     private let error: FinderInfoError?
     private(set) var openedURLs: [URL] = []
+    var onOpen: (() -> Void)?
 
     init(error: FinderInfoError? = nil) {
         self.error = error
     }
 
-    func openInfo(for url: URL) throws {
+    func openInfo(for url: URL) async throws {
         openedURLs.append(url)
+        onOpen?()
         if let error {
             throw error
         }
@@ -1363,9 +1376,11 @@ private actor FileCompressorSpy: FileCompressing {
 @MainActor
 private final class FileOperationFailurePresenterSpy: FileOperationFailurePresenting {
     private(set) var errors: [Error] = []
+    var onPresent: (() -> Void)?
 
     func present(_ error: Error) {
         errors.append(error)
+        onPresent?()
     }
 }
 
