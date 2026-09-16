@@ -177,7 +177,10 @@ final class PortalViewController: NSViewController {
     init(
         portal: Portal,
         loadingCoordinator: FolderLoadingCoordinator,
-        gridViewController: FileGridViewController? = nil
+        gridViewController: FileGridViewController? = nil,
+        materialAccessibilityProvider: @escaping PortalChromeMaterialView.AccessibilityProvider = {
+            PortalAccessibilityOptions.current()
+        }
     ) {
         self.portal = portal
         self.loadingCoordinator = loadingCoordinator
@@ -188,7 +191,8 @@ final class PortalViewController: NSViewController {
         portalMaterialView = PortalChromeMaterialView(
             contentView: NSView(),
             backgroundStyle: portal.backgroundStyle,
-            portalTint: portal.tint
+            portalTint: portal.tint,
+            accessibilityProvider: materialAccessibilityProvider
         )
         if let gridViewController {
             gridViewController.updateGridCapacity(portal.gridCapacity)

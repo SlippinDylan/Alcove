@@ -251,7 +251,14 @@ final class PortalViewControllerTests: XCTestCase {
             portal: portal,
             loadingCoordinator: FolderLoadingCoordinator(
                 enumerator: FixedFolderEnumerator(root: root, items: [item])
-            )
+            ),
+            materialAccessibilityProvider: {
+                PortalAccessibilityOptions(
+                    reduceTransparency: false,
+                    increaseContrast: false,
+                    reduceMotion: false
+                )
+            }
         )
         var invalidationCount = 0
         controller.onSelectionInvalidated = { invalidationCount += 1 }
