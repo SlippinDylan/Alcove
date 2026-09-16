@@ -49,6 +49,8 @@
 		A1000000000000000000000F /* PortalCoordinatorDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* PortalCoordinatorDisplayTests.swift */; };
 		A10000000000000000000010 /* PortalCoordinatorPlacementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* PortalCoordinatorPlacementTests.swift */; };
 		A10000000000000000000011 /* PortalCoordinatorTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* PortalCoordinatorTabTests.swift */; };
+		A10000000000000000000012 /* FileGridFileOperationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* FileGridFileOperationTests.swift */; };
+		A10000000000000000000013 /* FileGridTransferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* FileGridTransferTests.swift */; };
 		100000000000000000000020 /* PortalStoreFileSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000022 /* PortalStoreFileSystem.swift */; };
 		100000000000000000000021 /* PortalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000023 /* PortalStore.swift */; };
 		100000000000000000000022 /* PortalStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000024 /* PortalStoreTests.swift */; };
@@ -143,6 +145,8 @@
 		A2000000000000000000000F /* PortalCoordinatorDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCoordinatorDisplayTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000010 /* PortalCoordinatorPlacementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCoordinatorPlacementTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000011 /* PortalCoordinatorTabTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalCoordinatorTabTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000012 /* FileGridFileOperationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridFileOperationTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000013 /* FileGridTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileGridTransferTests.swift; sourceTree = "<group>"; };
 		200000000000000000000022 /* PortalStoreFileSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreFileSystem.swift; sourceTree = "<group>"; };
 		200000000000000000000023 /* PortalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStore.swift; sourceTree = "<group>"; };
 		200000000000000000000024 /* PortalStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalStoreTests.swift; sourceTree = "<group>"; };
@@ -271,6 +275,8 @@
 				200000000000000000000036 /* ApplicationSettingsWindowControllerTests.swift */,
 				200000000000000000000005 /* AppDelegateTests.swift */,
 				20000000000000000000002D /* DisplayPlacementTests.swift */,
+				A20000000000000000000012 /* FileGridFileOperationTests.swift */,
+				A20000000000000000000013 /* FileGridTransferTests.swift */,
 				200000000000000000000018 /* FileGridViewControllerTests.swift */,
 				200000000000000000000016 /* FolderAccessTests.swift */,
 				20000000000000000000002F /* FolderObserverTests.swift */,
@@ -573,6 +579,8 @@
 				100000000000000000000032 /* ApplicationSettingsWindowControllerTests.swift in Sources */,
 				100000000000000000000005 /* AppDelegateTests.swift in Sources */,
 				10000000000000000000002B /* DisplayPlacementTests.swift in Sources */,
+				A10000000000000000000012 /* FileGridFileOperationTests.swift in Sources */,
+				A10000000000000000000013 /* FileGridTransferTests.swift in Sources */,
 				100000000000000000000016 /* FileGridViewControllerTests.swift in Sources */,
 				100000000000000000000014 /* FolderAccessTests.swift in Sources */,
 				10000000000000000000002D /* FolderObserverTests.swift in Sources */,
