@@ -1,12 +1,68 @@
-# Alcove
-
-A native macOS menu-bar utility that creates movable, resizable desktop-layer folder portals.
+<div align="center">
+  <img src="docs/images/readme/app-icon.png" width="160" height="160" alt="Alcove app icon">
+  <h1>Alcove</h1>
+  <p>A native macOS menu-bar utility that creates movable, resizable desktop-layer folder portals.</p>
+</div>
 
 ## What It Is
 
 Alcove is designed to place lightweight portal windows on the desktop layer — each portal maps a local directory and displays its contents as a scrollable native icon grid. The target behavior is below normal application windows and above desktop icons, with multiple tabs, Finder-consistent selection, Quick Look, and placement recovery across display changes, Spaces, sleep/wake, and resolution adjustments. Phase 0 spikes must validate the system-dependent window and display behavior before the architecture is locked.
 
 **Alcove is not a Finder replacement.** It is a focused desktop surface for folders you care about.
+
+## Features
+
+<table>
+  <tr>
+    <td width="32%">
+      <strong>Desktop folder portals</strong><br><br>
+      Keep important local folders visible in lightweight, movable panels with native icons, multiple tabs, and a translucent desktop-friendly appearance.
+    </td>
+    <td width="68%"><img src="docs/images/readme/portal-overview.png" alt="An Alcove folder portal showing two tabs and a native icon grid"></td>
+  </tr>
+  <tr>
+    <td>
+      <strong>Finder-style file actions</strong><br><br>
+      Open, preview, reveal, rename, compress, duplicate, trash, AirDrop, copy paths, and open selected items in Terminal from one native context menu.
+    </td>
+    <td><img src="docs/images/readme/file-actions.png" alt="Alcove file context menu with native file actions"></td>
+  </tr>
+  <tr>
+    <td>
+      <strong>Draw to create</strong><br><br>
+      Create a new portal directly on the desktop with a live grid preview, then connect it to a folder on your Mac.
+    </td>
+    <td><img src="docs/images/readme/portal-creation.png" alt="Alcove portal creation overlay with a live grid preview"></td>
+  </tr>
+  <tr>
+    <td>
+      <strong>Multiple folder tabs</strong><br><br>
+      Add, reorder, switch, and remove up to four folders in each panel while keeping every tab's navigation and selection state.
+    </td>
+    <td align="center"><img src="docs/images/readme/folder-tabs.png" width="420" alt="Alcove panel settings showing two folder tabs"></td>
+  </tr>
+  <tr>
+    <td>
+      <strong>Panel controls</strong><br><br>
+      Pin a panel in place, change its sort order, open its settings, or remove it through a compact native menu.
+    </td>
+    <td><img src="docs/images/readme/panel-controls.png" alt="Alcove panel menu with pin, sort, settings, and delete controls"></td>
+  </tr>
+  <tr>
+    <td>
+      <strong>Custom appearance</strong><br><br>
+      Adjust transparency, content size, corner radius, panel spacing, and window shadows with global five-step controls.
+    </td>
+    <td align="center"><img src="docs/images/readme/appearance-settings.png" width="420" alt="Alcove appearance settings with transparency and panel style controls"></td>
+  </tr>
+  <tr>
+    <td>
+      <strong>Language and startup</strong><br><br>
+      Launch Alcove at login and use English, Simplified Chinese, Traditional Chinese, or the current macOS language.
+    </td>
+    <td align="center"><img src="docs/images/readme/language-settings.png" width="420" alt="Alcove general settings with launch at login and app language controls"></td>
+  </tr>
+</table>
 
 ## Status
 
@@ -68,7 +124,7 @@ Release workflow 使用以下 GitHub Actions repository secrets：
 - **Primary-display layout**: all Portals live on the menu-bar display (`NSScreen.screens[0]`). Primary-display changes preserve left/top point offsets, keep fitting non-conflicting panels fixed, flow overflow into new right-hand columns, and retain complete per-display layouts for return restoration. Advanced settings repairs off-screen or conflicting panels; UUID stability and real topology behavior remain Phase 0 spike gates
 - **Focused file operations**: Return and the context menu provide inline conflict-safe rename; Duplicate delegates Finder-compatible naming to `NSWorkspace`; Compress creates conflict-safe Finder-compatible ZIP archives through `/usr/bin/ditto`; Command-Delete uses the system Trash; external and in-panel file drops target either the current directory or an ordinary folder tile, using Finder-style same-volume Move/cross-volume Copy semantics after fail-closed conflict validation; new-folder creation and overwrite remain out of scope
 - **Pinned placement**: each portal can persistently disable user dragging and resizing without blocking system display recovery
-- **Localized native UI**: English is the development and fallback language; Simplified and Traditional Chinese follow the current macOS language automatically
+- **Localized native UI**: English is the development and fallback language; Settings can follow the current macOS language or explicitly use English, Simplified Chinese, or Traditional Chinese after relaunch
 - **Single UI-free Swift package**: `AlcoveCore` for domain/layout; internal feature groups within the Xcode app target
 
 ## Documentation
