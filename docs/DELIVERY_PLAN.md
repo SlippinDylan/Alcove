@@ -9,7 +9,7 @@ There are two independent gates:
 - **Product-and-architecture gate:** Spikes 0.1–0.5 must be resolved before the production architecture is locked or dependent production slices begin.
 - **Release gate:** Spike 0.6 may run in parallel with Phase 1. It does not block App Shell, Portal, or other MVP feature development, but it must be resolved before the first public GitHub Release. Until then, free Apple Development signing is a provisional distribution hypothesis, not a confirmed end-user distribution solution.
 
-Each spike records its findings in `docs/SPIKE_<name>.md`. The candidate architecture is updated from Spikes 0.1–0.5 before architecture lock; release documentation is updated from Spike 0.6 before publication.
+The disposable harnesses and per-spike reports were removed after their production decisions and automated coverage moved into `ARCHITECTURE.md`, `RESEARCH.md`, and the maintained test suites. This document retains the historical work packages and the manual release checks that still apply.
 
 ### Spike 0.1 — Desktop Window Behavior
 

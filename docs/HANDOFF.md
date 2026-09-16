@@ -12,11 +12,11 @@
 
 1. 读取仓库根目录的 `README.md`。
 2. 搜索并遵守当前环境、仓库和任务目录中的全部 `AGENTS.md`；不要假设本快照之后没有新增规则。
-3. 读取本文，再按任务范围进入 `PRODUCT_REQUIREMENTS.md`、`ARCHITECTURE.md`、`DELIVERY_PLAN.md` 或对应 Spike 文档。
+3. 读取本文，再按任务范围进入 `PRODUCT_REQUIREMENTS.md`、`ARCHITECTURE.md`、`DELIVERY_PLAN.md`。
 4. 执行 `git status --short`、`git log -10 --oneline` 和 `git rev-list --left-right --count origin/main...HEAD`，重新确认本文记录的 Git 状态是否仍然成立。
 5. 保留所有已有未提交改动。尤其不要暂存、格式化、回退或覆盖 `Alcove.xcodeproj/project.pbxproj`。
 
-本文是当前状态索引，不取代业务和架构文档。冲突时采用以下优先级：当前用户指令和 `AGENTS.md` → 当前代码与测试 → `PRODUCT_REQUIREMENTS.md` / `ARCHITECTURE.md` → 本文的历史说明 → 较早的 Delivery/Spike 计划。
+本文是当前状态索引，不取代业务和架构文档。冲突时采用以下优先级：当前用户指令和 `AGENTS.md` → 当前代码与测试 → `PRODUCT_REQUIREMENTS.md` / `ARCHITECTURE.md` → 本文的历史说明 → 较早的 Delivery 计划。
 
 ## 2. 一句话说明项目
 
@@ -394,7 +394,7 @@ Release 二进制经 `lipo -info` 确认为 `x86_64 arm64`。
 - macOS 26/27 静态半透明背景、Reduce Transparency 不透明表面、Increase Contrast、VoiceOver 和键盘全流程仍需人工视觉/系统验证。
 - 最终签名、证书、Gatekeeper、quarantine、DMG 安装和证书到期行为仍是独立 release gate。
 
-`DELIVERY_PLAN.md` 和 Spike 文档中的未勾选项包含早期计划状态，其中一部分已有自动化实现但仍缺人工证据。下一段对话不能只看 checkbox 就断言功能不存在，也不能因为代码存在就宣称真机矩阵已通过。
+`DELIVERY_PLAN.md` 中的未勾选项包含早期计划状态，其中一部分已有自动化实现但仍缺人工证据。下一段对话不能只看 checkbox 就断言功能不存在，也不能因为代码存在就宣称真机矩阵已通过。
 
 ### 7.4 发布自动化验证
 

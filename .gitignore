@@ -4,9 +4,6 @@
 # Project-local agent memory
 .engramory-memory/
 
-# Agent execution logs are local; task specifications and result summaries are tracked.
-.agent/logs/
-
 # Swift Package Manager
 .build/
 .swiftpm/

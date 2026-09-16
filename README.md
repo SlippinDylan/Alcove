@@ -10,11 +10,10 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 
 ## Status
 
-> **Phase 0 — Technical Spikes**
+> **Production MVP implemented**
 >
-> The documentation baseline and automated portions of Spikes 0.1A–0.5C7 are complete. Manual
-> system-behavior matrices and remaining integration evidence are still in progress. Production
-> Slices 1–11 now provide the tested Apple Silicon AppKit shell, multi-tab portals,
+> Automated implementation and verification are complete; manual system-behavior and release
+> checks remain. The production app provides the tested Apple Silicon AppKit shell, multi-tab portals,
 > Finder-style interaction and icon tiles, transactional empty-portal creation, Quick Look, v12 portal
 > persistence, primary-display-following recovery, automatic FSEvents folder refresh,
 > menu-bar portal management, global Small/Medium/Large content sizing, a global five-step static translucent background, global five-step panel spacing and corner radius, a system-shadow toggle, collision-safe placement, accessibility display-option handling, and
@@ -80,13 +79,8 @@ Release workflow 使用以下 GitHub Actions repository secrets：
 | [Product Requirements](docs/PRODUCT_REQUIREMENTS.md) | Goals, personas, interaction contract, acceptance criteria |
 | [Architecture](docs/ARCHITECTURE.md) | Component boundaries, domain models, persistence, concurrency |
 | [Research](docs/RESEARCH.md) | Evidence table, API analysis, reference project inspections |
-| [Delivery Plan](docs/DELIVERY_PLAN.md) | Phase 0 spikes, incremental slices, test matrix, gates |
-| [Desktop Window Spike](docs/SPIKE_DESKTOP_WINDOW.md) | Disposable AppKit harness, automated evidence, and pending manual matrix |
-| [Desktop Window Development Default](docs/SPIKE_DESKTOP_WINDOW_DEVELOPMENT_DEFAULT.md) | Replaceable NSWindow starting configuration; manual gate remains open |
-| [Display Placement Spike](docs/SPIKE_DISPLAY_PLACEMENT.md) | Pure placement geometry evidence and pending screen/topology validation |
-| [Folder Location Eligibility Spike](docs/SPIKE_FOLDER_LOCATION_ELIGIBILITY.md) | Internal fixed local-storage acceptance and unsupported-volume rejection |
-| [Folder Observation Decision](docs/SPIKE_FOLDER_OBSERVATION_DECISION.md) | FSEvents selection and fail-closed recovery contract |
+| [Delivery Plan](docs/DELIVERY_PLAN.md) | Historical delivery stages, current test matrix, and release gates |
 
 ## License
 
-TBD. The repository contains clean-room disposable spike source; no reference-project code has been copied. Reference projects inspected during research are under Apache-2.0 (TileTop) and GPL-3.0 (Pocket Finder). Intentional reuse of Pocket Finder code would require GPL analysis; none is planned.
+TBD. No reference-project code has been copied. Reference projects inspected during research are under Apache-2.0 (TileTop) and GPL-3.0 (Pocket Finder). Intentional reuse of Pocket Finder code would require GPL analysis; none is planned.

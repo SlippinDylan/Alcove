@@ -1,8 +1,8 @@
-# Candidate Architecture — Alcove
+# Architecture — Alcove
 
-**Status:** This document is a pre-Phase 0 candidate baseline built from research, reference observations, and architectural inference. Any choice that depends on a Prototype Gate is provisional. Until the Phase 0 product-and-architecture gate is resolved, these choices are not immutable production constraints and must not be treated as confirmed platform behavior.
+**Status:** This document describes the implemented production architecture. Automated contracts are covered by the maintained test suites; WindowServer, real-display, accessibility, and distribution behavior still require the manual checks in §16.
 
-If a spike fails, Alcove may revise either the candidate architecture or the affected product scope. An untested fallback must not be used to hide or relabel a failed feasibility result. Spike 0.6 is a separate release gate: it may run alongside product development, but its signing and distribution conclusions remain provisional until resolved.
+If a manual system check fails, Alcove must revise either the affected implementation or product scope. An untested fallback must not be presented as verified behavior.
 
 ## 1. Architectural Principles
 
@@ -14,7 +14,7 @@ If a spike fails, Alcove may revise either the candidate architecture or the aff
 | P-4 | **Main actor for UI, explicit off-main I/O boundary** | `@MainActor` on all view/window controllers; `FolderLoadingActor` coordinates loading state while blocking file-system work crosses a dedicated, verified background execution boundary |
 | P-5 | **Stale results are rejected, not applied** | Every async pipeline carries a monotonic generation counter; UI discards out-of-order completions |
 | P-6 | **System-driven moves never overwrite user placement** | Display-placement state machine distinguishes user vs. system origin before writing |
-| P-7 | **Prototype gates are explicit** | Window strategy, display identity/placement, Quick Look, static-translucency/accessibility behavior, folder observation/permissions, and signing/distribution remain provisional until their corresponding spikes are resolved |
+| P-7 | **System verification boundaries are explicit** | Automated tests cover owned logic; WindowServer, real-display, accessibility, and signing/distribution behavior remain manual verification boundaries |
 | P-8 | **Folder-source eligibility is validated at selection boundaries** | Resolve the selected directory's hosting volume and reject removable, ejectable, or network volumes before a tab can reference it |
 
 ---
@@ -103,13 +103,11 @@ App entry point and global coordination.
 
 `NSWindow` ownership and behavior configuration.
 
-- `PortalWindow` — provisional `NSWindow`/`NSPanel` abstraction whose concrete type and strategy are selected by Spike 0.1.
-- The first candidate uses:
+- `PortalWindow` — key-eligible production `NSWindow` with one isolated strategy configuration.
+- The production strategy uses:
   - `level = CGWindowLevelForKey(.desktopIconWindow) + 1`
   - `collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]`
-- The spike harness must make strategies switchable and compare `.stationary`, `.moveToActiveSpace`, `.fullScreenAuxiliary`, use or omission of `.canJoinAllSpaces`, `NSWindow` versus `NSPanel`, and whether the portal may become key.
-- Final window level, collection behaviors, window class, and key-window policy are provisional until Spike 0.1 is resolved.
-- Production development uses the replaceable Phase 0.1D default: key-eligible `NSWindow`, `desktopIconWindow + 1`, and `[.canJoinAllSpaces, .stationary, .ignoresCycle]`. This is an implementation starting point, not a claim that the manual WindowServer matrix passed.
+- Manual compatibility checks cover desktop-icon/normal-window ordering, focus, Spaces, Show Desktop, Mission Control, Stage Manager, full-screen apps, lock, and sleep/wake. The strategy remains isolated so an observed platform regression can be fixed without touching domain or persistence code.
 - Regardless of the selected strategy, the portal must provide:
   - Key-window activation at the `PortalWindow` event boundary for every left-click,
     including the top drag region that does not pass its mouse-down through AppKit
@@ -854,24 +852,22 @@ Production implementations use `FileManager.default`, `NSWorkspace.shared` (via 
 
 ---
 
-## 16. Prototype Gates
+## 16. Manual System Verification
 
-Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices remain provisional until evidence is recorded and an explicit architecture or product-scope decision is made. Spike 0.6 is a separate release gate: it may run during Phase 1, but must be resolved before the first public GitHub Release. A failed gate is never converted into success by naming an untested fallback.
+Automated tests establish application-owned contracts. The following checks cover behavior controlled by macOS, connected hardware, accessibility settings, or the signing environment. A failed check requires an implementation or scope decision; it is never converted into success by naming an untested fallback.
 
-### 16.1 Desktop Layer Stability — Spike 0.1
+### 16.1 Desktop Layer Stability
 
 **Provisional claim:** A public AppKit window strategy can keep portals above Finder desktop icons and below normal application windows without permanent eviction.
 
 **Gate criteria:**
 
-- A switchable harness begins with `desktopIconWindow + 1`, `.canJoinAllSpaces`, `.stationary`, and `.ignoresCycle`, but does not privilege it as final.
-- Compare `.stationary`, `.moveToActiveSpace`, `.fullScreenAuxiliary`, use or omission of `.canJoinAllSpaces`, `NSWindow` versus `NSPanel`, and whether the portal may become key.
-- Record Show Desktop, Spaces, Stage Manager, full-screen interaction, lock, and sleep/wake behavior on the available macOS 26 and 27 matrix.
-- Select the final window strategy from measured results.
+- Verify the production `desktopIconWindow + 1`, `.canJoinAllSpaces`, `.stationary`, and `.ignoresCycle` configuration in the actual app.
+- Record Show Desktop, Spaces, Stage Manager, full-screen interaction, focus, lock, and sleep/wake behavior on the available macOS 26 and 27 matrix.
 
 **If gate fails:** Record the failure and make an explicit product-feasibility or scope decision. Test additional public-API strategies if justified; do not silently substitute an unverified fallback.
 
-### 16.2 Display Identity and Placement — Spike 0.2
+### 16.2 Display Identity and Placement
 
 **Provisional claim:** Per-display placement records plus left/top point-offset projection can keep the complete layout on the menu-bar primary display without overwriting remembered layouts for other displays.
 
@@ -884,7 +880,7 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 **If gate fails:** Revise display identity matching, placement fields, or the restoration product promise based on evidence.
 
-### 16.3 Quick Look Responder Chain — Spike 0.3
+### 16.3 Quick Look Responder Chain
 
 **Provisional claim:** `QLPreviewPanel` can be owned and presented from the selected desktop-window strategy.
 
@@ -896,7 +892,7 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 **If gate fails:** Revise the responder-chain integration or product scope. Explicit assignment is a candidate to test, not a presumed successful fallback.
 
-### 16.4 Static Translucency and Accessibility — Spike 0.4
+### 16.4 Static Translucency and Accessibility
 
 **Current scope:** macOS 26+ uses one static translucent surface for the complete Portal. Reduce Transparency replaces it with an opaque accessibility surface. Tab/navigation controls remain flat Layer-backed controls, with separators retaining the larger structural boundaries.
 
@@ -908,21 +904,20 @@ Spikes 0.1–0.5 form the product-and-architecture gate. Their dependent choices
 
 **If gate fails:** Revise the material boundary or visual scope explicitly; do not describe an untested fallback as validated compatibility.
 
-### 16.5 Folder Observation and Access — Spike 0.5
+### 16.5 Folder Observation and Access
 
 **Selected mechanism:** FSEvents with `FileEvents`, `WatchRoot`, and `UseCFTypes`, using the Phase 0.5C7 snapshot-refresh and fail-closed rebuild contract.
 
 **Gate criteria:**
 
-- Compare `DispatchSourceFileSystemObject` and FSEvents for immediate-child changes, rename/delete, local directory replacement, teardown, event coalescing, latency, and resource cost.
-- Record TCC-protected-folder, missing-directory, and symlink behavior.
+- Verify FSEvents immediate-child changes, rename/delete, local directory replacement, teardown, event coalescing, and recovery flags.
+- Verify TCC-protected-folder, missing-directory, and symlink behavior.
 - Verify folder selection rejects removable, ejectable, and network-volume locations at the boundary.
-- [Resolved] Select the primary mechanism and evidence-backed recovery policy.
 - Verify blocking enumeration uses an explicit background boundary; verify stale-result suppression and document actual cancellation granularity.
 
 **If gate fails:** Revise observation scope, refresh behavior, or the affected product requirement using recorded evidence.
 
-### 16.6 Signing, DMG, and Gatekeeper — Spike 0.6 Release Gate
+### 16.6 Signing, DMG, and Gatekeeper Release Gate
 
 **Selected implementation:** A version-gated, Apple Development-signed arm64 DMG provides the project’s self-hosted installation candidate. It contains `Alcove.app` and an `/Applications` symlink, is not notarized, and never silently falls back to ad-hoc or unsigned publication.
 
