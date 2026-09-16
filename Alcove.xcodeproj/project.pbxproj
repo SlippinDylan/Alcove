@@ -47,6 +47,8 @@
 		A10000000000000000000002 /* PortalSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* PortalSettingsViewController.swift */; };
 		A10000000000000000000003 /* PortalSettingsFolderListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* PortalSettingsFolderListView.swift */; };
 		A10000000000000000000004 /* PortalSettingsControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* PortalSettingsControls.swift */; };
+		A10000000000000000000005 /* FolderPathBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* FolderPathBarView.swift */; };
+		A10000000000000000000006 /* PortalResizeCapacityOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* PortalResizeCapacityOverlay.swift */; };
 		100000000000000000000025 /* LastTabRemovalConfirmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000027 /* LastTabRemovalConfirmer.swift */; };
 		100000000000000000000026 /* TabBarViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000028 /* TabBarViewTests.swift */; };
 		100000000000000000000027 /* QuickLookIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000029 /* QuickLookIntegration.swift */; };
@@ -128,6 +130,8 @@
 		A20000000000000000000002 /* PortalSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalSettingsViewController.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* PortalSettingsFolderListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalSettingsFolderListView.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* PortalSettingsControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalSettingsControls.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* FolderPathBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderPathBarView.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* PortalResizeCapacityOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalResizeCapacityOverlay.swift; sourceTree = "<group>"; };
 		200000000000000000000027 /* LastTabRemovalConfirmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastTabRemovalConfirmer.swift; sourceTree = "<group>"; };
 		200000000000000000000028 /* TabBarViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarViewTests.swift; sourceTree = "<group>"; };
 		200000000000000000000029 /* QuickLookIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookIntegration.swift; sourceTree = "<group>"; };
@@ -307,8 +311,10 @@
 		70000000000000000000000B /* PortalPresentation */ = {
 			isa = PBXGroup;
 			children = (
+				A20000000000000000000005 /* FolderPathBarView.swift */,
 				200000000000000000000027 /* LastTabRemovalConfirmer.swift */,
 				200000000000000000000030 /* PortalChromeMaterialView.swift */,
+				A20000000000000000000006 /* PortalResizeCapacityOverlay.swift */,
 				200000000000000000000012 /* PortalViewController.swift */,
 				A20000000000000000000004 /* PortalSettingsControls.swift */,
 				A20000000000000000000003 /* PortalSettingsFolderListView.swift */,
@@ -502,8 +508,10 @@
 				100000000000000000000021 /* PortalStore.swift in Sources */,
 				100000000000000000000020 /* PortalStoreFileSystem.swift in Sources */,
 				10000000000000000000001F /* PortalStoreModels.swift in Sources */,
+				A10000000000000000000005 /* FolderPathBarView.swift in Sources */,
 				100000000000000000000010 /* PortalViewController.swift in Sources */,
 				10000000000000000000002E /* PortalChromeMaterialView.swift in Sources */,
+				A10000000000000000000006 /* PortalResizeCapacityOverlay.swift in Sources */,
 				A10000000000000000000004 /* PortalSettingsControls.swift in Sources */,
 				A10000000000000000000003 /* PortalSettingsFolderListView.swift in Sources */,
 				A10000000000000000000002 /* PortalSettingsViewController.swift in Sources */,
