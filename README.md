@@ -2,6 +2,13 @@
   <img src="docs/images/readme/app-icon.png" width="160" height="160" alt="Alcove app icon">
   <h1>Alcove</h1>
   <p>A native macOS menu-bar utility that creates movable, resizable desktop-layer folder portals.</p>
+  <p>
+    <a href="README.zh-CN.md">简体中文</a> ·
+    <a href="README.zh-TW.md">繁體中文</a> ·
+    <strong>English</strong> ·
+    <a href="README.ja.md">日本語</a> ·
+    <a href="README.ru.md">Русский</a>
+  </p>
 </div>
 
 ## What It Is
@@ -89,30 +96,33 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 | App type | Menu-bar LSUIElement (accessory), non-sandboxed |
 | Distribution | Version-gated GitHub Releases with one Apple Development-signed, non-notarized DMG |
 
-## 安装与发布
+## Installation and Releases
 
-GitHub Release 只上传一个 `Alcove.<版本号>.dmg`。打开 DMG 后，将 `Alcove.app`
-拖到 `Applications`。Release 使用免费的 Apple Development 证书签名但不经过 Apple
-公证；首次打开前需要按对应 Release Notes 的说明移除下载隔离属性：
+Each GitHub Release contains one `Alcove.<version>.dmg`. Open the DMG and drag
+`Alcove.app` into `Applications`. Releases are signed with a free Apple Development
+certificate and are not notarized. Before the first launch, remove the download
+quarantine attribute as described in the release notes:
 
 ```bash
 sudo xattr -rd com.apple.quarantine /Applications/Alcove.app
 ```
 
-所有 push 和 Pull Request 都执行 unsigned arm64 CI。发布配置位于
-[`Config/Release/manifest.json`](Config/Release/manifest.json)：只有 main CI 成功、
-`release` 为 `true`、该版本尚未发布，并且 [`CHANGELOG.md`](CHANGELOG.md) 存在唯一、
-非空且完全同名的版本章节时，Release workflow 才会签名、打包并发布 DMG。
+Every push and pull request runs unsigned arm64 CI. Release configuration lives in
+[`Config/Release/manifest.json`](Config/Release/manifest.json). The release workflow
+signs, packages, and publishes a DMG only after main CI succeeds, `release` is `true`,
+the version is unpublished, and [`CHANGELOG.md`](CHANGELOG.md) contains one unique,
+non-empty section with the exact same version.
 
-支持 `x.y.z`、`x.y.z-alpha.n` 和 `x.y.z-beta.n`。Alpha/Beta 后缀用于 Release、tag、
-DMG 与 CHANGELOG；App 的 `CFBundleShortVersionString` 使用对应的纯数字 `x.y.z`。
+Supported versions are `x.y.z`, `x.y.z-alpha.n`, and `x.y.z-beta.n`. Alpha and beta
+suffixes are used by the release, tag, DMG, and Changelog; the app's
+`CFBundleShortVersionString` uses the matching numeric `x.y.z` value.
 
-Release workflow 使用以下 GitHub Actions repository secrets：
+The release workflow uses these GitHub Actions repository secrets:
 
-- `CERTIFICATES_P12`：Apple Development P12 的 Base64 内容
-- `CERTIFICATES_PASSWORD`：P12 导出密码
-- `FEISHU_WEBHOOK`：飞书自定义机器人的 Webhook
-- `FEISHU_SECRET`：飞书自定义机器人的签名密钥
+- `CERTIFICATES_P12`: Base64-encoded Apple Development P12
+- `CERTIFICATES_PASSWORD`: P12 export password
+- `FEISHU_WEBHOOK`: Feishu custom bot webhook
+- `FEISHU_SECRET`: Feishu custom bot signing secret
 
 ## Key Design Decisions
 
@@ -131,7 +141,7 @@ Release workflow 使用以下 GitHub Actions repository secrets：
 
 | Document | Description |
 |---|---|
-| [Current Handoff](docs/HANDOFF.md) | 当前需求、实现进度、未推送提交、已知风险、踩坑记录和下一段对话接管步骤 |
+| [Current Handoff](docs/HANDOFF.md) | Current requirements, implementation status, known risks, and handoff notes |
 | [Product Requirements](docs/PRODUCT_REQUIREMENTS.md) | Goals, personas, interaction contract, acceptance criteria |
 | [Architecture](docs/ARCHITECTURE.md) | Component boundaries, domain models, persistence, concurrency |
 | [Research](docs/RESEARCH.md) | Evidence table, API analysis, reference project inspections |
@@ -139,4 +149,4 @@ Release workflow 使用以下 GitHub Actions repository secrets：
 
 ## License
 
-TBD. No reference-project code has been copied. Reference projects inspected during research are under Apache-2.0 (TileTop) and GPL-3.0 (Pocket Finder). Intentional reuse of Pocket Finder code would require GPL analysis; none is planned.
+Copyright © 2025–2026 SlippinDylan Studio. Alcove is licensed under the [Apache License 2.0](LICENSE).
