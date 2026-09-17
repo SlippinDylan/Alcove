@@ -1,4 +1,3 @@
-import { createHmac } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,6 +6,13 @@ const MAX_TITLE_LENGTH = 120;
 const MAX_CONTENT_LENGTH = 280;
 const MAX_CHANGELOG_ITEMS = 3;
 const SHA_PATTERN = /^[0-9a-f]{40}$/i;
+
+const DISCORD_COLORS = {
+  blue: 0x5865F2,
+  green: 0x57F287,
+  red: 0xED4245,
+  grey: 0x99AAB5,
+};
 
 const RESULT_COLORS = new Map([
   ['success', 'green'],
@@ -25,8 +31,8 @@ export function truncate(value, maximumLength) {
   return `${normalized.slice(0, maximumLength - 1)}…`;
 }
 
-export function createFeishuSignature(timestamp, secret) {
-  return createHmac('sha256', `${timestamp}\n${secret}`).update('').digest('base64');
+export function escapeDiscordMarkdown(value) {
+  return String(value ?? '').replace(/([\\`*_{}\[\]()<>#+=|~>-])/g, '\\$1');
 }
 
 function requiredEnvironment(name) {
@@ -62,7 +68,7 @@ function safeGitHubUrl(value, fallback) {
     const server = new URL(process.env.GITHUB_SERVER_URL ?? 'https://github.com');
     if (candidate.protocol === 'https:' && candidate.hostname === server.hostname) return candidate.href;
   } catch {
-    // Invalid event URLs fall back to the repository instead of reaching the card.
+    // Invalid event URLs fall back to the repository instead of reaching the webhook.
   }
   return fallback;
 }
@@ -268,27 +274,6 @@ function buildRelease(event) {
   };
 }
 
-function buildReleaseDispatch(event) {
-  const repoUrl = repositoryUrl(event);
-  const payload = event.client_payload ?? {};
-  const highlights = extractReleaseHighlights(payload.changelog);
-  return {
-    title: `${productName(event)} ${payload.version ?? '未知版本'} 发布成功`,
-    details: commonDetails(event, [
-      `类型：${payload.prerelease ? 'Pre-release' : 'Stable'}`,
-      payload.dmg_name ? `制品：${payload.dmg_name}` : '',
-      '架构：arm64',
-      '签名：Apple Development（未公证）',
-      ...highlights,
-    ]),
-    button: { text: '查看版本', url: safeGitHubUrl(payload.release_url, repoUrl) },
-    secondaryButton: payload.download_url
-      ? { text: '下载 DMG', url: safeGitHubUrl(payload.download_url, repoUrl) }
-      : null,
-    color: 'green',
-  };
-}
-
 function buildReleaseStarted(event) {
   const repoUrl = repositoryUrl(event);
   const payload = event.client_payload ?? {};
@@ -307,7 +292,6 @@ function buildReleaseStarted(event) {
 
 function buildRepositoryDispatch(event) {
   if (event.action === 'release_started') return buildReleaseStarted(event);
-  if (event.action === 'release_published') return buildReleaseDispatch(event);
   return null;
 }
 
@@ -323,111 +307,132 @@ const BUILDERS = {
 };
 
 export function buildNotification(eventName, event) {
-  const builder = BUILDERS[eventName];
-  return builder ? builder(event) : null;
+  const notification = BUILDERS[eventName]?.(event);
+  return notification ? { ...notification, username: productName(event) } : null;
 }
 
-export function buildCard(notification) {
-  const actions = [notification.button, notification.secondaryButton]
+function escapeDiscordUrl(url) {
+  return String(url).replace(/([\\()])/g, '\\$1');
+}
+
+function discordLink(button) {
+  return `[${escapeDiscordMarkdown(button.text)}](${escapeDiscordUrl(button.url)})`;
+}
+
+export function buildDiscordPayload(notification) {
+  const links = [notification.button, notification.secondaryButton]
     .filter(Boolean)
-    .map((button, index) => ({
-      tag: 'button',
-      text: { tag: 'plain_text', content: button.text },
-      type: index === 0 ? 'primary' : 'default',
-      url: button.url,
-    }));
+    .map(discordLink)
+    .join(' · ');
+  const description = [
+    notification.details.map(escapeDiscordMarkdown).join('\n'),
+    links,
+  ].join('\n\n');
 
   return {
-    config: { wide_screen_mode: true },
-    header: {
-      template: notification.color,
-      title: { tag: 'plain_text', content: truncate(notification.title, MAX_TITLE_LENGTH) },
-    },
-    elements: [
-      {
-        tag: 'div',
-        text: { tag: 'plain_text', content: notification.details.join('\n') },
-      },
-      { tag: 'action', actions },
-    ],
+    username: truncate(notification.username, 80),
+    allowed_mentions: { parse: [] },
+    embeds: [{
+      title: escapeDiscordMarkdown(truncate(notification.title, MAX_TITLE_LENGTH)),
+      url: notification.button.url,
+      description,
+      color: DISCORD_COLORS[notification.color] ?? DISCORD_COLORS.blue,
+    }],
   };
 }
 
-function retryableStatus(status) {
-  return status === 429 || status >= 500;
+export function discordWebhookUrl(webhook) {
+  let url;
+  try {
+    url = new URL(webhook);
+  } catch {
+    throw new Error('DISCORD_WEBHOOK_URL is invalid.');
+  }
+  url.searchParams.set('wait', 'true');
+  return url.href;
 }
 
-export async function sendFeishuNotification(payload, webhook, options = {}) {
+function retryableStatus(status) {
+  return status >= 500;
+}
+
+function exponentialBackoff(attempt) {
+  return 250 * (2 ** (attempt - 1));
+}
+
+async function retryAfterMilliseconds(response) {
+  const headerValue = response.headers?.get?.('Retry-After');
+  if (headerValue !== null && headerValue !== undefined) {
+    const headerSeconds = Number(headerValue);
+    if (Number.isFinite(headerSeconds) && headerSeconds >= 0) return headerSeconds * 1_000;
+  }
+
+  try {
+    const body = await response.json();
+    const bodySeconds = Number(body.retry_after);
+    if (Number.isFinite(bodySeconds) && bodySeconds >= 0) return bodySeconds * 1_000;
+  } catch {
+    // Discord may respond to rate limits without a JSON body.
+  }
+  return null;
+}
+
+export async function sendDiscordNotification(payload, webhook, options = {}) {
   const fetchImplementation = options.fetchImplementation ?? fetch;
   const wait = options.wait ?? ((milliseconds) => new Promise((resolveWait) => setTimeout(resolveWait, milliseconds)));
   const attempts = options.attempts ?? 3;
+  const webhookUrl = discordWebhookUrl(webhook);
   let lastError;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     let response;
     try {
-      response = await fetchImplementation(webhook, {
+      response = await fetchImplementation(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(10_000),
       });
     } catch {
-      lastError = new Error('Feishu request failed.');
+      lastError = new Error('Discord request failed.');
       if (attempt < attempts) {
-        await wait(250 * (2 ** (attempt - 1)));
+        await wait(exponentialBackoff(attempt));
         continue;
       }
       throw lastError;
     }
 
-    if (!response.ok) {
-      lastError = new Error(`Feishu request returned HTTP ${response.status}.`);
-      if (retryableStatus(response.status) && attempt < attempts) {
-        await wait(250 * (2 ** (attempt - 1)));
-        continue;
-      }
-      throw lastError;
-    }
+    if (response.ok) return;
 
-    let body;
-    try {
-      body = await response.json();
-    } catch {
-      throw new Error('Feishu returned an invalid response.');
+    lastError = new Error(`Discord webhook returned HTTP ${response.status}.`);
+    if (attempt < attempts && response.status === 429) {
+      await wait((await retryAfterMilliseconds(response)) ?? exponentialBackoff(attempt));
+      continue;
     }
-
-    const code = body.code ?? body.StatusCode;
-    if (code !== 0) {
-      throw new Error(`Feishu rejected the notification (response code: ${String(code ?? 'missing')}).`);
+    if (attempt < attempts && retryableStatus(response.status)) {
+      await wait(exponentialBackoff(attempt));
+      continue;
     }
-    return;
+    throw lastError;
   }
 
   throw lastError;
 }
 
 async function main() {
-  const webhook = requiredEnvironment('FEISHU_WEBHOOK');
-  const secret = requiredEnvironment('FEISHU_SECRET');
+  const webhook = requiredEnvironment('DISCORD_WEBHOOK_URL');
   const eventName = requiredEnvironment('GITHUB_EVENT_NAME');
   const eventPath = requiredEnvironment('GITHUB_EVENT_PATH');
   const event = JSON.parse(await readFile(eventPath, 'utf8'));
   const notification = buildNotification(eventName, event);
   if (!notification) return;
 
-  const timestamp = String(Math.floor(Date.now() / 1000));
-  await sendFeishuNotification({
-    timestamp,
-    sign: createFeishuSignature(timestamp, secret),
-    msg_type: 'interactive',
-    card: buildCard(notification),
-  }, webhook);
+  await sendDiscordNotification(buildDiscordPayload(notification), webhook);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   main().catch((error) => {
-    console.error(`::error::Feishu notification failed: ${error.message}`);
+    console.error(`::error::Discord notification failed: ${error.message}`);
     process.exitCode = 1;
   });
 }

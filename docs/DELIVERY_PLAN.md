@@ -420,7 +420,7 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
 - Performance validation for defined NFR directory sizes.
 - Push/PR lightweight automation checks plus change-gated tests and unsigned arm64 build verification without artifact publication.
-- Version/CHANGELOG release inputs, Apple Development signing, DMG verification, GitHub publication, and Feishu notifications are implemented; manual installation behavior remains a separate release gate.
+- Version/CHANGELOG release inputs, Apple Development signing, DMG verification, GitHub publication, and Discord notifications are implemented; manual installation behavior remains a separate release gate.
 
 **Tests:**
 - Unit/integration: portal management, error mapping, icon presets, layout limits, and accessibility metadata.

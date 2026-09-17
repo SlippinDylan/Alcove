@@ -2,27 +2,31 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  buildCard,
+  buildDiscordPayload,
   buildNotification,
-  createFeishuSignature,
+  discordWebhookUrl,
+  escapeDiscordMarkdown,
   extractReleaseHighlights,
-  sendFeishuNotification,
+  sendDiscordNotification,
   truncate,
-} from './feishu-notify.mjs';
+} from './discord-notify.mjs';
 
 const repository = { full_name: 'owner/Alcove' };
 const sender = { login: 'developer' };
 
-test('creates the documented Feishu signature', () => {
-  assert.equal(
-    createFeishuSignature('1700000000', 'example-secret'),
-    'Gs3YRutIJpVN2FvEXKXHU6bEj2pVdSriQ0niig9EbUk=',
-  );
-});
+function response(status, { retryAfter, body } = {}) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: { get: (name) => (name === 'Retry-After' ? retryAfter ?? null : null) },
+    json: async () => body ?? {},
+  };
+}
 
-test('normalizes whitespace and truncates untrusted text', () => {
+test('normalizes and escapes untrusted Discord markdown', () => {
   assert.equal(truncate('line one\nline two', 30), 'line one line two');
   assert.equal(truncate('A'.repeat(10), 5), 'AAAA…');
+  assert.equal(escapeDiscordMarkdown('@everyone **[unsafe](text)**'), '@everyone \\*\\*\\[unsafe\\]\\(text\\)\\*\\*');
 });
 
 test('builds push and merged pull request notifications', () => {
@@ -57,6 +61,7 @@ test('derives the product name from the repository', () => {
     issue: { number: 2, title: 'Issue' },
   });
   assert.equal(notification.title, 'Alcove-Preview Issue 已创建');
+  assert.equal(notification.username, 'Alcove-Preview');
 });
 
 test('normalizes every configured collaboration event', () => {
@@ -106,6 +111,7 @@ test('reports main CI success and release workflow failure', () => {
     workflow_run: { name: 'Release', conclusion: 'failure', head_branch: 'main' },
   });
   assert.equal(releaseFailure.color, 'red');
+  assert.equal(buildDiscordPayload(releaseFailure).embeds[0].color, 0xED4245);
 });
 
 test('reports CI request and suppresses Release planning request', () => {
@@ -141,7 +147,7 @@ test('extracts at most three release highlights', () => {
   ]);
 });
 
-test('builds an arm64 release card with a DMG download action', () => {
+test('builds an arm64 release embed with safe action links', () => {
   const notification = buildNotification('release', {
     repository,
     sender,
@@ -156,33 +162,18 @@ test('builds an arm64 release card with a DMG download action', () => {
       }],
     },
   });
-  const card = buildCard(notification);
-  assert.equal(card.header.template, 'green');
-  assert.equal(card.elements[1].actions.length, 2);
+  const payload = buildDiscordPayload(notification);
+  assert.equal(payload.username, 'Alcove');
+  assert.deepEqual(payload.allowed_mentions, { parse: [] });
+  assert.equal(payload.embeds.length, 1);
+  assert.equal(payload.embeds[0].color, 0x57F287);
+  assert.equal(payload.embeds[0].url, 'https://github.com/owner/Alcove/releases/tag/v0.2.0-beta.1');
+  assert.match(payload.embeds[0].description, /\[查看版本\]\(https:\/\/github\.com\/owner\/Alcove\/releases\/tag\/v0\.2\.0-beta\.1\)/);
+  assert.match(payload.embeds[0].description, /\[下载 DMG\]/);
   assert.ok(notification.details.includes('架构：arm64'));
 });
 
-test('builds an automated release dispatch card', () => {
-  const notification = buildNotification('repository_dispatch', {
-    repository,
-    sender,
-    action: 'release_published',
-    client_payload: {
-      version: '0.2.0-beta.1',
-      prerelease: true,
-      dmg_name: 'Alcove.0.2.0-beta.1.dmg',
-      changelog: '- Added automation.',
-      release_url: 'https://github.com/owner/Alcove/releases/tag/v0.2.0-beta.1',
-      download_url: 'https://github.com/owner/Alcove/releases/download/v0.2.0-beta.1/Alcove.0.2.0-beta.1.dmg',
-    },
-  });
-  const card = buildCard(notification);
-  assert.equal(notification.title, 'Alcove 0.2.0-beta.1 发布成功');
-  assert.equal(card.elements[1].actions.length, 2);
-  assert.ok(notification.details.includes('架构：arm64'));
-});
-
-test('builds a packaging-started dispatch card', () => {
+test('builds a packaging-started dispatch notification', () => {
   const notification = buildNotification('repository_dispatch', {
     repository,
     sender,
@@ -202,30 +193,96 @@ test('builds a packaging-started dispatch card', () => {
   assert.equal(notification.button.url, 'https://github.com/owner/Alcove/actions/runs/12');
 });
 
-test('retries transient Feishu responses and accepts a successful response', async () => {
-  const responses = [
-    { ok: false, status: 500 },
-    { ok: true, status: 200, json: async () => ({ code: 0 }) },
-  ];
-  let attempts = 0;
-  await sendFeishuNotification({}, 'https://example.com', {
-    fetchImplementation: async () => {
-      attempts += 1;
-      return responses.shift();
-    },
-    wait: async () => {},
+test('escapes markdown, prevents mentions, and rejects untrusted action URLs', () => {
+  const notification = buildNotification('issue_comment', {
+    repository,
+    sender,
+    issue: { number: 2, title: '[unsafe](title)' },
+    comment: { body: '@everyone **[unsafe](comment)**', html_url: 'https://example.com/steal' },
   });
-  assert.equal(attempts, 2);
+  const payload = buildDiscordPayload(notification);
+  assert.deepEqual(payload.allowed_mentions, { parse: [] });
+  assert.match(payload.embeds[0].description, /\\\[unsafe\\\]\\\(title\\\)/);
+  assert.match(payload.embeds[0].description, /@everyone \\\*\\\*\\\[unsafe\\\]\\\(comment\\\)\\\*\\\*/);
+  assert.equal(payload.embeds[0].url, 'https://github.com/owner/Alcove');
 });
 
-test('does not retry a permanent Feishu rejection', async () => {
+test('preserves webhook parameters, enables wait, and accepts every 2xx response', async () => {
+  let request;
+  await sendDiscordNotification({ content: 'test' }, 'https://discord.com/api/webhooks/id/token?thread_id=42', {
+    fetchImplementation: async (url, options) => {
+      request = { url, options };
+      return response(204);
+    },
+  });
+  const webhookUrl = new URL(request.url);
+  assert.equal(webhookUrl.searchParams.get('thread_id'), '42');
+  assert.equal(webhookUrl.searchParams.get('wait'), 'true');
+  assert.equal(request.options.method, 'POST');
+
+  await sendDiscordNotification({}, 'https://discord.com/api/webhooks/id/token', {
+    fetchImplementation: async () => response(201),
+  });
+  assert.equal(discordWebhookUrl('https://discord.com/api/webhooks/id/token?wait=false'), 'https://discord.com/api/webhooks/id/token?wait=true');
+});
+
+test('uses Discord rate-limit delays before retrying', async () => {
+  const waits = [];
   let attempts = 0;
-  await assert.rejects(sendFeishuNotification({}, 'https://example.com', {
+  await sendDiscordNotification({}, 'https://discord.com/api/webhooks/id/token', {
     fetchImplementation: async () => {
       attempts += 1;
-      return { ok: true, status: 200, json: async () => ({ code: 19001 }) };
+      return attempts === 1 ? response(429, { retryAfter: '1.5' }) : response(204);
+    },
+    wait: async (milliseconds) => waits.push(milliseconds),
+  });
+  assert.equal(attempts, 2);
+  assert.deepEqual(waits, [1_500]);
+});
+
+test('uses retry_after JSON when Discord omits Retry-After', async () => {
+  const waits = [];
+  let attempts = 0;
+  await sendDiscordNotification({}, 'https://discord.com/api/webhooks/id/token', {
+    fetchImplementation: async () => {
+      attempts += 1;
+      return attempts === 1 ? response(429, { body: { retry_after: 0.25 } }) : response(204);
+    },
+    wait: async (milliseconds) => waits.push(milliseconds),
+  });
+  assert.equal(attempts, 2);
+  assert.deepEqual(waits, [250]);
+});
+
+test('retries network and 5xx failures but not other 4xx responses', async () => {
+  const waits = [];
+  let attempts = 0;
+  await sendDiscordNotification({}, 'https://discord.com/api/webhooks/id/token', {
+    fetchImplementation: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('network');
+      return attempts === 2 ? response(503) : response(204);
+    },
+    wait: async (milliseconds) => waits.push(milliseconds),
+  });
+  assert.equal(attempts, 3);
+  assert.deepEqual(waits, [250, 500]);
+
+  attempts = 0;
+  await assert.rejects(sendDiscordNotification({}, 'https://discord.com/api/webhooks/id/token', {
+    fetchImplementation: async () => {
+      attempts += 1;
+      return response(401);
     },
     wait: async () => {},
   }));
   assert.equal(attempts, 1);
+});
+
+test('rejects an invalid webhook URL without echoing its value', async () => {
+  const invalidWebhook = 'not-a-url-with-secret-token';
+  await assert.rejects(
+    sendDiscordNotification({}, invalidWebhook),
+    (error) => error.message === 'DISCORD_WEBHOOK_URL is invalid.' && !error.message.includes(invalidWebhook),
+  );
 });
