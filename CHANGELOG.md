@@ -4,6 +4,8 @@ All notable changes to Alcove releases are recorded here.
 
 ## [Unreleased]
 
+## [0.2.0-beta.1] - 2026-09-17
+
 ### Added
 
 - Added Sparkle-powered signed update checks, automatic background updates, and update actions in the menu bar and About settings.
