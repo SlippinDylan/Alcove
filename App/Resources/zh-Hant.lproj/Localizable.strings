@@ -49,6 +49,7 @@
 "menu.show" = "顯示";
 "menu.hide" = "隱藏";
 "menu.settings" = "設定";
+"menu.check_for_updates" = "檢查更新…";
 "menu.quit" = "結束 Alcove";
 
 /* Application settings */
@@ -56,6 +57,7 @@
 "application.settings.style" = "樣式";
 "application.settings.advanced" = "進階";
 "application.settings.about" = "關於";
+"application.settings.check_for_updates" = "檢查更新…";
 "application.settings.startup" = "啟動";
 "application.settings.launch_at_login" = "登入時自動啟動";
 "application.settings.launch_at_login_error" = "無法更改登入啟動設定";

@@ -535,7 +535,7 @@ GUI Quick Look, window, Spaces, and Stage Manager tests are manual or dedicated-
 
 ### Main Branch Release Gate
 
-The implemented workflow is the selected Apple Development candidate, not yet a manually validated end-user distribution path. Every main push and PR runs lightweight CI; code-impacting or publishing changes additionally run the full macOS suite. After a successful main push, the release planner reads `Config/Release/manifest.json`; it continues only when `release` is true, the version has not been published, and `CHANGELOG.md` contains one exact non-empty matching section. Planning happens on Ubuntu before any signing runner is allocated. The release job sends a best-effort packaging-started notification, imports the P12 in a temporary keychain, builds arm64, verifies the app and mounted DMG, creates or resumes a draft release, uploads one DMG, publishes, and dispatches the success notification. It fails closed and never switches signing modes.
+The implemented workflow is the selected Apple Development candidate, not yet a manually validated end-user distribution path. Every main push and PR runs lightweight CI; code-impacting or publishing changes additionally run the full macOS suite. After a successful main push, the release planner reads `Config/Release/manifest.json`; it continues only when `release` is true, the repository is public, the version has not been published, and `CHANGELOG.md` contains one exact non-empty matching section. Planning happens on Ubuntu before any signing runner is allocated. The release job sends a best-effort packaging-started notification, imports the P12 in a temporary keychain, builds arm64, signs and verifies Sparkle's nested components and the App from the inside out, verifies the mounted DMG, creates or resumes a draft release, uploads one DMG, publishes, and explicitly dispatches the independently rerunnable appcast/Homebrew metadata workflow. It fails closed and never switches signing modes.
 
 ```
 First public release after Spike 0.6 is resolved
@@ -545,7 +545,7 @@ First public release after Spike 0.6 is resolved
   ├─ Import P12 in temporary keychain
   │   └─ FAIL → fail closed (do not silently switch to ad-hoc)
   ├─ Build arm64 Release
-  ├─ Sign with Apple Development identity
+  ├─ Sign the Sparkle nested components, framework, and App with one Apple Development identity
   ├─ Package DMG (app + Applications symlink)
   ├─ Verify:
   │   ├─ `codesign --verify --strict --all-architectures` passes (do not use --deep)
@@ -554,7 +554,8 @@ First public release after Spike 0.6 is resolved
   │   └─ App launches after `sudo xattr -rd com.apple.quarantine /Applications/Alcove.app` on macOS 26
   ├─ Automatically tag `v<version>`
   ├─ Attach only `Alcove.<version>.dmg` to the GitHub Release
-  └─ Release notes: exact CHANGELOG section plus installation instructions
+  ├─ Release notes: exact CHANGELOG section plus installation instructions
+  └─ Dispatch signed appcast and SHA-256-pinned personal-tap Cask publication
 ```
 
 ### Artifact Verification Checklist

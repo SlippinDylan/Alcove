@@ -4,6 +4,11 @@ All notable changes to Alcove releases are recorded here.
 
 ## [Unreleased]
 
+### Added
+
+- Added Sparkle-powered signed update checks, automatic background updates, and update actions in the menu bar and About settings.
+- Added release automation for signed appcasts and versioned Homebrew Casks in the shared public tap.
+
 ## [0.1.0-beta.2] - 2026-09-17
 
 ### Changed

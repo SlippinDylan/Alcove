@@ -83,7 +83,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 > explicit recovery from missing, replaced, permission, read, and persistence
 > failures. Portals can be pinned against user movement and resizing, browse mapped subdirectories, expose Finder/Terminal/path actions, and localize all user-facing UI into English, Simplified Chinese, or Traditional Chinese. The menu bar provides portal show/hide commands and an application-settings window for global style, position repair, and layout backup. Three production-wide code review passes are complete, and CI tests
 > and performs unsigned arm64 build verification. Version-gated Apple Development signing and
-> drag-to-install DMG publishing are implemented; manual Gatekeeper and installation evidence remains open.
+> drag-to-install DMG publishing, Sparkle update integration, and Homebrew metadata automation are implemented; manual Gatekeeper, first-install, and end-to-end update evidence remains open.
 
 ## Platform
 
@@ -94,7 +94,7 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 | Build SDK | Xcode / macOS 26 SDK |
 | Architecture | Apple Silicon (arm64) |
 | App type | Menu-bar LSUIElement (accessory), non-sandboxed |
-| Distribution | Version-gated GitHub Releases with one Apple Development-signed, non-notarized DMG |
+| Distribution | Version-gated GitHub Releases with one Apple Development-signed, non-notarized DMG, Sparkle updates, and a personal Homebrew tap |
 
 ## Installation and Releases
 
@@ -116,6 +116,15 @@ signs, packages, and publishes a DMG only after main CI succeeds, `release` is `
 the version is unpublished, and [`CHANGELOG.md`](CHANGELOG.md) contains one unique,
 non-empty section with the exact same version.
 
+Starting with `0.2.0-beta.1`, Alcove includes Sparkle 2 for signed in-app updates.
+The menu bar and Settings → About expose Check for Updates. Automatic checks and
+downloads are enabled; background updates normally install when Alcove quits.
+The signed appcast is hosted from the public
+[`SlippinDylan/homebrew-tap`](https://github.com/SlippinDylan/homebrew-tap), which
+also receives a fixed-version, SHA-256-pinned Cask after each public release.
+Because earlier builds do not contain Sparkle, `0.2.0-beta.1` must still be
+installed manually once.
+
 Supported versions are `x.y.z`, `x.y.z-alpha.n`, and `x.y.z-beta.n`. Alpha and beta
 suffixes are used by the release, tag, DMG, and Changelog; the app's
 `CFBundleShortVersionString` uses the matching numeric `x.y.z` value.
@@ -126,6 +135,8 @@ The release workflow uses these GitHub Actions repository secrets:
 - `CERTIFICATES_PASSWORD`: P12 export password
 - `FEISHU_WEBHOOK`: Feishu custom bot webhook
 - `FEISHU_SECRET`: Feishu custom bot signing secret
+- `SPARKLE_ED_PRIVATE_KEY`: Sparkle EdDSA private update-signing key
+- `HOMEBREW_TAP_TOKEN`: Fine-grained token with Contents write access only to `SlippinDylan/homebrew-tap`
 
 ## Key Design Decisions
 
@@ -138,6 +149,7 @@ The release workflow uses these GitHub Actions repository secrets:
 - **Focused file operations**: Return and the context menu provide inline conflict-safe rename; Duplicate delegates Finder-compatible naming to `NSWorkspace`; Compress creates conflict-safe Finder-compatible ZIP archives through `/usr/bin/ditto`; Command-Delete uses the system Trash; external and in-panel file drops target either the current directory or an ordinary folder tile, using Finder-style same-volume Move/cross-volume Copy semantics after fail-closed conflict validation; new-folder creation and overwrite remain out of scope
 - **Pinned placement**: each portal can persistently disable user dragging and resizing without blocking system display recovery
 - **Localized native UI**: English is the development and fallback language; Settings can follow the current macOS language or explicitly use English, Simplified Chinese, or Traditional Chinese, then automatically restart Alcove to apply the choice
+- **Signed self-updates**: Sparkle verifies update archives and the appcast with a per-App EdDSA key; stable, beta, and alpha releases share one feed and use explicit channels
 - **Single UI-free Swift package**: `AlcoveCore` for domain/layout; internal feature groups within the Xcode app target
 
 ## Documentation

@@ -33,6 +33,18 @@ test('accepts stable, alpha, and beta release versions', () => {
   assert.equal(parseVersion('1.2.3-beta.12').prerelease, true);
 });
 
+test('reports the release channel independently from the numeric marketing version', () => {
+  assert.deepEqual(parseVersion('1.2.3'), {
+    value: '1.2.3',
+    base: '1.2.3',
+    numbers: [1, 2, 3],
+    channel: 'stable',
+    sequence: null,
+    prerelease: false,
+  });
+  assert.equal(parseVersion('1.2.3-beta.4').channel, 'beta');
+});
+
 test('rejects unsupported release version forms', () => {
   for (const version of ['1.2', 'v1.2.3', '01.2.3', '1.2.3-alpha', '1.2.3-beta.0', 'dev-1.2.3']) {
     assert.throws(() => parseVersion(version));

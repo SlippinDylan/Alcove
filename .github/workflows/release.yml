@@ -30,6 +30,7 @@ jobs:
       publish: ${{ steps.plan.outputs.publish || 'false' }}
       version: ${{ steps.manifest.outputs.version }}
       marketing_version: ${{ steps.manifest.outputs.marketing_version }}
+      channel: ${{ steps.manifest.outputs.channel }}
       tag: ${{ steps.manifest.outputs.tag }}
       prerelease: ${{ steps.manifest.outputs.prerelease }}
       dmg_name: ${{ steps.manifest.outputs.dmg_name }}
@@ -77,6 +78,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CURRENT_TAG: ${{ steps.manifest.outputs.tag }}
         run: |
+          visibility="$(gh repo view "$GITHUB_REPOSITORY" --json visibility --jq '.visibility')"
+          if [[ "$visibility" != 'PUBLIC' ]]; then
+            echo 'Alcove must be public before release publishing is enabled.' >&2
+            exit 1
+          fi
           all_tags="$(gh api --paginate \
             "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
             --jq '.[].tag_name')"
@@ -95,6 +101,7 @@ jobs:
     env:
       VERSION: ${{ needs.plan.outputs.version }}
       MARKETING_VERSION: ${{ needs.plan.outputs.marketing_version }}
+      CHANNEL: ${{ needs.plan.outputs.channel }}
       TAG: ${{ needs.plan.outputs.tag }}
       PRERELEASE: ${{ needs.plan.outputs.prerelease }}
       DMG_NAME: ${{ needs.plan.outputs.dmg_name }}
@@ -221,6 +228,7 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             MARKETING_VERSION="$MARKETING_VERSION" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            ALCOVE_UPDATE_CHANNEL="$CHANNEL" \
             CODE_SIGNING_ALLOWED=YES \
             CODE_SIGNING_REQUIRED=YES \
             CODE_SIGN_STYLE=Manual \
@@ -228,6 +236,31 @@ jobs:
             DEVELOPMENT_TEAM="$SIGNING_TEAM_ID" \
             PROVISIONING_PROFILE_SPECIFIER='' \
             OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/alcove-signing.keychain-db"
+
+      - name: Sign embedded Sparkle components
+        env:
+          SIGNING_IDENTITY: ${{ steps.signing.outputs.identity }}
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/DerivedData/Build/Products/Release/Alcove.app"
+          framework="$app/Contents/Frameworks/Sparkle.framework"
+          keychain="$RUNNER_TEMP/alcove-signing.keychain-db"
+          test -d "$framework"
+          # Follow Sparkle's manual signing order. Only Downloader.xpc preserves
+          # entitlements; retaining Autoupdate's ad-hoc application identifier
+          # would be invalid under the Apple Development team signature.
+          codesign --force --sign "$SIGNING_IDENTITY" --options runtime --keychain "$keychain" \
+            "$framework/Versions/B/XPCServices/Installer.xpc"
+          codesign --force --sign "$SIGNING_IDENTITY" --options runtime --keychain "$keychain" \
+            --preserve-metadata=entitlements \
+            "$framework/Versions/B/XPCServices/Downloader.xpc"
+          codesign --force --sign "$SIGNING_IDENTITY" --options runtime --keychain "$keychain" \
+            "$framework/Versions/B/Autoupdate"
+          codesign --force --sign "$SIGNING_IDENTITY" --options runtime --keychain "$keychain" \
+            "$framework/Versions/B/Updater.app"
+          codesign --force --sign "$SIGNING_IDENTITY" --options runtime --keychain "$keychain" \
+            "$framework"
+          codesign --force --sign "$SIGNING_IDENTITY" --keychain "$keychain" "$app"
 
       - name: Verify signed app
         run: |
@@ -240,7 +273,22 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" = "$MARKETING_VERSION"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" = '${{ github.run_number }}'
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$app/Contents/Info.plist")" = 'true'
+          test "$(/usr/libexec/PlistBuddy -c 'Print :AlcoveUpdateChannel' "$app/Contents/Info.plist")" = "$CHANNEL"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$app/Contents/Info.plist")" = 'https://slippindylan.github.io/homebrew-tap/alcove/appcast.xml'
+          test -d "$app/Contents/Frameworks/Sparkle.framework"
           codesign --verify --strict --all-architectures --verbose=2 "$app"
+
+          for component in \
+            "$app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc" \
+            "$app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc" \
+            "$app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate" \
+            "$app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app" \
+            "$app/Contents/Frameworks/Sparkle.framework"; do
+            codesign --verify --strict --all-architectures --verbose=2 "$component"
+            component_signature="$RUNNER_TEMP/$(basename "$component").signature.txt"
+            codesign --display --verbose=4 "$component" > /dev/null 2> "$component_signature"
+            grep -Fq "TeamIdentifier=${{ steps.signing.outputs.team_id }}" "$component_signature"
+          done
 
           codesign --display --verbose=4 "$app" > /dev/null 2> "$signature_details"
           cat "$signature_details"
@@ -282,7 +330,7 @@ jobs:
           otool -L "$binary" | tee "$linked_libraries"
           unexpected_libraries="$(tail -n +2 "$linked_libraries" \
             | awk '{ print $1 }' \
-            | grep -Ev '^(/System/Library/|/usr/lib/)' || true)"
+            | grep -Ev '^(/System/Library/|/usr/lib/|@rpath/Sparkle\.framework/Versions/B/Sparkle$)' || true)"
           if [[ -n "$unexpected_libraries" ]]; then
             echo "Unexpected dynamic libraries:" >&2
             echo "$unexpected_libraries" >&2
@@ -314,6 +362,8 @@ jobs:
           test "$(readlink "$mount_point/Applications")" = '/Applications'
           test "$(lipo -archs "$mount_point/Alcove.app/Contents/MacOS/Alcove")" = 'arm64'
           codesign --verify --strict --all-architectures "$mount_point/Alcove.app"
+          codesign --verify --strict --all-architectures \
+            "$mount_point/Alcove.app/Contents/Frameworks/Sparkle.framework"
           cleanup_mount
           trap - EXIT
 
@@ -394,6 +444,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+
+      - name: Dispatch distribution metadata update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jq -n \
+            --arg tag "$TAG" \
+            '{event_type: "distribution_metadata_requested", client_payload: {tag: $tag}}' \
+            | gh api --method POST "repos/${GITHUB_REPOSITORY}/dispatches" --input -
 
       - name: Dispatch release notification
         continue-on-error: true
