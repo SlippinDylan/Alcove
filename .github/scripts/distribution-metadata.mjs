@@ -25,8 +25,7 @@ export function renderCask(versionValue, sha256) {
   version "${version.value}"
   sha256 "${sha256}"
 
-  url "https://github.com/SlippinDylan/Alcove/releases/download/v#{version}/Alcove.#{version}.dmg",
-      verified: "github.com/SlippinDylan/Alcove/"
+  url "https://github.com/SlippinDylan/Alcove/releases/download/v#{version}/Alcove.#{version}.dmg"
   name "Alcove"
   desc "Menu-bar utility for desktop folder portals"
   homepage "https://github.com/SlippinDylan/Alcove"

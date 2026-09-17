@@ -16,6 +16,7 @@ test('renders a pinned beta cask for the immutable GitHub Release DMG', () => {
   assert.match(cask, /auto_updates true/);
   assert.match(cask, /depends_on arch: :arm64/);
   assert.match(cask, /depends_on macos: :tahoe/);
+  assert.doesNotMatch(cask, /verified:/);
 });
 
 test('renders the unversioned cask token for stable releases', () => {
