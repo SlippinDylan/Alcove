@@ -62,9 +62,9 @@
 "application.settings.language.section" = "語言";
 "application.settings.language" = "App 語言";
 "application.settings.language.system" = "跟隨系統";
-"application.settings.language.restart_title" = "結束 Alcove 以更改語言？";
-"application.settings.language.restart_message" = "下次開啟 Alcove 時將使用所選語言。";
-"application.settings.language.quit" = "結束 Alcove";
+"application.settings.language.restart_title" = "重新啟動 Alcove 以更改語言？";
+"application.settings.language.restart_message" = "Alcove 將結束並使用所選語言自動重新開啟。";
+"application.settings.language.done" = "完成";
 "application.settings.language.later" = "稍後";
 "application.settings.portal_appearance" = "面板外觀";
 "application.settings.background" = "背景";

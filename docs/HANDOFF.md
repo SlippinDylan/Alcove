@@ -183,7 +183,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.10 菜单栏与本地化
 
 - 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；每个 Portal 名称的二级菜单提供带 SF Symbol 的 Show、Hide、Pin/Unpin、Panel Settings 和确认后 Remove。
-- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / Advanced / About。General 只提供系统登录时自动启动；Style 统一控制静态背景的五档透明程度、三档内容大小、四档面板间距、五档圆角和系统阴影；默认使用最低可选透明度（alpha 0.72）与第二档面板间距（4pt）；Advanced 通过独立的布局备份 v1 JSON 执行完整导入/导出；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观只写入 `UserDefaults`，Portal v12 仅持久化单面板排序和颜色等局部状态。
+- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / Advanced / About。General 提供系统登录时自动启动和应用语言；确认语言变更后先走正常终止保存，再从当前 bundle 自动启动新实例。Style 统一控制静态背景的五档透明程度、三档内容大小、四档面板间距、五档圆角和系统阴影；默认使用最低可选透明度（alpha 0.72）与第二档面板间距（4pt）；Advanced 通过独立的布局备份 v1 JSON 执行完整导入/导出；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观只写入 `UserDefaults`，Portal v12 仅持久化单面板排序和颜色等局部状态。
 - 全局 Style 卡片的每个设置行之间使用系统分割线；Advanced 备份卡片继续以一条系统分割线区分说明和操作按钮。
 - 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
 - English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
@@ -192,7 +192,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 
 | 范围 | 主要文件 | 当前职责 |
 |---|---|---|
-| 应用生命周期 | `App/Application/AppDelegate.swift` | 菜单栏应用生命周期、持久状态恢复和终止协调 |
+| 应用生命周期 | `App/Application/AppDelegate.swift` | 菜单栏应用生命周期、持久状态恢复、终止协调和语言变更后的自动重启 |
 | 全局协调 | `App/Application/PortalCoordinator.swift` | Portal/Tab 事务、窗口回调、持久化和显示器协调 |
 | 新建 | `App/PortalCreation/PortalFrameSelector.swift` | 当前屏幕 overlay、虚线骨架、整数容量选择 |
 | 新建事务 | `App/PortalCreation/PortalCreationCoordinator.swift` | 选择 frame 后创建空 Portal |
@@ -311,7 +311,7 @@ AlcoveCore 与 hosted app 测试；现行构建命令与制品契约以 CI workf
 ### 7.4 发布自动化验证
 
 - 发布清单与飞书通知共 22 项 Node 测试通过；飞书通知覆盖 CI 触发/完成、Release 打包开始与发布成功。actionlint 1.7.12 与 ShellCheck 0.11.0 对三条 workflow 检查通过，zizmor 1.30.1 在三个已解释的可信触发器 ignore 之外无发现。
-- AlcoveCore 159 项和 hosted app 282 项测试通过；hosted tests 在 macOS 26.6.2 上执行。
+- AlcoveCore 159 项和 hosted app 286 项测试通过；hosted tests 在 macOS 26.6.2 上执行。
 - 本地 Xcode 27 unsigned Release 已确认为单一 arm64 slice、minimum macOS 26.0、SDK 27.0、`LSUIElement=true`，且 warnings-as-errors 构建通过。
 - Xcode 27 编译已通过；macOS 27 真机 linked-on behavior 和系统矩阵仍按未验证风险处理。
 - `Scripts/create-dmg.sh` 生成的测试 DMG 可正常挂载；其中只有 `Alcove.app` 与指向 `/Applications` 的符号链接，挂载后的 App 仍为 arm64。
@@ -319,19 +319,19 @@ AlcoveCore 与 hosted app 测试；现行构建命令与制品契约以 CI workf
 
 ## 8. Git 状态与提交边界
 
-本轮 change-gated CI、发布开关和相关文档改动尚未提交。
-应用源码与 `Alcove.xcodeproj/project.pbxproj` 未修改。
+本轮语言变更自动重启及相关测试、文档改动尚未提交。
+`Alcove.xcodeproj/project.pbxproj` 未修改。
 
 快照时：
 
 ```text
-HEAD:        adac87c chore: enable beta release
-origin/main: adac87c chore: enable beta release
-ahead:       0 commits
-worktree:    本轮 change-gated CI、release=false 与文档改动，未提交
+HEAD:        a81d214 feat: refine appearance preset ranges
+origin/main: 34a4ad7 fix: avoid duplicate CI trigger notifications
+ahead:       1 commit
+worktree:    本轮语言变更自动重启与文档改动，未提交
 ```
 
-当前没有尚未 push 的提交。
+尚未 push 的提交：`a81d214 feat: refine appearance preset ranges`。
 
 ## 9. 当前协作约定
 

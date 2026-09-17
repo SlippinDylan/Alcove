@@ -57,6 +57,42 @@ private enum StartupFixtureError: Error, Equatable {
 
 final class AppDelegateTests: XCTestCase {
     @MainActor
+    func testRelaunchControllerTerminatesThenLaunchesANewActivatedInstance() {
+        let appURL = URL(fileURLWithPath: "/Applications/Alcove.app", isDirectory: true)
+        var launchedURL: URL?
+        var launchesNewInstance = false
+        var activates = false
+        var launchCount = 0
+        var terminateCount = 0
+        let controller = ApplicationRelaunchController(
+            applicationURL: appURL,
+            launchHandler: { url, configuration in
+                launchCount += 1
+                launchedURL = url
+                launchesNewInstance = configuration.createsNewApplicationInstance
+                activates = configuration.activates
+            },
+            terminateHandler: { terminateCount += 1 }
+        )
+
+        controller.requestRelaunch()
+
+        XCTAssertEqual(terminateCount, 1)
+        XCTAssertNil(launchedURL)
+
+        controller.relaunchIfRequested()
+
+        XCTAssertEqual(launchedURL, appURL)
+        XCTAssertEqual(launchCount, 1)
+        XCTAssertTrue(launchesNewInstance)
+        XCTAssertTrue(activates)
+
+        controller.relaunchIfRequested()
+        XCTAssertEqual(launchCount, 1)
+        XCTAssertEqual(terminateCount, 1)
+    }
+
+    @MainActor
     func testApplicationLifecycleStartsAndStopsStatusMenu() async {
         let spy = StatusMenuControllerSpy()
         let portalSpy = PortalCoordinatorSpy()

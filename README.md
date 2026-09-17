@@ -137,7 +137,7 @@ The release workflow uses these GitHub Actions repository secrets:
 - **Primary-display layout**: all Portals live on the menu-bar display (`NSScreen.screens[0]`). Primary-display changes preserve left/top point offsets, keep fitting non-conflicting panels fixed, flow overflow into new right-hand columns, and retain complete per-display layouts for return restoration. Advanced settings repairs off-screen or conflicting panels; UUID stability and real topology behavior remain Phase 0 spike gates
 - **Focused file operations**: Return and the context menu provide inline conflict-safe rename; Duplicate delegates Finder-compatible naming to `NSWorkspace`; Compress creates conflict-safe Finder-compatible ZIP archives through `/usr/bin/ditto`; Command-Delete uses the system Trash; external and in-panel file drops target either the current directory or an ordinary folder tile, using Finder-style same-volume Move/cross-volume Copy semantics after fail-closed conflict validation; new-folder creation and overwrite remain out of scope
 - **Pinned placement**: each portal can persistently disable user dragging and resizing without blocking system display recovery
-- **Localized native UI**: English is the development and fallback language; Settings can follow the current macOS language or explicitly use English, Simplified Chinese, or Traditional Chinese after relaunch
+- **Localized native UI**: English is the development and fallback language; Settings can follow the current macOS language or explicitly use English, Simplified Chinese, or Traditional Chinese, then automatically restart Alcove to apply the choice
 - **Single UI-free Swift package**: `AlcoveCore` for domain/layout; internal feature groups within the Xcode app target
 
 ## Documentation

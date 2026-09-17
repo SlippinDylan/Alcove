@@ -11,6 +11,7 @@ All notable changes to Alcove releases are recorded here.
 - Shifted the five panel-transparency presets toward greater transparency and made the previous fourth preset the default.
 - Reduced panel spacing to four presets and made the second preset the default.
 - Normalized retired transparency and spacing values when loading preferences or layout backups.
+- Changed the language confirmation action to quit and automatically reopen Alcove with the selected language.
 
 ## [0.1.0-beta.1] - 2026-09-16
 

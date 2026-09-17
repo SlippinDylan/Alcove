@@ -3,6 +3,7 @@ import AppKit
 import Darwin
 
 let application = NSApplication.shared
+let applicationRelauncher = ApplicationRelaunchController()
 let applicationPreferencesController = ApplicationPreferencesController()
 let creationGrid: CreationGrid
 do {
@@ -47,6 +48,7 @@ let layoutBackupController = ApplicationLayoutBackupController(
     }
 )
 let applicationSettingsController = ApplicationSettingsWindowController(
+    applicationRelauncher: applicationRelauncher,
     preferencesController: applicationPreferencesController,
     layoutBackupController: layoutBackupController,
     panelPositionRepairer: portalCoordinator
@@ -79,7 +81,8 @@ portalCoordinator.onPortalsChanged = { [weak statusMenuController] entries in
 }
 let appDelegate = AppDelegate(
     statusMenuController: statusMenuController,
-    portalCoordinator: portalCoordinator
+    portalCoordinator: portalCoordinator,
+    applicationRelauncher: applicationRelauncher
 )
 application.delegate = appDelegate
 application.run()

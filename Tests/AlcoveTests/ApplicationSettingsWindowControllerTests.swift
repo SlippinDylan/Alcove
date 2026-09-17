@@ -40,6 +40,20 @@ private final class PanelPositionRepairerSpy: PanelPositionRepairing {
     }
 }
 
+@MainActor
+private final class ApplicationRelauncherSpy: ApplicationRelaunching {
+    private(set) var requestCount = 0
+    private(set) var relaunchCount = 0
+
+    func requestRelaunch() {
+        requestCount += 1
+    }
+
+    func relaunchIfRequested() {
+        relaunchCount += 1
+    }
+}
+
 final class ApplicationSettingsWindowControllerTests: XCTestCase {
     @MainActor
     func testApplicationLanguagePreferencePersistsOverridesAndRestoresSystemDefault() throws {
@@ -410,6 +424,52 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
             ApplicationLanguage.allCases.map(\.rawValue)
         )
         XCTAssertEqual(popUpButton.selectedItem?.representedObject as? String, "en")
+        controller.close()
+    }
+
+    @MainActor
+    func testCompletingLanguageChangeRequestsAutomaticRelaunch() async throws {
+        let suiteName = "ApplicationLanguageRelaunchTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let relauncher = ApplicationRelauncherSpy()
+        let controller = ApplicationSettingsWindowController(
+            launchAtLoginController: LaunchAtLoginControllerSpy(),
+            languageController: ApplicationLanguageController(userDefaults: defaults),
+            applicationRelauncher: relauncher,
+            metadata: ApplicationMetadata(infoDictionary: [:]),
+            applicationIcon: NSImage(size: NSSize(width: 128, height: 128))
+        )
+        let popUpButton = try XCTUnwrap(
+            descendants(of: controller.settingsViewController.view)
+                .compactMap { $0 as? NSPopUpButton }
+                .first { $0.identifier?.rawValue == "application-settings.language" }
+        )
+        popUpButton.selectItem(at: 2)
+        let action = try XCTUnwrap(popUpButton.action)
+
+        XCTAssertTrue(NSApplication.shared.sendAction(
+            action,
+            to: popUpButton.target,
+            from: popUpButton
+        ))
+        let sheet = try XCTUnwrap(controller.window?.attachedSheet)
+        let doneButton = try XCTUnwrap(
+            descendants(of: try XCTUnwrap(sheet.contentView))
+                .compactMap { $0 as? NSButton }
+                .first {
+                    $0.title == NSLocalizedString(
+                        "application.settings.language.done",
+                        comment: ""
+                    )
+                }
+        )
+
+        doneButton.performClick(nil)
+        await Task.yield()
+
+        XCTAssertEqual(relauncher.requestCount, 1)
+        XCTAssertEqual(defaults.stringArray(forKey: "AppleLanguages"), ["zh-Hans"])
         controller.close()
     }
 

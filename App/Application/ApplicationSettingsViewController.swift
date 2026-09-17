@@ -47,6 +47,7 @@ final class ApplicationSettingsViewController: NSViewController {
 
     private let launchAtLoginController: any LaunchAtLoginControlling
     private let languageController: any ApplicationLanguageControlling
+    private let applicationRelauncher: any ApplicationRelaunching
     private let preferencesController: any ApplicationPreferencesControlling
     private let layoutBackupController: any ApplicationLayoutBackupControlling
     private let panelPositionRepairer: any PanelPositionRepairing
@@ -59,6 +60,7 @@ final class ApplicationSettingsViewController: NSViewController {
     init(
         launchAtLoginController: any LaunchAtLoginControlling,
         languageController: any ApplicationLanguageControlling,
+        applicationRelauncher: any ApplicationRelaunching,
         preferencesController: any ApplicationPreferencesControlling,
         layoutBackupController: any ApplicationLayoutBackupControlling,
         panelPositionRepairer: any PanelPositionRepairing,
@@ -67,6 +69,7 @@ final class ApplicationSettingsViewController: NSViewController {
     ) {
         self.launchAtLoginController = launchAtLoginController
         self.languageController = languageController
+        self.applicationRelauncher = applicationRelauncher
         self.preferencesController = preferencesController
         self.layoutBackupController = layoutBackupController
         self.panelPositionRepairer = panelPositionRepairer
@@ -576,15 +579,15 @@ final class ApplicationSettingsViewController: NSViewController {
         let alert = NSAlert()
         alert.messageText = NSLocalizedString(
             "application.settings.language.restart_title",
-            comment: "Restart required after an application language change"
+            comment: "Relaunch prompt after an application language change"
         )
         alert.informativeText = NSLocalizedString(
             "application.settings.language.restart_message",
-            comment: "Application language restart explanation"
+            comment: "Application language relaunch explanation"
         )
         alert.addButton(withTitle: NSLocalizedString(
-            "application.settings.language.quit",
-            comment: "Quit the application after changing its language"
+            "application.settings.language.done",
+            comment: "Confirm relaunch after changing the application language"
         ))
         alert.addButton(withTitle: NSLocalizedString(
             "application.settings.language.later",
@@ -593,7 +596,7 @@ final class ApplicationSettingsViewController: NSViewController {
         guard let window = view.window else { return }
         alert.beginSheetModal(for: window) { response in
             guard response == .alertFirstButtonReturn else { return }
-            NSApplication.shared.terminate(nil)
+            self.applicationRelauncher.requestRelaunch()
         }
     }
 

@@ -62,9 +62,9 @@
 "application.settings.language.section" = "Language";
 "application.settings.language" = "App Language";
 "application.settings.language.system" = "Follow System";
-"application.settings.language.restart_title" = "Quit Alcove to Change Language?";
-"application.settings.language.restart_message" = "The selected language will be used the next time Alcove opens.";
-"application.settings.language.quit" = "Quit Alcove";
+"application.settings.language.restart_title" = "Restart Alcove to Change Language?";
+"application.settings.language.restart_message" = "Alcove will quit and reopen using the selected language.";
+"application.settings.language.done" = "Done";
 "application.settings.language.later" = "Later";
 "application.settings.portal_appearance" = "Panel Appearance";
 "application.settings.background" = "Background";
