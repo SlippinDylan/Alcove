@@ -1,7 +1,12 @@
 <div align="center">
   <img src="images/readme/app-icon.png" width="160" height="160" alt="Alcove のアプリアイコン">
   <h1>Alcove</h1>
-  <p>フォルダを移動・サイズ変更可能なパネルとしてデスクトップに配置する、macOS ネイティブのメニューバーアプリです。</p>
+</div>
+
+---
+
+<div align="center">
+  <p>よく使うローカルフォルダを、移動・サイズ変更できるパネルとして Mac のデスクトップに置くアプリです。</p>
   <p>
     <a href="README.zh-CN.md">简体中文</a> ·
     <a href="README.zh-TW.md">繁體中文</a> ·
@@ -11,110 +16,93 @@
   </p>
 </div>
 
-## Alcove について
-
-Alcove は、ローカルフォルダを軽量なパネルとしてデスクトップレイヤーに表示します。各パネルにはスクロール可能なネイティブのアイコングリッドがあり、複数タブ、Finder に近い選択操作、クイックルック、ディスプレイ構成が変わったときの配置復元に対応しています。パネルは通常のアプリウインドウより下、デスクトップアイコンより上に表示されます。
-
-**Alcove は Finder の代替ではありません。** よく使うフォルダをデスクトップからすぐ開くためのアプリです。
+Alcove は、選んだローカルフォルダをデスクトップに表示する macOS ネイティブのメニューバーアプリです。パネルは通常のアプリウインドウより下、デスクトップアイコンより上に表示されます。Finder の代わりではなく、何度も戻るフォルダへの入口として使うアプリです。
 
 ## 機能
 
 <table>
   <tr>
-    <td width="32%">
-      <strong>デスクトップのフォルダパネル</strong><br><br>
-      よく使うローカルフォルダをデスクトップに常駐させます。パネルは移動やサイズ変更ができ、複数のタブも利用できます。
-    </td>
-    <td width="68%"><img src="images/readme/portal-overview.png" alt="2 つのタブとネイティブのアイコングリッドを表示する Alcove パネル"></td>
+    <td width="32%"><strong>デスクトップのフォルダパネル</strong><br><br>デスクトップをドラッグしてパネルを作成します。フォルダを選んだ後は、移動、サイズ変更、固定、削除ができます。1 つのパネルには最大 4 個のフォルダタブを追加できます。</td>
+    <td width="68%"><img src="images/readme/portal-overview.png" alt="2 つのタブとアイコングリッドを表示する Alcove のフォルダパネル"></td>
   </tr>
   <tr>
-    <td>
-      <strong>Finder に近いファイル操作</strong><br><br>
-      ネイティブのコンテキストメニューから、開く、プレビュー、Finder で表示、名前変更、圧縮、複製、ゴミ箱へ移動、AirDrop、パスのコピー、ターミナルで開く操作を実行できます。
-    </td>
-    <td><img src="images/readme/file-actions.png" alt="ファイル操作を表示する Alcove のコンテキストメニュー"></td>
+    <td><strong>パネル内でのファイル操作</strong><br><br>フォルダを閲覧し、Finder に近い選択、クイックルック、ドラッグ＆ドロップを使えます。コンテキストメニューでは、開く、名前変更、複製、圧縮、ゴミ箱へ移動、Finder で表示、AirDrop で送信、パスのコピーができます。</td>
+    <td><img src="images/readme/file-actions.png" alt="Alcove のファイル用コンテキストメニュー"></td>
   </tr>
   <tr>
-    <td>
-      <strong>ドラッグしてパネルを作成</strong><br><br>
-      デスクトップ上をドラッグして新しいパネルを作ります。作成中はグリッドをプレビューでき、確定後に Mac 上のフォルダを選択します。
-    </td>
-    <td><img src="images/readme/portal-creation.png" alt="グリッドのプレビューを表示する Alcove のパネル作成画面"></td>
+    <td><strong>必要な場所に作成</strong><br><br>デスクトップをドラッグして新しいパネルの大きさを決めます。グリッドをプレビューしてからフォルダに接続できます。</td>
+    <td><img src="images/readme/portal-creation.png" alt="グリッドプレビュー付きの Alcove パネル作成画面"></td>
   </tr>
   <tr>
-    <td>
-      <strong>複数のフォルダタブ</strong><br><br>
-      1 つのパネルに最大 4 個のフォルダを追加し、切り替え、並べ替え、削除ができます。閲覧位置と選択状態はタブごとに保持されます。
-    </td>
-    <td align="center"><img src="images/readme/folder-tabs.png" width="420" alt="2 つのフォルダタブを表示する Alcove のパネル設定"></td>
+    <td><strong>フォルダタブ</strong><br><br>1 つのパネルに最大 4 個のフォルダを追加し、切り替え、並べ替え、削除できます。各タブは閲覧位置と選択状態を保持します。</td>
+    <td align="center"><img src="images/readme/folder-tabs.png" width="420" alt="フォルダタブを表示する Alcove のパネル設定"></td>
   </tr>
   <tr>
-    <td>
-      <strong>パネル操作</strong><br><br>
-      パネルの固定、並び順の変更、設定画面の表示、パネルの削除をコンパクトなメニューから行えます。
-    </td>
-    <td><img src="images/readme/panel-controls.png" alt="固定、並べ替え、設定、削除を表示する Alcove のパネルメニュー"></td>
+    <td><strong>パネル操作</strong><br><br>パネルの固定、並び順の変更、設定画面の表示、デスクトップからの削除を行えます。</td>
+    <td><img src="images/readme/panel-controls.png" alt="Alcove のパネル操作メニュー"></td>
   </tr>
   <tr>
-    <td>
-      <strong>外観のカスタマイズ</strong><br><br>
-      透明度、コンテンツサイズ、角丸、パネル間隔、ウインドウの影を段階式のコントロールで調整できます。
-    </td>
-    <td align="center"><img src="images/readme/appearance-settings.png" width="420" alt="透明度とパネル外観を調整する Alcove の設定画面"></td>
+    <td><strong>外観</strong><br><br>コンテンツサイズ、透明度、角丸、パネル間隔、ウインドウの影を調整できます。</td>
+    <td align="center"><img src="images/readme/appearance-settings.png" width="420" alt="Alcove の外観設定"></td>
   </tr>
   <tr>
-    <td>
-      <strong>言語と自動起動</strong><br><br>
-      ログイン時の自動起動に対応しています。表示言語は英語、簡体字中国語、繁体字中国語から選択でき、macOS の設定に従うこともできます。
-    </td>
+    <td><strong>起動と言語</strong><br><br>ログイン時に Alcove を起動できます。表示言語は macOS に従うほか、英語、簡体字中国語、繁体字中国語を選べます。</td>
     <td align="center"><img src="images/readme/language-settings.png" width="420" alt="自動起動と言語を設定する Alcove の一般設定"></td>
   </tr>
 </table>
 
-## 開発状況
+## ダウンロードとインストール
 
-> **MVP の実装は完了しています**
+### Homebrew
 
-アプリ本体、自動テスト、arm64 ビルドの検証は完了しています。最初の公開リリースまでに、最終 DMG のインストールと Gatekeeper の挙動、複数ディスプレイ、Spaces、ステージマネージャ環境での動作を手動で確認する必要があります。
+```bash
+brew tap slippindylan/tap
+brew trust --tap slippindylan/tap
+brew install --cask alcove@beta
+```
 
-## 動作環境
+### DMG
 
-| 項目 | 内容 |
-|---|---|
-| 最低 OS | macOS 26 Tahoe |
-| 対応予定 | macOS 26 および macOS 27 Golden Gate |
-| CPU | Apple Silicon（arm64） |
-| アプリ形式 | Dock アイコンを表示しない、非サンドボックスのメニューバー LSUIElement アプリ |
-| 対応フォルダ | 内蔵固定ディスク上のローカルフォルダのみ |
-| 配布形式 | Apple Development 署名済み、未公証の DMG を GitHub Releases で配布 |
+現在公開されているビルドはベータ版です。[GitHub Releases](https://github.com/SlippinDylan/Alcove/releases) から最新の DMG をダウンロードし、開いてから `Alcove.app` を `Applications` にドラッグしてください。
 
-## インストールとリリース
-
-各 GitHub Release には `Alcove.<バージョン>.dmg` が 1 つ含まれます。DMG を開き、`Alcove.app` を `Applications` にドラッグしてください。現在のリリースは無償の Apple Development 証明書で署名されていますが、Apple の公証は受けていません。初回起動前に、Release Notes の案内に従ってダウンロード隔離属性を削除してください。
+このベータ版は Apple Development 証明書で署名されていますが、公証されていません。macOS はダウンロードしたアプリに隔離属性を付けるため、Gatekeeper が初回起動を妨げることがあります。ダウンロード元を信頼できる場合は、まず Control キーを押しながらアプリをクリックし、「開く」を選んでください。それでも隔離属性によって起動できない場合は、次を実行します。
 
 ```bash
 sudo xattr -rd com.apple.quarantine /Applications/Alcove.app
 ```
 
-バージョン形式は `x.y.z`、`x.y.z-alpha.n`、`x.y.z-beta.n` に対応しています。変更内容は [CHANGELOG.md](../CHANGELOG.md) を参照してください。
+公開済みのリリースは [GitHub Releases](https://github.com/SlippinDylan/Alcove/releases) に掲載しています。変更内容は [CHANGELOG.md](../CHANGELOG.md) を参照してください。
 
-## 主な設計方針
+## 動作環境と制限
 
-- WidgetKit ではなく、ネイティブの AppKit を使用しています。
-- パネル背景は安定した静的半透明表示で、5 段階の透明度とパネルごとの色を設定できます。
-- 選択、クイックルック、ドラッグ＆ドロップ、コンテキストメニューは Finder の操作感に合わせています。
-- 全体の外観と言語は `UserDefaults`、パネル配置はバージョン付き JSON ファイルに保存します。
-- テレメトリ、解析、ネットワーク通信はありません。状態はすべて Mac 内に保存されます。
+| 項目 | 内容 |
+|---|---|
+| macOS | macOS 26 以降 |
+| Mac | Apple Silicon（`arm64`） |
+| アプリ形式 | Dock アイコンを表示しないメニューバーアプリ |
+| フォルダ | 内蔵の取り外し不可ディスク上にあるローカルフォルダのみ |
+| ディスプレイ | パネルはプライマリディスプレイに表示されます |
+
+外付け、リムーバブル、取り外し可能なボリューム、ネットワークボリュームは利用できません。デスクトップ、書類、ダウンロードなどの保護された場所では、macOS が Alcove へのアクセス許可を求めることがあります。
+
+## ソースからビルド
+
+macOS 26 SDK を含む Xcode をインストールしてから、リポジトリを複製し、共有スキームをビルドします。
+
+```bash
+git clone https://github.com/SlippinDylan/Alcove.git
+cd Alcove
+xcodebuild -project Alcove.xcodeproj -scheme Alcove -configuration Debug build
+```
 
 ## ドキュメント
 
 | ドキュメント | 内容 |
 |---|---|
-| [Current Handoff](HANDOFF.md) | 現在の要件、実装状況、既知のリスク、引き継ぎ情報 |
-| [Product Requirements](PRODUCT_REQUIREMENTS.md) | 製品目標、操作仕様、受け入れ条件 |
-| [Architecture](ARCHITECTURE.md) | モジュール境界、データモデル、永続化、並行処理 |
-| [Research](RESEARCH.md) | API 調査、技術検証、参照プロジェクト |
-| [Delivery Plan](DELIVERY_PLAN.md) | 開発段階、テスト項目、リリース条件 |
+| [要件](PRODUCT_REQUIREMENTS.md) | 製品範囲と操作の取り決め |
+| [アーキテクチャ](ARCHITECTURE.md) | コンポーネント、永続化、レイアウトモデル |
+| [調査](RESEARCH.md) | プラットフォーム調査と参照元 |
+| [変更履歴](../CHANGELOG.md) | リリース履歴 |
 
 ## ライセンス
 
