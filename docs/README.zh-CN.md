@@ -90,6 +90,18 @@ Alcove 会把本地文件夹显示成桌面层上的轻量面板。每个面板�
 
 ## 安装与发布
 
+### Homebrew
+
+通过公开的个人 Tap 安装当前 Beta 版本：
+
+```bash
+brew tap slippindylan/tap
+brew trust --tap slippindylan/tap
+brew install --cask alcove@beta
+```
+
+### 手动安装
+
 每个 GitHub Release 只包含一个 `Alcove.<版本号>.dmg`。打开 DMG，把 `Alcove.app` 拖进 `Applications`。当前版本使用免费的 Apple Development 证书签名，但没有经过 Apple 公证。首次打开前，请按 Release Notes 的说明移除下载隔离属性：
 
 ```bash
@@ -104,7 +116,7 @@ sudo xattr -rd com.apple.quarantine /Applications/Alcove.app
 - 面板采用稳定的静态半透明背景，支持五档透明度和每个面板独立配色。
 - 文件选择、快速查看、拖放和右键菜单尽量保持 Finder 的操作习惯。
 - 全局外观和语言保存在 `UserDefaults`；面板布局使用版本化 JSON 文件保存。
-- 不包含遥测、分析或网络请求，所有状态只保存在本机。
+- 不包含遥测或分析；用户状态只保存在本机，网络仅用于获取签名的软件更新。
 
 ## 文档
 

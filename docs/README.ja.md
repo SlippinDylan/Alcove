@@ -90,6 +90,18 @@ Alcove は、ローカルフォルダを軽量なパネルとしてデスクト�
 
 ## インストールとリリース
 
+### Homebrew
+
+公開されている個人 Tap から現在のベータ版をインストールします。
+
+```bash
+brew tap slippindylan/tap
+brew trust --tap slippindylan/tap
+brew install --cask alcove@beta
+```
+
+### 手動インストール
+
 各 GitHub Release には `Alcove.<バージョン>.dmg` が 1 つ含まれます。DMG を開き、`Alcove.app` を `Applications` にドラッグしてください。現在のリリースは無償の Apple Development 証明書で署名されていますが、Apple の公証は受けていません。初回起動前に、Release Notes の案内に従ってダウンロード隔離属性を削除してください。
 
 ```bash
@@ -104,7 +116,7 @@ sudo xattr -rd com.apple.quarantine /Applications/Alcove.app
 - パネル背景は安定した静的半透明表示で、5 段階の透明度とパネルごとの色を設定できます。
 - 選択、クイックルック、ドラッグ＆ドロップ、コンテキストメニューは Finder の操作感に合わせています。
 - 全体の外観と言語は `UserDefaults`、パネル配置はバージョン付き JSON ファイルに保存します。
-- テレメトリ、解析、ネットワーク通信はありません。状態はすべて Mac 内に保存されます。
+- テレメトリや解析はありません。ユーザー状態は Mac 内に保存され、ネットワーク通信は署名済みソフトウェア更新の取得にのみ使用されます。
 
 ## ドキュメント
 

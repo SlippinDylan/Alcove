@@ -90,6 +90,18 @@ App 主體、自動化測試和 arm64 建置檢查已完成。第一次公開發
 
 ## 安裝與發佈
 
+### Homebrew
+
+透過公開的個人 Tap 安裝目前的 Beta 版本：
+
+```bash
+brew tap slippindylan/tap
+brew trust --tap slippindylan/tap
+brew install --cask alcove@beta
+```
+
+### 手動安裝
+
 每個 GitHub Release 只包含一個 `Alcove.<版本號>.dmg`。開啟 DMG，把 `Alcove.app` 拖入 `Applications`。目前版本使用免費的 Apple Development 憑證簽署，但未經 Apple 公證。第一次開啟前，請依 Release Notes 的說明移除下載隔離屬性：
 
 ```bash
@@ -104,7 +116,7 @@ sudo xattr -rd com.apple.quarantine /Applications/Alcove.app
 - 面板採用穩定的靜態半透明背景，支援五段透明度與每個面板獨立配色。
 - 檔案選取、快速查看、拖放和右鍵選單盡量維持 Finder 的操作方式。
 - 全域外觀與語言儲存在 `UserDefaults`；面板配置使用版本化 JSON 檔案儲存。
-- 不包含遙測、分析或網路請求，所有狀態只儲存在本機。
+- 不包含遙測或分析；使用者狀態只儲存在本機，網路僅用於取得已簽署的軟體更新。
 
 ## 文件
 

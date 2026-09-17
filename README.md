@@ -98,6 +98,18 @@ Alcove is designed to place lightweight portal windows on the desktop layer — 
 
 ## Installation and Releases
 
+### Homebrew
+
+Install the current beta from the public personal tap:
+
+```bash
+brew tap slippindylan/tap
+brew trust --tap slippindylan/tap
+brew install --cask alcove@beta
+```
+
+### Manual installation
+
 Each GitHub Release contains one `Alcove.<version>.dmg`. Open the DMG and drag
 `Alcove.app` into `Applications`. Releases are signed with a free Apple Development
 certificate and are not notarized. Before the first launch, remove the download
