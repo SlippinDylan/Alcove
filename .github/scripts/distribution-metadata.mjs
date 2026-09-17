@@ -28,11 +28,10 @@ export function renderCask(versionValue, sha256) {
   url "https://github.com/SlippinDylan/Alcove/releases/download/v#{version}/Alcove.#{version}.dmg",
       verified: "github.com/SlippinDylan/Alcove/"
   name "Alcove"
-  desc "Native macOS menu-bar utility for desktop folder portals"
+  desc "Menu-bar utility for desktop folder portals"
   homepage "https://github.com/SlippinDylan/Alcove"
 
   auto_updates true
-
   depends_on arch: :arm64
   depends_on macos: :tahoe
 
