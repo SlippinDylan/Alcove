@@ -5,6 +5,7 @@ import Darwin
 let application = NSApplication.shared
 let applicationRelauncher = ApplicationRelaunchController()
 let applicationPreferencesController = ApplicationPreferencesController()
+let applicationUpdater = ApplicationUpdateController()
 let creationGrid: CreationGrid
 do {
     creationGrid = try CreationGrid(
@@ -51,7 +52,9 @@ let applicationSettingsController = ApplicationSettingsWindowController(
     applicationRelauncher: applicationRelauncher,
     preferencesController: applicationPreferencesController,
     layoutBackupController: layoutBackupController,
-    panelPositionRepairer: portalCoordinator
+    panelPositionRepairer: portalCoordinator,
+    canCheckForUpdates: { applicationUpdater.canCheckForUpdates },
+    onCheckForUpdates: { applicationUpdater.checkForUpdates() }
 )
 applicationPreferencesController.onPortalAppearanceChanged = { appearance in
     guard portalCoordinator.updatePortalAppearance(appearance) else { return false }
@@ -68,6 +71,8 @@ applicationPreferencesController.onPortalAppearanceChanged = { appearance in
 let statusMenuController = StatusMenuController(
     onNewPortal: { creationCoordinator.beginPortalCreation() },
     onOpenSettings: { applicationSettingsController.present() },
+    canCheckForUpdates: { applicationUpdater.canCheckForUpdates },
+    onCheckForUpdates: { applicationUpdater.checkForUpdates() },
     onShowPortal: { portalCoordinator.showPortal($0) },
     onHidePortal: { portalCoordinator.hidePortal($0) },
     onSetPortalPinned: { portalID, isPinned in

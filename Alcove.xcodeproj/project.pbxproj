@@ -91,6 +91,9 @@
 		FZ0000000000000000000001 /* FileCompression.swift in Sources */ = {isa = PBXBuildFile; fileRef = FZ0000000000000000000002 /* FileCompression.swift */; };
 		IP0000000000000000000001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = IP0000000000000000000005 /* InfoPlist.strings */; };
 		BE2637E43056904F005587C8 /* Alcove.icon in Resources */ = {isa = PBXBuildFile; fileRef = BE2637E33056904F005587C8 /* Alcove.icon */; };
+		B10000000000000000000001 /* ApplicationUpdateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* ApplicationUpdateController.swift */; };
+		B10000000000000000000002 /* ApplicationUpdateControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* ApplicationUpdateControllerTests.swift */; };
+		B10000000000000000000003 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000004 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -194,6 +197,8 @@
 		IP0000000000000000000002 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		IP0000000000000000000003 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		IP0000000000000000000004 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		B20000000000000000000001 /* ApplicationUpdateController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationUpdateController.swift; sourceTree = "<group>"; };
+		B20000000000000000000002 /* ApplicationUpdateControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationUpdateControllerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -204,6 +209,7 @@
 				100000000000000000000008 /* AlcoveCore in Frameworks */,
 				100000000000000000000004 /* AppKit.framework in Frameworks */,
 				100000000000000000000029 /* Quartz.framework in Frameworks */,
+				B10000000000000000000003 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -251,6 +257,7 @@
 			children = (
 				BB0000000000000000000002 /* ApplicationLayoutBackupController.swift */,
 				A20000000000000000000017 /* ApplicationPreferences.swift */,
+				B20000000000000000000001 /* ApplicationUpdateController.swift */,
 				200000000000000000000035 /* ApplicationSettingsWindowController.swift */,
 				A20000000000000000000018 /* ApplicationSettingsViewController.swift */,
 				A20000000000000000000019 /* ApplicationSettingsViews.swift */,
@@ -286,6 +293,7 @@
 		700000000000000000000006 /* AlcoveTests */ = {
 			isa = PBXGroup;
 			children = (
+				B20000000000000000000002 /* ApplicationUpdateControllerTests.swift */,
 				BA0000000000000000000004 /* AlcoveLayoutBackupCodecTests.swift */,
 				200000000000000000000036 /* ApplicationSettingsWindowControllerTests.swift */,
 				200000000000000000000005 /* AppDelegateTests.swift */,
@@ -448,6 +456,7 @@
 			name = Alcove;
 			packageProductDependencies = (
 				E00000000000000000000002 /* AlcoveCore */,
+				E00000000000000000000004 /* Sparkle */,
 			);
 			productName = Alcove;
 			productReference = 200000000000000000000009 /* Alcove.app */;
@@ -503,6 +512,7 @@
 			mainGroup = 700000000000000000000001;
 			packageReferences = (
 				E00000000000000000000001 /* XCLocalSwiftPackageReference "Packages/AlcoveCore" */,
+				E00000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			productRefGroup = 700000000000000000000008 /* Products */;
 			projectDirPath = "";
@@ -543,6 +553,7 @@
 				BA0000000000000000000001 /* AlcoveLayoutBackupCodec.swift in Sources */,
 				BB0000000000000000000001 /* ApplicationLayoutBackupController.swift in Sources */,
 				A10000000000000000000017 /* ApplicationPreferences.swift in Sources */,
+				B10000000000000000000001 /* ApplicationUpdateController.swift in Sources */,
 				100000000000000000000031 /* ApplicationSettingsWindowController.swift in Sources */,
 				A10000000000000000000018 /* ApplicationSettingsViewController.swift in Sources */,
 				A10000000000000000000019 /* ApplicationSettingsViews.swift in Sources */,
@@ -597,6 +608,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BA0000000000000000000002 /* AlcoveLayoutBackupCodecTests.swift in Sources */,
+				B10000000000000000000002 /* ApplicationUpdateControllerTests.swift in Sources */,
 				100000000000000000000032 /* ApplicationSettingsWindowControllerTests.swift in Sources */,
 				100000000000000000000005 /* AppDelegateTests.swift in Sources */,
 				10000000000000000000002B /* DisplayPlacementTests.swift in Sources */,
@@ -703,6 +715,8 @@
 		C00000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALCOVE_UPDATE_CHANNEL = stable;
+				ALCOVE_UPDATER_ENABLED = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = Alcove;
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
@@ -716,7 +730,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dylanwang.Alcove;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -727,6 +741,8 @@
 		C00000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALCOVE_UPDATE_CHANNEL = stable;
+				ALCOVE_UPDATER_ENABLED = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = Alcove;
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
@@ -740,7 +756,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dylanwang.Alcove;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -825,11 +841,27 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		E00000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		E00000000000000000000002 /* AlcoveCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E00000000000000000000001 /* XCLocalSwiftPackageReference "Packages/AlcoveCore" */;
 			productName = AlcoveCore;
+		};
+		E00000000000000000000004 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E00000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

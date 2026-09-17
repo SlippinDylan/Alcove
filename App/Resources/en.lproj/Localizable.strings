@@ -49,6 +49,7 @@
 "menu.show" = "Show";
 "menu.hide" = "Hide";
 "menu.settings" = "Settings";
+"menu.check_for_updates" = "Check for Updates…";
 "menu.quit" = "Quit Alcove";
 
 /* Application settings */
@@ -56,6 +57,7 @@
 "application.settings.style" = "Style";
 "application.settings.advanced" = "Advanced";
 "application.settings.about" = "About";
+"application.settings.check_for_updates" = "Check for Updates…";
 "application.settings.startup" = "Startup";
 "application.settings.launch_at_login" = "Launch at Login";
 "application.settings.launch_at_login_error" = "Unable to Change Login Setting";

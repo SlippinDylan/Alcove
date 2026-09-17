@@ -15,7 +15,9 @@ final class ApplicationSettingsWindowController: NSWindowController {
         layoutBackupController: any ApplicationLayoutBackupControlling = DisabledApplicationLayoutBackupController(),
         panelPositionRepairer: any PanelPositionRepairing = DisabledPanelPositionRepairer(),
         metadata: ApplicationMetadata = ApplicationMetadata(),
-        applicationIcon: NSImage = NSApplication.shared.applicationIconImage
+        applicationIcon: NSImage = NSApplication.shared.applicationIconImage,
+        canCheckForUpdates: @escaping () -> Bool = { false },
+        onCheckForUpdates: @escaping () -> Void = {}
     ) {
         let settingsViewController = ApplicationSettingsViewController(
             launchAtLoginController: launchAtLoginController,
@@ -25,7 +27,9 @@ final class ApplicationSettingsWindowController: NSWindowController {
             layoutBackupController: layoutBackupController,
             panelPositionRepairer: panelPositionRepairer,
             metadata: metadata,
-            applicationIcon: applicationIcon
+            applicationIcon: applicationIcon,
+            canCheckForUpdates: canCheckForUpdates,
+            onCheckForUpdates: onCheckForUpdates
         )
         self.settingsViewController = settingsViewController
         let window = NSWindow(

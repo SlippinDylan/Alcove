@@ -339,10 +339,13 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
 
     @MainActor
     func testSettingsWindowUsesAllPreferenceCategories() throws {
+        var updateRequestCount = 0
         let controller = ApplicationSettingsWindowController(
             launchAtLoginController: LaunchAtLoginControllerSpy(),
             metadata: ApplicationMetadata(infoDictionary: [:]),
-            applicationIcon: NSImage(size: NSSize(width: 128, height: 128))
+            applicationIcon: NSImage(size: NSSize(width: 128, height: 128)),
+            canCheckForUpdates: { true },
+            onCheckForUpdates: { updateRequestCount += 1 }
         )
 
         XCTAssertEqual(controller.window?.contentView?.bounds.size, NSSize(width: 400, height: 450))
@@ -371,6 +374,40 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
             versionBadge.subviews.compactMap { $0 as? NSTextField }.first
         )
         XCTAssertEqual(versionLabel.frame.midY, versionBadge.bounds.midY, accuracy: 0.5)
+        let updateButton = try XCTUnwrap(
+            descendants(of: controller.settingsViewController.view)
+                .compactMap { $0 as? NSButton }
+                .first {
+                    $0.identifier?.rawValue == "application-settings.check-for-updates"
+                }
+        )
+        updateButton.performClick(nil)
+        XCTAssertEqual(updateRequestCount, 1)
+        controller.close()
+    }
+
+    @MainActor
+    func testAboutDisablesUpdateCheckWhenUpdaterIsUnavailable() throws {
+        var updateRequestCount = 0
+        let controller = ApplicationSettingsWindowController(
+            launchAtLoginController: LaunchAtLoginControllerSpy(),
+            metadata: ApplicationMetadata(infoDictionary: [:]),
+            applicationIcon: NSImage(size: NSSize(width: 128, height: 128)),
+            canCheckForUpdates: { false },
+            onCheckForUpdates: { updateRequestCount += 1 }
+        )
+        controller.selectCategory(.about)
+        let button = try XCTUnwrap(
+            descendants(of: controller.settingsViewController.view)
+                .compactMap { $0 as? NSButton }
+                .first {
+                    $0.identifier?.rawValue == "application-settings.check-for-updates"
+                }
+        )
+
+        XCTAssertFalse(button.isEnabled)
+        button.performClick(nil)
+        XCTAssertEqual(updateRequestCount, 0)
         controller.close()
     }
 

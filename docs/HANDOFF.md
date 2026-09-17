@@ -34,7 +34,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - macOS 26+ 的 Portal 只使用稳定的静态半透明背景；不再使用会在 `.canJoinAllSpaces` 切换期间灰闪的动态 backdrop。只有系统 Reduce Transparency 会强制切换到不透明辅助功能表面。
 - Apple Development 签名、版本/CHANGELOG 门禁、拖拽式 arm64 DMG 和 GitHub Release workflow 已实现；Gatekeeper、证书到期和安装体验仍需 Spike 0.6 人工验证。
 - `main` push 和面向 `main` 的 PR 始终运行轻量自动化检查；纯 README、docs、LICENSE 或 AGENTS.md 改动且未启用发布时跳过 macOS runner，其他改动运行完整无签名 arm64 测试与构建。普通 CI 不上传 App 制品。未经用户明确要求，不自动 push 或监控 CI。
-- 当前发布清单为 `0.1.0-beta.2` 且 `release=false`；现阶段只验证 CI 和飞书通知，不触发签名、DMG 或 GitHub Release。
+- 当前发布清单为 `0.2.0-beta.1` 且 `release=true`；推送前必须先把 Alcove 仓库改为 Public。成功发布后会继续生成签名 appcast，并更新个人 Homebrew Tap 中的 beta Cask。
 
 ### 3.2 文件夹来源
 

@@ -53,6 +53,8 @@ final class ApplicationSettingsViewController: NSViewController {
     private let panelPositionRepairer: any PanelPositionRepairing
     private let metadata: ApplicationMetadata
     private let applicationIcon: NSImage
+    private let canCheckForUpdates: () -> Bool
+    private let onCheckForUpdates: () -> Void
     private(set) var selectedCategory = Category.general
     private(set) var contentSeparator = NSBox()
     private(set) var contentStack = NSStackView()
@@ -65,7 +67,9 @@ final class ApplicationSettingsViewController: NSViewController {
         layoutBackupController: any ApplicationLayoutBackupControlling,
         panelPositionRepairer: any PanelPositionRepairing,
         metadata: ApplicationMetadata,
-        applicationIcon: NSImage
+        applicationIcon: NSImage,
+        canCheckForUpdates: @escaping () -> Bool,
+        onCheckForUpdates: @escaping () -> Void
     ) {
         self.launchAtLoginController = launchAtLoginController
         self.languageController = languageController
@@ -75,6 +79,8 @@ final class ApplicationSettingsViewController: NSViewController {
         self.panelPositionRepairer = panelPositionRepairer
         self.metadata = metadata
         self.applicationIcon = applicationIcon
+        self.canCheckForUpdates = canCheckForUpdates
+        self.onCheckForUpdates = onCheckForUpdates
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -490,17 +496,38 @@ final class ApplicationSettingsViewController: NSViewController {
 
         let versionBadge = VersionBadgeView(text: metadata.versionAndBuild)
 
+        let checkForUpdatesButton = NSButton(
+            title: NSLocalizedString(
+                "application.settings.check_for_updates",
+                comment: "Check for application updates"
+            ),
+            target: self,
+            action: #selector(checkForUpdates(_:))
+        )
+        checkForUpdatesButton.identifier = NSUserInterfaceItemIdentifier(
+            "application-settings.check-for-updates"
+        )
+        checkForUpdatesButton.bezelStyle = .rounded
+        checkForUpdatesButton.isEnabled = canCheckForUpdates()
+
         let copyrightLabel = NSTextField(wrappingLabelWithString: metadata.copyright)
         copyrightLabel.font = .systemFont(ofSize: 12)
         copyrightLabel.textColor = .tertiaryLabelColor
         copyrightLabel.alignment = .center
         copyrightLabel.maximumNumberOfLines = 2
 
-        let aboutStack = NSStackView(views: [iconView, nameLabel, versionBadge, copyrightLabel])
+        let aboutStack = NSStackView(views: [
+            iconView,
+            nameLabel,
+            versionBadge,
+            checkForUpdatesButton,
+            copyrightLabel,
+        ])
         aboutStack.orientation = .vertical
         aboutStack.alignment = .centerX
         aboutStack.spacing = 10
-        aboutStack.setCustomSpacing(20, after: versionBadge)
+        aboutStack.setCustomSpacing(16, after: versionBadge)
+        aboutStack.setCustomSpacing(20, after: checkForUpdatesButton)
 
         let container = NSView()
         container.addSubview(aboutStack)
@@ -514,6 +541,12 @@ final class ApplicationSettingsViewController: NSViewController {
             container.heightAnchor.constraint(equalTo: view.heightAnchor, constant: -37),
         ])
         container.widthAnchor.constraint(equalTo: contentStack.widthAnchor).isActive = true
+    }
+
+    @objc
+    private func checkForUpdates(_ sender: NSButton) {
+        guard canCheckForUpdates() else { return }
+        onCheckForUpdates()
     }
 
     private func settingRow(title: String, control: NSView) -> NSStackView {

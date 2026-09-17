@@ -154,6 +154,17 @@ jobs:
           test "$(vtool -show-build "$binary" | grep -c 'minos 26.0')" -eq 1
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$app/Contents/Info.plist")" = '26.0'
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$app/Contents/Info.plist")" = 'true'
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$app/Contents/Info.plist")" = 'https://slippindylan.github.io/homebrew-tap/alcove/appcast.xml'
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist")" = '2zQaHdexQjhAVCLE7HKvC3s4BnR3H1qwnSokn0bL5Uc='
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SURequireSignedFeed' "$app/Contents/Info.plist")" = 'true'
+          test "$(/usr/libexec/PlistBuddy -c 'Print :SUVerifyUpdateBeforeExtraction' "$app/Contents/Info.plist")" = 'true'
+          test -d "$app/Contents/Frameworks/Sparkle.framework"
+          linked_libraries='build/DerivedData-Release/linked-libraries.txt'
+          otool -L "$binary" | tee "$linked_libraries"
+          unexpected_libraries="$(tail -n +2 "$linked_libraries" \
+            | awk '{ print $1 }' \
+            | grep -Ev '^(/System/Library/|/usr/lib/|@rpath/Sparkle\.framework/Versions/B/Sparkle$)' || true)"
+          test -z "$unexpected_libraries"
 
   build-check:
     name: Build Check

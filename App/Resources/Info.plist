@@ -30,5 +30,21 @@
 	<string>Alcove uses Finder automation only when you choose Get Info for a file or folder.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>AlcoveUpdateChannel</key>
+	<string>$(ALCOVE_UPDATE_CHANNEL)</string>
+	<key>AlcoveUpdaterEnabled</key>
+	<string>$(ALCOVE_UPDATER_ENABLED)</string>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://slippindylan.github.io/homebrew-tap/alcove/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>2zQaHdexQjhAVCLE7HKvC3s4BnR3H1qwnSokn0bL5Uc=</string>
+	<key>SURequireSignedFeed</key>
+	<true/>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>

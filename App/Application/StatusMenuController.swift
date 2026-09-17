@@ -14,10 +14,12 @@ struct PortalMenuEntry: Equatable {
 }
 
 @MainActor
-final class StatusMenuController: StatusMenuControlling {
+final class StatusMenuController: NSObject, StatusMenuControlling, NSMenuItemValidation {
     private let statusBar: NSStatusBar
     private let onNewPortal: () -> Void
     private let onOpenSettings: () -> Void
+    private let canCheckForUpdates: () -> Bool
+    private let onCheckForUpdates: () -> Void
     private let onShowPortal: (PortalID) -> Void
     private let onHidePortal: (PortalID) -> Void
     private let onSetPortalPinned: (PortalID, Bool) -> Void
@@ -31,6 +33,8 @@ final class StatusMenuController: StatusMenuControlling {
         statusBar: NSStatusBar = .system,
         onNewPortal: @escaping () -> Void,
         onOpenSettings: @escaping () -> Void = {},
+        canCheckForUpdates: @escaping () -> Bool = { false },
+        onCheckForUpdates: @escaping () -> Void = {},
         onShowPortal: @escaping (PortalID) -> Void = { _ in },
         onHidePortal: @escaping (PortalID) -> Void = { _ in },
         onSetPortalPinned: @escaping (PortalID, Bool) -> Void = { _, _ in },
@@ -40,11 +44,14 @@ final class StatusMenuController: StatusMenuControlling {
         self.statusBar = statusBar
         self.onNewPortal = onNewPortal
         self.onOpenSettings = onOpenSettings
+        self.canCheckForUpdates = canCheckForUpdates
+        self.onCheckForUpdates = onCheckForUpdates
         self.onShowPortal = onShowPortal
         self.onHidePortal = onHidePortal
         self.onSetPortalPinned = onSetPortalPinned
         self.onOpenPortalSettings = onOpenPortalSettings
         self.onRequestPortalRemoval = onRequestPortalRemoval
+        super.init()
     }
 
     func start() {
@@ -103,6 +110,19 @@ final class StatusMenuController: StatusMenuControlling {
 
         if !portalEntries.isEmpty { menu.addItem(.separator()) }
 
+        let checkForUpdatesItem = NSMenuItem(
+            title: NSLocalizedString("menu.check_for_updates", comment: "Check for application updates"),
+            action: #selector(requestUpdateCheck(_:)),
+            keyEquivalent: ""
+        )
+        checkForUpdatesItem.target = self
+        checkForUpdatesItem.image = menuImage(
+            symbolName: "arrow.triangle.2.circlepath",
+            accessibilityDescription: checkForUpdatesItem.title
+        )
+        checkForUpdatesItem.isEnabled = canCheckForUpdates()
+        menu.addItem(checkForUpdatesItem)
+
         let settingsItem = NSMenuItem(
             title: NSLocalizedString("menu.settings", comment: "Open application settings"),
             action: #selector(requestSettings(_:)),
@@ -150,6 +170,18 @@ final class StatusMenuController: StatusMenuControlling {
     @objc
     private func requestSettings(_ sender: NSMenuItem) {
         onOpenSettings()
+    }
+
+    @objc
+    private func requestUpdateCheck(_ sender: NSMenuItem) {
+        onCheckForUpdates()
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(requestUpdateCheck(_:)) {
+            return canCheckForUpdates()
+        }
+        return true
     }
 
     private func makePortalMenu(for entry: PortalMenuEntry) -> NSMenu {
