@@ -3,8 +3,6 @@
   <h1>Alcove</h1>
 </div>
 
----
-
 <div align="center">
   <p>Keep the local folders you use most in movable, resizable panels on your Mac desktop.</p>
   <p>
