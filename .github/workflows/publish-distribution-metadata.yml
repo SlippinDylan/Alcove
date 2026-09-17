@@ -29,15 +29,22 @@ jobs:
       SPARKLE_ARCHIVE_SHA256: c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c
 
     steps:
+      - name: Checkout trusted automation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Checkout published source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.TAG }}
+          path: published-source
           persist-credentials: false
 
       - name: Read release manifest
         id: manifest
-        run: node .github/scripts/release-manifest.mjs validate
+        working-directory: published-source
+        run: node ../.github/scripts/release-manifest.mjs validate
 
       - name: Validate published release
         env:
