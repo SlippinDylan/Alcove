@@ -34,7 +34,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 - macOS 26+ 的 Portal 只使用稳定的静态半透明背景；不再使用会在 `.canJoinAllSpaces` 切换期间灰闪的动态 backdrop。只有系统 Reduce Transparency 会强制切换到不透明辅助功能表面。
 - Apple Development 签名、版本/CHANGELOG 门禁、拖拽式 arm64 DMG 和 GitHub Release workflow 已实现；Gatekeeper、证书到期和安装体验仍需 Spike 0.6 人工验证。
 - `main` push 和面向 `main` 的 PR 始终运行轻量自动化检查；纯 README、docs、LICENSE 或 AGENTS.md 改动且未启用发布时跳过 macOS runner，其他改动运行完整无签名 arm64 测试与构建。普通 CI 不上传 App 制品。未经用户明确要求，不自动 push 或监控 CI。
-- 当前发布清单为 `0.1.0-beta.1` 且 `release=false`；现阶段只验证 CI 和飞书通知，不触发签名、DMG 或 GitHub Release。
+- 当前发布清单为 `0.1.0-beta.2` 且 `release=false`；现阶段只验证 CI 和飞书通知，不触发签名、DMG 或 GitHub Release。
 
 ### 3.2 文件夹来源
 
@@ -183,7 +183,7 @@ Alcove 是一个原生 macOS 菜单栏工具。它在桌面图标之上、普通
 ### 3.10 菜单栏与本地化
 
 - 顶层菜单依次为 New Panel、Portal 列表、应用 Settings、Quit；每个 Portal 名称的二级菜单提供带 SF Symbol 的 Show、Hide、Pin/Unpin、Panel Settings 和确认后 Remove。
-- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / Advanced / About。General 只提供系统登录时自动启动；Style 统一控制静态背景的五档透明程度、三档内容大小、五档面板间距、五档圆角和系统阴影；Advanced 通过独立的布局备份 v1 JSON 执行完整导入/导出；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观只写入 `UserDefaults`，Portal v12 仅持久化单面板排序和颜色等局部状态。
+- 顶层 Settings 指整个 Alcove 的应用设置，不是单个 Portal 的设置窗口；当前分类为 General / Style / Advanced / About。General 只提供系统登录时自动启动；Style 统一控制静态背景的五档透明程度、三档内容大小、四档面板间距、五档圆角和系统阴影；默认使用最低可选透明度（alpha 0.72）与第二档面板间距（4pt）；Advanced 通过独立的布局备份 v1 JSON 执行完整导入/导出；About 使用 Icon Composer 图标并显示名称、版本、构建号和版权。全局外观只写入 `UserDefaults`，Portal v12 仅持久化单面板排序和颜色等局部状态。
 - 全局 Style 卡片的每个设置行之间使用系统分割线；Advanced 备份卡片继续以一条系统分割线区分说明和操作按钮。
 - 所有用户可见文本、错误、菜单和无障碍说明提供 English、简体中文和繁体中文。
 - English 是开发语言和兜底语言；系统语言不是上述三种时使用 English。
@@ -281,7 +281,7 @@ AppKit 的通用 frame 通知无法区分用户、WindowServer、显示器变化
 - v12 原子持久化及 v1–v11 迁移。
 - 多显示器 placement state machine 和系统通知接入。
 - 所有 Portal 跟随菜单栏主显示器；保持左/上 pt 偏移、锁定仍可见面板、溢出向右开列、极端重叠露出顶栏，并提供 Advanced 一键位置修复。
-- 五档静态背景透明程度与 Reduce Transparency 不透明表面。
+- 五档静态背景透明程度（alpha 0.32–0.72）、四档面板间距（2/4/6/8pt）与 Reduce Transparency 不透明表面。
 - Small/Medium/Large 三档手动 icon presets；没有 Finder Automation 或外部尺寸同步。
 - 3×1 最小容量、创建/缩放半格阈值、capacity 驱动的 row-major 回流。
 - mini overlay 自动隐藏滚动条。

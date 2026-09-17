@@ -40,7 +40,7 @@ extension PortalCoordinatorTests {
             frame: presentedFrame,
             visibleFrame: changedDisplay.visibleFrame,
             otherPortalFrames: [],
-            minimumGap: PortalSpacing.medium.points
+            minimumGap: PortalAppearancePreferences.defaults.spacing.points
         ))
         XCTAssertNil(coordinator.displayError)
     }

@@ -222,6 +222,13 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
 
     @discardableResult
     func updatePortalAppearance(_ appearance: PortalAppearancePreferences) -> Bool {
+        let appearance = PortalAppearancePreferences(
+            iconSize: appearance.iconSize,
+            backgroundStyle: appearance.backgroundStyle,
+            cornerRadius: appearance.cornerRadius,
+            spacing: appearance.spacing,
+            shadowEnabled: appearance.shadowEnabled
+        )
         guard pendingMutationCount == 0,
               pendingUserPlacements.isEmpty,
               !windows.values.contains(where: \.isUserPlacementInteractionActive),

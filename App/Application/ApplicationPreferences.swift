@@ -35,7 +35,14 @@ enum PortalSpacing: Int, CaseIterable, Sendable {
     case small
     case medium
     case large
+    /// Retained only to decode existing preferences and layout backups.
     case maximum
+
+    static let selectableCases: [PortalSpacing] = [.minimum, .small, .medium, .large]
+
+    var normalizedSelection: PortalSpacing {
+        self == .maximum ? .large : self
+    }
 
     var points: CGFloat {
         switch self {
@@ -43,7 +50,7 @@ enum PortalSpacing: Int, CaseIterable, Sendable {
         case .small: 4
         case .medium: 6
         case .large: 8
-        case .maximum: 10
+        case .maximum: 8
         }
     }
 }
@@ -51,9 +58,9 @@ enum PortalSpacing: Int, CaseIterable, Sendable {
 struct PortalAppearancePreferences: Equatable, Sendable {
     static let defaults = PortalAppearancePreferences(
         iconSize: .medium,
-        backgroundStyle: .standard,
+        backgroundStyle: .lowTransparency,
         cornerRadius: .medium,
-        spacing: .medium,
+        spacing: .small,
         shadowEnabled: false
     )
 
@@ -65,15 +72,15 @@ struct PortalAppearancePreferences: Equatable, Sendable {
 
     init(
         iconSize: IconSize = .medium,
-        backgroundStyle: PortalBackgroundStyle = .standard,
+        backgroundStyle: PortalBackgroundStyle = .lowTransparency,
         cornerRadius: PortalCornerRadius,
         spacing: PortalSpacing,
         shadowEnabled: Bool
     ) {
         self.iconSize = iconSize
-        self.backgroundStyle = backgroundStyle
+        self.backgroundStyle = backgroundStyle.normalizedSelection
         self.cornerRadius = cornerRadius
-        self.spacing = spacing
+        self.spacing = spacing.normalizedSelection
         self.shadowEnabled = shadowEnabled
     }
 }
@@ -131,6 +138,15 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
             spacing: spacing,
             shadowEnabled: userDefaults.bool(forKey: Key.portalShadowEnabled)
         )
+        if portalAppearance.backgroundStyle != backgroundStyle {
+            userDefaults.set(
+                portalAppearance.backgroundStyle.rawValue,
+                forKey: Key.portalBackgroundStyle
+            )
+        }
+        if portalAppearance.spacing != spacing {
+            userDefaults.set(portalAppearance.spacing.rawValue, forKey: Key.portalSpacing)
+        }
     }
 
     @discardableResult
@@ -146,6 +162,7 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
 
     @discardableResult
     func setPortalBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) -> Bool {
+        let backgroundStyle = backgroundStyle.normalizedSelection
         guard portalAppearance.backgroundStyle != backgroundStyle else { return true }
         var updatedAppearance = portalAppearance
         updatedAppearance.backgroundStyle = backgroundStyle
@@ -157,6 +174,7 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
 
     @discardableResult
     func setPortalSpacing(_ spacing: PortalSpacing) -> Bool {
+        let spacing = spacing.normalizedSelection
         guard portalAppearance.spacing != spacing else { return true }
         var updatedAppearance = portalAppearance
         updatedAppearance.spacing = spacing
@@ -191,12 +209,22 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
     /// Persists an already-committed imported appearance without re-entering
     /// the normal change callback and attempting a second layout transaction.
     func replacePortalAppearanceFromImport(_ appearance: PortalAppearancePreferences) {
-        portalAppearance = appearance
-        userDefaults.set(Double(appearance.iconSize.rawValue), forKey: Key.portalIconSize)
-        userDefaults.set(appearance.backgroundStyle.rawValue, forKey: Key.portalBackgroundStyle)
-        userDefaults.set(appearance.cornerRadius.rawValue, forKey: Key.portalCornerRadius)
-        userDefaults.set(appearance.spacing.rawValue, forKey: Key.portalSpacing)
-        userDefaults.set(appearance.shadowEnabled, forKey: Key.portalShadowEnabled)
+        let normalizedAppearance = PortalAppearancePreferences(
+            iconSize: appearance.iconSize,
+            backgroundStyle: appearance.backgroundStyle,
+            cornerRadius: appearance.cornerRadius,
+            spacing: appearance.spacing,
+            shadowEnabled: appearance.shadowEnabled
+        )
+        portalAppearance = normalizedAppearance
+        userDefaults.set(Double(normalizedAppearance.iconSize.rawValue), forKey: Key.portalIconSize)
+        userDefaults.set(
+            normalizedAppearance.backgroundStyle.rawValue,
+            forKey: Key.portalBackgroundStyle
+        )
+        userDefaults.set(normalizedAppearance.cornerRadius.rawValue, forKey: Key.portalCornerRadius)
+        userDefaults.set(normalizedAppearance.spacing.rawValue, forKey: Key.portalSpacing)
+        userDefaults.set(normalizedAppearance.shadowEnabled, forKey: Key.portalShadowEnabled)
     }
 }
 

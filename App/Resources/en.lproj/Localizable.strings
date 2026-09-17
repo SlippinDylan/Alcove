@@ -73,7 +73,8 @@
 "application.settings.content_size.medium" = "Medium";
 "application.settings.content_size.large" = "Large";
 "application.settings.transparency" = "Transparency";
-"application.settings.transparency.maximum" = "Maximum Transparency";
+"application.settings.transparency.highest" = "Maximum Transparency";
+"application.settings.transparency.maximum" = "Very High Transparency";
 "application.settings.transparency.high" = "High Transparency";
 "application.settings.transparency.standard" = "Standard";
 "application.settings.transparency.low" = "Low Transparency";

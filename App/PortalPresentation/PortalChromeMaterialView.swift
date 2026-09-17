@@ -49,7 +49,7 @@ final class PortalChromeMaterialView: NSView {
 
     init(
         contentView: NSView,
-        backgroundStyle: PortalBackgroundStyle = .standard,
+        backgroundStyle: PortalBackgroundStyle = .lowTransparency,
         portalTint: PortalTint = .default,
         cornerRadius: CGFloat = 24,
         accessibilityProvider: @escaping AccessibilityProvider = {
@@ -206,11 +206,12 @@ final class PortalChromeMaterialView: NSView {
 
     private var staticSurfaceAlpha: CGFloat {
         switch backgroundStyle {
+        case .highestTransparency: 0.32
         case .maximumTransparency: 0.42
         case .highTransparency: 0.52
         case .standard: 0.62
         case .lowTransparency: 0.72
-        case .minimumTransparency: 0.82
+        case .minimumTransparency: 0.72
         }
     }
 

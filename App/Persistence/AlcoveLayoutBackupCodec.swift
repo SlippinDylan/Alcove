@@ -219,8 +219,8 @@ private struct LayoutBackupGlobalDTO: Codable {
         }
         return AlcoveLayoutBackupGlobal(
             iconSize: iconSize,
-            backgroundStyle: backgroundStyle,
-            spacing: spacing,
+            backgroundStyle: backgroundStyle.normalizedSelection,
+            spacing: spacing.normalizedSelection,
             cornerRadius: cornerRadius,
             shadowEnabled: shadowEnabled
         )

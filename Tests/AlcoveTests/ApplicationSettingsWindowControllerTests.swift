@@ -1,3 +1,4 @@
+import AlcoveCore
 import AppKit
 import XCTest
 @testable import Alcove
@@ -69,7 +70,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testPortalAppearancePreferencesUseDefaultsAndPersistFiveStepValues() throws {
+    func testPortalAppearancePreferencesUseDefaultsAndPersistSelectableValues() throws {
         let suiteName = "ApplicationSettingsWindowControllerTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -77,12 +78,19 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
 
         XCTAssertEqual(controller.portalAppearance, .defaults)
         XCTAssertEqual(controller.portalAppearance.iconSize, .medium)
-        XCTAssertEqual(controller.portalAppearance.backgroundStyle, .standard)
+        XCTAssertEqual(controller.portalAppearance.backgroundStyle, .lowTransparency)
         XCTAssertEqual(controller.portalAppearance.cornerRadius, .medium)
-        XCTAssertEqual(controller.portalAppearance.spacing, .medium)
+        XCTAssertEqual(controller.portalAppearance.spacing, .small)
         XCTAssertFalse(controller.portalAppearance.shadowEnabled)
         XCTAssertEqual(PortalCornerRadius.allCases.map(\.points), [0, 8, 14, 20, 24])
-        XCTAssertEqual(PortalSpacing.allCases.map(\.points), [2, 4, 6, 8, 10])
+        XCTAssertEqual(PortalSpacing.selectableCases.map(\.points), [2, 4, 6, 8])
+        XCTAssertEqual(PortalBackgroundStyle.selectableCases, [
+            .highestTransparency,
+            .maximumTransparency,
+            .highTransparency,
+            .standard,
+            .lowTransparency,
+        ])
 
         var changes: [PortalAppearancePreferences] = []
         controller.onPortalAppearanceChanged = {
@@ -90,7 +98,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
             return true
         }
         controller.setPortalCornerRadius(.small)
-        controller.setPortalSpacing(.maximum)
+        controller.setPortalSpacing(.large)
         controller.setPortalIconSize(.large)
         controller.setPortalBackgroundStyle(.highTransparency)
         controller.setPortalShadowEnabled(true)
@@ -101,7 +109,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertEqual(restored.portalAppearance.iconSize, .large)
         XCTAssertEqual(restored.portalAppearance.backgroundStyle, .highTransparency)
         XCTAssertEqual(restored.portalAppearance.cornerRadius, .small)
-        XCTAssertEqual(restored.portalAppearance.spacing, .maximum)
+        XCTAssertEqual(restored.portalAppearance.spacing, .large)
         XCTAssertTrue(restored.portalAppearance.shadowEnabled)
     }
 
@@ -113,11 +121,33 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         let controller = ApplicationPreferencesController(userDefaults: defaults)
         controller.onPortalAppearanceChanged = { _ in false }
 
-        XCTAssertFalse(controller.setPortalSpacing(.maximum))
+        XCTAssertFalse(controller.setPortalSpacing(.large))
 
-        XCTAssertEqual(controller.portalAppearance.spacing, .medium)
+        XCTAssertEqual(controller.portalAppearance.spacing, .small)
         let restored = ApplicationPreferencesController(userDefaults: defaults)
-        XCTAssertEqual(restored.portalAppearance.spacing, .medium)
+        XCTAssertEqual(restored.portalAppearance.spacing, .small)
+    }
+
+    @MainActor
+    func testRetiredAppearanceExtremesNormalizeWhenPreferencesLoad() throws {
+        let suiteName = "ApplicationSettingsRetiredValuesTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set("minimum_transparency", forKey: "portalAppearance.backgroundStyle")
+        defaults.set(PortalSpacing.maximum.rawValue, forKey: "portalAppearance.spacing")
+
+        let controller = ApplicationPreferencesController(userDefaults: defaults)
+
+        XCTAssertEqual(controller.portalAppearance.backgroundStyle, .lowTransparency)
+        XCTAssertEqual(controller.portalAppearance.spacing, .large)
+        XCTAssertEqual(
+            defaults.string(forKey: "portalAppearance.backgroundStyle"),
+            PortalBackgroundStyle.lowTransparency.rawValue
+        )
+        XCTAssertEqual(
+            defaults.integer(forKey: "portalAppearance.spacing"),
+            PortalSpacing.large.rawValue
+        )
     }
 
     @MainActor
@@ -138,6 +168,8 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
             spacing: .maximum,
             shadowEnabled: false
         )
+        XCTAssertEqual(imported.backgroundStyle, .lowTransparency)
+        XCTAssertEqual(imported.spacing, .large)
 
         controller.replacePortalAppearanceFromImport(imported)
 
@@ -179,7 +211,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
             $0.identifier?.rawValue == "application-settings.transparency"
         })
         XCTAssertEqual(radius.numberOfTickMarks, 5)
-        XCTAssertEqual(spacing.numberOfTickMarks, 5)
+        XCTAssertEqual(spacing.numberOfTickMarks, 4)
         XCTAssertTrue(radius.allowsTickMarkValuesOnly)
         XCTAssertTrue(spacing.allowsTickMarkValuesOnly)
         XCTAssertEqual(contentSize.numberOfTickMarks, 3)
@@ -187,9 +219,9 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertTrue(contentSize.allowsTickMarkValuesOnly)
         XCTAssertTrue(transparency.allowsTickMarkValuesOnly)
         XCTAssertEqual(radius.neutralValue, Double(PortalCornerRadius.medium.rawValue))
-        XCTAssertEqual(spacing.neutralValue, Double(PortalSpacing.medium.rawValue))
+        XCTAssertEqual(spacing.neutralValue, Double(PortalSpacing.small.rawValue))
         XCTAssertEqual(contentSize.neutralValue, 1)
-        XCTAssertEqual(transparency.neutralValue, 2)
+        XCTAssertEqual(transparency.neutralValue, 4)
         XCTAssertEqual(radius.tintProminence, .secondary)
         XCTAssertEqual(spacing.tintProminence, .secondary)
         XCTAssertEqual(contentSize.tintProminence, .secondary)

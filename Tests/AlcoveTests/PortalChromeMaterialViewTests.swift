@@ -108,14 +108,14 @@ final class PortalChromeMaterialViewTests: XCTestCase {
         XCTAssertEqual(color.redComponent, 1, accuracy: 0.001)
         XCTAssertEqual(color.greenComponent, 1, accuracy: 0.001)
         XCTAssertEqual(color.blueComponent, 1, accuracy: 0.001)
-        XCTAssertEqual(color.alphaComponent, 0.62, accuracy: 0.001)
+        XCTAssertEqual(color.alphaComponent, 0.72, accuracy: 0.001)
     }
 
     @MainActor
     func testEveryTransparencyLevelUpdatesStaticSurfaceInPlace() throws {
         let surface = makeSurface(backgroundStyle: .maximumTransparency)
         let material = surface.materialView
-        let expectedAlphas: [CGFloat] = [0.42, 0.52, 0.62, 0.72, 0.82]
+        let expectedAlphas: [CGFloat] = [0.32, 0.42, 0.52, 0.62, 0.72, 0.72]
 
         for (style, expectedAlpha) in zip(PortalBackgroundStyle.allCases, expectedAlphas) {
             surface.updateBackgroundStyle(style)

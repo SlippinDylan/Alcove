@@ -304,7 +304,7 @@ final class PortalTests: XCTestCase {
 
     func testBackgroundStyleDefaultsAndUpdatesPerPortal() throws {
         var portal = try makePortal(path: "/tmp/folder")
-        XCTAssertEqual(portal.backgroundStyle, .standard)
+        XCTAssertEqual(portal.backgroundStyle, .lowTransparency)
 
         portal.updateBackgroundStyle(.highTransparency)
 
@@ -312,6 +312,7 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(
             PortalBackgroundStyle.allCases,
             [
+                .highestTransparency,
                 .maximumTransparency,
                 .highTransparency,
                 .standard,
@@ -321,6 +322,7 @@ final class PortalTests: XCTestCase {
         )
         XCTAssertEqual(
             [
+                PortalBackgroundStyle.highestTransparency.rawValue,
                 PortalBackgroundStyle.maximumTransparency.rawValue,
                 PortalBackgroundStyle.highTransparency.rawValue,
                 PortalBackgroundStyle.standard.rawValue,
@@ -328,6 +330,7 @@ final class PortalTests: XCTestCase {
                 PortalBackgroundStyle.minimumTransparency.rawValue,
             ],
             [
+                "highest_transparency",
                 "maximum_transparency",
                 "high_transparency",
                 "standard",

@@ -176,7 +176,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         frame: CGRect,
         display: DisplayDescriptor,
         iconLayout: PortalIconLayout = .fixed(.medium),
-        backgroundStyle: PortalBackgroundStyle = .standard,
+        backgroundStyle: PortalBackgroundStyle = .lowTransparency,
         gridCapacity: GridCapacity = .minimum,
         isPinned: Bool = false,
         sortOrder: PortalSortOrder = .name,
@@ -209,7 +209,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         frame: CGRect,
         display: DisplayDescriptor,
         iconSize: IconSize = .medium,
-        backgroundStyle: PortalBackgroundStyle = .standard,
+        backgroundStyle: PortalBackgroundStyle = .lowTransparency,
         gridCapacity: GridCapacity = .minimum,
         isPinned: Bool = false,
         sortOrder: PortalSortOrder = .name,
@@ -236,7 +236,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         frame: CGRect,
         display: DisplayDescriptor,
         iconLayout: PortalIconLayout,
-        backgroundStyle: PortalBackgroundStyle = .standard,
+        backgroundStyle: PortalBackgroundStyle = .lowTransparency,
         gridCapacity: GridCapacity = .minimum,
         isPinned: Bool = false,
         sortOrder: PortalSortOrder = .name,
@@ -270,7 +270,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         selectedTabID: FolderTabID?,
         placement: PlacementRecord,
         iconSize: IconSize = .medium,
-        backgroundStyle: PortalBackgroundStyle = .standard,
+        backgroundStyle: PortalBackgroundStyle = .lowTransparency,
         gridCapacity: GridCapacity = .minimum,
         isPinned: Bool = false,
         sortOrder: PortalSortOrder = .name,
@@ -297,7 +297,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         selectedTabID: FolderTabID?,
         placement: PlacementRecord,
         iconLayout: PortalIconLayout,
-        backgroundStyle: PortalBackgroundStyle = .standard,
+        backgroundStyle: PortalBackgroundStyle = .lowTransparency,
         gridCapacity: GridCapacity = .minimum,
         isPinned: Bool = false,
         sortOrder: PortalSortOrder = .name,
@@ -331,7 +331,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
         self.selectedTabID = selectedTabID
         self.placement = placement
         self.iconLayout = iconLayout
-        self.backgroundStyle = backgroundStyle
+        self.backgroundStyle = backgroundStyle.normalizedSelection
         self.gridCapacity = gridCapacity
         self.isPinned = isPinned
         self.sortOrder = sortOrder
@@ -430,7 +430,7 @@ public struct Portal: Identifiable, Equatable, Sendable {
 
     /// Replaces the app-owned background appearance preference.
     public mutating func updateBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) {
-        self.backgroundStyle = backgroundStyle
+        self.backgroundStyle = backgroundStyle.normalizedSelection
     }
 
     /// Replaces the visible grid capacity while preserving its current placement.

@@ -188,7 +188,7 @@ extension PortalStoreTests {
                 as: UTF8.self
             )
             let invalid = valid.replacingOccurrences(
-                of: "\"background_style\":\"standard\"",
+                of: "\"background_style\":\"low_transparency\"",
                 with: "\"background_style\":\"unknown\""
             )
             try Data(invalid.utf8).write(to: storeURL)

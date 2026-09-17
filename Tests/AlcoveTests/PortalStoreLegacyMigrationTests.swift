@@ -56,7 +56,7 @@ extension PortalStoreTests {
             XCTAssertEqual(try String(contentsOf: backupURL, encoding: .utf8), legacy)
             let migrated = try String(contentsOf: storeURL, encoding: .utf8)
             XCTAssertTrue(migrated.contains("\"version\" : 12"))
-            XCTAssertTrue(loaded.allSatisfy { $0.backgroundStyle == .standard })
+            XCTAssertTrue(loaded.allSatisfy { $0.backgroundStyle == .lowTransparency })
             XCTAssertTrue(loaded.allSatisfy { $0.iconLayout == .fixed(.medium) })
             XCTAssertEqual(loaded[0].gridCapacity, try GridCapacity(columns: 4, rows: 2))
             XCTAssertEqual(loaded[1].gridCapacity, try GridCapacity(columns: 4, rows: 2))
@@ -77,7 +77,7 @@ extension PortalStoreTests {
 
             let loaded = try await PortalStore(url: storeURL).load()
 
-            XCTAssertEqual(loaded.map(\.backgroundStyle), [.standard])
+            XCTAssertEqual(loaded.map(\.backgroundStyle), [.lowTransparency])
             XCTAssertEqual(
                 try String(
                     contentsOf: directory.appendingPathComponent("portals.v2.json.bak"),

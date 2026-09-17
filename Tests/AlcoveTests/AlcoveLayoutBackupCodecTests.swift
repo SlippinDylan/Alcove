@@ -40,7 +40,7 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         XCTAssertEqual(backup.global.iconSize, .large)
         XCTAssertEqual(backup.global.backgroundStyle, .highTransparency)
         XCTAssertEqual(backup.global.cornerRadius, .small)
-        XCTAssertEqual(backup.global.spacing, .maximum)
+        XCTAssertEqual(backup.global.spacing, .large)
         XCTAssertFalse(backup.global.shadowEnabled)
         XCTAssertEqual(backup.portals.count, 1)
         let restored = try XCTUnwrap(backup.portals.first)
@@ -99,6 +99,20 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         let backup = try decode(validJSON)
 
         XCTAssertEqual(backup.global.backgroundStyle, .standard)
+    }
+
+    func testDecodeNormalizesRetiredAppearanceExtremes() throws {
+        let retired = validJSON
+            .replacingOccurrences(
+                of: "\"background_style\":\"standard\"",
+                with: "\"background_style\":\"minimum_transparency\""
+            )
+            .replacingOccurrences(of: "\"spacing\":2", with: "\"spacing\":4")
+
+        let backup = try decode(retired)
+
+        XCTAssertEqual(backup.global.backgroundStyle, .lowTransparency)
+        XCTAssertEqual(backup.global.spacing, .large)
     }
 
     func testDecodeRejectsInvalidPerPortalEnumValues() throws {

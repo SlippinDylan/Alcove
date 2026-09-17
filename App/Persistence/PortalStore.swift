@@ -36,7 +36,7 @@ actor PortalStore: PortalStoring {
         fileSystem: any PortalStoreFileSystem = FoundationPortalStoreFileSystem(),
         legacyDisplayResolver: any LegacyDisplayResolving = UnavailableLegacyDisplayResolver(),
         globalIconSize: IconSize = .medium,
-        globalBackgroundStyle: PortalBackgroundStyle = .standard
+        globalBackgroundStyle: PortalBackgroundStyle = .lowTransparency
     ) {
         self.url = url
         self.fileSystem = fileSystem

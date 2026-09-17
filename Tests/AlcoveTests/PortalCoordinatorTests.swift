@@ -29,9 +29,12 @@ final class PortalCoordinatorTests: XCTestCase {
         try await coordinator.restorePortals()
 
         XCTAssertEqual(coordinator.portalStates.map(\.id), portals.map(\.id))
-        XCTAssertTrue(coordinator.portalStates.allSatisfy { $0.backgroundStyle == .standard })
+        XCTAssertTrue(coordinator.portalStates.allSatisfy { $0.backgroundStyle == .lowTransparency })
         XCTAssertEqual(factory.createdPortalIDs, portals.map(\.id))
-        XCTAssertEqual(factory.createdPortals.map(\.backgroundStyle), [.standard, .standard])
+        XCTAssertEqual(factory.createdPortals.map(\.backgroundStyle), [
+            .lowTransparency,
+            .lowTransparency,
+        ])
         XCTAssertEqual(factory.windows.map(\.presentCount), [1, 1])
     }
 
@@ -109,7 +112,7 @@ final class PortalCoordinatorTests: XCTestCase {
         XCTAssertEqual(factory.windows.count, 2)
         XCTAssertEqual(factory.windows[0].closeCount, 1)
         XCTAssertEqual(factory.windows[1].presentCount, 1)
-        XCTAssertEqual(factory.windows[1].updatedAppearances.last?.spacing, .maximum)
+        XCTAssertEqual(factory.windows[1].updatedAppearances.last?.spacing, .large)
     }
 
     @MainActor

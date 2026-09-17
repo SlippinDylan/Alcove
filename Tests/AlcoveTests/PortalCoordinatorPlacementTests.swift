@@ -133,7 +133,10 @@ extension PortalCoordinatorTests {
             NSPoint(x: 800, y: 200)
         )
 
-        XCTAssertEqual(result.maxX, second.frame.minX - PortalSpacing.medium.points)
+        XCTAssertEqual(
+            result.maxX,
+            second.frame.minX - PortalAppearancePreferences.defaults.spacing.points
+        )
     }
 
     @MainActor
@@ -168,7 +171,10 @@ extension PortalCoordinatorTests {
 
         XCTAssertTrue(
             coordinatorTestDisplay.visibleFrame
-                .insetBy(dx: PortalSpacing.medium.points, dy: PortalSpacing.medium.points)
+                .insetBy(
+                    dx: PortalAppearancePreferences.defaults.spacing.points,
+                    dy: PortalAppearancePreferences.defaults.spacing.points
+                )
                 .contains(result)
         )
     }

@@ -375,15 +375,15 @@ final class ApplicationSettingsViewController: NSViewController {
     }
 
     private func backgroundStyleSlider() -> NSSlider {
-        let values = PortalBackgroundStyle.allCases
+        let values = PortalBackgroundStyle.selectableCases
         let selectedIndex = values.firstIndex(
             of: preferencesController.portalAppearance.backgroundStyle
-        ) ?? 2
+        ) ?? values.count - 1
         let slider = discreteSlider(
             identifier: "application-settings.transparency",
             value: selectedIndex,
             maximum: values.count - 1,
-            neutralValue: 2,
+            neutralValue: values.count - 1,
             action: #selector(changeBackgroundStyle(_:))
         )
         slider.setAccessibilityLabel(NSLocalizedString(
@@ -419,7 +419,7 @@ final class ApplicationSettingsViewController: NSViewController {
     }
 
     private func spacingSlider() -> NSSlider {
-        let values = PortalSpacing.allCases
+        let values = PortalSpacing.selectableCases
         let selectedIndex = values.firstIndex(
             of: preferencesController.portalAppearance.spacing
         ) ?? PortalSpacing.medium.rawValue
@@ -427,7 +427,7 @@ final class ApplicationSettingsViewController: NSViewController {
             identifier: "application-settings.spacing",
             value: selectedIndex,
             maximum: values.count - 1,
-            neutralValue: PortalSpacing.medium.rawValue,
+            neutralValue: PortalAppearancePreferences.defaults.spacing.rawValue,
             action: #selector(changeSpacing(_:))
         )
         slider.setAccessibilityLabel(NSLocalizedString(
@@ -679,7 +679,7 @@ final class ApplicationSettingsViewController: NSViewController {
     }
 
     @objc private func changeBackgroundStyle(_ sender: NSSlider) {
-        let values = PortalBackgroundStyle.allCases
+        let values = PortalBackgroundStyle.selectableCases
         let index = Int(sender.doubleValue.rounded())
         guard values.indices.contains(index) else { return }
         let backgroundStyle = values[index]
@@ -687,7 +687,8 @@ final class ApplicationSettingsViewController: NSViewController {
             sender.setAccessibilityValue(backgroundStyleTitle(backgroundStyle))
         } else {
             sender.doubleValue = Double(
-                values.firstIndex(of: preferencesController.portalAppearance.backgroundStyle) ?? 2
+                values.firstIndex(of: preferencesController.portalAppearance.backgroundStyle)
+                    ?? values.count - 1
             )
         }
     }
@@ -711,7 +712,7 @@ final class ApplicationSettingsViewController: NSViewController {
     }
 
     @objc private func changeSpacing(_ sender: NSSlider) {
-        let values = PortalSpacing.allCases
+        let values = PortalSpacing.selectableCases
         let index = Int(sender.doubleValue.rounded())
         guard values.indices.contains(index) else { return }
         let spacing = values[index]
@@ -757,6 +758,8 @@ final class ApplicationSettingsViewController: NSViewController {
 
     private func backgroundStyleTitle(_ style: PortalBackgroundStyle) -> String {
         switch style {
+        case .highestTransparency:
+            NSLocalizedString("application.settings.transparency.highest", comment: "Highest transparency")
         case .maximumTransparency:
             NSLocalizedString("application.settings.transparency.maximum", comment: "Maximum transparency")
         case .highTransparency:

@@ -415,7 +415,7 @@ Locate Folder UI and controlled TCC denial remain for Slice 10/manual verificati
 - Final loading, empty, missing-folder, and permission states plus unsupported-folder-location selection feedback.
 - Per-portal Small/Medium/Large icon sizing, fixed equal tile spacing, resize snap, and 3×1 minimum.
 - Per-Portal tint with one application-global five-step static-background transparency control and an accessibility-driven opaque override.
-- Application-global five-step edge/inter-Portal spacing and corner radius, plus a system-shadow toggle; creation, dragging, live resize, and icon-preset resize reject collisions, while spacing changes preflight and animate a reversible runtime reflow of existing Portals.
+- Application-global four-step edge/inter-Portal spacing and five-step corner radius, plus a system-shadow toggle; creation, dragging, live resize, and icon-preset resize reject collisions, while spacing changes preflight and animate a reversible runtime reflow of existing Portals.
 - Evidence-backed static translucent backgrounds on macOS 26+, per-Portal tint preservation, Space-transition stability, and an opaque Reduce Transparency surface.
 - VoiceOver labels/actions, keyboard-only operation, Reduce Transparency, Reduce Motion, and Increase Contrast.
 - Performance validation for defined NFR directory sizes.

@@ -73,7 +73,8 @@
 "application.settings.content_size.medium" = "中";
 "application.settings.content_size.large" = "大";
 "application.settings.transparency" = "透明程度";
-"application.settings.transparency.maximum" = "最高透明度";
+"application.settings.transparency.highest" = "最高透明度";
+"application.settings.transparency.maximum" = "很高透明度";
 "application.settings.transparency.high" = "高透明度";
 "application.settings.transparency.standard" = "标准";
 "application.settings.transparency.low" = "低透明度";

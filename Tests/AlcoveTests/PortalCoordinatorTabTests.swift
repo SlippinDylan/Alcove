@@ -304,7 +304,7 @@ extension PortalCoordinatorTests {
             let updated = coordinator.portalStates[0]
             XCTAssertEqual(updated.tabs[0].id, portal.selectedTabID)
             XCTAssertEqual(updated.tabs[0].folderURL, replacement.standardizedFileURL)
-            XCTAssertEqual(updated.backgroundStyle, .standard)
+            XCTAssertEqual(updated.backgroundStyle, .lowTransparency)
             XCTAssertEqual(updated.iconLayout, .fixed(.medium))
             XCTAssertEqual(factory.windows[0].updatedPortals.last, updated)
             let saves = await store.savedSnapshots()
