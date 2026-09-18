@@ -5,19 +5,16 @@ import XCTest
 
 final class StatusMenuControllerTests: XCTestCase {
     @MainActor
-    func testMenuContainsNewPortalUpdateSettingsAndQuitActions() {
+    func testMenuContainsNewPortalSettingsAndQuitActions() {
         var requestCount = 0
         var settingsRequestCount = 0
-        var updateRequestCount = 0
         let controller = StatusMenuController(
             onNewPortal: { requestCount += 1 },
-            onOpenSettings: { settingsRequestCount += 1 },
-            canCheckForUpdates: { true },
-            onCheckForUpdates: { updateRequestCount += 1 }
+            onOpenSettings: { settingsRequestCount += 1 }
         )
         let menu = controller.makeMenu()
 
-        XCTAssertEqual(menu.items.count, 5)
+        XCTAssertEqual(menu.items.count, 4)
         XCTAssertEqual(menu.items[0].title, NSLocalizedString("menu.new_portal", comment: ""))
         XCTAssertTrue(menu.items[0].isEnabled)
         XCTAssertNotNil(menu.items[0].image)
@@ -25,26 +22,18 @@ final class StatusMenuControllerTests: XCTestCase {
         menu.performActionForItem(at: 0)
         XCTAssertEqual(requestCount, 1)
         XCTAssertTrue(menu.items[1].isSeparatorItem)
-        XCTAssertEqual(
-            menu.items[2].title,
-            NSLocalizedString("menu.check_for_updates", comment: "")
-        )
+        XCTAssertEqual(menu.items[2].title, NSLocalizedString("menu.settings", comment: ""))
         XCTAssertTrue(menu.items[2].isEnabled)
         XCTAssertNotNil(menu.items[2].image)
         XCTAssertTrue(menu.items[2].image?.isTemplate == true)
+        XCTAssertEqual(menu.items[2].keyEquivalent, "")
         menu.performActionForItem(at: 2)
-        XCTAssertEqual(updateRequestCount, 1)
-        XCTAssertEqual(menu.items[3].title, NSLocalizedString("menu.settings", comment: ""))
-        XCTAssertTrue(menu.items[3].isEnabled)
+        XCTAssertEqual(settingsRequestCount, 1)
+        XCTAssertEqual(menu.items[3].title, NSLocalizedString("menu.quit", comment: ""))
         XCTAssertNotNil(menu.items[3].image)
         XCTAssertTrue(menu.items[3].image?.isTemplate == true)
-        menu.performActionForItem(at: 3)
-        XCTAssertEqual(settingsRequestCount, 1)
-        XCTAssertEqual(menu.items[4].title, NSLocalizedString("menu.quit", comment: ""))
-        XCTAssertNotNil(menu.items[4].image)
-        XCTAssertTrue(menu.items[4].image?.isTemplate == true)
-        XCTAssertEqual(menu.items[4].action, #selector(NSApplication.terminate(_:)))
-        XCTAssertTrue(menu.items[4].target === NSApplication.shared)
+        XCTAssertEqual(menu.items[3].action, #selector(NSApplication.terminate(_:)))
+        XCTAssertTrue(menu.items[3].target === NSApplication.shared)
     }
 
     @MainActor
@@ -62,22 +51,6 @@ final class StatusMenuControllerTests: XCTestCase {
         XCTAssertNil(controller.statusItem)
         controller.stop()
         XCTAssertNil(controller.statusItem)
-    }
-
-    @MainActor
-    func testUpdateMenuValidationTracksUpdaterReadiness() throws {
-        var canCheckForUpdates = false
-        let controller = StatusMenuController(
-            onNewPortal: {},
-            canCheckForUpdates: { canCheckForUpdates }
-        )
-        let item = try XCTUnwrap(controller.makeMenu().items.first {
-            $0.title == NSLocalizedString("menu.check_for_updates", comment: "")
-        })
-
-        XCTAssertFalse(controller.validateMenuItem(item))
-        canCheckForUpdates = true
-        XCTAssertTrue(controller.validateMenuItem(item))
     }
 
     @MainActor
@@ -110,7 +83,6 @@ final class StatusMenuControllerTests: XCTestCase {
             "First",
             "Second",
             "",
-            NSLocalizedString("menu.check_for_updates", comment: ""),
             NSLocalizedString("menu.settings", comment: ""),
             NSLocalizedString("menu.quit", comment: ""),
         ])
@@ -160,7 +132,6 @@ final class StatusMenuControllerTests: XCTestCase {
             "",
             "Documents",
             "",
-            NSLocalizedString("menu.check_for_updates", comment: ""),
             NSLocalizedString("menu.settings", comment: ""),
             NSLocalizedString("menu.quit", comment: ""),
         ])

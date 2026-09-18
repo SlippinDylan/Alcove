@@ -49,7 +49,6 @@
 "menu.show" = "顯示";
 "menu.hide" = "隱藏";
 "menu.settings" = "設定";
-"menu.check_for_updates" = "檢查更新…";
 "menu.quit" = "結束 Alcove";
 
 /* Application settings */

@@ -49,7 +49,6 @@
 "menu.show" = "Show";
 "menu.hide" = "Hide";
 "menu.settings" = "Settings";
-"menu.check_for_updates" = "Check for Updates…";
 "menu.quit" = "Quit Alcove";
 
 /* Application settings */

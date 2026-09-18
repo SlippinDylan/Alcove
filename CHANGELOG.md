@@ -4,6 +4,11 @@ All notable changes to Alcove releases are recorded here.
 
 ## [Unreleased]
 
+### Changed
+
+- Removed Check for Updates from the menu bar; update checks remain available in About settings.
+- Removed the Command-comma shortcut from the menu-bar Settings item.
+
 ## [0.2.0-beta.1] - 2026-09-17
 
 ### Added

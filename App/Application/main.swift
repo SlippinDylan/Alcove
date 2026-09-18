@@ -71,8 +71,6 @@ applicationPreferencesController.onPortalAppearanceChanged = { appearance in
 let statusMenuController = StatusMenuController(
     onNewPortal: { creationCoordinator.beginPortalCreation() },
     onOpenSettings: { applicationSettingsController.present() },
-    canCheckForUpdates: { applicationUpdater.canCheckForUpdates },
-    onCheckForUpdates: { applicationUpdater.checkForUpdates() },
     onShowPortal: { portalCoordinator.showPortal($0) },
     onHidePortal: { portalCoordinator.hidePortal($0) },
     onSetPortalPinned: { portalID, isPinned in
