@@ -57,6 +57,7 @@ Alcove 是面向 macOS 26 及以上版本、仅支持 Apple Silicon 的原生菜
 bash -n Scripts/create-dmg.sh
 Scripts/create-dmg.sh --help >/dev/null
 node .github/scripts/release-manifest.mjs validate
+node .github/scripts/sync-version.mjs --check
 node --test .github/scripts/*.test.mjs
 swift test --package-path Packages/AlcoveCore
 xcodebuild test \
@@ -93,7 +94,7 @@ xcodebuild build \
 
 ## 发布与清理边界
 
-- `Config/Release/manifest.json` 是发布请求入口。未经明确要求，不修改版本、启用发布、提交、推送、创建 Release 或更新 appcast/Homebrew Cask。
+- `Config/Release/manifest.json` 是版本号和发布开关的唯一人工编辑入口；修改后运行版本同步脚本。未经明确要求，不修改版本、启用发布、提交、推送、创建 Release 或更新 appcast/Homebrew Cask。
 - 不在日志、测试夹具、文档或提交中写入证书、Token、Sparkle 私钥或其他真实凭据。
 - 只有用户明确要求清理时，才删除可安全再生的构建产物；删除前确认目标路径和归属。
 - 不删除源码、Git 数据、工程配置、签名材料、用户布局、日志或用途不明的文件；仓库外临时目录和 DerivedData 需要单独授权。

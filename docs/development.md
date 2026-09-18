@@ -22,6 +22,7 @@
 bash -n Scripts/create-dmg.sh
 Scripts/create-dmg.sh --help >/dev/null
 node .github/scripts/release-manifest.mjs validate
+node .github/scripts/sync-version.mjs --check
 node --test .github/scripts/*.test.mjs
 ```
 
@@ -89,7 +90,7 @@ UI 修改不主动启动应用或截图。用户明确要求视觉验证或提�
 每次目标为 `main` 的 pull request、`main` push 和手动触发都会先运行 Ubuntu 轻量检查：
 
 - 校验 `Scripts/create-dmg.sh` 语法和帮助入口。
-- 校验 `Config/Release/manifest.json`。
+- 校验 `Config/Release/manifest.json` 以及生成的 Xcode 版本配置是否同步。
 - 运行全部 Node tests。
 
 当变更不只涉及 `README.md`、`LICENSE`、根 `AGENTS.md` 或 `docs/`，或发布清单启用发布时，CI 还会运行 macOS job：
@@ -106,7 +107,7 @@ CI 当前只自动覆盖 macOS 26。macOS 27、真实多显示器、WindowServer
 
 ### 5.1 发布请求
 
-`Config/Release/manifest.json` 是发布请求入口，必须只包含 `version` 和 `release`：
+`Config/Release/manifest.json` 是版本号和发布开关的唯一人工编辑入口，必须只包含 `version` 和 `release`：
 
 ```json
 {
@@ -114,6 +115,14 @@ CI 当前只自动覆盖 macOS 26。macOS 27、真实多显示器、WindowServer
   "release": false
 }
 ```
+
+修改 manifest 后运行：
+
+```bash
+node .github/scripts/sync-version.mjs
+```
+
+该命令更新受版本控制的 `Config/Generated/Version.xcconfig`，供普通 Xcode Debug、Release 和 Archive 构建读取。生成文件不得手工修改；CI 使用 `--check` 验证它与 manifest 一致。预发布版本的 Xcode `MARKETING_VERSION` 使用基础 `x.y.z`，完整版本继续用于 tag、DMG、Changelog 和 appcast channel。
 
 发布前必须满足：
 
@@ -123,7 +132,7 @@ CI 当前只自动覆盖 macOS 26。macOS 27、真实多显示器、WindowServer
 4. 计划发布的提交已进入 `main`，并通过该提交触发的 CI。
 5. 用户明确要求发布后，才将 `release` 改为 `true`；不要把本地构建成功当作发布授权。
 
-发布工作流读取 manifest 的完整版本，使用其基础语义版本作为 `MARKETING_VERSION`，以 GitHub run number 作为 build number，并按 stable、alpha 或 beta 选择 Sparkle channel。
+应用运行时只从 Bundle 读取版本信息。发布工作流读取 manifest 的完整版本，使用其基础语义版本作为 `MARKETING_VERSION`，以 GitHub run number 作为 build number，并按 stable、alpha 或 beta 选择 Sparkle channel。
 
 ### 5.2 签名和制品
 

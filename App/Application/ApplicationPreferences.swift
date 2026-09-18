@@ -317,7 +317,12 @@ struct ApplicationMetadata: Equatable {
     }
 
     init(bundle: Bundle = .main) {
-        self.init(infoDictionary: bundle.infoDictionary ?? [:])
+        guard let infoDictionary = bundle.infoDictionary,
+              infoDictionary["CFBundleShortVersionString"] is String,
+              infoDictionary["CFBundleVersion"] is String else {
+            preconditionFailure("The app bundle must contain version metadata")
+        }
+        self.init(infoDictionary: infoDictionary)
     }
 
     var versionAndBuild: String {

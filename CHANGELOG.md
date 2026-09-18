@@ -4,10 +4,13 @@ All notable changes to Alcove releases are recorded here.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-18
+
 ### Changed
 
 - Removed Check for Updates from the menu bar; update checks remain available in About settings.
 - Removed the Command-comma shortcut from the menu-bar Settings item.
+- Established the release manifest as the single version source and added CI drift checks for generated Xcode settings.
 
 ## [0.2.0-beta.1] - 2026-09-17
 
