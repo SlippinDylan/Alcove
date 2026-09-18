@@ -57,7 +57,7 @@ Alcove is **not** a Finder replacement or a full desktop shell. It is a focused 
 | UC-6 | Add, switch, close, and move folder tabs within a portal; preserve the resulting order and selected tab across restarts |
 | UC-7 | Move and resize a portal; have it remember position across sessions |
 | UC-8 | Disconnect, reconnect, or change the menu-bar primary display and see the complete layout follow it without losing remembered per-display positions |
-| UC-9 | Switch Spaces and continue seeing portals on every Space; exact system-transition behavior is resolved by the desktop-layer spike |
+| UC-9 | Switch Spaces and continue seeing portals on every Space; real WindowServer transitions remain an explicit manual verification boundary |
 
 ---
 
@@ -95,7 +95,7 @@ Return starts inline rename when exactly one item is selected. Tab/Shift-Tab ite
 |--------|----------|
 | Space (with selection) | Present `QLPreviewPanel` for the selected item(s) |
 | Space (no selection) | No-op |
-| Space (during Quick Look) | Intended to dismiss Quick Look; exact behavior is resolved by the Quick Look spike |
+| Space (during Quick Look) | Dismiss Quick Look while Alcove still owns the visible shared panel |
 
 Quick Look follows the responder chain. The portal window owns the Quick Look responder integration.
 
@@ -168,8 +168,8 @@ the file grid. Empty Portals keep the row's layout space but hide the path conte
 
 | Property | Value |
 |----------|-------|
-| Window level | Desktop-layer behavior required; the exact public-API strategy is selected by Spike 0.1. `desktopIconWindow + 1` is the first candidate, not a final configuration. |
-| Collection behavior | Selected by Spike 0.1 after comparing relevant combinations, including `.stationary`, `.moveToActiveSpace`, `.fullScreenAuxiliary`, and whether to use `.canJoinAllSpaces`. |
+| Window level | `desktopIconWindow + 1`, keeping Portals above Finder desktop icons and below ordinary application windows |
+| Collection behavior | The production window uses the current `.canJoinAllSpaces`, `.stationary`, and `.ignoresCycle` strategy; real Spaces, Stage Manager and full-screen transitions remain manual verification boundaries |
 | Title bar | None — no traffic-light window controls |
 | Movable | Yes — user-initiated drag from empty space in the top control row, unless the Portal is pinned |
 | Resizable | Yes — user-initiated resize from edges/corners, unless the Portal is pinned |
@@ -205,7 +205,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-12 | All Portals share one global content-size preset and one global five-step static-background transparency level; each Portal retains its own subtle tint. Changing size is preflighted for every Portal before any frame changes. Lightweight separators distinguish the top controls and bottom path row. Clicking the top controls or draggable background activates the Portal just like clicking its grid or path row. | MVP |
 | FR-13 | Require macOS 26 or later. Portal backgrounds use a plain alpha-composited static surface without `NSGlassEffectView`, `NSVisualEffectView`, or WindowServer backdrop sampling. Reduce Transparency overrides it with an opaque accessibility surface | MVP |
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
-| FR-15 | Observe content changes for the active tab's mapped directory. The concrete observation mechanism is selected by Spike 0.5. | MVP |
+| FR-15 | Observe active-tab directory changes with FSEvents and rebuild from a fresh snapshot, including fail-closed recovery for root-change and dropped/wrapped events | MVP |
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
 | FR-17 | Use native multi-item file-URL drag sessions for Portal-to-Finder/Desktop export; accept external file URLs on the current-directory background or an ordinary folder tile and accept in-panel file URLs on ordinary folder tiles. Same-volume transfers default to Move, cross-volume transfers default to Copy, Option forces Copy, Command forces Move, and Command-Option is rejected because alias creation is out of scope | MVP |
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
@@ -266,7 +266,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | A-03 | Respects System Settings → Accessibility → Reduce Transparency |
 | A-04 | Respects System Settings → Accessibility → Increase Contrast |
 | A-05 | Standard macOS AppKit control sizes for interactive elements; sufficient focus indicators and contrast |
-| A-06 | Per-portal Small/Medium/Large sizing through a keyboard-accessible three-step slider |
+| A-06 | Global Small/Medium/Large content sizing through a keyboard-accessible three-step slider |
 | A-07 | Respects System Settings → Accessibility → Reduce Motion |
 | A-08 | VoiceOver labels and actions for all interactive elements |
 | A-09 | Pin, path, copy, menu, and settings controls expose localized accessibility labels and help |
@@ -281,21 +281,21 @@ column capacity remains authoritative while the physical frame width follows tho
 | PR-02 | No Accessibility permission required for core functionality |
 | PR-03 | No Full Disk Access required for core functionality |
 | PR-04 | TCC-protected folders (Desktop, Documents, Downloads) may trigger system permission prompts — surface explicit errors, do not silently fail |
-| PR-05 | No App Groups, Keychain, security-scoped bookmarks, or application-level provisioning-profile dependency in MVP; the non-sandboxed app persists a standardized file URL/path. Spike 0.6 separately inspects whether a signing workflow embeds a profile in the release candidate. |
-| PR-06 | No telemetry, analytics, or network calls in MVP |
+| PR-05 | No App Groups, Keychain, security-scoped bookmarks, or application-level provisioning-profile dependency in core Portal behavior; the non-sandboxed app persists a standardized file URL/path. Release artifacts may contain signing metadata that must be verified independently. |
+| PR-06 | No telemetry or analytics. Sparkle performs network requests to the configured signed appcast for update checks and downloads. |
 | PR-07 | All state stored locally under `~/Library/Application Support/Alcove/` |
 
 ---
 
 ## 10. Distribution
 
-The table below is the implemented release candidate, not a confirmed final-user distribution path. Apple Development is the selected signing mode; Spike 0.6 must still resolve its actual Gatekeeper, expiry, and installation behavior before the first public GitHub Release. Until then, no document may claim free Apple Development signing is a validated end-user distribution solution.
+The table below describes the implemented self-hosted distribution path. Public beta releases exist, but Apple Development signing is not an Apple-supported customer distribution identity. Gatekeeper, quarantine, certificate/profile expiry and installation behavior remain manual release risks; no document may describe them as universally validated.
 
 | Aspect | Detail |
 |--------|--------|
 | PR builds | Unsigned; CI test gate only |
-| Main branch releases | Selected Apple Development implementation: imported P12 in CI, arm64 only, not notarized; manual installation evidence remains gated by Spike 0.6 |
-| First launch / quarantine | Spike 0.6 determines and documents the verified steps; right-click → Open and `sudo xattr -rd com.apple.quarantine /Applications/Alcove.app` are candidates to test, not assumed universal requirements |
+| Main branch releases | Apple Development P12 imported into an isolated CI keychain, arm64 only, not notarized; every release still requires artifact and installation verification |
+| First launch / quarantine | README documents the supported project procedure; right-click → Open is the preferred first attempt and `sudo xattr -rd com.apple.quarantine /Applications/Alcove.app` is an operational workaround, not a universal Apple-endorsed requirement |
 | DMG packaging | Standard DMG with app bundle and Applications symlink |
 | GitHub Releases | A manifest version plus explicit release switch gates an automatically tagged release with one `Alcove.<version>.dmg` |
 | Release notes | `CHANGELOG.md` must contain one non-empty section whose full stable/alpha/beta version exactly matches the manifest |
@@ -308,7 +308,7 @@ The table below is the implemented release candidate, not a confirmed final-user
 
 ## 11. Acceptance Criteria (MVP and Release)
 
-AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-public-release acceptance criterion and does not block MVP feature implementation.
+Product acceptance and release verification are separate. Automated acceptance does not close the system-level risks listed in `ARCHITECTURE.md` and `development.md`.
 
 | ID | Criterion | Source |
 |----|-----------|--------|
@@ -321,7 +321,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-07 | Portal frames persist across app restart and restore on the menu-bar primary display | FR-07, FR-10 |
 | AC-08 | All Portal frames follow the menu-bar primary display after disconnect/reconnect or a primary-display switch; fitting frames retain left/top point offsets and overflow uses new right-hand columns | FR-08, FR-10 |
 | AC-09 | Portal frames restore correctly after resolution/scaling change | FR-08 |
-| AC-10 | Portal coexists with Spaces and Stage Manager without permanent eviction | G-1; Spike 0.1 product gate |
+| AC-10 | Portal coexists with Spaces and Stage Manager without permanent eviction | G-1; manual system verification |
 | AC-11 | The app binary declares macOS 26.0 as its minimum system; every Portal uses the stable static translucent background without changing per-Portal tint, and Reduce Transparency uses the opaque accessibility surface | FR-12, FR-13 |
 | AC-12 | The static Portal surface remains visually stable while switching Spaces, preserves active control contrast when the Portal loses focus, and restores global transparency plus each Portal's independent tint after restart | FR-12 |
 | AC-13 | Folder contents update automatically when files are added/removed | FR-15, FR-16 |
@@ -329,7 +329,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 | AC-15 | App is a menu-bar utility with no Dock icon | FR-11 |
 | AC-16 | The CI and release artifact build for Apple Silicon (`arm64`) and reject an unexpected architecture | Distribution target |
 | AC-17 | Folder creation and re-mapping accept only resolved directories on internal fixed local storage and reject removable, ejectable, external, and network-volume locations without persisting partial state | FR-19 |
-| AC-18 | Spike 0.6 validates the selected signed DMG installation and launch procedure on the supported test matrix, and the verified steps are documented | Spike 0.6 release gate |
+| AC-18 | Each signed DMG release has its artifact, installation and launch procedure verified on the available supported test matrix, with untested combinations recorded as risks | Release verification |
 | AC-19 | A pinned Portal cannot be dragged or resized by the user, restores that state after relaunch, and can still be relocated by display recovery | FR-20 |
 | AC-20 | The selected folder's abbreviated path updates with tab changes and can be copied without reducing the persisted visible grid capacity | FR-21 |
 | AC-21 | The menu hierarchy and all user-facing strings render in English, Simplified Chinese, or Traditional Chinese from the saved app-language choice after Alcove automatically restarts; Follow System uses the current macOS language and falls back to English for unsupported languages | FR-22 |
@@ -349,7 +349,7 @@ AC-01 through AC-17 define MVP product acceptance. AC-18 is the separate first-p
 - Static translucent Portal backgrounds on macOS 26 and macOS 27, with an opaque Reduce Transparency path
 - Menu-bar management UI
 - Trash selected items and copy/move file-URL drops with fail-closed conflict handling
-- GitHub distribution readiness; signing mode and installation procedure remain gated by Spike 0.6
+- GitHub distribution with Apple Development signing; installation, Gatekeeper and certificate-expiry behavior remain manual release risks
 
 ### Deferred (Post-MVP)
 - Tab drag-to-reorder

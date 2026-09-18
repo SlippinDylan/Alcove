@@ -87,13 +87,13 @@
 | Free Apple Development identity may impose 7-day provisioning profile expiry | **Confirmed by Apple** | [Apple Developer — Compare Memberships](https://developer.apple.com/support/compare-memberships/) |
 | Developer ID distribution and notarization require Apple Developer Program membership | **Confirmed by Apple** | [Apple Developer — Developer ID](https://developer.apple.com/support/developer-id/) |
 | Right-click → Open is Apple's official guidance for unidentified developers; `sudo xattr -rd com.apple.quarantine /Applications/Alcove.app` is a project operational workaround | **Confirmed by Apple** (right-click/Open); xattr is project operational guidance | [Apple Support — Open apps from unidentified developer](https://support.apple.com/en-us/102445) |
-| Ad-hoc signing (`codesign -s -`) may be useful for a separately invoked local/testing artifact | **Inference; prototype-required for distribution UX** | Standard macOS code signing hierarchy; Spike 0.6 must measure actual Gatekeeper, quarantine, and launch behavior before it is called a usable distribution path |
+| Ad-hoc signing (`codesign -s -`) may be useful for a separately invoked local/testing artifact | **Inference; not selected for publication** | Standard macOS code signing hierarchy; the release workflow fails closed instead of substituting an ad-hoc artifact |
 
 ### 1.7 Permissions (TCC)
 
 | Claim | Classification | Evidence |
 |-------|---------------|----------|
-| Alcove's non-sandboxed MVP should not require Full Disk Access for ordinary readable folders selected through `NSOpenPanel` | **Architecture inference; prototype-required for protected locations** | Normal POSIX access remains subject to filesystem permissions and TCC; Spike 0.5 records actual behavior |
+| Alcove's non-sandboxed app should not require Full Disk Access for ordinary readable folders selected through `NSOpenPanel` | **Architecture inference; protected locations require system verification** | Normal POSIX access remains subject to filesystem permissions and TCC; current architecture surfaces access failure instead of silently treating it as success |
 | Desktop, Documents, and Downloads are protected locations; macOS may prompt the user or require a Privacy & Security setting change | **Confirmed by Apple** | [Apple Platform Security — Controlling app access to files in macOS](https://support.apple.com/guide/security/controlling-app-access-to-files-secddd1d86a6/web) |
 | Accessibility permission is not required for managing an app's own windows | **Inference** | Accessibility API is for controlling other applications' UI; own-window management uses standard AppKit APIs |
 
@@ -180,30 +180,30 @@ These are conclusions drawn from confirmed facts and observations, not directly 
 
 | ID | Inference | Basis |
 |----|-----------|-------|
-| INF-01 | `desktopIconWindow + 1` may place Alcove portals above Finder desktop icons but below normal windows on macOS 26 and macOS 27 | Apple documents the level hierarchy; TileTop observes this configuration on its tested environment, while Spike 0.1 must compare it with other public-API strategies |
+| INF-01 | `desktopIconWindow + 1` is Alcove's implemented strategy for placing portals above Finder desktop icons and below normal windows | Apple documents the level hierarchy and TileTop observes this configuration on its tested environment; Alcove still requires its own manual system matrix and should compare alternatives only if that gate fails |
 | INF-02 | Per-display records can restore a display's remembered layout when it becomes the menu-bar primary again; transitions to a different primary can preserve left/top point offsets and repair only overflow without overwriting prior records | `CGDisplayCreateUUIDFromDisplayID` provides display identity (stability through disconnect/reconnect is inference); `NSScreen.screens[0]` identifies the current menu-bar primary; top-left projection and overflow recovery are Alcove-owned geometry |
 | INF-03 | FSEvents is suitable for observing the active tab's eligible internal-local directory | Both candidates passed local lifecycle/load evidence; Phase 0.5C7 selected FSEvents for explicit root-change and dropped/wrapped-event recovery signals |
 | INF-04 | Alcove keeps Portal navigation plain and the file grid on an always-active translucent material, reserving system Glass for suitable settings actions | The desktop-level control-group Glass failed production rendering checks; Apple recommends applying Glass to suitable controls without turning the content canvas into Glass |
 | INF-05 | Non-sandboxed app with `NSOpenPanel`-selected folders needs no sandbox entitlement or security-scoped bookmark for the MVP path | Access remains subject to normal POSIX permissions and TCC; the spike verifies protected locations |
-| INF-06 | Personal Team is suitable for local/development signing, while PR CI disables signing; the proposed end-user release path is an unsupported, non-notarized compromise | Apple's membership comparison defines development/testing scope, not customer distribution; Spike 0.6 must inspect the actual artifact and launch behavior |
+| INF-06 | Personal Team is suitable for local/development signing, while PR CI disables signing; the end-user release path is an unsupported, non-notarized compromise | Apple's membership comparison defines development/testing scope, not customer distribution; every relevant release still requires artifact and launch verification |
 | INF-07 | A user-invoked Apple event can read Finder desktop icon/text sizes; exact grid spacing and selection rendering remain app-owned | Finder's scripting dictionary exposes `icon size` and `text size` on desktop icon-view options but no grid-spacing property or reusable desktop cell |
 
 ---
 
-## 4. Prototype Required (Spikes)
+## 4. Implemented Choices and Remaining Manual Validation
 
-These items need empirical testing before implementation commitment:
+These items began as prototype questions. The current code has selected implementation strategies, but a selected strategy is not evidence that every system-level scenario passed. The table distinguishes those choices from the manual checks that remain open; it is not a current delivery plan.
 
 | ID | Spike | Risk | Acceptance Criteria |
 |----|-------|------|---------------------|
-| SP-01 | Compare public-API desktop-window strategies, beginning with `desktopIconWindow + 1`, `.canJoinAllSpaces`, `.stationary`, and `.ignoresCycle` | A single reference configuration may fail under Show Desktop, Spaces, Stage Manager, lock, or sleep/wake | A switchable harness compares `.stationary`, `.moveToActiveSpace`, `.fullScreenAuxiliary`, use or omission of `.canJoinAllSpaces`, `NSWindow` versus `NSPanel`, and key-window eligibility; results identify a strategy or force a product-feasibility decision |
+| SP-01 | Verify the implemented `desktopIconWindow + 1`, `.canJoinAllSpaces`, `.stationary`, and `.ignoresCycle` strategy | The selected configuration may fail under Show Desktop, Spaces, Stage Manager, lock, or sleep/wake | Record the current strategy on the available system matrix; if it fails, compare the relevant public-API alternatives and make an explicit architecture or product-scope decision |
 | SP-02 | Spaces, Show Desktop, and Stage Manager behavior for the candidate strategies from SP-01 | Portal may animate, flash, hide, change position, or be permanently evicted | Each tested strategy has recorded behavior across system transitions on the available macOS 26 and 27 matrix; no untested configuration is called successful |
 | SP-03 | Quick Look responder-chain behavior from the candidate desktop-level window, including key-window transitions | Quick Look may not activate or relinquish ownership correctly | Space presents and dismisses previews for single and multiple selection, with exact responder ownership documented |
 | SP-04 | Display identity, primary-display switching, disconnect/reconnect, rearrangement, scaling, and sleep/wake | Display UUID may change or the complete layout may fail to follow the current primary | UUID observations are recorded; system projection preserves remembered per-display placement; returning a display to primary restores it when identity is recognized |
 | SP-05 | Placement restoration using absolute frame plus an anchor normalized within the actual movable range | Full-screen normalization or wrong operation ordering may shift or clip portals | Same geometry prefers the absolute frame; changed geometry first constrains preferred size, computes movable range, restores the clamped normalized anchor, then grid-snaps and clamps |
 | SP-06 | Dynamic and static Portal surfaces plus the opaque Reduce Transparency path | Dynamic backdrop paths may have rendering, contrast, accessibility, layout, or selected-window-level issues | Real Space-transition evidence rejects `NSGlassEffectView` and behind-window `NSVisualEffectView` for the complete Portal; verify the selected static translucent and opaque accessibility surfaces on macOS 26+ |
 | SP-07 | Compare `DispatchSourceFileSystemObject` and FSEvents for eligible internal-local directory observation | Either mechanism may miss lifecycle events or impose unsuitable resource/coalescing behavior | Phase 0.5C7 selects FSEvents without a fallback and defines full-rebuild handling for root-change and dropped/wrapped-event flags; controlled TCC and integration evidence remain |
-| SP-08 | Selected Apple Development-signed arm64 DMG launch behavior under Gatekeeper | Development signing may not be a durable end-user distribution path, including possible profile expiry | Spike 0.6 inspects the actual artifact and records quarantine, right-click Open, `xattr`, Gatekeeper, provisioning-profile, expiry, and launch behavior on the available macOS 26 and 27 matrix before the first public release |
+| SP-08 | Selected Apple Development-signed arm64 DMG launch behavior under Gatekeeper | Development signing may not be a durable end-user distribution path, including possible profile expiry | For each relevant release, inspect the actual artifact and record quarantine, right-click Open, `xattr`, Gatekeeper, provisioning-profile, expiry, and launch behavior on the available macOS 26 and 27 matrix |
 
 ---
 

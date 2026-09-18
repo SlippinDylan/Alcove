@@ -99,6 +99,7 @@ xcodebuild -project Alcove.xcodeproj -scheme Alcove -configuration Debug build
 |---|---|
 | [产品需求](PRODUCT_REQUIREMENTS.md) | 产品范围和交互约定 |
 | [架构](ARCHITECTURE.md) | 组件、持久化和布局模型 |
+| [开发指南](development.md) | 构建、测试、CI、发布和清理流程 |
 | [研究记录](RESEARCH.md) | 平台研究和引用来源 |
 | [更新日志](../CHANGELOG.md) | 发布历史 |
 

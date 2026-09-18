@@ -99,6 +99,7 @@ xcodebuild -project Alcove.xcodeproj -scheme Alcove -configuration Debug build
 |---|---|
 | [Требования к продукту](PRODUCT_REQUIREMENTS.md) | Границы продукта и правила взаимодействия |
 | [Архитектура](ARCHITECTURE.md) | Компоненты, хранение данных и модель размещения |
+| [Разработка](development.md) | Сборка, тестирование, CI, выпуск и очистка |
 | [Исследование](RESEARCH.md) | Исследование платформы и источники |
 | [Журнал изменений](../CHANGELOG.md) | История выпусков |
 

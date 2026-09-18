@@ -99,6 +99,7 @@ xcodebuild -project Alcove.xcodeproj -scheme Alcove -configuration Debug build
 |---|---|
 | [Product requirements](docs/PRODUCT_REQUIREMENTS.md) | Product scope and interaction contract |
 | [Architecture](docs/ARCHITECTURE.md) | Components, persistence, and layout model |
+| [Development](docs/development.md) | Build, test, CI, release, and cleanup workflow |
 | [Research](docs/RESEARCH.md) | Platform research and cited sources |
 | [Changelog](CHANGELOG.md) | Release history |
 

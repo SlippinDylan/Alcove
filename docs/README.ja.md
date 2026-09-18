@@ -99,6 +99,7 @@ xcodebuild -project Alcove.xcodeproj -scheme Alcove -configuration Debug build
 |---|---|
 | [要件](PRODUCT_REQUIREMENTS.md) | 製品範囲と操作の取り決め |
 | [アーキテクチャ](ARCHITECTURE.md) | コンポーネント、永続化、レイアウトモデル |
+| [開発ガイド](development.md) | ビルド、テスト、CI、リリース、クリーンアップ手順 |
 | [調査](RESEARCH.md) | プラットフォーム調査と参照元 |
 | [変更履歴](../CHANGELOG.md) | リリース履歴 |
 
