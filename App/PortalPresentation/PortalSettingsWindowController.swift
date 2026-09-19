@@ -38,6 +38,8 @@ final class PortalSettingsWindowController: NSWindowController {
         window.titleVisibility = .visible
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
+        window.level = .floating
+        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
         super.init(window: window)
@@ -63,19 +65,21 @@ final class PortalSettingsWindowController: NSWindowController {
 
     func present(on screen: NSScreen?) {
         guard let window else { return }
-        let visibleFrame = screen?.visibleFrame ?? NSScreen.screens.first?.visibleFrame
-        if let visibleFrame {
-            window.setFrameOrigin(
-                NSPoint(
-                    x: visibleFrame.midX - window.frame.width / 2,
-                    y: visibleFrame.midY - window.frame.height / 2
+        if !window.isVisible {
+            let visibleFrame = screen?.visibleFrame ?? NSScreen.screens.first?.visibleFrame
+            if let visibleFrame {
+                window.setFrameOrigin(
+                    NSPoint(
+                        x: visibleFrame.midX - window.frame.width / 2,
+                        y: visibleFrame.midY - window.frame.height / 2
+                    )
                 )
-            )
-        } else {
-            window.center()
+            } else {
+                window.center()
+            }
         }
+        NSApplication.shared.activate()
         showWindow(nil)
-        NSApplication.shared.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }
 

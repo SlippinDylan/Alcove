@@ -5,6 +5,30 @@ import XCTest
 
 extension TabBarViewTests {
     @MainActor
+    func testRepeatedPanelSettingsPresentationReusesFloatingWindowWithoutRepositioningIt() throws {
+        let tabBar = TabBarView(frame: .zero)
+        let tab = makeTab(name: "Folder")
+        tabBar.configure(with: try makePortal(tabs: [tab], selected: tab.id))
+        defer { tabBar.closeSettingsWindow() }
+
+        tabBar.showSettingsWindow()
+        let controller = try XCTUnwrap(tabBar.settingsWindowController)
+        let window = try XCTUnwrap(controller.window)
+        XCTAssertEqual(window.level, .floating)
+        XCTAssertTrue(window.collectionBehavior.contains(.moveToActiveSpace))
+        XCTAssertTrue(window.collectionBehavior.contains(.fullScreenAuxiliary))
+        XCTAssertTrue(window.isVisible)
+
+        window.setFrameOrigin(NSPoint(x: 160, y: 180))
+        let visibleFrame = window.frame
+        tabBar.showSettingsWindow()
+
+        XCTAssertTrue(tabBar.settingsWindowController === controller)
+        XCTAssertTrue(controller.window === window)
+        XCTAssertEqual(window.frame, visibleFrame)
+    }
+
+    @MainActor
     func testFolderSettingsExposeIndependentNavigationAndForwardFolderActions() throws {
         let tabBar = TabBarView(frame: .zero)
         let first = makeTab(name: "First")

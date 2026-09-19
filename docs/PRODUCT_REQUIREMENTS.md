@@ -152,6 +152,10 @@ and add buttons are intentionally omitted;
 editing actions open from the fixed trailing settings icon in a separate centered
 settings window. A standard close-only titlebar remains above a native preference-style toolbar;
 an explicit system separator divides the Folders and Style navigation from the lower content.
+Application and per-Portal settings use reusable floating windows above ordinary application
+windows. Reopening an already visible settings window preserves its position and brings the same
+window to the active Space—including alongside a full-screen window—instead of creating or
+recentering another one.
 The Folders section shows a Glass Add Folder button in its heading and
 one abbreviated folder path per native table row, with a trailing drag indicator and borderless
 remove action. Dropping a row performs one atomic reorder with native gap feedback. Remove Panel

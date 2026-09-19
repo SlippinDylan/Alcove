@@ -56,6 +56,30 @@ private final class ApplicationRelauncherSpy: ApplicationRelaunching {
 
 final class ApplicationSettingsWindowControllerTests: XCTestCase {
     @MainActor
+    func testRepeatedPresentationReusesFloatingWindowWithoutRepositioningIt() throws {
+        let controller = ApplicationSettingsWindowController(
+            launchAtLoginController: LaunchAtLoginControllerSpy(),
+            metadata: ApplicationMetadata(infoDictionary: [:]),
+            applicationIcon: NSImage(size: NSSize(width: 128, height: 128))
+        )
+        let window = try XCTUnwrap(controller.window)
+        defer { controller.close() }
+
+        XCTAssertEqual(window.level, .floating)
+        XCTAssertTrue(window.collectionBehavior.contains(.moveToActiveSpace))
+        XCTAssertTrue(window.collectionBehavior.contains(.fullScreenAuxiliary))
+        controller.present()
+        XCTAssertTrue(window.isVisible)
+
+        window.setFrameOrigin(NSPoint(x: 120, y: 140))
+        let visibleFrame = window.frame
+        controller.present()
+
+        XCTAssertTrue(controller.window === window)
+        XCTAssertEqual(window.frame, visibleFrame)
+    }
+
+    @MainActor
     func testApplicationLanguagePreferencePersistsOverridesAndRestoresSystemDefault() throws {
         let suiteName = "ApplicationLanguageControllerTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

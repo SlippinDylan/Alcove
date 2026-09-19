@@ -4,6 +4,12 @@ All notable changes to Alcove releases are recorded here.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-19
+
+### Fixed
+
+- Kept application and panel settings above ordinary windows and reused their visible window without recentering it.
+
 ## [0.3.0] - 2026-09-18
 
 ### Changed

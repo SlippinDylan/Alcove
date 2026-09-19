@@ -44,6 +44,8 @@ final class ApplicationSettingsWindowController: NSWindowController {
         window.titleVisibility = .visible
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
+        window.level = .floating
+        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
         super.init(window: window)
@@ -63,9 +65,11 @@ final class ApplicationSettingsWindowController: NSWindowController {
 
     func present() {
         guard let window else { return }
-        window.center()
+        if !window.isVisible {
+            window.center()
+        }
+        NSApplication.shared.activate()
         showWindow(nil)
-        NSApplication.shared.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }
 
