@@ -193,6 +193,27 @@ test('builds a packaging-started dispatch notification', () => {
   assert.equal(notification.button.url, 'https://github.com/owner/Alcove/actions/runs/12');
 });
 
+test('builds a release-published dispatch notification', () => {
+  const notification = buildNotification('repository_dispatch', {
+    repository,
+    sender,
+    action: 'release_published',
+    client_payload: {
+      version: '0.2.0-beta.1',
+      prerelease: true,
+      dmg_name: 'Alcove.0.2.0-beta.1.dmg',
+      changelog: '- Added automation.',
+      release_url: 'https://github.com/owner/Alcove/releases/tag/v0.2.0-beta.1',
+      download_url: 'https://github.com/owner/Alcove/releases/download/v0.2.0-beta.1/Alcove.0.2.0-beta.1.dmg',
+    },
+  });
+  const payload = buildDiscordPayload(notification);
+  assert.equal(notification.title, 'Alcove 0.2.0-beta.1 发布成功');
+  assert.equal(notification.color, 'green');
+  assert.ok(notification.details.includes('签名：Apple Development（未公证）'));
+  assert.match(payload.embeds[0].description, /\[下载 DMG\]/);
+});
+
 test('escapes markdown, prevents mentions, and rejects untrusted action URLs', () => {
   const notification = buildNotification('issue_comment', {
     repository,
