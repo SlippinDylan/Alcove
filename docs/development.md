@@ -1,6 +1,6 @@
 # Alcove 开发指南
 
-本文是 Alcove 本地开发、验证、CI、发布和安全清理流程的权威入口。产品行为见 `PRODUCT_REQUIREMENTS.md`，组件和系统边界见 `ARCHITECTURE.md`。
+本文是 Alcove 本地开发、验证、CI 和发布流程的权威入口。产品行为见 `PRODUCT_REQUIREMENTS.md`，组件和系统边界见 `ARCHITECTURE.md`，开发产物清理见 [开发产物清理规则](development-cleanup.md)。
 
 ## 1. 环境与工程
 
@@ -174,16 +174,14 @@ Release 发布后，独立且可重跑的 metadata workflow 会验证已发布�
 
 - `swift test` 生成 `Packages/AlcoveCore/.build/`。
 - CI 风格的测试和构建生成 `build/DerivedData-Tests/`、`build/DerivedData-Release/`。
-- 常见可再生产物还包括 `.build/`、`.swiftpm/`、`DerivedData/`、`*.app`、`*.dmg` 和 `*.xcarchive`；这些路径已由 `.gitignore` 排除。
 - `Scripts/create-dmg.sh` 使用临时 staging 目录并自动清理，但会以 `hdiutil -ov` 覆盖调用者给出的 DMG 路径。只使用已经确认可覆盖的专用输出文件。
-- 只有用户明确要求清理时才删除可再生产物；删除前解析准确路径并确认归属。
-- 不删除源码、Git 数据、工程配置、签名材料、用户布局、日志或用途不明的文件。
-- 清理仓库外的 `/tmp`、`/private/tmp`、`/private/var/folders` 或 Xcode DerivedData 需要用户明确授权，并且目标必须可靠归属于 Alcove 或本次开发流程。
+
+清理请求语义、仓库内外范围、项目归属判断、安全边界和空间报告要求统一见 [开发产物清理规则](development-cleanup.md)。
 
 ## 8. 文档维护
 
 - 用户可见能力、安装步骤、系统要求或数据位置变化时，同步更新 README 及所有语言版本。
 - 产品范围和交互变化更新 `PRODUCT_REQUIREMENTS.md`；架构、持久化或系统边界变化更新 `ARCHITECTURE.md`；外部证据变化更新 `RESEARCH.md`。
-- 开发命令、CI、发布或清理流程变化更新本文。
+- 开发命令、CI 或发布流程变化更新本文；清理语义、范围或安全边界变化更新 `development-cleanup.md`。
 - `HANDOFF.md` 和 `DELIVERY_PLAN.md` 是历史导航，不记录当前状态。
 - 不在文档中记录测试总数、某次本地 HEAD、未提交文件、临时下一步或单次构建结果。

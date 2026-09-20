@@ -87,7 +87,7 @@ xcodebuild build \
 ## 文档规则
 
 - README 记录用户可见能力、安装、系统要求和下载入口；对应事实变化时同步维护所有语言版本。
-- `PRODUCT_REQUIREMENTS.md` 记录产品范围和交互契约；`ARCHITECTURE.md` 记录当前组件、稳定不变量及风险；`RESEARCH.md` 记录外部证据；`development.md` 记录开发和发布流程。
+- `PRODUCT_REQUIREMENTS.md` 记录产品范围和交互契约；`ARCHITECTURE.md` 记录当前组件、稳定不变量及风险；`RESEARCH.md` 记录外部证据；`development.md` 记录开发和发布流程；`development-cleanup.md` 记录开发产物清理规则。
 - `HANDOFF.md` 与 `DELIVERY_PLAN.md` 只保留历史导航，不是当前状态或需求来源。
 - 新增和维护的内部文档使用中文。源码可以清晰表达的成员列表、调用细节和测试数量不复制进文档。
 - 同一事实只维护一个权威来源；重复出现的错误优先用类型、测试或 CI 固化，再补充必要说明。
@@ -96,8 +96,8 @@ xcodebuild build \
 
 - `Config/Release/manifest.json` 是版本号和发布开关的唯一人工编辑入口；修改后运行版本同步脚本。未经明确要求，不修改版本、启用发布、提交、推送、创建 Release 或更新 appcast/Homebrew Cask。
 - 不在日志、测试夹具、文档或提交中写入证书、Token、Sparkle 私钥或其他真实凭据。
-- 只有用户明确要求清理时，才删除可安全再生的构建产物；删除前确认目标路径和归属。
-- 不删除源码、Git 数据、工程配置、签名材料、用户布局、日志或用途不明的文件；仓库外临时目录和 DerivedData 需要单独授权。
+- 只有用户明确要求时才执行开发产物清理。执行前必须读取并遵循 [开发产物清理规则](docs/development-cleanup.md)。
+- 不得删除源码、Git 数据、项目配置、用户数据、Agent 对话记录或用途不明的文件。
 
 ## 信息冲突
 
