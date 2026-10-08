@@ -21,6 +21,7 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
     private(set) var restoreCount = 0
     var error: Error?
     private(set) var stopCount = 0
+    private(set) var deactivateCount = 0
 
     func restorePortals() async throws {
         restoreCount += 1
@@ -49,6 +50,10 @@ private final class PortalCoordinatorSpy: PortalCoordinating {
 
     func prepareForTermination() async {}
 
+    func deactivatePortal() {
+        deactivateCount += 1
+    }
+
 }
 
 private enum StartupFixtureError: Error, Equatable {
@@ -56,6 +61,23 @@ private enum StartupFixtureError: Error, Equatable {
 }
 
 final class AppDelegateTests: XCTestCase {
+    @MainActor
+    func testApplicationDeactivationReturnsTheForegroundPortalToTheDesktop() {
+        let portalSpy = PortalCoordinatorSpy()
+        let delegate = AppDelegate(
+            statusMenuController: StatusMenuControllerSpy(),
+            portalCoordinator: portalSpy,
+            startupFolderURL: nil
+        )
+
+        delegate.applicationDidResignActive(
+            Notification(name: NSApplication.didResignActiveNotification)
+        )
+
+        XCTAssertEqual(portalSpy.deactivateCount, 1)
+        XCTAssertEqual(portalSpy.stopCount, 0)
+    }
+
     @MainActor
     func testRelaunchControllerTerminatesThenLaunchesANewActivatedInstance() {
         let appURL = URL(fileURLWithPath: "/Applications/Alcove.app", isDirectory: true)

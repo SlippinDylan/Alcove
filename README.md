@@ -14,7 +14,9 @@
   </p>
 </div>
 
-Alcove is a native macOS menu-bar app for keeping selected local folders visible on the desktop. A portal sits below regular app windows and above desktop icons. It is not a Finder replacement; it is a convenient surface for folders you return to throughout the day.
+Alcove is a native macOS menu-bar app for keeping selected local folders visible on the desktop. By default, a portal sits below regular app windows and above desktop icons. It is not a Finder replacement; it is a convenient surface for folders you return to throughout the day.
+
+Left-click anywhere in a portal or choose **Show** in the menu bar to bring it above regular app windows. Only one portal is raised at a time; clicking another returns the previous one to the desktop layer, as does switching to another app. Its position and size stay unchanged. Alcove's own settings and Quick Look keep the portal raised and remain usable above it.
 
 ## Features
 

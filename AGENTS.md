@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-Alcove 是面向 macOS 26 及以上版本、仅支持 Apple Silicon 的原生菜单栏应用。它使用 Swift 6、AppKit、少量 SwiftUI 和独立的 `AlcoveCore` Swift Package，在桌面图标之上、普通应用窗口之下展示可移动、可缩放的本地文件夹面板。
+Alcove 是面向 macOS 26 及以上版本、仅支持 Apple Silicon 的原生菜单栏应用。它使用 Swift 6、AppKit、少量 SwiftUI 和独立的 `AlcoveCore` Swift Package，默认在桌面图标之上、普通应用窗口之下展示可移动、可缩放的本地文件夹面板；用户点击面板或选择菜单栏 Show 时临时提升，切换到其他应用时回到桌面层。
 
 用户可见行为以 [README.md](README.md) 和 [产品需求](docs/PRODUCT_REQUIREMENTS.md) 为准，当前实现边界见 [架构文档](docs/ARCHITECTURE.md)，开发、验证和发布流程见 [开发指南](docs/development.md)。
 

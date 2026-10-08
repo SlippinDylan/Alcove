@@ -13,11 +13,14 @@
 |-------|---------------|----------|
 | `CGWindowLevelKey.desktopIconWindow` is a public Core Graphics constant placing windows at the Finder desktop icon level | **Confirmed by Apple** | [Apple Developer — CGWindowLevelKey](https://developer.apple.com/documentation/coregraphics/cgwindowlevelkey/desktopiconwindow) |
 | `desktopIconWindow + 1` places a window above desktop icons in one reference implementation | **Observed in reference implementation** | TileTop commit `63ae118d` (Apache-2.0) uses `CGWindowLevelForKey(.desktopIconWindow) + 1`; Apple documents the level constant, but not Alcove's intended relationship to Finder and every system transition |
+| `.floating` 高于 `.normal`；窗口 level 决定不同层级之间的顺序，同层级仍有自己的窗口顺序 | **Apple 已确认** | [Apple Developer — NSWindow.level](https://developer.apple.com/documentation/appkit/nswindow/level-swift.property)；这不保证 Portal 高于其他浮动窗口或系统窗口 |
+| `makeKeyAndOrderFront(_:)` 使窗口成为 key 并在当前 level 内前置，不会自行提升到更高 level | **Apple 已确认** | [Apple Developer — makeKeyAndOrderFront](https://developer.apple.com/documentation/appkit/nswindow/makekeyandorderfront(_:))；Portal 用户呈现必须显式设置层级，`normal + 1` 是 Alcove 的设计选择 |
+| `applicationDidResignActive(_:)` 表示应用失去 active 状态；`windowDidResignKey(_:)` 表示单个窗口失去 key 状态 | **Apple 已确认；Alcove 生命周期策略是应用设计** | [Apple Developer — applicationDidResignActive](https://developer.apple.com/documentation/appkit/nsapplicationdelegate/applicationdidresignactive(_:))；[Apple Developer — windowDidResignKey](https://developer.apple.com/documentation/appkit/nswindowdelegate/windowdidresignkey(_:))；窗口失去 key 不能证明用户已切换到其他应用，因此 Portal 降层依据应用失活，而非辅助窗口接收焦点 |
 | `.canJoinAllSpaces` makes a window appear on every Space | **Confirmed by Apple** | [Apple Developer — NSWindow.CollectionBehavior](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct/canjoinallspaces) |
 | `.stationary` prevents a window from moving during Space transitions | **Confirmed by Apple** | [Apple Developer — NSWindow.CollectionBehavior](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct/stationary) |
 | `.moveToActiveSpace` moves a window to the active Space when ordered front; `.fullScreenAuxiliary` permits participation alongside a full-screen window | **Confirmed by Apple** (individual flag semantics); combined Alcove behavior is **prototype-required** | [Apple Developer — NSWindow.CollectionBehavior](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct) |
 | `.ignoresCycle` excludes a window from window cycling (not Command-Tab application switching) | **Confirmed by Apple** | [Apple Developer — NSWindow.CollectionBehavior](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct/ignorescycle) |
-| The correct combination of window level, collection behaviors, `NSWindow` versus `NSPanel`, and key-window eligibility for Alcove | **Prototype required** | No Apple documentation guarantees the combined behavior of a desktop-layer accessory window across Show Desktop, Mission Control, Spaces, Stage Manager, lock, and sleep/wake |
+| Portal 默认桌面层与用户呈现 `normal + 1` 层级切换、collection behavior、key 资格及设置/Quick Look 的组合行为 | **需要人工系统验证** | Apple 分别说明 API 能力，但不保证 Alcove 的组合策略在其他浮动/系统窗口、Show Desktop、Mission Control、Spaces、Stage Manager、全屏、锁屏和睡眠唤醒中的实际效果 |
 
 ### 1.2 Multi-Display Identity & Placement
 
@@ -180,7 +183,7 @@ These are conclusions drawn from confirmed facts and observations, not directly 
 
 | ID | Inference | Basis |
 |----|-----------|-------|
-| INF-01 | `desktopIconWindow + 1` is Alcove's implemented strategy for placing portals above Finder desktop icons and below normal windows | Apple documents the level hierarchy and TileTop observes this configuration on its tested environment; Alcove still requires its own manual system matrix and should compare alternatives only if that gate fails |
+| INF-01 | Portal 默认使用 `desktopIconWindow + 1`；明确用户点击或菜单栏 Show 时仅提升一个 Portal 到 `normal + 1`，高于 `.normal`、低于标准 `.floating`；应用失活时回到默认层级，启动、恢复和导入不恢复临时提升 | Apple 文档支持层级顺序和应用/窗口焦点事件；中间层级是 Alcove 的设计选择，避免同层前置 Portal 遮挡设置窗口，并避免擅改共享 Quick Look 面板的层级或所有权。单 Portal 临时提升、不改变布局、保留辅助窗口交互属于产品与架构决策，完整系统组合仍需人工验证 |
 | INF-02 | Per-display records can restore a display's remembered layout when it becomes the menu-bar primary again; transitions to a different primary can preserve left/top point offsets and repair only overflow without overwriting prior records | `CGDisplayCreateUUIDFromDisplayID` provides display identity (stability through disconnect/reconnect is inference); `NSScreen.screens[0]` identifies the current menu-bar primary; top-left projection and overflow recovery are Alcove-owned geometry |
 | INF-03 | FSEvents is suitable for observing the active tab's eligible internal-local directory | Both candidates passed local lifecycle/load evidence; Phase 0.5C7 selected FSEvents for explicit root-change and dropped/wrapped-event recovery signals |
 | INF-04 | Alcove keeps Portal navigation plain and the file grid on an always-active translucent material, reserving system Glass for suitable settings actions | The desktop-level control-group Glass failed production rendering checks; Apple recommends applying Glass to suitable controls without turning the content canvas into Glass |
@@ -196,9 +199,9 @@ These items began as prototype questions. The current code has selected implemen
 
 | ID | Spike | Risk | Acceptance Criteria |
 |----|-------|------|---------------------|
-| SP-01 | Verify the implemented `desktopIconWindow + 1`, `.canJoinAllSpaces`, `.stationary`, and `.ignoresCycle` strategy | The selected configuration may fail under Show Desktop, Spaces, Stage Manager, lock, or sleep/wake | Record the current strategy on the available system matrix; if it fails, compare the relevant public-API alternatives and make an explicit architecture or product-scope decision |
+| SP-01 | 验证默认 `desktopIconWindow + 1`、用户点击/菜单栏 Show 时 `normal + 1`、应用失活时降层，以及既有 `.canJoinAllSpaces`、`.stationary`、`.ignoresCycle` 的组合 | 其他浮动/系统窗口、Show Desktop、Spaces、Stage Manager、全屏、锁屏或睡眠唤醒可能影响层级与焦点 | 记录真实系统表现；确认最多一个 Portal 提升，设置与 Quick Look 保持可交互，切换其他应用降层，位置和尺寸不变，启动/恢复/导入保持桌面层；不把 API 配置或自动测试当作完整系统验收 |
 | SP-02 | Spaces, Show Desktop, and Stage Manager behavior for the candidate strategies from SP-01 | Portal may animate, flash, hide, change position, or be permanently evicted | Each tested strategy has recorded behavior across system transitions on the available macOS 26 and 27 matrix; no untested configuration is called successful |
-| SP-03 | Quick Look responder-chain behavior from the candidate desktop-level window, including key-window transitions | Quick Look may not activate or relinquish ownership correctly | Space presents and dismisses previews for single and multiple selection, with exact responder ownership documented |
+| SP-03 | Portal 在桌面层和临时 `normal + 1` 层时的 Quick Look responder-chain 与 key-window 转换 | Quick Look 可能无法正确接管或归还共享预览面板，或被提升的 Portal 遮挡 | 单个和多个选择可通过 Space 打开/关闭预览；预览在 Portal 上方可交互，应用内焦点转换不使 Portal 降层，responder 所有权正确 |
 | SP-04 | Display identity, primary-display switching, disconnect/reconnect, rearrangement, scaling, and sleep/wake | Display UUID may change or the complete layout may fail to follow the current primary | UUID observations are recorded; system projection preserves remembered per-display placement; returning a display to primary restores it when identity is recognized |
 | SP-05 | Placement restoration using absolute frame plus an anchor normalized within the actual movable range | Full-screen normalization or wrong operation ordering may shift or clip portals | Same geometry prefers the absolute frame; changed geometry first constrains preferred size, computes movable range, restores the clamped normalized anchor, then grid-snaps and clamps |
 | SP-06 | Dynamic and static Portal surfaces plus the opaque Reduce Transparency path | Dynamic backdrop paths may have rendering, contrast, accessibility, layout, or selected-window-level issues | Real Space-transition evidence rejects `NSGlassEffectView` and behind-window `NSVisualEffectView` for the complete Portal; verify the selected static translucent and opaque accessibility surfaces on macOS 26+ |
@@ -223,6 +226,10 @@ These items began as prototype questions. The current code has selected implemen
 ### Apple Documentation
 
 - [CGWindowLevelKey.desktopIconWindow](https://developer.apple.com/documentation/coregraphics/cgwindowlevelkey/desktopiconwindow)
+- [NSWindow.level](https://developer.apple.com/documentation/appkit/nswindow/level-swift.property)
+- [NSWindow.makeKeyAndOrderFront](https://developer.apple.com/documentation/appkit/nswindow/makekeyandorderfront(_:))
+- [NSApplicationDelegate.applicationDidResignActive](https://developer.apple.com/documentation/appkit/nsapplicationdelegate/applicationdidresignactive(_:))
+- [NSWindowDelegate.windowDidResignKey](https://developer.apple.com/documentation/appkit/nswindowdelegate/windowdidresignkey(_:))
 - [NSWindow.CollectionBehavior — canJoinAllSpaces](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct/canjoinallspaces)
 - [NSWindow.CollectionBehavior — stationary](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct/stationary)
 - [NSWindow.CollectionBehavior — ignoresCycle](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct/ignorescycle)

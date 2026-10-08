@@ -61,6 +61,7 @@ struct PortalWindowUserPlacementTracker {
 
 final class PortalWindow: NSWindow {
     private let keyEligibility: Bool
+    private let inactiveLevel: NSWindow.Level
     private let dragRegionHeight: CGFloat
     private let pointerLocationProvider: () -> NSPoint
     private var placementTracker = PortalWindowUserPlacementTracker()
@@ -73,6 +74,7 @@ final class PortalWindow: NSWindow {
         .cornerRadius.points
     private(set) var isPinned = false
 
+    var onActivationRequested: (() -> Void)?
     var onUserPlacementCommit: ((NSRect) -> Void)?
     var onUserResizeCommit: ((NSRect) -> Void)?
     var onUserPlacementInteractionCancelled: (() -> Void)?
@@ -100,6 +102,7 @@ final class PortalWindow: NSWindow {
         pointerLocationProvider: @escaping () -> NSPoint = { NSEvent.mouseLocation }
     ) {
         keyEligibility = strategy.canBecomeKey
+        inactiveLevel = strategy.level
         self.dragRegionHeight = dragRegionHeight
         self.pointerLocationProvider = pointerLocationProvider
         super.init(
@@ -134,10 +137,12 @@ final class PortalWindow: NSWindow {
 
     override func sendEvent(_ event: NSEvent) {
         if event.type == .leftMouseDown, canBecomeKey {
+            onActivationRequested?()
             NSApplication.shared.activate()
             if !isKeyWindow {
                 makeKey()
             }
+            orderFront(nil)
         }
         guard event.type == .leftMouseDown, isPortalDragRegion(at: event.locationInWindow) else {
             super.sendEvent(event)
@@ -159,6 +164,10 @@ final class PortalWindow: NSWindow {
                 stop.pointee = true
             }
         }
+    }
+
+    func setForeground(_ isForeground: Bool) {
+        level = isForeground ? PortalWindowStrategy.foregroundLevel : inactiveLevel
     }
 
     func applySystemPlacement(frame: NSRect, animated: Bool = false) -> Bool {

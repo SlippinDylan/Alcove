@@ -2,9 +2,9 @@
 
 ## 1. Product Overview
 
-Alcove is a native macOS menu-bar utility that creates movable, resizable desktop-layer folder portals. Each portal displays the contents of a mapped directory on the Mac's internal, fixed local storage as a scrollable native icon grid. Portals support multiple tabs, Finder-consistent selection and interaction, and Quick Look integration.
+Alcove 是原生 macOS 菜单栏应用，为 Mac 内置、固定、本地存储上的映射文件夹提供可移动、可缩放的 Portal，以可滚动的原生图标网格显示内容，并支持多个 Tab、Finder 风格交互和 Quick Look。
 
-Alcove is **not** a Finder replacement or a full desktop shell. It is a focused view into folders the user chooses, displayed on the desktop layer below normal application windows, with bounded in-Portal navigation.
+Alcove 不是 Finder 替代品或完整桌面 Shell。它只浏览用户选择的文件夹及 Portal 内有限的运行时历史。Portal 默认位于桌面图标之上、普通应用窗口之下；用户点击或选择菜单栏 Show 时临时提升，切换到其他应用时回到桌面层。
 
 ---
 
@@ -172,7 +172,11 @@ the file grid. Empty Portals keep the row's layout space but hide the path conte
 
 | Property | Value |
 |----------|-------|
-| Window level | `desktopIconWindow + 1`, keeping Portals above Finder desktop icons and below ordinary application windows |
+| 窗口层级 | 默认使用 `desktopIconWindow + 1`，位于 Finder 桌面图标之上、普通应用窗口之下；明确用户呈现时使用 `normal + 1` 并前置，高于 `.normal`、低于标准 `.floating` 窗口 |
+| 用户呈现 | 左键点击 Portal 的任意真实区域，包括顶部控件、底部路径栏、文件区和空白处，或选择菜单栏 Show，提升指定 Portal；同一时间最多提升一个，提升另一个时原 Portal 回到桌面层 |
+| 离开 Alcove | 切换到 Chrome 等其他应用时，提升的 Portal 回到桌面层；转向 Alcove 自己的设置或 Quick Look 时保持提升，辅助窗口仍可在 Portal 上方正常交互 |
+| 被动呈现 | 启动、布局恢复和布局导入只显示桌面层窗口；成为 key window 本身不触发提升 |
+| 层级与布局 | 提升或降层不改变位置、尺寸或持久 placement；临时提升仅为运行时状态，不写入 Portal schema 或布局备份。Pin 仍只禁止用户拖动和缩放 |
 | Collection behavior | The production window uses the current `.canJoinAllSpaces`, `.stationary`, and `.ignoresCycle` strategy; real Spaces, Stage Manager and full-screen transitions remain manual verification boundaries |
 | Title bar | None — no traffic-light window controls |
 | Movable | Yes — user-initiated drag from empty space in the top control row, unless the Portal is pinned |
@@ -181,6 +185,8 @@ the file grid. Empty Portals keep the row's layout space but hide the path conte
 | Frame snap | Columns and rows switch at half-cell thresholds and always settle on a whole `columns × rows` capacity; that committed column count directly controls item wrapping and is never re-derived from a slightly smaller content rectangle |
 | Min size | 3 columns × 1 row |
 | Placement bounds | User dragging and resizing remain inside the menu-bar primary display's fresh `visibleFrame`, including the configured edge spacing; other Portals are fixed obstacles with the same spacing. Portals cannot be left on a secondary display |
+
+临时提升的 Portal 高于普通 `.normal` 窗口、低于标准 `.floating` 窗口；系统窗口仍按系统层级排序。Spaces、Stage Manager、Show Desktop、全屏及 WindowServer 转换中的实际表现属于人工系统验收范围，不能由窗口配置或自动测试推定通过。
 
 The file grid uses 8pt top and bottom content insets. These insets are part of the
 capacity-to-frame calculation, so existing persisted placements are migrated when they change.

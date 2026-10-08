@@ -146,6 +146,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applicationRelauncher.relaunchIfRequested()
     }
 
+    func applicationDidResignActive(_ notification: Notification) {
+        // Settings and Quick Look transfer key status within Alcove without deactivating it.
+        portalCoordinator.deactivatePortal()
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard terminationTask == nil else { return .terminateLater }
         startupTask?.cancel()

@@ -276,6 +276,8 @@ private final class PortalCoordinatorStub: PortalCoordinating {
 
     func stop() {}
 
+    func deactivatePortal() {}
+
     func prepareForTermination() async {}
 
     func createPortal(

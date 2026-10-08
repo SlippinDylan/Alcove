@@ -33,12 +33,16 @@ AlcoveCore                  UI-free Swift Package：领域模型和纯布局几�
 
 每个 Portal 由一组对象共同拥有：
 
-- `PortalWindow`：桌面层窗口、可成为 key window 的交互策略，以及显式用户拖动事务。
+- `PortalWindow`：默认桌面层窗口、显式用户呈现时的临时层级、可成为 key window 的交互策略，以及显式用户拖动事务。
 - `PortalWindowController`：窗口与内容控制器生命周期、live resize 和 Quick Look 清理。
 - `PortalViewController`：Tab 内容、文件网格、路径栏、空态和设置动作。
 - `PortalCoordinator`：领域状态、持久化、窗口集合和跨 Portal 布局事务。
 
-窗口使用 `desktopIconWindow + 1`，并采用当前代码中的 collection behavior 以保持桌面层和跨 Space 可见性。WindowServer、Spaces、Stage Manager、全屏和睡眠唤醒属于系统行为边界，自动测试只能验证配置和应用侧状态机，不能替代真实系统验证。
+Portal 默认使用 `desktopIconWindow + 1`，并沿用既有 collection behavior 维持跨 Space 可见性。左键点击窗口的任意真实区域或选择菜单栏 Show 是明确用户呈现：应用层先将原先提升的 Portal 降回桌面层，再将指定 Portal 提升到以 `NSWindow.Level.normal.rawValue + 1` 构造的公开自定义层级并前置，高于 `.normal`、低于标准 `.floating`。同一时间最多提升一个 Portal，启动、布局恢复和布局导入只呈现桌面层窗口，成为 key window 本身不构成提升意图。
+
+`AppDelegate.applicationDidResignActive` 在用户切换到其他应用时让提升的 Portal 回到桌面层。`windowDidResignKey` 只表示窗口失去键盘焦点，转向 Alcove 的设置或 Quick Look 也会发生，因此不能用它判定用户已离开 Alcove。应用内辅助窗口保持可在提升的 Portal 上方正常交互；Portal 的中间层级避免同层 `orderFront` 将设置窗口遮挡，也避免擅改共享 `QLPreviewPanel` 的层级或所有权。层级切换不改变 frame、网格容量或用户 placement；提升状态只属于运行时，不进入 Portal schema 或公开布局备份，Pin 仍只约束用户拖动和缩放。
+
+Apple 文档确认 `.floating` 高于 `.normal`，`makeKeyAndOrderFront` 只在当前 level 内前置；这不保证覆盖其他浮动或系统窗口。WindowServer、Spaces、Stage Manager、Show Desktop、全屏和睡眠唤醒属于系统行为边界，自动测试只能验证配置和应用侧状态机，不能替代真实系统验证。官方证据与组合行为的未验证范围见 `RESEARCH.md`。
 
 ## 3. Portal 领域不变量
 

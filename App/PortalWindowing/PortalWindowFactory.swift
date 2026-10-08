@@ -5,6 +5,7 @@ import AppKit
 protocol PortalWindowPresenting: AnyObject {
     var isUserPlacementInteractionActive: Bool { get }
     var presentedFrame: NSRect? { get }
+    var onActivationRequested: (() -> Void)? { get set }
     var onUserPlacementCommit: ((NSRect) -> Void)? { get set }
     var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)? { get set }
     var onUserPlacementInteractionCancelled: (() -> Void)? { get set }
@@ -19,6 +20,7 @@ protocol PortalWindowPresenting: AnyObject {
     var onSetTint: ((PortalTint) -> Void)? { get set }
     func present()
     func hide()
+    func setForeground(_ isForeground: Bool)
     func updatePortal(_ portal: Portal)
     func updateAppearance(_ appearance: PortalAppearancePreferences)
     func configureUserPlacementConstraints(

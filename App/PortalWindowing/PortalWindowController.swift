@@ -9,6 +9,7 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
 
     var presentedFrame: NSRect? { window?.frame }
 
+    var onActivationRequested: (() -> Void)?
     var onUserPlacementCommit: ((NSRect) -> Void)?
     var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)?
     var onUserPlacementInteractionCancelled: (() -> Void)?
@@ -72,6 +73,9 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
         super.init(window: window)
         shouldCascadeWindows = false
         window.delegate = self
+        window.onActivationRequested = { [weak self] in
+            self?.onActivationRequested?()
+        }
         window.onUserPlacementCommit = { [weak self] frame in
             self?.onUserPlacementCommit?(frame)
         }
@@ -114,6 +118,10 @@ final class PortalWindowController: NSWindowController, PortalWindowPresenting {
 
     func hide() {
         window?.orderOut(nil)
+    }
+
+    func setForeground(_ isForeground: Bool) {
+        (window as? PortalWindow)?.setForeground(isForeground)
     }
 
     func updatePortal(_ portal: Portal) {

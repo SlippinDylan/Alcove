@@ -11,6 +11,7 @@ protocol PortalCoordinating: AnyObject {
         iconLayout: PortalIconLayout
     ) async throws
     func stop()
+    func deactivatePortal()
     func prepareForTermination() async
 }
 
@@ -28,6 +29,7 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
     private let displayNotificationCenter: NotificationCenter
     private var portalAppearance: PortalAppearancePreferences
     private var windows: [PortalID: any PortalWindowPresenting] = [:]
+    private var foregroundPortalID: PortalID?
     private var spacingLayoutBaseFrames: [PortalID: NSRect] = [:]
     private var placementSessions: [PortalID: PlacementSession] = [:]
     private var deferredTopologyPortals = Set<PortalID>()
@@ -438,6 +440,7 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
             // unless the complete imported layout has validated and saved successfully.
             try await store.save(importedPortals)
 
+            deactivatePortal()
             for window in windows.values {
                 window.close()
             }
@@ -456,7 +459,14 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
     }
 
     func stop() {
+        deactivatePortal()
         displayObserver.stop()
+    }
+
+    func deactivatePortal() {
+        guard let foregroundPortalID else { return }
+        windows[foregroundPortalID]?.setForeground(false)
+        self.foregroundPortalID = nil
     }
 
     func prepareForTermination() async {
@@ -475,10 +485,16 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
     }
 
     func showPortal(_ portalID: PortalID) {
-        windows[portalID]?.present()
+        guard let window = windows[portalID] else { return }
+        activatePortal(portalID)
+        NSApplication.shared.activate()
+        window.present()
     }
 
     func hidePortal(_ portalID: PortalID) {
+        if foregroundPortalID == portalID {
+            deactivatePortal()
+        }
         windows[portalID]?.hide()
     }
 
@@ -595,9 +611,21 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
         windows[portalID]?.updatePortal(portal)
     }
 
+    private func activatePortal(_ portalID: PortalID) {
+        guard foregroundPortalID != portalID,
+              let window = windows[portalID] else { return }
+        deactivatePortal()
+        foregroundPortalID = portalID
+        window.setForeground(true)
+    }
+
     private func present(_ portal: Portal, transition: PlacementTransition) {
         placementSessions[portal.id] = transition.session
         let window = windowFactory.makeWindow(for: portal)
+        // Restoring a key window is not a user request to lift it off the desktop.
+        window.onActivationRequested = { [weak self] in
+            self?.activatePortal(portal.id)
+        }
         window.updateAppearance(portalAppearance)
         window.configureUserPlacementConstraints(
             constrainDrag: { [weak self] currentFrame, proposedFrame, pointer in
@@ -1480,6 +1508,9 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
     }
 
     private func removeRuntimeState(for portalID: PortalID) {
+        if foregroundPortalID == portalID {
+            foregroundPortalID = nil
+        }
         placementSessions.removeValue(forKey: portalID)
         deferredTopologyPortals.remove(portalID)
         pendingUserPlacements.removeValue(forKey: portalID)

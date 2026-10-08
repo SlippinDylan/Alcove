@@ -5,6 +5,175 @@ import XCTest
 
 final class PortalWindowConfigurationTests: XCTestCase {
     @MainActor
+    func testForegroundRequestPreservesNativeControlAction() throws {
+        let window = makeWindow()
+        let initialFrame = window.frame
+        let recorder = ControlActionRecorder()
+        let button = NSButton(frame: NSRect(
+            x: 20,
+            y: window.contentLayoutRect.maxY - 34,
+            width: 80,
+            height: 24
+        ))
+        button.target = recorder
+        button.action = #selector(ControlActionRecorder.performAction)
+        window.contentView?.addSubview(button)
+        window.onActivationRequested = { [weak window] in
+            recorder.events.append("foreground")
+            window?.setForeground(true)
+        }
+        window.orderFront(nil)
+        defer { window.close() }
+        let point = button.convert(NSPoint(x: button.bounds.midX, y: button.bounds.midY), to: nil)
+        XCTAssertFalse(window.isPortalDragRegion(at: point))
+
+        NSApplication.shared.postEvent(try event(.leftMouseUp, at: point, in: window), atStart: true)
+        NSApplication.shared.sendEvent(try event(.leftMouseDown, at: point, in: window))
+
+        XCTAssertEqual(recorder.events, ["foreground", "action"])
+        XCTAssertEqual(window.level, PortalWindowStrategy.foregroundLevel)
+        XCTAssertEqual(window.frame, initialFrame)
+    }
+
+    @MainActor
+    func testNativeControllerBridgeTransfersForegroundAndKeepsSettingsAbovePortal() async throws {
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        let size = PortalViewController.contentSize(
+            for: .minimum,
+            iconLayout: .fixed(.medium)
+        )
+        let portals = try [20.0, 520.0].enumerated().map { index, x in
+            try Portal(
+                folderURL: URL(fileURLWithPath: "/tmp/alcove-activation-\(index)"),
+                frame: NSRect(x: x, y: 200, width: size.width, height: size.height),
+                display: coordinatorTestDisplay
+            )
+        }
+        let store = PortalStoreSpy(portals: portals)
+        let factory = NativePortalWindowFactory()
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            displayNotificationCenter: NotificationCenter(),
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+        defer {
+            coordinator.stop()
+            for controller in factory.controllers {
+                controller.close()
+            }
+        }
+        let first = try XCTUnwrap(factory.controllers[0].window as? PortalWindow)
+        let second = try XCTUnwrap(factory.controllers[1].window as? PortalWindow)
+        let initialFrames = [first.frame, second.frame]
+        let initialState = coordinator.portalStates
+        let initialSaves = await store.savedSnapshots()
+        XCTAssertEqual(first.level, PortalWindowStrategy.developmentDefault.level)
+        XCTAssertEqual(second.level, PortalWindowStrategy.developmentDefault.level)
+
+        try clickTopBackground(in: first)
+        XCTAssertEqual(first.level, PortalWindowStrategy.foregroundLevel)
+        XCTAssertEqual(second.level, PortalWindowStrategy.developmentDefault.level)
+        try clickTopBackground(in: second)
+        XCTAssertEqual(first.level, PortalWindowStrategy.developmentDefault.level)
+        XCTAssertEqual(second.level, PortalWindowStrategy.foregroundLevel)
+
+        factory.controllers[1].showPortalSettings()
+        let contentView = try XCTUnwrap(second.contentView)
+        let tabBar = try XCTUnwrap(
+            allDescendants(of: contentView).compactMap { $0 as? TabBarView }.first
+        )
+        let settings = try XCTUnwrap(tabBar.settingsWindowController?.window)
+        XCTAssertTrue(settings.isVisible)
+        XCTAssertEqual(second.level, PortalWindowStrategy.foregroundLevel)
+        try clickTopBackground(in: second)
+        XCTAssertLessThan(settings.orderedIndex, second.orderedIndex)
+
+        let delegate = AppDelegate(
+            statusMenuController: StatusMenuController(onNewPortal: {}),
+            portalCoordinator: coordinator,
+            startupFolderURL: nil
+        )
+        delegate.applicationDidResignActive(
+            Notification(name: NSApplication.didResignActiveNotification)
+        )
+        XCTAssertEqual(first.level, PortalWindowStrategy.developmentDefault.level)
+        XCTAssertEqual(second.level, PortalWindowStrategy.developmentDefault.level)
+        XCTAssertEqual([first.frame, second.frame], initialFrames)
+        XCTAssertEqual(coordinator.portalStates, initialState)
+        let finalSaves = await store.savedSnapshots()
+        XCTAssertEqual(finalSaves, initialSaves)
+    }
+
+    @MainActor
+    func testClicksAcrossPinnedAndUnpinnedPortalRegionsRequestForeground() throws {
+        let window = makeWindow()
+        window.orderFront(nil)
+        defer { window.close() }
+        var activationCount = 0
+        var placementCommits = 0
+        window.onActivationRequested = {
+            activationCount += 1
+            window.setForeground(true)
+        }
+        window.onUserPlacementCommit = { _ in placementCommits += 1 }
+        window.onUserResizeCommit = { _ in placementCommits += 1 }
+
+        for isPinned in [false, true] {
+            window.setPinned(isPinned)
+            let initialFrame = window.frame
+            let points = [
+                NSPoint(x: 100, y: window.contentLayoutRect.maxY - 20),
+                NSPoint(x: 100, y: window.contentLayoutRect.midY),
+                NSPoint(x: 100, y: window.contentLayoutRect.minY + 10),
+            ]
+            for point in points {
+                window.setForeground(false)
+                let previousCount = activationCount
+                if window.isPortalDragRegion(at: point) {
+                    NSApplication.shared.postEvent(
+                        try event(.leftMouseUp, at: point, in: window),
+                        atStart: true
+                    )
+                }
+                NSApplication.shared.sendEvent(
+                    try event(.leftMouseDown, at: point, in: window)
+                )
+
+                XCTAssertEqual(activationCount, previousCount + 1)
+                XCTAssertEqual(window.level, PortalWindowStrategy.foregroundLevel)
+                XCTAssertEqual(window.frame, initialFrame)
+                XCTAssertFalse(window.isUserPlacementInteractionActive)
+            }
+        }
+        XCTAssertEqual(placementCommits, 0)
+        window.onActivationRequested = nil
+    }
+
+    @MainActor
+    func testForegroundLevelChangesPreserveFrameAndSpaceBehavior() {
+        let window = makeWindow()
+        let originalFrame = window.frame
+        let originalBehavior = window.collectionBehavior
+
+        window.setForeground(true)
+        XCTAssertGreaterThan(window.level, .normal)
+        XCTAssertLessThan(window.level, .floating)
+        XCTAssertEqual(window.level, PortalWindowStrategy.foregroundLevel)
+        NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: window)
+        XCTAssertEqual(window.level, PortalWindowStrategy.foregroundLevel)
+        window.setForeground(false)
+
+        XCTAssertEqual(window.level, PortalWindowStrategy.developmentDefault.level)
+        XCTAssertEqual(window.frame, originalFrame)
+        XCTAssertEqual(window.collectionBehavior, originalBehavior)
+    }
+
+    @MainActor
     func testDevelopmentStrategyAppliesToKeyEligiblePortalWindow() {
         let strategy = PortalWindowStrategy.developmentDefault
         let contentController = NSViewController()
@@ -533,6 +702,14 @@ final class PortalWindowConfigurationTests: XCTestCase {
     }
 
     @MainActor
+    private func clickTopBackground(in window: PortalWindow) throws {
+        let point = NSPoint(x: 10, y: window.contentLayoutRect.maxY - 20)
+        XCTAssertTrue(window.isPortalDragRegion(at: point))
+        NSApplication.shared.postEvent(try event(.leftMouseUp, at: point, in: window), atStart: true)
+        NSApplication.shared.sendEvent(try event(.leftMouseDown, at: point, in: window))
+    }
+
+    @MainActor
     private func frameSize(for contentSize: NSSize, in window: NSWindow) -> NSSize {
         window.frameRect(
             forContentRect: NSRect(origin: .zero, size: contentSize)
@@ -578,6 +755,30 @@ final class PortalWindowConfigurationTests: XCTestCase {
 
         init(_ location: NSPoint) {
             self.location = location
+        }
+    }
+
+    @MainActor
+    private final class NativePortalWindowFactory: PortalWindowBuilding {
+        private(set) var controllers: [PortalWindowController] = []
+
+        func makeWindow(for portal: Portal) -> any PortalWindowPresenting {
+            let controller = PortalWindowController(
+                portal: portal,
+                loadingCoordinator: FolderLoadingCoordinator(),
+                initialFrame: portal.frame
+            )
+            controllers.append(controller)
+            return controller
+        }
+    }
+
+    @MainActor
+    private final class ControlActionRecorder: NSObject {
+        var events: [String] = []
+
+        @objc func performAction() {
+            events.append("action")
         }
     }
 }

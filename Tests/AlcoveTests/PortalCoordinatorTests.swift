@@ -36,6 +36,103 @@ final class PortalCoordinatorTests: XCTestCase {
             .lowTransparency,
         ])
         XCTAssertEqual(factory.windows.map(\.presentCount), [1, 1])
+        XCTAssertTrue(factory.windows.allSatisfy { !$0.isForeground })
+        XCTAssertTrue(factory.windows.allSatisfy { $0.foregroundChanges.isEmpty })
+    }
+
+    @MainActor
+    func testClicksTransferExclusiveForegroundWithoutSavingOrMovingPortals() async throws {
+        let portals = [
+            try makePortal(path: "/tmp/first", x: 10),
+            try makePortal(path: "/tmp/second", x: 400),
+        ]
+        let store = PortalStoreSpy(portals: portals)
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(store: store, windowFactory: factory)
+        try await coordinator.restorePortals()
+        let initialState = coordinator.portalStates
+        let initialFrames = factory.windows.map(\.presentedFrame)
+        let initialSaves = await store.savedSnapshots()
+        let firstActivation = try XCTUnwrap(factory.windows[0].onActivationRequested)
+        let secondActivation = try XCTUnwrap(factory.windows[1].onActivationRequested)
+
+        firstActivation()
+        XCTAssertEqual(factory.windows.map(\.isForeground), [true, false])
+
+        secondActivation()
+        XCTAssertEqual(factory.windows.map(\.isForeground), [false, true])
+        XCTAssertEqual(factory.windows[0].foregroundChanges, [true, false])
+
+        secondActivation()
+        XCTAssertEqual(factory.windows[1].foregroundChanges, [true])
+
+        coordinator.deactivatePortal()
+        XCTAssertEqual(factory.windows.map(\.isForeground), [false, false])
+
+        firstActivation()
+        XCTAssertEqual(factory.windows.map(\.isForeground), [true, false])
+        XCTAssertEqual(factory.windows.map(\.presentedFrame), initialFrames)
+        XCTAssertEqual(coordinator.portalStates, initialState)
+        let finalSaves = await store.savedSnapshots()
+        XCTAssertEqual(finalSaves, initialSaves)
+    }
+
+    @MainActor
+    func testMenuShowAndHideShareForegroundOwnership() async throws {
+        let portals = [
+            try makePortal(path: "/tmp/first", x: 10),
+            try makePortal(path: "/tmp/second", x: 400),
+        ]
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(
+            store: PortalStoreSpy(portals: portals),
+            windowFactory: factory
+        )
+        try await coordinator.restorePortals()
+
+        coordinator.showPortal(portals[0].id)
+        XCTAssertEqual(factory.windows.map(\.isForeground), [true, false])
+        XCTAssertEqual(factory.windows[0].presentCount, 2)
+
+        coordinator.showPortalSettings(portals[0].id)
+        XCTAssertTrue(factory.windows[0].isForeground)
+        XCTAssertEqual(factory.windows[0].showPortalSettingsCount, 1)
+
+        coordinator.showPortal(portals[1].id)
+        XCTAssertEqual(factory.windows.map(\.isForeground), [false, true])
+
+        coordinator.hidePortal(portals[0].id)
+        XCTAssertTrue(factory.windows[1].isForeground)
+        coordinator.hidePortal(portals[1].id)
+        XCTAssertEqual(factory.windows.map(\.isForeground), [false, false])
+
+        coordinator.showPortal(portals[0].id)
+        XCTAssertEqual(factory.windows.map(\.isForeground), [true, false])
+    }
+
+    @MainActor
+    func testRemovedPortalCannotReclaimForegroundThroughAnOldCallback() async throws {
+        let portals = [
+            try makePortal(path: "/tmp/first", x: 10),
+            try makePortal(path: "/tmp/second", x: 400),
+        ]
+        let factory = PortalWindowFactorySpy()
+        let coordinator = PortalCoordinator(
+            store: PortalStoreSpy(portals: portals),
+            windowFactory: factory
+        )
+        try await coordinator.restorePortals()
+        let firstActivation = try XCTUnwrap(factory.windows[0].onActivationRequested)
+        firstActivation()
+
+        await coordinator.removePortal(portals[0].id)
+        XCTAssertEqual(factory.windows[0].closeCount, 1)
+        coordinator.showPortal(portals[1].id)
+        firstActivation()
+
+        XCTAssertTrue(factory.windows[1].isForeground)
+        coordinator.deactivatePortal()
+        XCTAssertFalse(factory.windows[1].isForeground)
     }
 
     @MainActor
@@ -91,6 +188,8 @@ final class PortalCoordinatorTests: XCTestCase {
         try await coordinator.restorePortals()
         let importedID = PortalID(rawValue: UUID())
         let backup = try makeLayoutBackup(portalID: importedID)
+        coordinator.showPortal(existing.id)
+        XCTAssertTrue(factory.windows[0].isForeground)
 
         try await coordinator.replaceLayout(with: backup)
 
@@ -111,7 +210,9 @@ final class PortalCoordinatorTests: XCTestCase {
         )
         XCTAssertEqual(factory.windows.count, 2)
         XCTAssertEqual(factory.windows[0].closeCount, 1)
+        XCTAssertFalse(factory.windows[0].isForeground)
         XCTAssertEqual(factory.windows[1].presentCount, 1)
+        XCTAssertFalse(factory.windows[1].isForeground)
         XCTAssertEqual(factory.windows[1].updatedAppearances.last?.spacing, .large)
     }
 
@@ -457,6 +558,7 @@ final class PortalWindowFactorySpy: PortalWindowBuilding {
 final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var isUserPlacementInteractionActive = false
     var presentedFrame: NSRect?
+    var onActivationRequested: (() -> Void)?
     var onUserPlacementCommit: ((NSRect) -> Void)?
     var onUserResizeCommit: ((NSRect, GridCapacity) -> Void)?
     var onUserPlacementInteractionCancelled: (() -> Void)?
@@ -472,6 +574,8 @@ final class PortalWindowPresenterSpy: PortalWindowPresenting {
     var onSetSortOrder: ((PortalSortOrder) -> Void)?
     var onSetTint: ((PortalTint) -> Void)?
     private(set) var presentCount = 0
+    private(set) var isForeground = false
+    private(set) var foregroundChanges: [Bool] = []
     private(set) var hideCount = 0
     private(set) var updateCount = 0
     private(set) var closeCount = 0
@@ -492,6 +596,11 @@ final class PortalWindowPresenterSpy: PortalWindowPresenting {
 
     func hide() {
         hideCount += 1
+    }
+
+    func setForeground(_ isForeground: Bool) {
+        self.isForeground = isForeground
+        foregroundChanges.append(isForeground)
     }
 
     func updatePortal(_ portal: Portal) {
