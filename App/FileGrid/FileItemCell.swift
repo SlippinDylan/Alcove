@@ -123,6 +123,10 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
         }
     }
 
+    override var highlightState: NSCollectionViewItem.HighlightState {
+        didSet { updateSelectionAppearance() }
+    }
+
     func configure(
         with item: FileItem,
         metrics: GridMetrics,
@@ -247,18 +251,19 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
     }
 
     private func updateSelectionAppearance() {
+        let highlighted = isSelected || highlightState == .asDropTarget
         view.effectiveAppearance.performAsCurrentDrawingAppearance {
-            iconSelectionView.layer?.backgroundColor = isSelected
+            iconSelectionView.layer?.backgroundColor = highlighted
                 ? NSColor.selectedContentBackgroundColor.withAlphaComponent(0.18).cgColor
                 : NSColor.clear.cgColor
-            iconSelectionView.layer?.borderWidth = isSelected ? 1 : 0
-            iconSelectionView.layer?.borderColor = isSelected
+            iconSelectionView.layer?.borderWidth = highlighted ? 1 : 0
+            iconSelectionView.layer?.borderColor = highlighted
                 ? NSColor.separatorColor.cgColor
                 : nil
-            labelSelectionView.layer?.backgroundColor = isSelected
+            labelSelectionView.layer?.backgroundColor = highlighted
                 ? NSColor.selectedContentBackgroundColor.cgColor
                 : NSColor.clear.cgColor
-            nameLabel.textColor = isSelected ? .white : .labelColor
+            nameLabel.textColor = highlighted ? .white : .labelColor
             trailingNameLabel.textColor = nameLabel.textColor
         }
     }

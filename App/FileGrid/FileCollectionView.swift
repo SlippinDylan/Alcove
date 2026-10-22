@@ -1,5 +1,10 @@
 import AppKit
 
+struct FileGridDropProposal {
+    let operation: NSDragOperation
+    let folderIndexPath: IndexPath?
+}
+
 enum FileGridKeyCommand: Equatable {
     case moveLeft(extending: Bool)
     case moveRight(extending: Bool)
@@ -19,7 +24,60 @@ final class FileCollectionView: NSCollectionView {
     var onMarqueeSelection: ((Set<Int>) -> Void)?
     var onKeyCommand: ((FileGridKeyCommand) -> Void)?
     var contextMenuProvider: ((Int) -> NSMenu?)?
+    var onValidateDrop: ((any NSDraggingInfo) -> FileGridDropProposal?)?
+    var onAcceptDrop: ((any NSDraggingInfo) -> Bool)?
+    var onDropSessionEnded: (() -> Void)?
     private let marqueeLayer = CAShapeLayer()
+    private var dropFolderIndexPath: IndexPath?
+
+    // Own destination callbacks so asynchronous preparation is rechecked even at a stationary target.
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        updateDropProposal(sender)
+    }
+
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        let point = convert(sender.draggingLocation, from: nil)
+        if visibleRect.contains(point) {
+            _ = scrollToVisible(NSRect(
+                x: visibleRect.minX, y: point.y - 20, width: visibleRect.width, height: 40
+            ))
+        }
+        return updateDropProposal(sender)
+    }
+
+    override func wantsPeriodicDraggingUpdates() -> Bool { true }
+
+    override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        !updateDropProposal(sender).isEmpty
+    }
+
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        defer { endDropSession() }
+        return onAcceptDrop?(sender) ?? false
+    }
+
+    override func draggingExited(_ sender: (any NSDraggingInfo)?) { endDropSession() }
+    override func draggingEnded(_ sender: any NSDraggingInfo) { endDropSession() }
+    override func concludeDragOperation(_ sender: (any NSDraggingInfo)?) { endDropSession() }
+
+    func endDropSession() {
+        setDropFolder(nil)
+        onDropSessionEnded?()
+    }
+
+    private func updateDropProposal(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        // The directory reload determines final icon positions only after asynchronous IO.
+        sender.animatesToDestination = false
+        let proposal = onValidateDrop?(sender)
+        setDropFolder(proposal?.folderIndexPath)
+        return proposal?.operation ?? []
+    }
+
+    private func setDropFolder(_ indexPath: IndexPath?) {
+        if let previous = dropFolderIndexPath { item(at: previous)?.highlightState = .none }
+        dropFolderIndexPath = indexPath
+        if let indexPath { item(at: indexPath)?.highlightState = .asDropTarget }
+    }
 
     override var acceptsFirstResponder: Bool {
         true

@@ -2,17 +2,16 @@ import AppKit
 import Foundation
 
 enum FileTransferOperation: Equatable, Sendable {
-    case automatic
     case copy
     case move
 
-    func resolved(
-        sourceVolumeURL: URL,
+    static func defaultOperation(
+        sourceVolumeURLs: [URL],
         destinationVolumeURL: URL
     ) -> FileTransferOperation {
-        guard self == .automatic else { return self }
-        return sourceVolumeURL.standardizedFileURL
-            == destinationVolumeURL.standardizedFileURL ? .move : .copy
+        sourceVolumeURLs.allSatisfy {
+            $0.standardizedFileURL == destinationVolumeURL.standardizedFileURL
+        } ? .move : .copy
     }
 }
 
@@ -280,6 +279,8 @@ private extension URL {
 }
 
 protocol FileTransferPerforming: Sendable {
+    func defaultOperation(sourceURLs: [URL], to destinationDirectoryURL: URL) async throws -> FileTransferOperation
+
     func transfer(
         sourceURLs: [URL],
         to destinationDirectoryURL: URL,
@@ -294,6 +295,12 @@ actor CoordinatedFileTransferService: FileTransferPerforming {
         self.fileManager = fileManager
     }
 
+    func defaultOperation(sourceURLs: [URL], to destinationDirectoryURL: URL) throws -> FileTransferOperation {
+        let destinationVolume = try volumeURL(for: destinationDirectoryURL)
+        let sourceVolumes = try sourceURLs.map { try volumeURL(for: $0) }
+        return .defaultOperation(sourceVolumeURLs: sourceVolumes, destinationVolumeURL: destinationVolume)
+    }
+
     func transfer(
         sourceURLs: [URL],
         to destinationDirectoryURL: URL,
@@ -304,52 +311,29 @@ actor CoordinatedFileTransferService: FileTransferPerforming {
             destinationDirectoryURL: destinationDirectoryURL,
             fileManager: fileManager
         )
-        let resolvedTransfers = try plan.entries.map { entry in
-            (
-                entry: entry,
-                operation: try resolve(
-                    operation,
-                    sourceURL: entry.sourceURL,
-                    destinationDirectoryURL: plan.destinationDirectoryURL
-                )
-            )
-        }
-
         var completedCount = 0
         do {
-            for transfer in resolvedTransfers {
+            for entry in plan.entries {
                 try coordinate(
-                    entry: transfer.entry,
+                    entry: entry,
                     destinationDirectoryURL: plan.destinationDirectoryURL,
-                    operation: transfer.operation
+                    operation: operation
                 )
                 completedCount += 1
             }
         } catch {
             throw FileOperationError.operationFailed(
                 completedCount: completedCount,
-                totalCount: resolvedTransfers.count
+                totalCount: plan.entries.count
             )
         }
     }
 
-    private func resolve(
-        _ operation: FileTransferOperation,
-        sourceURL: URL,
-        destinationDirectoryURL: URL
-    ) throws -> FileTransferOperation {
-        guard operation == .automatic else { return operation }
-        let sourceVolume = try sourceURL.resourceValues(forKeys: [.volumeURLKey]).volume
-        let destinationVolume = try destinationDirectoryURL.resourceValues(
-            forKeys: [.volumeURLKey]
-        ).volume
-        guard let sourceVolume, let destinationVolume else {
-            throw FileOperationError.volumeUnavailable(sourceURL)
+    private func volumeURL(for url: URL) throws -> URL {
+        guard let volume = try url.resourceValues(forKeys: [.volumeURLKey]).volume else {
+            throw FileOperationError.volumeUnavailable(url)
         }
-        return operation.resolved(
-            sourceVolumeURL: sourceVolume,
-            destinationVolumeURL: destinationVolume
-        )
+        return volume
     }
 
     private func coordinate(
@@ -362,8 +346,6 @@ actor CoordinatedFileTransferService: FileTransferPerforming {
         var operationError: Error?
 
         switch operation {
-        case .automatic:
-            preconditionFailure("Automatic transfer operation must be resolved before IO")
         case .copy:
             coordinator.coordinate(
                 readingItemAt: entry.sourceURL,

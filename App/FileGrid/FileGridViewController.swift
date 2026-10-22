@@ -1,6 +1,12 @@
 import AlcoveCore
 import AppKit
 
+enum FileDropIntent: Equatable {
+    case automatic
+    case copy
+    case move
+}
+
 struct FileGridRuntimeState: Equatable {
     let selection: SelectionState
     let scrollOrigin: NSPoint
@@ -23,6 +29,27 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     private var gridCapacity: GridCapacity
     private var items: [FileItem] = []
     private var compressionTask: Task<Void, Never>?
+    private var defaultDropTask: Task<Void, Never>?
+    private var defaultDropResolution: DefaultDropResolution?
+    private var validatedDrop: ValidatedDrop?
+
+    private struct DropRequest: Equatable {
+        let sequenceNumber: Int
+        let sourceURLs: [URL]
+        let destinationURL: URL
+    }
+
+    private struct DefaultDropResolution {
+        let request: DropRequest
+        var result: Result<FileTransferOperation, Error>?
+    }
+
+    private struct ValidatedDrop: Equatable {
+        let request: DropRequest
+        let operation: FileTransferOperation
+        let sourceMask: NSDragOperation
+        let modifiers: NSEvent.ModifierFlags
+    }
     private(set) var selectionState = SelectionState()
     private(set) var failedOpenURLs: [URL] = []
     private(set) var lastKeyboardScrollPosition: NSCollectionView.ScrollPosition?
@@ -69,6 +96,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
 
     deinit {
         compressionTask?.cancel()
+        defaultDropTask?.cancel()
     }
 
     var itemCount: Int {
@@ -112,6 +140,9 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
         collectionView.onMarqueeSelection = { [weak self] indexes in
             self?.replaceSelection(with: indexes)
         }
+        collectionView.onValidateDrop = { [weak self] info in self?.validateFileDrop(info) }
+        collectionView.onAcceptDrop = { [weak self] info in self?.acceptFileDrop(info) ?? false }
+        collectionView.onDropSessionEnded = { [weak self] in self?.endFileDropSession() }
         collectionView.contextMenuProvider = { [weak self] index in
             self?.contextMenu(forItemAt: index)
         }
@@ -137,6 +168,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     }
 
     func setItems(_ items: [FileItem]) {
+        collectionView.endDropSession()
         self.items = items
         selectionState.reconcile(with: orderedIDs)
         collectionView.reloadData()
@@ -144,7 +176,9 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     }
 
     func updateDropDestination(_ url: URL?) {
-        dropDestinationURL = url?.standardizedFileURL
+        let destination = url?.standardizedFileURL
+        if destination != dropDestinationURL { collectionView.endDropSession() }
+        dropDestinationURL = destination
     }
 
     func item(at index: Int) -> FileItem {
@@ -677,58 +711,78 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
         return items[indexPath.item].url as NSURL
     }
 
-    func collectionView(
-        _ collectionView: NSCollectionView,
-        validateDrop draggingInfo: any NSDraggingInfo,
-        proposedIndexPath proposedDropIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
-        dropOperation proposedDropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>
-    ) -> NSDragOperation {
-        let location = collectionView.convert(draggingInfo.draggingLocation, from: nil)
-        let targetIndex = collectionView.indexPathForItem(at: location)?.item
-        let isLocal = draggingInfo.draggingSource as AnyObject? === collectionView
-        guard destinationURL(forDropAt: targetIndex, isLocal: isLocal) != nil,
-              let sourceURLs = Self.fileURLs(from: draggingInfo.draggingPasteboard),
-              !sourceURLs.isEmpty else { return [] }
-        if let targetIndex {
-            proposedDropIndexPath.pointee = NSIndexPath(
-                forItem: targetIndex,
-                inSection: 0
-            )
-            proposedDropOperation.pointee = .on
+    private func validateFileDrop(_ info: any NSDraggingInfo) -> FileGridDropProposal? {
+        validatedDrop = nil
+        collectionView.layoutSubtreeIfNeeded()
+        let point = collectionView.convert(info.draggingLocation, from: nil)
+        let targetIndex = collectionView.collectionViewLayout?.layoutAttributesForElements(
+            in: NSRect(origin: point, size: NSSize(width: 1, height: 1))
+        ).first(where: { $0.representedElementCategory == .item && $0.frame.contains(point) })?.indexPath?.item
+        let isLocal = info.draggingSource as AnyObject? === collectionView
+        guard collectionView.visibleRect.contains(point),
+              let destination = destinationURL(forDropAt: targetIndex, isLocal: isLocal),
+              let sources = Self.fileURLs(from: info.draggingPasteboard), !sources.isEmpty,
+              let requested = Self.requestedTransferOperation(
+                  sourceMask: info.draggingSourceOperationMask, modifiers: NSEvent.modifierFlags
+              ) else {
+            resetDefaultDropOperation()
+            return nil
         }
-        return requestedDragOperation(
-            for: draggingInfo,
-            isLocal: isLocal
+        let request = DropRequest(
+            sequenceNumber: info.draggingSequenceNumber, sourceURLs: sources, destinationURL: destination
         )
+        let operation: FileTransferOperation
+        if requested == .automatic {
+            guard let resolved = defaultOperation(for: request) else { return nil }
+            operation = resolved
+        } else {
+            resetDefaultDropOperation()
+            operation = requested == .copy ? .copy : .move
+        }
+        let nativeOperation: NSDragOperation = operation == .copy ? .copy : .move
+        guard info.draggingSourceOperationMask.contains(nativeOperation) else { return nil }
+        validatedDrop = ValidatedDrop(
+            request: request, operation: operation,
+            sourceMask: info.draggingSourceOperationMask, modifiers: NSEvent.modifierFlags
+        )
+        let folderIndexPath = targetIndex.flatMap { index in
+            items[index].isNavigableDirectory ? IndexPath(item: index, section: 0) : nil
+        }
+        return FileGridDropProposal(operation: nativeOperation, folderIndexPath: folderIndexPath)
     }
 
-    func collectionView(
-        _ collectionView: NSCollectionView,
-        acceptDrop draggingInfo: any NSDraggingInfo,
-        indexPath: IndexPath,
-        dropOperation: NSCollectionView.DropOperation
-    ) -> Bool {
-        let isLocal = draggingInfo.draggingSource as AnyObject? === collectionView
-        guard let destination = destinationURL(
-                forDropAt: dropOperation == .on ? indexPath.item : nil,
-                isLocal: isLocal
-              ),
-              let sourceURLs = Self.fileURLs(from: draggingInfo.draggingPasteboard),
-              !sourceURLs.isEmpty else { return false }
+    private func defaultOperation(for request: DropRequest) -> FileTransferOperation? {
+        if defaultDropResolution?.request != request {
+            resetDefaultDropOperation()
+            defaultDropResolution = DefaultDropResolution(request: request)
+            defaultDropTask = Task { [weak self, fileTransferService] in
+                let result: Result<FileTransferOperation, Error>
+                do {
+                    try Task.checkCancellation()
+                    result = .success(try await fileTransferService.defaultOperation(
+                        sourceURLs: request.sourceURLs, to: request.destinationURL
+                    ))
+                } catch {
+                    result = .failure(error)
+                }
+                guard !Task.isCancelled, let self,
+                      self.defaultDropResolution?.request == request else { return }
+                self.defaultDropResolution?.result = result
+            }
+        }
+        guard case .success(let operation) = defaultDropResolution?.result else { return nil }
+        return operation
+    }
 
-        guard let operation = Self.requestedTransferOperation(
-            sourceMask: draggingInfo.draggingSourceOperationMask,
-            modifiers: NSEvent.modifierFlags
-        ) else { return false }
-
-        // Filesystem preflight belongs to the transfer actor. Drag callbacks are
-        // MainActor-isolated and must not synchronously query source or destination disks.
+    private func acceptFileDrop(_ info: any NSDraggingInfo) -> Bool {
+        guard let drop = validatedDrop,
+              validateFileDrop(info) != nil, validatedDrop == drop else { return false }
+        // Freeze the exact operation offered to AppKit; transfer IO must not choose a different one.
         Task { [weak self, fileTransferService] in
             do {
                 try await fileTransferService.transfer(
-                    sourceURLs: sourceURLs,
-                    to: destination,
-                    operation: operation
+                    sourceURLs: drop.request.sourceURLs,
+                    to: drop.request.destinationURL, operation: drop.operation
                 )
                 self?.onFileOperationCompleted?()
             } catch {
@@ -738,52 +792,36 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
         return true
     }
 
+    private func resetDefaultDropOperation() {
+        defaultDropTask?.cancel()
+        defaultDropTask = nil
+        defaultDropResolution = nil
+    }
+
+    private func endFileDropSession() {
+        let result = defaultDropResolution?.result
+        resetDefaultDropOperation()
+        validatedDrop = nil
+        // Present preparation failures after leaving the native drag callback stack.
+        if case .failure(let error) = result {
+            Task { [weak self] in self?.fileOperationFailurePresenter.present(error) }
+        }
+    }
+
     func destinationURL(forDropAt index: Int?, isLocal: Bool) -> URL? {
         if let index {
-            guard items.indices.contains(index), items[index].isNavigableDirectory else {
-                return nil
+            guard items.indices.contains(index) else { return nil }
+            if items[index].isNavigableDirectory {
+                return items[index].url
             }
-            return items[index].url
         }
         return isLocal ? nil : dropDestinationURL
-    }
-
-    private func requestedDragOperation(
-        for draggingInfo: any NSDraggingInfo,
-        isLocal: Bool
-    ) -> NSDragOperation {
-        let operation = Self.requestedDropOperation(
-            sourceMask: draggingInfo.draggingSourceOperationMask,
-            modifiers: NSEvent.modifierFlags,
-            isLocal: isLocal
-        )
-        return operation
-    }
-
-    static func requestedDropOperation(
-        sourceMask: NSDragOperation,
-        modifiers: NSEvent.ModifierFlags,
-        isLocal: Bool = false
-    ) -> NSDragOperation {
-        guard let requested = requestedTransferOperation(
-            sourceMask: sourceMask,
-            modifiers: modifiers
-        ) else { return [] }
-        switch requested {
-        case .copy:
-            return sourceMask.contains(.copy) ? .copy : []
-        case .move:
-            return sourceMask.contains(.move) ? .move : []
-        case .automatic:
-            if isLocal, sourceMask.contains(.move) { return .move }
-            return sourceMask.intersection([.copy, .move])
-        }
     }
 
     static func requestedTransferOperation(
         sourceMask: NSDragOperation,
         modifiers: NSEvent.ModifierFlags
-    ) -> FileTransferOperation? {
+    ) -> FileDropIntent? {
         if modifiers.contains([.command, .option]) {
             return nil
         }
@@ -799,6 +837,7 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
         if sourceMask.contains(.move), !sourceMask.contains(.copy) {
             return .move
         }
+        guard sourceMask.contains(.copy), sourceMask.contains(.move) else { return nil }
         return .automatic
     }
 

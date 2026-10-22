@@ -105,9 +105,9 @@ Quick Look follows the responder chain. The portal window owns the Quick Look re
 |--------|----------|
 | Command-Delete | Freeze the ordered selection, invalidate Quick Look, and move the selected URLs to Trash through `NSWorkspace.recycle` |
 | Drag from Alcove to Finder/Desktop | Publish the native file URLs through the collection view's AppKit drag session; Alcove never deletes the source after the external drop |
-| Drag from Finder to empty Portal grid space or an ordinary folder tile | Transfer all dropped items into the current browsed directory or targeted folder using Finder volume semantics |
+| 从 Finder 或桌面拖入 Portal 文件内容区 | 整个文件内容区均可接收，不要求存在空白位置；投到普通文件夹图标时传入该子文件夹，投到文件、包、符号链接或空白处时传入当前浏览目录，遵循 Finder 的卷与修饰键语义 |
 | Drag from Alcove to an ordinary folder tile in the same panel | Transfer the selected items into that folder; local background drops remain invalid |
-| Finder-style transfer modifiers | Same-volume defaults to Move, cross-volume defaults to Copy, Option forces Copy, Command forces Move, and Command-Option is rejected because alias creation is out of scope |
+| 文件传输操作 | 所有来源均与目标同卷时默认整批移动；任一来源跨卷（包括混合卷来源）时默认整批复制。Option 强制复制，Command 强制移动；源端仅允许一种操作时遵守其能力限制。Command-Option 因不支持创建别名而拒绝。原生反馈与实际执行使用同一操作；后台准备完成前不接受放下 |
 | Right-click an item | Preserve an existing multi-selection or select only the newly clicked item, then show a native contextual menu |
 | Right-click empty grid space | Show no file menu and leave selection unchanged |
 | Contextual Open / Quick Look / Show in Finder / Trash | Reuse the same ordered selection and existing native behaviors |
@@ -217,7 +217,7 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe active-tab directory changes with FSEvents and rebuild from a fresh snapshot, including fail-closed recovery for root-change and dropped/wrapped events | MVP |
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
-| FR-17 | Use native multi-item file-URL drag sessions for Portal-to-Finder/Desktop export; accept external file URLs on the current-directory background or an ordinary folder tile and accept in-panel file URLs on ordinary folder tiles. Same-volume transfers default to Move, cross-volume transfers default to Copy, Option forces Copy, Command forces Move, and Command-Option is rejected because alias creation is out of scope | MVP |
+| FR-17 | 使用原生多项目文件 URL 拖动会话向 Finder／桌面导出文件；外部文件可投到文件内容区的任意位置，普通文件夹图标指向该子文件夹，其余位置指向当前浏览目录，网格已满时同样可用。同一网格内只接受普通文件夹目标。所有来源均同卷时默认整批移动、任一来源跨卷时默认整批复制，Option 强制复制，Command 强制移动，Command-Option 因不支持创建别名而被拒绝 | MVP |
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 | FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
 | FR-21 | Show the selected folder path in a reserved bottom row separated from the file grid, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
@@ -344,7 +344,7 @@ Product acceptance and release verification are separate. Automated acceptance d
 | AC-20 | The selected folder's abbreviated path updates with tab changes and can be copied without reducing the persisted visible grid capacity | FR-21 |
 | AC-21 | The menu hierarchy and all user-facing strings render in English, Simplified Chinese, or Traditional Chinese from the saved app-language choice after Alcove automatically restarts; Follow System uses the current macOS language and falls back to English for unsupported languages | FR-22 |
 | AC-22 | Empty-space marquee selection works in both directions and Command-drag toggles against the mouse-down selection | FR-04 |
-| AC-23 | Native file URL drags work from Alcove to Finder/Desktop; external drops target the current browsed directory or an ordinary folder tile, in-panel drops target ordinary folder tiles, automatic operations use Finder same-volume Move/cross-volume Copy semantics, modifiers override safely, and no transfer overwrites an existing item | FR-17, FR-26 |
+| AC-23 | 原生文件 URL 可从 Alcove 拖到 Finder／桌面；外部文件可投到空、满或滚动后的整个文件内容区，普通文件夹图标指向该子文件夹，其余位置指向当前浏览目录；同一网格内只接受普通文件夹目标。自动操作在所有来源均同卷时整批移动、任一来源跨卷时整批复制；原生反馈与实际操作一致，修饰键可安全覆盖，任何传输均不得覆盖已有项目 | FR-17, FR-26 |
 | AC-24 | Advanced → Repair Panel Positions leaves every already visible non-conflicting frame unchanged, persists only repaired panels, uses distinct exposed-top fallback slots before repeating them, and leaves every panel recoverable through menu-bar Show | FR-08, FR-22, FR-23 |
 | AC-25 | File and folder context menus preserve or replace selection like Finder, expose only valid native actions, keep blank-space selection unchanged, and route multi-item Finder, AirDrop, path-copy, Terminal, native Quick Look, open, compress, duplicate, and Trash actions in stable grid order. Single-item Get Info opens Finder's real information window after user-approved Automation access and reports denial; single-item Return/contextual rename edits inline, preserves the file extension selection, rejects invalid/conflicting names, cancels with Escape, and retains selection after the path changes; Duplicate uses Finder naming and selects the returned copies; Compress produces a Finder-compatible ZIP with conflict-safe naming, cancellation cleanup, no shell, and no overwrite | FR-27 |
 

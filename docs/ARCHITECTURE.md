@@ -101,6 +101,8 @@ Alcove 把实时 `NSScreen.screens[0]` 视为菜单栏主显示器，不使用�
 
 `FileGridViewController` 使用 `NSCollectionView` 和共享 `GridLayout` 呈现连续 row-major 网格。Finder 风格交互契约由 `PRODUCT_REQUIREMENTS.md` 定义，包括单击选择、Command/Shift 扩展、双击打开、Return 重命名、拖放和上下文菜单。
 
+文件拖入由 `FileCollectionView` 接收原生 `NSDraggingDestination` 回调，控制器统一解析目标目录、冻结来源及明确的复制／移动操作，专用 IO 边界负责卷身份查询和实际传输。默认 collection view delegate 会缓存同一落点的校验结果，不适合等待异步卷查询；原生周期回调可在鼠标静止时重新检查准备状态。布局只描述真实项目，不创建覆盖项目的虚拟间隙。目标、目录内容或拖动会话变化时取消旧准备，迟到结果不得启用新目标；准备完成前拒绝放下，接收后不再重新选择操作。满网格与空白区域的交互规则见 `PRODUCT_REQUIREMENTS.md`，不在视图层新增文件变更路径。
+
 所有变更型文件操作遵守同一边界：
 
 1. 冻结有序选择和目标快照。
