@@ -139,7 +139,7 @@
 "portal.settings.sorting" = "Sorting";
 "portal.settings.sort.description" = "Choose how folders and files are arranged in this panel.";
 "portal.settings.tint" = "Color";
-"portal.settings.tint.description" = "Choose a color tint for this panel's frosted background.";
+"portal.settings.tint.description" = "Choose a color tint for this panel's background.";
 "portal.settings.add_folder" = "Add Folder";
 "portal.settings.folder_count" = "%d / %d";
 "portal.settings.folder_limit" = "Each panel can contain up to %d folders.";

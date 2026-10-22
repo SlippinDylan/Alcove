@@ -174,6 +174,39 @@ final class PortalWindowConfigurationTests: XCTestCase {
     }
 
     @MainActor
+    func testDesktopLevelClearsSystemGradientAcrossAppearanceAndForegroundChanges() throws {
+        let controller = PortalWindowController(
+            portal: try Portal(
+                frame: NSRect(x: 0, y: 0, width: 560, height: 480),
+                display: coordinatorTestDisplay
+            ),
+            loadingCoordinator: FolderLoadingCoordinator()
+        )
+        let window = try XCTUnwrap(controller.window as? PortalWindow)
+        defer { controller.close() }
+        // Observed on macOS 27: the desktop-top gradient shares this level with older Portals.
+        let systemGradientLevel = Int(CGWindowLevelForKey(.desktopIconWindow)) + 1
+        let desktopLevel = window.level
+        XCTAssertGreaterThan(desktopLevel.rawValue, systemGradientLevel)
+        XCTAssertLessThan(desktopLevel.rawValue, NSWindow.Level.normal.rawValue)
+        let initialFrame = window.frame
+
+        for backgroundStyle in PortalBackgroundStyle.selectableCases {
+            var appearance = PortalAppearancePreferences.defaults
+            appearance.backgroundStyle = backgroundStyle
+            controller.updateAppearance(appearance)
+            for isPinned in [true, false] {
+                window.setPinned(isPinned)
+                window.setForeground(true)
+                XCTAssertEqual(window.level, PortalWindowStrategy.foregroundLevel)
+                window.setForeground(false)
+                XCTAssertEqual(window.level, desktopLevel)
+                XCTAssertEqual(window.frame, initialFrame)
+            }
+        }
+    }
+
+    @MainActor
     func testDevelopmentStrategyAppliesToKeyEligiblePortalWindow() {
         let strategy = PortalWindowStrategy.developmentDefault
         let contentController = NSViewController()

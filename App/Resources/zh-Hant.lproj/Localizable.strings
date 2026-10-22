@@ -139,7 +139,7 @@
 "portal.settings.sorting" = "排序";
 "portal.settings.sort.description" = "選擇此面板中資料夾和檔案的排列方式。";
 "portal.settings.tint" = "顏色";
-"portal.settings.tint.description" = "為此面板的磨砂玻璃背景選擇一種顏色。";
+"portal.settings.tint.description" = "為此面板的背景選擇一種顏色。";
 "portal.settings.add_folder" = "加入資料夾";
 "portal.settings.folder_count" = "%d / %d";
 "portal.settings.folder_limit" = "每個面板最多可以加入 %d 個資料夾。";

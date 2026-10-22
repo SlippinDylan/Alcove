@@ -10,7 +10,8 @@ struct PortalWindowStrategy: Equatable {
 
     static let developmentDefault = PortalWindowStrategy(
         level: NSWindow.Level(
-            rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1
+            // The system's desktop-top gradient can occupy desktopIconWindow + 1.
+            rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 2
         ),
         collectionBehavior: [.canJoinAllSpaces, .stationary, .ignoresCycle],
         canBecomeKey: true

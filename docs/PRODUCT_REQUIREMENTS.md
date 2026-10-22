@@ -172,7 +172,7 @@ the file grid. Empty Portals keep the row's layout space but hide the path conte
 
 | Property | Value |
 |----------|-------|
-| 窗口层级 | 默认使用 `desktopIconWindow + 1`，位于 Finder 桌面图标之上、普通应用窗口之下；明确用户呈现时使用 `normal + 1` 并前置，高于 `.normal`、低于标准 `.floating` 窗口 |
+| 窗口层级 | 默认使用 `desktopIconWindow + 2`，位于 Finder 桌面图标之上、普通应用窗口之下；明确用户呈现时使用 `normal + 1` 并前置，高于 `.normal`、低于标准 `.floating` 窗口 |
 | 用户呈现 | 左键点击 Portal 的任意真实区域，包括顶部控件、底部路径栏、文件区和空白处，或选择菜单栏 Show，提升指定 Portal；同一时间最多提升一个，提升另一个时原 Portal 回到桌面层 |
 | 离开 Alcove | 切换到 Chrome 等其他应用时，提升的 Portal 回到桌面层；转向 Alcove 自己的设置或 Quick Look 时保持提升，辅助窗口仍可在 Portal 上方正常交互 |
 | 被动呈现 | 启动、布局恢复和布局导入只显示桌面层窗口；成为 key window 本身不触发提升 |
