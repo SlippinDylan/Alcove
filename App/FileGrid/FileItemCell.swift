@@ -23,6 +23,7 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
     private var onOpen: (() -> Bool)?
     private var renameState: RenameState?
     private var fullName = ""
+    private var nameBackdropEnabled = false
     private var availableNameWidth = GridMetrics(iconSize: .medium).itemSize.width - 8
 
     private struct RenameState {
@@ -133,12 +134,14 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
         position: Int,
         itemCount: Int,
         opensDirectoryInPanel: Bool = false,
+        nameBackdropEnabled: Bool = false,
         onOpen: @escaping () -> Bool
     ) {
         cancelRenaming()
         representedObject = item
         itemPosition = position
         self.itemCount = itemCount
+        self.nameBackdropEnabled = nameBackdropEnabled
         self.onOpen = onOpen
         iconWidthConstraint?.constant = metrics.iconSize.rawValue
         iconHeightConstraint?.constant = metrics.iconSize.rawValue
@@ -178,6 +181,11 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
                 selector: #selector(performAccessibilityOpen)
             ),
         ])
+    }
+
+    func updateNameBackdropEnabled(_ enabled: Bool) {
+        nameBackdropEnabled = enabled
+        updateSelectionAppearance()
     }
 
     func beginRenaming(
@@ -262,7 +270,7 @@ final class FileItemCell: NSCollectionViewItem, NSTextFieldDelegate {
                 : nil
             labelSelectionView.layer?.backgroundColor = highlighted
                 ? NSColor.selectedContentBackgroundColor.cgColor
-                : NSColor.clear.cgColor
+                : (nameBackdropEnabled ? NSColor.windowBackgroundColor : NSColor.clear).cgColor
             nameLabel.textColor = highlighted ? .white : .labelColor
             trailingNameLabel.textColor = nameLabel.textColor
         }

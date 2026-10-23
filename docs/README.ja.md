@@ -42,7 +42,7 @@ Alcove は、選んだローカルフォルダをデスクトップに表示す�
     <td><img src="images/readme/panel-controls.png" alt="Alcove のパネル操作メニュー"></td>
   </tr>
   <tr>
-    <td><strong>外観</strong><br><br>コンテンツサイズ、透明度、角丸、パネル間隔、ウインドウの影を調整できます。</td>
+    <td><strong>外観</strong><br><br>半透明、マット、スモーク、ソフトカラー、グラデーション、ペーパー、アウトラインの背景を選べます。対応するスタイルの透明度は5段階で調整でき、パネルごとの色、コンテンツサイズ、角丸、パネル間隔、ウインドウの影も設定できます。</td>
     <td align="center"><img src="images/readme/appearance-settings.png" width="420" alt="Alcove の外観設定"></td>
   </tr>
   <tr>

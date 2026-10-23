@@ -230,3 +230,14 @@
 "application.settings.backup.error.format" = "The selected file was not created as an Alcove layout backup.";
 "application.settings.backup.error.version" = "Layout backup version %d is not supported by this version of Alcove.";
 "application.settings.backup.error.invalid_data" = "The layout backup contains invalid or unsupported data.";
+
+/* Portal surface styles */
+"application.settings.surface_style" = "Background Style";
+"portal.surface.translucent" = "Translucent";
+"portal.surface.matte" = "Matte";
+"portal.surface.smoke" = "Smoke";
+"portal.surface.soft_tint" = "Soft Tint";
+"portal.surface.gradient" = "Subtle Gradient";
+"portal.surface.paper" = "Paper";
+"portal.surface.outline" = "Outline";
+"application.settings.transparency.opaque_hint" = "This style uses an opaque background. Your transparency setting is kept for translucent styles.";

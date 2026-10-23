@@ -42,7 +42,7 @@ Left-click anywhere in a portal or choose **Show** in the menu bar to bring it a
     <td><img src="docs/images/readme/panel-controls.png" alt="Alcove portal control menu"></td>
   </tr>
   <tr>
-    <td><strong>Appearance</strong><br><br>Choose the content size, transparency, corner radius, panel spacing, and window shadow.</td>
+    <td><strong>Appearance</strong><br><br>Choose translucent, matte, smoke, soft tint, gradient, paper, or outline backgrounds. Adjust five-step transparency for supported styles, each panel’s color, content size, corner radius, panel spacing, and window shadow.</td>
     <td align="center"><img src="docs/images/readme/appearance-settings.png" width="420" alt="Alcove appearance settings"></td>
   </tr>
   <tr>

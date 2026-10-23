@@ -55,6 +55,27 @@ enum PortalSpacing: Int, CaseIterable, Sendable {
     }
 }
 
+enum PortalSurfaceStyle: String, CaseIterable, Sendable {
+    case translucent
+    case matte
+    case smoke
+    case softTint = "soft_tint"
+    case gradient
+    case paper
+    case outline
+
+    var title: String {
+        NSLocalizedString("portal.surface.\(rawValue)", comment: "Portal background surface style")
+    }
+
+    var supportsTransparency: Bool {
+        switch self {
+        case .translucent, .smoke, .outline: true
+        case .matte, .softTint, .gradient, .paper: false
+        }
+    }
+}
+
 struct PortalAppearancePreferences: Equatable, Sendable {
     static let defaults = PortalAppearancePreferences(
         iconSize: .medium,
@@ -66,6 +87,7 @@ struct PortalAppearancePreferences: Equatable, Sendable {
 
     var iconSize: IconSize
     var backgroundStyle: PortalBackgroundStyle
+    var surfaceStyle: PortalSurfaceStyle
     var cornerRadius: PortalCornerRadius
     var spacing: PortalSpacing
     var shadowEnabled: Bool
@@ -73,12 +95,14 @@ struct PortalAppearancePreferences: Equatable, Sendable {
     init(
         iconSize: IconSize = .medium,
         backgroundStyle: PortalBackgroundStyle = .lowTransparency,
+        surfaceStyle: PortalSurfaceStyle = .translucent,
         cornerRadius: PortalCornerRadius,
         spacing: PortalSpacing,
         shadowEnabled: Bool
     ) {
         self.iconSize = iconSize
         self.backgroundStyle = backgroundStyle.normalizedSelection
+        self.surfaceStyle = surfaceStyle
         self.cornerRadius = cornerRadius
         self.spacing = spacing.normalizedSelection
         self.shadowEnabled = shadowEnabled
@@ -90,6 +114,7 @@ protocol ApplicationPreferencesControlling: AnyObject {
     var portalAppearance: PortalAppearancePreferences { get }
     @discardableResult func setPortalIconSize(_ iconSize: IconSize) -> Bool
     @discardableResult func setPortalBackgroundStyle(_ backgroundStyle: PortalBackgroundStyle) -> Bool
+    @discardableResult func setPortalSurfaceStyle(_ surfaceStyle: PortalSurfaceStyle) -> Bool
     @discardableResult func setPortalCornerRadius(_ cornerRadius: PortalCornerRadius) -> Bool
     @discardableResult func setPortalSpacing(_ spacing: PortalSpacing) -> Bool
     @discardableResult func setPortalShadowEnabled(_ enabled: Bool) -> Bool
@@ -101,6 +126,7 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
     private enum Key {
         static let portalIconSize = "portalAppearance.iconSize"
         static let portalBackgroundStyle = "portalAppearance.backgroundStyle"
+        static let portalSurfaceStyle = "portalAppearance.surfaceStyle"
         static let portalCornerRadius = "portalAppearance.cornerRadius"
         static let portalSpacing = "portalAppearance.spacing"
         static let portalShadowEnabled = "portalAppearance.shadowEnabled"
@@ -116,6 +142,7 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
         userDefaults.register(defaults: [
             Key.portalIconSize: Double(defaults.iconSize.rawValue),
             Key.portalBackgroundStyle: defaults.backgroundStyle.rawValue,
+            Key.portalSurfaceStyle: defaults.surfaceStyle.rawValue,
             Key.portalCornerRadius: defaults.cornerRadius.rawValue,
             Key.portalSpacing: defaults.spacing.rawValue,
             Key.portalShadowEnabled: defaults.shadowEnabled,
@@ -131,9 +158,12 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
         ) ?? defaults.iconSize
         let backgroundStyle = userDefaults.string(forKey: Key.portalBackgroundStyle)
             .flatMap(PortalBackgroundStyle.init(rawValue:)) ?? defaults.backgroundStyle
+        let surfaceStyle = userDefaults.string(forKey: Key.portalSurfaceStyle)
+            .flatMap(PortalSurfaceStyle.init(rawValue:)) ?? defaults.surfaceStyle
         portalAppearance = PortalAppearancePreferences(
             iconSize: iconSize,
             backgroundStyle: backgroundStyle,
+            surfaceStyle: surfaceStyle,
             cornerRadius: cornerRadius,
             spacing: spacing,
             shadowEnabled: userDefaults.bool(forKey: Key.portalShadowEnabled)
@@ -169,6 +199,17 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
         guard onPortalAppearanceChanged?(updatedAppearance) != false else { return false }
         portalAppearance = updatedAppearance
         userDefaults.set(backgroundStyle.rawValue, forKey: Key.portalBackgroundStyle)
+        return true
+    }
+
+    @discardableResult
+    func setPortalSurfaceStyle(_ surfaceStyle: PortalSurfaceStyle) -> Bool {
+        guard portalAppearance.surfaceStyle != surfaceStyle else { return true }
+        var updatedAppearance = portalAppearance
+        updatedAppearance.surfaceStyle = surfaceStyle
+        guard onPortalAppearanceChanged?(updatedAppearance) != false else { return false }
+        portalAppearance = updatedAppearance
+        userDefaults.set(surfaceStyle.rawValue, forKey: Key.portalSurfaceStyle)
         return true
     }
 
@@ -212,6 +253,7 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
         let normalizedAppearance = PortalAppearancePreferences(
             iconSize: appearance.iconSize,
             backgroundStyle: appearance.backgroundStyle,
+            surfaceStyle: appearance.surfaceStyle,
             cornerRadius: appearance.cornerRadius,
             spacing: appearance.spacing,
             shadowEnabled: appearance.shadowEnabled
@@ -223,6 +265,7 @@ final class ApplicationPreferencesController: ApplicationPreferencesControlling 
             forKey: Key.portalBackgroundStyle
         )
         userDefaults.set(normalizedAppearance.cornerRadius.rawValue, forKey: Key.portalCornerRadius)
+        userDefaults.set(normalizedAppearance.surfaceStyle.rawValue, forKey: Key.portalSurfaceStyle)
         userDefaults.set(normalizedAppearance.spacing.rawValue, forKey: Key.portalSpacing)
         userDefaults.set(normalizedAppearance.shadowEnabled, forKey: Key.portalShadowEnabled)
     }

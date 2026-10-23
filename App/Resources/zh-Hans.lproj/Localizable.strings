@@ -230,3 +230,14 @@
 "application.settings.backup.error.format" = "所选文件不是由 Alcove 创建的布局备份。";
 "application.settings.backup.error.version" = "当前版本的 Alcove 不支持布局备份版本 %d。";
 "application.settings.backup.error.invalid_data" = "布局备份包含无效或不受支持的数据。";
+
+/* Portal surface styles */
+"application.settings.surface_style" = "背景样式";
+"portal.surface.translucent" = "半透明";
+"portal.surface.matte" = "哑光";
+"portal.surface.smoke" = "烟色";
+"portal.surface.soft_tint" = "柔彩";
+"portal.surface.gradient" = "微渐层";
+"portal.surface.paper" = "纸感";
+"portal.surface.outline" = "透明轮廓";
+"application.settings.transparency.opaque_hint" = "此样式使用不透明背景；透明度档位会保留，切回半透明样式后恢复。";

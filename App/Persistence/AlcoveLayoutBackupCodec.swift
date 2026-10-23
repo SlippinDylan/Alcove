@@ -11,6 +11,7 @@ struct AlcoveLayoutBackup: Equatable, Sendable {
 struct AlcoveLayoutBackupGlobal: Equatable, Sendable {
     let iconSize: IconSize
     let backgroundStyle: PortalBackgroundStyle
+    let surfaceStyle: PortalSurfaceStyle
     let spacing: PortalSpacing
     let cornerRadius: PortalCornerRadius
     let shadowEnabled: Bool
@@ -18,12 +19,14 @@ struct AlcoveLayoutBackupGlobal: Equatable, Sendable {
     init(
         iconSize: IconSize,
         backgroundStyle: PortalBackgroundStyle,
+        surfaceStyle: PortalSurfaceStyle = .translucent,
         spacing: PortalSpacing,
         cornerRadius: PortalCornerRadius,
         shadowEnabled: Bool
     ) {
         self.iconSize = iconSize
         self.backgroundStyle = backgroundStyle
+        self.surfaceStyle = surfaceStyle
         self.spacing = spacing
         self.cornerRadius = cornerRadius
         self.shadowEnabled = shadowEnabled
@@ -48,6 +51,7 @@ enum AlcoveLayoutBackupError: LocalizedError, Equatable {
     case unsupportedVersion(Int)
     case invalidIconSize(Double)
     case invalidBackgroundStyle(String)
+    case invalidSurfaceStyle(String)
     case invalidSpacing(Int)
     case invalidCornerRadius(Int)
     case invalidPortalID(String)
@@ -101,7 +105,7 @@ enum AlcoveLayoutBackupError: LocalizedError, Equatable {
 /// Encodes and validates the stable, user-facing Alcove layout-backup format.
 enum AlcoveLayoutBackupCodec {
     static let format = "com.alcove.layout-backup"
-    static let currentVersion = 1
+    static let currentVersion = 2
 
     static func encode(
         portals: [Portal],
@@ -182,6 +186,7 @@ private struct LayoutBackupDTO: Codable {
 private struct LayoutBackupGlobalDTO: Codable {
     let iconSize: Double
     let backgroundStyle: String
+    let surfaceStyle: String
     let spacing: Int
     let cornerRadius: Int
     let shadowEnabled: Bool
@@ -189,6 +194,7 @@ private struct LayoutBackupGlobalDTO: Codable {
     enum CodingKeys: String, CodingKey {
         case iconSize = "icon_size"
         case backgroundStyle = "background_style"
+        case surfaceStyle = "surface_style"
         case spacing
         case cornerRadius = "corner_radius"
         case shadowEnabled = "shadow_enabled"
@@ -197,6 +203,7 @@ private struct LayoutBackupGlobalDTO: Codable {
     init(_ appearance: PortalAppearancePreferences) {
         iconSize = Double(appearance.iconSize.rawValue)
         backgroundStyle = appearance.backgroundStyle.rawValue
+        surfaceStyle = appearance.surfaceStyle.rawValue
         spacing = appearance.spacing.rawValue
         cornerRadius = appearance.cornerRadius.rawValue
         shadowEnabled = appearance.shadowEnabled
@@ -211,6 +218,9 @@ private struct LayoutBackupGlobalDTO: Codable {
         guard let backgroundStyle = PortalBackgroundStyle(rawValue: backgroundStyle) else {
             throw AlcoveLayoutBackupError.invalidBackgroundStyle(self.backgroundStyle)
         }
+        guard let surfaceStyle = PortalSurfaceStyle(rawValue: surfaceStyle) else {
+            throw AlcoveLayoutBackupError.invalidSurfaceStyle(self.surfaceStyle)
+        }
         guard let spacing = PortalSpacing(rawValue: spacing) else {
             throw AlcoveLayoutBackupError.invalidSpacing(self.spacing)
         }
@@ -220,6 +230,7 @@ private struct LayoutBackupGlobalDTO: Codable {
         return AlcoveLayoutBackupGlobal(
             iconSize: iconSize,
             backgroundStyle: backgroundStyle.normalizedSelection,
+            surfaceStyle: surfaceStyle,
             spacing: spacing.normalizedSelection,
             cornerRadius: cornerRadius,
             shadowEnabled: shadowEnabled

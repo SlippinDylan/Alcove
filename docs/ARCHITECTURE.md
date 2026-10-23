@@ -56,7 +56,7 @@ Apple 文档确认 `.floating` 高于 `.normal`，`makeKeyAndOrderFront` 只在�
 - `GridCapacity.columns` 是网格换行的唯一列数来源，不从存在边框或 clip view 误差的像素宽度反推。
 - pinned 状态只禁止用户拖动和缩放，不阻止内容交互、显示器恢复或菜单栏 Show。
 
-全局内容大小、透明度、间距、圆角、阴影和语言保存在 `UserDefaults`；Portal envelope 只保存单面板状态，例如容量、Tab、placement、排序、tint 和 pinned。
+全局内容大小、背景样式、透明度、间距、圆角、阴影和语言保存在 `UserDefaults`；Portal envelope 只保存单面板状态，例如容量、Tab、placement、排序、tint 和 pinned。
 
 ## 4. 主显示器与布局
 
@@ -131,7 +131,9 @@ Tab 切换、选择失效或窗口关闭时，只清理仍由当前 integration 
 
 ## 8. Portal 表面
 
-Portal 根视图使用普通 layer-backed 静态 alpha 合成表面。文件网格、顶部控制区、底部路径栏和分割线是同级内容；Portal 整体不使用动态 backdrop。
+Portal 根视图使用普通 layer-backed 静态表面，以纯色、alpha 合成、渐层和纹理呈现七种全局背景样式，随 macOS 深浅外观适配；默认保留原有半透明样式。背景样式与五档透明度是独立偏好，仅半透明、烟色和轮廓使用透明度，其余样式不启用该控件。切换样式不改变各 Portal 的 tint、网格容量或布局。
+
+文件网格、顶部控制区、底部路径栏和分割线是同级内容；轮廓样式在文件名、顶部控制区、路径和状态文字后使用局部不透明底色，避免依赖壁纸保证文字可读性。Portal 整体不使用动态 backdrop。
 
 这个边界源于真实 Space 切换证据：desktop-level 窗口配合 `.canJoinAllSpaces` 时，整块 `NSGlassEffectView` 或 behind-window `NSVisualEffectView` 会暂时变灰。移除跨 Space 行为会破坏产品契约，切换后再移动窗口会产生明显延迟，因此生产实现选择静态表面。Reduce Transparency 使用不透明可访问表面，不修改已保存偏好。
 
@@ -145,8 +147,9 @@ Portal 根视图使用普通 layer-backed 静态 alpha 合成表面。文件网�
 
 `PortalStore` 使用版本化 Codable DTO 和同目录临时文件加原子 replace/move。当前 schema 为 v12；v1–v11 通过各自 DTO 解码、验证和迁移，不能把旧 JSON 直接宽泛解码为当前模型。迁移前保留单份原版本备份；发现已有不同备份时失败并保留证据，不覆盖。
 
-布局导入导出是独立的 `com.alcove.layout-backup` v1 公共格式，不暴露内部 v12 envelope。它包含语义化全局外观和可移植 Portal 状态，不包含 launch-at-login：
+布局导入导出是独立的 `com.alcove.layout-backup` v2 公共格式，不暴露内部 v12 envelope。它包含语义化全局外观和可移植 Portal 状态，不包含 launch-at-login：
 
+- 全局 `surface_style` 必填；仅支持 v2，v1 和其他版本均拒绝，不提供自动迁移。这个公开格式变更不改变内部 Portal schema v12 或其既有迁移路径。
 - 导入严格验证完整文档，只支持替换，不执行 merge。
 - 先基于当前主显示器、容量和间距预演完整布局。
 - `PortalStore.save` 单次成功后才关闭旧窗口并替换 runtime。

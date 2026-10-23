@@ -119,6 +119,7 @@ final class ApplicationLayoutBackupController: ApplicationLayoutBackupControllin
                 let appearance = PortalAppearancePreferences(
                     iconSize: backup.global.iconSize,
                     backgroundStyle: backup.global.backgroundStyle,
+                    surfaceStyle: backup.global.surfaceStyle,
                     cornerRadius: backup.global.cornerRadius,
                     spacing: backup.global.spacing,
                     shadowEnabled: backup.global.shadowEnabled

@@ -16,6 +16,7 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         let appearance = PortalAppearancePreferences(
             iconSize: .large,
             backgroundStyle: .highTransparency,
+            surfaceStyle: .paper,
             cornerRadius: .small,
             spacing: .maximum,
             shadowEnabled: false
@@ -28,7 +29,8 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         )
         let json = try XCTUnwrap(String(data: data, encoding: .utf8))
         XCTAssertTrue(json.contains("\"format\" : \"com.alcove.layout-backup\""))
-        XCTAssertTrue(json.contains("\"version\" : 1"))
+        XCTAssertTrue(json.contains("\"version\" : 2"))
+        XCTAssertTrue(json.contains("\"surface_style\" : \"paper\""))
         XCTAssertFalse(json.contains("background_type"))
         XCTAssertTrue(json.contains("\"background_style\" : \"high_transparency\""))
         XCTAssertTrue(json.contains("\"kind\" : \"home_relative\""))
@@ -39,6 +41,7 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         let backup = try AlcoveLayoutBackupCodec.decode(data, homeDirectory: home)
         XCTAssertEqual(backup.global.iconSize, .large)
         XCTAssertEqual(backup.global.backgroundStyle, .highTransparency)
+        XCTAssertEqual(backup.global.surfaceStyle, .paper)
         XCTAssertEqual(backup.global.cornerRadius, .small)
         XCTAssertEqual(backup.global.spacing, .large)
         XCTAssertFalse(backup.global.shadowEnabled)
@@ -66,9 +69,9 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
             XCTAssertEqual(error as? AlcoveLayoutBackupError, .invalidFormat("other"))
         }
         XCTAssertThrowsError(try decode("""
-        {"format":"com.alcove.layout-backup","version":2}
+        {"format":"com.alcove.layout-backup","version":3}
         """)) { error in
-            XCTAssertEqual(error as? AlcoveLayoutBackupError, .unsupportedVersion(2))
+            XCTAssertEqual(error as? AlcoveLayoutBackupError, .unsupportedVersion(3))
         }
     }
 
@@ -95,10 +98,31 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         )
     }
 
-    func testVersionOneBackupIgnoresRetiredBackgroundType() throws {
-        let backup = try decode(validJSON)
+    func testVersionOneBackupIsRejectedBeforeReadingItsPayload() {
+        XCTAssertThrowsError(try decode("""
+        {"format":"com.alcove.layout-backup","version":1}
+        """)) { error in
+            XCTAssertEqual(error as? AlcoveLayoutBackupError, .unsupportedVersion(1))
+        }
+    }
 
-        XCTAssertEqual(backup.global.backgroundStyle, .standard)
+    func testEverySurfaceStyleRoundTripsAndUnknownOrMissingStylesAreRejected() throws {
+        for style in PortalSurfaceStyle.allCases {
+            var appearance = PortalAppearancePreferences.defaults
+            appearance.surfaceStyle = style
+            let data = try AlcoveLayoutBackupCodec.encode(portals: [], appearance: appearance)
+            XCTAssertEqual(try AlcoveLayoutBackupCodec.decode(data).global.surfaceStyle, style)
+        }
+        try assertReplacement(
+            "\"surface_style\":\"translucent\"",
+            with: "\"surface_style\":\"unknown\"",
+            produces: .invalidSurfaceStyle("unknown")
+        )
+        try assertReplacement(
+            "\"surface_style\":\"translucent\",",
+            with: "",
+            produces: .malformedData
+        )
     }
 
     func testDecodeNormalizesRetiredAppearanceExtremes() throws {
@@ -280,11 +304,11 @@ final class AlcoveLayoutBackupCodecTests: XCTestCase {
         """
         {
           "format":"com.alcove.layout-backup",
-          "version":1,
+          "version":2,
           "global":{
             "icon_size":64,
-            "background_type":"liquid_glass",
             "background_style":"standard",
+            "surface_style":"translucent",
             "spacing":2,
             "corner_radius":4,
             "shadow_enabled":true

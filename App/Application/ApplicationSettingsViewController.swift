@@ -58,6 +58,7 @@ final class ApplicationSettingsViewController: NSViewController {
     private(set) var selectedCategory = Category.general
     private(set) var contentSeparator = NSBox()
     private(set) var contentStack = NSStackView()
+    private weak var transparencyControl: NSSlider?
 
     init(
         launchAtLoginController: any LaunchAtLoginControlling,
@@ -214,6 +215,13 @@ final class ApplicationSettingsViewController: NSViewController {
                 comment: "Portal background settings section"
             ),
             card: ApplicationSettingsCardView(rows: [
+                settingRow(
+                    title: NSLocalizedString(
+                        "application.settings.surface_style",
+                        comment: "Portal background surface style setting"
+                    ),
+                    control: surfaceStylePopUpButton()
+                ),
                 settingRow(
                     title: NSLocalizedString(
                         "application.settings.transparency",
@@ -383,6 +391,23 @@ final class ApplicationSettingsViewController: NSViewController {
         return slider
     }
 
+    private func surfaceStylePopUpButton() -> NSPopUpButton {
+        let button = NSPopUpButton(frame: .zero, pullsDown: false)
+        button.identifier = NSUserInterfaceItemIdentifier("application-settings.surface-style")
+        button.target = self
+        button.action = #selector(changeSurfaceStyle(_:))
+        for style in PortalSurfaceStyle.allCases {
+            button.addItem(withTitle: style.title)
+            button.lastItem?.representedObject = style.rawValue
+        }
+        button.selectItem(withTitle: preferencesController.portalAppearance.surfaceStyle.title)
+        button.setAccessibilityLabel(NSLocalizedString(
+            "application.settings.surface_style",
+            comment: "Portal background surface style setting"
+        ))
+        return button
+    }
+
     private func backgroundStyleSlider() -> NSSlider {
         let values = PortalBackgroundStyle.selectableCases
         let selectedIndex = values.firstIndex(
@@ -400,7 +425,18 @@ final class ApplicationSettingsViewController: NSViewController {
             comment: "Portal background transparency setting"
         ))
         slider.setAccessibilityValue(backgroundStyleTitle(values[selectedIndex]))
+        transparencyControl = slider
+        updateTransparencyControl()
         return slider
+    }
+
+    private func updateTransparencyControl() {
+        let enabled = preferencesController.portalAppearance.surfaceStyle.supportsTransparency
+        transparencyControl?.isEnabled = enabled
+        transparencyControl?.toolTip = enabled ? nil : NSLocalizedString(
+            "application.settings.transparency.opaque_hint",
+            comment: "Why transparency is unavailable for an opaque surface"
+        )
     }
 
     private func discreteSlider(
@@ -712,6 +748,15 @@ final class ApplicationSettingsViewController: NSViewController {
                 values.firstIndex(of: preferencesController.portalAppearance.iconSize) ?? 1
             )
         }
+    }
+
+    @objc private func changeSurfaceStyle(_ sender: NSPopUpButton) {
+        guard let value = sender.selectedItem?.representedObject as? String,
+              let style = PortalSurfaceStyle(rawValue: value) else { return }
+        if !preferencesController.setPortalSurfaceStyle(style) {
+            sender.selectItem(withTitle: preferencesController.portalAppearance.surfaceStyle.title)
+        }
+        updateTransparencyControl()
     }
 
     @objc private func changeBackgroundStyle(_ sender: NSSlider) {

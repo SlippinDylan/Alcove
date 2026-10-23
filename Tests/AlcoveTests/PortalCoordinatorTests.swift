@@ -214,6 +214,7 @@ final class PortalCoordinatorTests: XCTestCase {
         XCTAssertEqual(factory.windows[1].presentCount, 1)
         XCTAssertFalse(factory.windows[1].isForeground)
         XCTAssertEqual(factory.windows[1].updatedAppearances.last?.spacing, .large)
+        XCTAssertEqual(factory.windows[1].updatedAppearances.last?.surfaceStyle, .softTint)
     }
 
     @MainActor
@@ -339,6 +340,7 @@ final class PortalCoordinatorTests: XCTestCase {
             global: AlcoveLayoutBackupGlobal(
                 iconSize: .large,
                 backgroundStyle: .highTransparency,
+                surfaceStyle: .softTint,
                 spacing: .maximum,
                 cornerRadius: .small,
                 shadowEnabled: false

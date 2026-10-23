@@ -42,7 +42,7 @@ Alcove 是原生 macOS 選單列 App，能將選定的本機資料夾留在桌�
     <td><img src="images/readme/panel-controls.png" alt="Alcove 面板控制選單"></td>
   </tr>
   <tr>
-    <td><strong>外觀</strong><br><br>可調整內容大小、透明度、圓角、面板間距和視窗陰影。</td>
+    <td><strong>外觀</strong><br><br>可選擇半透明、霧面、煙色、柔彩、漸層、紙感或輪廓背景；支援的樣式提供五段透明度，每個面板可獨立配色，並可調整內容大小、圓角、面板間距和視窗陰影。</td>
     <td align="center"><img src="images/readme/appearance-settings.png" width="420" alt="Alcove 外觀設定"></td>
   </tr>
   <tr>

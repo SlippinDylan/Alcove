@@ -28,6 +28,7 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
     private var metrics: GridMetrics
     private var gridCapacity: GridCapacity
     private var items: [FileItem] = []
+    private var nameBackdropEnabled = false
     private var compressionTask: Task<Void, Never>?
     private var defaultDropTask: Task<Void, Never>?
     private var defaultDropResolution: DefaultDropResolution?
@@ -183,6 +184,14 @@ final class FileGridViewController: NSViewController, NSMenuItemValidation {
 
     func item(at index: Int) -> FileItem {
         items[index]
+    }
+
+    func updateNameBackdropEnabled(_ enabled: Bool) {
+        nameBackdropEnabled = enabled
+        guard isViewLoaded else { return }
+        for case let cell as FileItemCell in collectionView.visibleItems() {
+            cell.updateNameBackdropEnabled(enabled)
+        }
     }
 
     func updateIconSize(_ iconSize: IconSize) {
@@ -698,6 +707,7 @@ extension FileGridViewController: NSCollectionViewDataSource, NSCollectionViewDe
             position: indexPath.item + 1,
             itemCount: items.count,
             opensDirectoryInPanel: onNavigateDirectory != nil,
+            nameBackdropEnabled: nameBackdropEnabled,
             onOpen: { [weak self] in self?.open(item) ?? false }
         )
         return fileCell

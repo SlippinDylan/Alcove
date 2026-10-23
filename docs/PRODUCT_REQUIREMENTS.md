@@ -16,7 +16,7 @@ Alcove 不是 Finder 替代品或完整桌面 Shell。它只浏览用户选择�
 | G-2 | Match Finder's selection and opening semantics for familiar, low-friction interaction |
 | G-3 | Offer Quick Look for selected items without leaving the portal |
 | G-4 | Keep the complete multi-Portal layout on the menu-bar primary display and migrate it when the primary display changes |
-| G-5 | Require macOS 26 or later and provide a stable static translucent Portal background across Spaces |
+| G-5 | 要求 macOS 26 或更高版本，提供跨 Spaces 稳定的可选静态 Portal 背景 |
 
 ## 3. Non-Goals (MVP)
 
@@ -212,8 +212,8 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-09 | Multiple portals supported simultaneously | MVP |
 | FR-10 | Multiple connected displays are supported as topology inputs, but all Portal windows and new-Portal creation remain on the menu-bar primary display | MVP |
 | FR-11 | Menu-bar icon with portal management menu | MVP |
-| FR-12 | All Portals share one global content-size preset and one global five-step static-background transparency level; each Portal retains its own subtle tint. Changing size is preflighted for every Portal before any frame changes. Lightweight separators distinguish the top controls and bottom path row. Clicking the top controls or draggable background activates the Portal just like clicking its grid or path row. | MVP |
-| FR-13 | Require macOS 26 or later. Portal backgrounds use a plain alpha-composited static surface without `NSGlassEffectView`, `NSVisualEffectView`, or WindowServer backdrop sampling. Reduce Transparency overrides it with an opaque accessibility surface | MVP |
+| FR-12 | 所有 Portal 共用全局内容大小、背景样式和五档透明度偏好。背景样式包含半透明（默认）、哑光、烟色、柔彩、渐层、纸感和轮廓；仅半透明、烟色和轮廓启用透明度调节，切换样式不清除透明度或各 Portal 的独立配色。样式随 macOS 深浅外观适配；轮廓样式在文件名、顶部控制区、路径和状态文字后保留局部不透明底色。改变内容大小前须预演全部 Portal；轻量分割线区分顶部控制区与底部路径栏，点击顶部控件或可拖动背景与点击网格、路径栏一样激活 Portal。 | MVP |
+| FR-13 | 要求 macOS 26 或更高版本。Portal 背景使用普通静态 alpha 合成、渐层或纹理，不使用 `NSGlassEffectView`、`NSVisualEffectView` 或 WindowServer backdrop。Reduce Transparency 将所有样式覆盖为不透明可访问表面，不改变已保存的样式、透明度或配色偏好 | MVP |
 | FR-14 | Folder enumeration runs across an explicit background execution boundary, rejects stale results, and honors cancellation at real incremental or batch boundaries when the selected enumeration API permits it | MVP |
 | FR-15 | Observe active-tab directory changes with FSEvents and rebuild from a fresh snapshot, including fail-closed recovery for root-change and dropped/wrapped events | MVP |
 | FR-16 | Automatic grid refresh when folder contents change | MVP |
@@ -221,10 +221,10 @@ column capacity remains authoritative while the physical frame width follows tho
 | FR-19 | Accept mapped folders only when their resolved location is on the Mac's internal, fixed local storage; reject removable, ejectable, and network-volume locations before creating or remapping a tab | MVP |
 | FR-20 | Persist a per-Portal pinned state that disables user movement and resizing without blocking system placement recovery | MVP |
 | FR-21 | Show the selected folder path in a reserved bottom row separated from the file grid, abbreviate the home directory as `~`, and provide a clipboard copy action | MVP |
-| FR-22 | The menu bar lists New Portal, each Portal with SF Symbol-labelled Show, Hide, Pin/Unpin, Panel Settings, and confirmed Remove commands, application Settings without a keyboard shortcut, and Quit. Application Settings provides General, Style, Advanced, and About categories; General controls launch at login and the app language (Follow System, English, Simplified Chinese, or Traditional Chinese) and offers to quit and automatically reopen Alcove to apply a changed language, Style owns global content size, transparency, spacing (`2/4/6/8pt`), corner radius (`0/8/14/20/24pt`), and system shadow with a system separator between each row, Advanced repairs off-screen or conflicting panel positions and imports or exports the complete layout, and About shows the bundled app icon, version/build, copyright, and a Check for Updates action. All user-facing UI uses the selected supported language, with the current macOS language and English fallback used when Follow System is selected | MVP |
+| FR-22 | 菜单栏提供新建 Portal、各 Portal 的显示、隐藏、固定／取消固定、面板设置、确认移除，以及无快捷键的应用设置和退出；Portal 命令配有 SF Symbol。应用设置分为通用、样式、高级和关于：通用控制登录启动及语言（跟随系统、英文、简体中文、繁体中文），改变语言后可退出并自动重启应用；样式提供全局内容大小、背景样式、透明度（仅半透明、烟色和轮廓启用）、间距（`2/4/6/8pt`）、圆角（`0/8/14/20/24pt`）及系统阴影，各行以系统分割线区分；高级修复屏外或冲突位置并导入／导出完整布局；关于显示应用图标、版本／构建、版权和检查更新。全部界面使用选定语言，跟随系统时采用当前 macOS 语言，不支持时回退为英文 | MVP |
 | FR-23 | New placement, user dragging, live resizing, and global content-size changes must not overlap another Portal and must honor the selected edge/inter-Portal spacing. Portals attached within the four-step spacing range to a screen edge or another Portal retain that relationship when either spacing or content size changes, so expansion pushes and contraction pulls the attached layout in both directions. Unattached free placements retain their top-left intent when legal. The complete primary-display plan is accepted atomically, and style-driven or topology-driven reflow does not overwrite durable placement. Manual repair persists only repaired frames and leaves already visible non-conflicting frames unchanged. | MVP |
-| FR-24 | Each Portal persists its own name/modified/created sort order and one built-in neutral or rainbow tint. The gear opens an SF Symbol-labelled native menu for pinning, sorting, Portal settings, and confirmed Portal removal. Removal confirmation is an independent app-modal alert centered in the current Portal screen's fresh `visibleFrame`, not an attached sheet. Portal settings show all sort choices as radio buttons and all tint choices as circular single-selection swatches; global content size and transparency are not duplicated there. | MVP |
-| FR-25 | Advanced settings exports a stable versioned JSON layout backup containing global Portal appearance and portable per-Portal layout state, but never launch-at-login. Import ignores the retired `background_type` key in older version 1 files, strictly validates the rest of the document and, after confirmation, replaces rather than merges the current layout. The replacement is preflighted against the fresh primary display and persisted once before runtime windows change; any validation or save failure leaves the current runtime layout untouched. | MVP |
+| FR-24 | 每个 Portal 独立保存名称／修改时间／创建时间排序，以及内置中性色或彩虹配色。齿轮打开配有 SF Symbol 的原生菜单，提供固定、排序、面板设置和确认移除。移除确认使用独立 app-modal alert，居中于该 Portal 所在屏幕实时 `visibleFrame`，不使用附属 sheet。面板设置以单选按钮显示全部排序，以圆形单选色块显示全部配色；全局内容大小、背景样式和透明度不在此重复提供 | MVP |
+| FR-25 | 高级设置导出 `com.alcove.layout-backup` v2 JSON，包含全局外观与可移植的各 Portal 布局状态，不包含登录启动偏好。全局 `surface_style` 为必填字段；仅支持 v2，v1 和其他版本均报告不支持，不自动迁移。导入严格验证完整文档，经确认后替换而不合并当前布局；在实时主显示器上预演完整布局并单次持久化成功后才替换运行时窗口，验证或保存失败不改变当前布局。 | MVP |
 | FR-26 | Command-Delete moves a frozen ordered selection to Trash through `NSWorkspace.recycle`; drop transfers validate the entire snapshot before asynchronous coordinated IO, reject same-destination, overwrite, duplicate-name, and self-descendant cases, and report partial failure explicitly | MVP |
 | FR-27 | Right-clicking an item presents a native validated contextual menu while following Finder selection semantics. It provides Open, native Quick Look, Show in Finder, single-item Finder Get Info through user-authorized Apple Events, single-item inline Rename, cancellable Finder-compatible ZIP compression, Finder-style Duplicate through `NSWorkspace`, Move to Trash, direct AirDrop, newline-separated absolute-path copying, and Apple Terminal opening; right-clicking blank grid space neither displays a file menu nor changes selection. Get Info uses Finder's public scripting dictionary and passes paths as event arguments; Return also begins single-item rename; invalid/conflicting names never overwrite; compression never invokes a shell or overwrites; Escape cancels rename; and successful rename/duplicate/compress actions retain the returned URL selection | MVP |
 
@@ -332,8 +332,8 @@ Product acceptance and release verification are separate. Automated acceptance d
 | AC-08 | All Portal frames follow the menu-bar primary display after disconnect/reconnect or a primary-display switch; fitting frames retain left/top point offsets and overflow uses new right-hand columns | FR-08, FR-10 |
 | AC-09 | Portal frames restore correctly after resolution/scaling change | FR-08 |
 | AC-10 | Portal coexists with Spaces and Stage Manager without permanent eviction | G-1; manual system verification |
-| AC-11 | The app binary declares macOS 26.0 as its minimum system; every Portal uses the stable static translucent background without changing per-Portal tint, and Reduce Transparency uses the opaque accessibility surface | FR-12, FR-13 |
-| AC-12 | The static Portal surface remains visually stable while switching Spaces, preserves active control contrast when the Portal loses focus, and restores global transparency plus each Portal's independent tint after restart | FR-12 |
+| AC-11 | 应用最低系统为 macOS 26.0；七种背景均使用静态表面并适配深浅外观，Reduce Transparency 下统一使用不透明可访问表面且不改写已保存偏好 | FR-12, FR-13 |
+| AC-12 | 切换背景立即应用于全部 Portal，不改变网格容量或布局；重启后恢复全局样式、透明度和各 Portal 独立配色。仅半透明、烟色和轮廓可调透明度，轮廓下文件名、控制区、路径和状态文字有局部不透明底色；失焦后保留可读性，Spaces 切换的实际视觉稳定性须人工验收 | FR-12 |
 | AC-13 | Folder contents update automatically when files are added/removed | FR-15, FR-16 |
 | AC-14 | Command-Delete moves the selected items to Trash, invalidates Quick Look immediately, and reports a recycle failure | FR-26 |
 | AC-15 | App is a menu-bar utility with no Dock icon | FR-11 |
@@ -356,7 +356,7 @@ Product acceptance and release verification are separate. Automated acceptance d
 - Portal creation, display, selection, opening, Quick Look
 - Multiple tabs (add, switch, close, creation-order persistence, selected-tab persistence), multiple portals, and primary-display-following multi-display recovery
 - Stable display identity and frame persistence
-- Static translucent Portal backgrounds on macOS 26 and macOS 27, with an opaque Reduce Transparency path
+- macOS 26 和 macOS 27 上的七种静态 Portal 背景，以及不改写偏好的不透明 Reduce Transparency 路径
 - Menu-bar management UI
 - Trash selected items and copy/move file-URL drops with fail-closed conflict handling
 - GitHub distribution with Apple Development signing; installation, Gatekeeper and certificate-expiry behavior remain manual release risks

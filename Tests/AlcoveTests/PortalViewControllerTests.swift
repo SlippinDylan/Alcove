@@ -143,14 +143,65 @@ final class PortalViewControllerTests: XCTestCase {
         controller.updatePortal(portal)
 
         XCTAssertEqual(surface.alphaValue, 1, accuracy: 0.001)
-        XCTAssertEqual(surface.materialPath, .translucent)
+        XCTAssertEqual(surface.materialPath, .styled)
+        let raster = try PortalSurfaceRaster.render(
+            surface,
+            rootView: controller.view,
+            size: NSSize(width: 420, height: 360)
+        )
         XCTAssertEqual(
-            try XCTUnwrap(surface.materialView?.layer?.backgroundColor).alpha,
+            raster.color(x: raster.width / 2, y: raster.height / 2).alphaComponent,
             0.72,
             accuracy: 0.001
         )
         XCTAssertEqual(controller.presentationState, .items(1))
         XCTAssertEqual(invalidationCount, 0)
+    }
+
+    @MainActor
+    func testSurfaceChoicesPreserveSelectionAndClipTextBackingsToSharedCorners() async throws {
+        let root = URL(fileURLWithPath: "/tmp/surface")
+        let item = FileItem(
+            url: root.appendingPathComponent("one"),
+            name: "one",
+            isDirectory: false,
+            isHidden: false
+        )
+        let portal = try Portal(
+            folderURL: root,
+            frame: CGRect(x: 0, y: 0, width: 420, height: 360),
+            display: testDisplay
+        )
+        let grid = FileGridViewController()
+        let controller = PortalViewController(
+            portal: portal,
+            loadingCoordinator: FolderLoadingCoordinator(
+                enumerator: FixedFolderEnumerator(root: root, items: [item])
+            ),
+            gridViewController: grid
+        )
+        controller.loadView()
+        await controller.reload()
+        grid.handleClick(index: 0, modifiers: [])
+        let selection = grid.selectionState
+        let surface = try XCTUnwrap(descendants(of: controller.view)
+            .compactMap { $0 as? PortalChromeMaterialView }.first)
+        var appearance = PortalAppearancePreferences.defaults
+        appearance.cornerRadius = .maximum
+        for style in PortalSurfaceStyle.allCases {
+            appearance.surfaceStyle = style
+            controller.updateAppearance(appearance)
+            XCTAssertEqual(surface.surfaceStyle, style)
+            XCTAssertEqual(controller.view.layer?.masksToBounds, true)
+            XCTAssertEqual(controller.view.layer?.cornerRadius, appearance.cornerRadius.points)
+            XCTAssertEqual(controller.view.layer?.cornerRadius, surface.layer?.cornerRadius)
+            XCTAssertEqual(grid.selectionState, selection)
+            XCTAssertEqual(controller.presentationState, .items(1))
+        }
+        appearance.cornerRadius = .none
+        controller.updateAppearance(appearance)
+        XCTAssertEqual(controller.view.layer?.cornerRadius, 0)
+        XCTAssertEqual(surface.layer?.cornerRadius, 0)
     }
 
     @MainActor

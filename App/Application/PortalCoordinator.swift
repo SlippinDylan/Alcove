@@ -227,6 +227,7 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
         let appearance = PortalAppearancePreferences(
             iconSize: appearance.iconSize,
             backgroundStyle: appearance.backgroundStyle,
+            surfaceStyle: appearance.surfaceStyle,
             cornerRadius: appearance.cornerRadius,
             spacing: appearance.spacing,
             shadowEnabled: appearance.shadowEnabled
@@ -426,6 +427,7 @@ final class PortalCoordinator: PortalCoordinating, PanelPositionRepairing {
             let appearance = PortalAppearancePreferences(
                 iconSize: backup.global.iconSize,
                 backgroundStyle: backup.global.backgroundStyle,
+                surfaceStyle: backup.global.surfaceStyle,
                 cornerRadius: backup.global.cornerRadius,
                 spacing: backup.global.spacing,
                 shadowEnabled: backup.global.shadowEnabled

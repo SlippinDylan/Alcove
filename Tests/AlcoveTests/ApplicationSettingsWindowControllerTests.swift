@@ -139,13 +139,15 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         controller.setPortalSpacing(.large)
         controller.setPortalIconSize(.large)
         controller.setPortalBackgroundStyle(.highTransparency)
+        controller.setPortalSurfaceStyle(.paper)
         controller.setPortalShadowEnabled(true)
         controller.setPortalShadowEnabled(true)
 
-        XCTAssertEqual(changes.count, 5)
+        XCTAssertEqual(changes.count, 6)
         let restored = ApplicationPreferencesController(userDefaults: defaults)
         XCTAssertEqual(restored.portalAppearance.iconSize, .large)
         XCTAssertEqual(restored.portalAppearance.backgroundStyle, .highTransparency)
+        XCTAssertEqual(restored.portalAppearance.surfaceStyle, .paper)
         XCTAssertEqual(restored.portalAppearance.cornerRadius, .small)
         XCTAssertEqual(restored.portalAppearance.spacing, .large)
         XCTAssertTrue(restored.portalAppearance.shadowEnabled)
@@ -160,10 +162,12 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         controller.onPortalAppearanceChanged = { _ in false }
 
         XCTAssertFalse(controller.setPortalSpacing(.large))
+        XCTAssertFalse(controller.setPortalSurfaceStyle(.outline))
 
         XCTAssertEqual(controller.portalAppearance.spacing, .small)
         let restored = ApplicationPreferencesController(userDefaults: defaults)
         XCTAssertEqual(restored.portalAppearance.spacing, .small)
+        XCTAssertEqual(restored.portalAppearance.surfaceStyle, .translucent)
     }
 
     @MainActor
@@ -202,6 +206,7 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         let imported = PortalAppearancePreferences(
             iconSize: .large,
             backgroundStyle: .minimumTransparency,
+            surfaceStyle: .smoke,
             cornerRadius: .small,
             spacing: .maximum,
             shadowEnabled: false
@@ -264,14 +269,31 @@ final class ApplicationSettingsWindowControllerTests: XCTestCase {
         XCTAssertEqual(spacing.tintProminence, .secondary)
         XCTAssertEqual(contentSize.tintProminence, .secondary)
         XCTAssertEqual(transparency.tintProminence, .secondary)
-        XCTAssertFalse(descendants(of: controller.settingsViewController.view).contains {
-            $0.identifier?.rawValue.hasPrefix("application-settings.background-type") == true
-        })
+        let surfacePicker = try XCTUnwrap(descendants(of: controller.settingsViewController.view)
+            .compactMap { $0 as? NSPopUpButton }.first {
+                $0.identifier?.rawValue == "application-settings.surface-style"
+            })
+        XCTAssertEqual(
+            surfacePicker.itemArray.compactMap { $0.representedObject as? String },
+            PortalSurfaceStyle.allCases.map(\.rawValue)
+        )
+        for style in PortalSurfaceStyle.allCases {
+            surfacePicker.selectItem(withTitle: style.title)
+            surfacePicker.sendAction(try XCTUnwrap(surfacePicker.action), to: surfacePicker.target)
+            XCTAssertEqual(preferences.portalAppearance.surfaceStyle, style)
+            XCTAssertEqual(transparency.isEnabled, style.supportsTransparency)
+        }
+        XCTAssertEqual(preferences.portalAppearance.backgroundStyle, .lowTransparency)
+        preferences.onPortalAppearanceChanged = { _ in false }
+        surfacePicker.selectItem(withTitle: PortalSurfaceStyle.paper.title)
+        surfacePicker.sendAction(try XCTUnwrap(surfacePicker.action), to: surfacePicker.target)
+        XCTAssertEqual(surfacePicker.titleOfSelectedItem, PortalSurfaceStyle.outline.title)
+        XCTAssertTrue(transparency.isEnabled)
         XCTAssertEqual(
             descendants(of: controller.settingsViewController.view).filter {
                 $0.identifier?.rawValue == "application-settings.row-separator"
             }.count,
-            3
+            4
         )
         controller.close()
     }

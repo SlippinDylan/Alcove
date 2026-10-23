@@ -5,6 +5,35 @@ import XCTest
 
 extension PortalCoordinatorTests {
     @MainActor
+    func testSurfaceStyleAppliesOnRestoreAndChangesWithoutChangingPortalState() async throws {
+        let portal = try makePortal(path: "/tmp/surface", x: 10)
+        let store = PortalStoreSpy(portals: [portal])
+        let factory = PortalWindowFactorySpy()
+        let snapshot = try DisplaySnapshot(
+            displays: [coordinatorTestDisplay],
+            primaryDisplay: coordinatorTestDisplay.identity
+        )
+        var appearance = PortalAppearancePreferences.defaults
+        appearance.surfaceStyle = .paper
+        let coordinator = PortalCoordinator(
+            store: store,
+            windowFactory: factory,
+            portalAppearance: appearance,
+            displaySnapshotProvider: { .success(snapshot) }
+        )
+        try await coordinator.restorePortals()
+        let originalStates = coordinator.portalStates
+        let window = try XCTUnwrap(factory.windows.first)
+        XCTAssertEqual(window.updatedAppearances.last?.surfaceStyle, .paper)
+        appearance.surfaceStyle = .outline
+        XCTAssertTrue(coordinator.updatePortalAppearance(appearance))
+        XCTAssertEqual(window.updatedAppearances.last?.surfaceStyle, .outline)
+        XCTAssertEqual(coordinator.portalStates, originalStates)
+        let saves = await store.savedSnapshots()
+        XCTAssertTrue(saves.isEmpty)
+    }
+
+    @MainActor
     func testSpacingPreferenceReflowsExistingPortalsAndReturnsToSavedFrames() async throws {
         let upper = try Portal(
             folderURL: URL(fileURLWithPath: "/tmp/upper"),

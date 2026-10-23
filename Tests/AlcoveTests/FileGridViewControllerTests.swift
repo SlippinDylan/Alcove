@@ -571,6 +571,44 @@ final class FileGridViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testOutlineNameBackingPreservesSelectionAndIsClearedOnReuse() throws {
+        let controller = FileGridViewController()
+        controller.updateNameBackdropEnabled(true)
+        controller.loadView()
+        controller.setItems(makeItems(count: 1))
+        let scrollView = try XCTUnwrap(controller.view as? NSScrollView)
+        let collection = try XCTUnwrap(scrollView.documentView as? NSCollectionView)
+        let cell = try XCTUnwrap(controller.collectionView(
+            collection,
+            itemForRepresentedObjectAt: IndexPath(item: 0, section: 0)
+        ) as? FileItemCell)
+        XCTAssertEqual(try XCTUnwrap(cell.labelSelectionView.layer?.backgroundColor).alpha, 1)
+        cell.isSelected = true
+        XCTAssertEqual(cell.nameLabel.textColor, .white)
+        cell.updateNameBackdropEnabled(false)
+        XCTAssertEqual(try XCTUnwrap(cell.labelSelectionView.layer?.backgroundColor).alpha, 1)
+        cell.isSelected = false
+        XCTAssertEqual(try XCTUnwrap(cell.labelSelectionView.layer?.backgroundColor).alpha, 0)
+        cell.configure(
+            with: controller.item(at: 0),
+            metrics: GridMetrics(iconSize: .medium),
+            position: 1,
+            itemCount: 1,
+            nameBackdropEnabled: true,
+            onOpen: { true }
+        )
+        XCTAssertEqual(try XCTUnwrap(cell.labelSelectionView.layer?.backgroundColor).alpha, 1)
+        cell.configure(
+            with: controller.item(at: 0),
+            metrics: GridMetrics(iconSize: .medium),
+            position: 1,
+            itemCount: 1,
+            onOpen: { true }
+        )
+        XCTAssertEqual(try XCTUnwrap(cell.labelSelectionView.layer?.backgroundColor).alpha, 0)
+    }
+
+    @MainActor
     func testCellUsesFixedTwoLineNameWithMiddleTruncationOnTheSecondLine() throws {
         let item = FileItem(
             url: URL(fileURLWithPath: "/tmp/Sunrise_会员维护模型业务规则_v1.2.md"),

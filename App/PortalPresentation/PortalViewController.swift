@@ -9,6 +9,29 @@ private func portalLocalizedFormat(_ key: String, _ arguments: CVarArg...) -> St
     )
 }
 
+@MainActor
+private final class PortalReadabilityBackingView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        isHidden = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.windowBackgroundColor.setFill()
+        NSBezierPath(roundedRect: bounds, xRadius: 8, yRadius: 8).fill()
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 private final class PortalStateLabel: NSTextField {
     init() {
         super.init(frame: .zero)
@@ -131,6 +154,8 @@ final class PortalViewController: NSViewController {
     private let portalMaterialView: PortalChromeMaterialView
     private let gridViewController: FileGridViewController
     private let pathBarView = FolderPathBarView()
+    private let topReadabilityBacking = PortalReadabilityBackingView()
+    private let bottomReadabilityBacking = PortalReadabilityBackingView()
     private(set) var topSeparator = NSBox()
     private(set) var bottomSeparator = NSBox()
     private let stateLabel = PortalStateLabel()
@@ -187,6 +212,9 @@ final class PortalViewController: NSViewController {
         let tabBarView = TabBarView()
         self.tabBarView = tabBarView
         let portalContentView = NSView()
+        portalContentView.wantsLayer = true
+        portalContentView.layer?.masksToBounds = true
+        portalContentView.layer?.cornerRadius = 24
         self.portalContentView = portalContentView
         portalMaterialView = PortalChromeMaterialView(
             contentView: NSView(),
@@ -250,6 +278,9 @@ final class PortalViewController: NSViewController {
 
         pathBarView.translatesAutoresizingMaskIntoConstraints = false
         rootView.addSubview(pathBarView)
+
+        installReadabilityBacking(topReadabilityBacking, behind: tabBarView, in: rootView)
+        installReadabilityBacking(bottomReadabilityBacking, behind: pathBarView, in: rootView)
 
         configureSeparator(topSeparator, identifier: "portal.top-separator")
         configureSeparator(bottomSeparator, identifier: "portal.bottom-separator")
@@ -455,7 +486,31 @@ final class PortalViewController: NSViewController {
 
     func updateAppearance(_ appearance: PortalAppearancePreferences) {
         portalMaterialView.updateBackgroundStyle(appearance.backgroundStyle)
+        portalMaterialView.updateSurfaceStyle(appearance.surfaceStyle)
         portalMaterialView.updateCornerRadius(appearance.cornerRadius.points)
+        // Local text backings and content share the surface's rounded silhouette.
+        portalContentView.layer?.cornerRadius = appearance.cornerRadius.points
+        let usesReadabilityBacking = appearance.surfaceStyle == .outline
+        topReadabilityBacking.isHidden = !usesReadabilityBacking
+        bottomReadabilityBacking.isHidden = !usesReadabilityBacking
+        stateLabel.drawsBackground = usesReadabilityBacking
+        stateLabel.backgroundColor = .windowBackgroundColor
+        gridViewController.updateNameBackdropEnabled(usesReadabilityBacking)
+    }
+
+    private func installReadabilityBacking(
+        _ backing: NSView,
+        behind control: NSView,
+        in root: NSView
+    ) {
+        backing.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(backing, positioned: .below, relativeTo: control)
+        NSLayoutConstraint.activate([
+            backing.leadingAnchor.constraint(equalTo: control.leadingAnchor, constant: 4),
+            backing.trailingAnchor.constraint(equalTo: control.trailingAnchor, constant: -4),
+            backing.topAnchor.constraint(equalTo: control.topAnchor, constant: 2),
+            backing.bottomAnchor.constraint(equalTo: control.bottomAnchor, constant: -2),
+        ])
     }
 
     func stopObservation() {

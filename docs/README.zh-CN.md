@@ -42,7 +42,7 @@ Alcove 是一款原生 macOS 菜单栏应用，用来把选定的本地文件夹
     <td><img src="images/readme/panel-controls.png" alt="Alcove 面板控制菜单"></td>
   </tr>
   <tr>
-    <td><strong>外观</strong><br><br>可调整内容大小、透明度、圆角、面板间距和窗口阴影。</td>
+    <td><strong>外观</strong><br><br>可选择半透明、哑光、烟色、柔彩、渐层、纸感或轮廓背景；支持的样式提供五档透明度，每个面板可独立配色，并可调整内容大小、圆角、面板间距和窗口阴影。</td>
     <td align="center"><img src="images/readme/appearance-settings.png" width="420" alt="Alcove 外观设置"></td>
   </tr>
   <tr>

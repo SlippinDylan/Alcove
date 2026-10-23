@@ -2,8 +2,8 @@ import AlcoveCore
 import AppKit
 
 enum PortalChromeMaterialPath: Equatable {
-    case translucent
-    case opaque
+    case styled
+    case accessibilityOpaque
 }
 
 struct PortalAccessibilityOptions: Equatable {
@@ -24,7 +24,7 @@ struct PortalAccessibilityOptions: Equatable {
 
 enum PortalChromeMaterialResolver {
     static func resolve(accessibility: PortalAccessibilityOptions) -> PortalChromeMaterialPath {
-        accessibility.reduceTransparency ? .opaque : .translucent
+        accessibility.reduceTransparency ? .accessibilityOpaque : .styled
     }
 }
 
@@ -37,6 +37,7 @@ final class PortalChromeMaterialView: NSView {
     private let notificationCenter: NotificationCenter
     private var backgroundStyle: PortalBackgroundStyle
     private var portalTint: PortalTint
+    private(set) var surfaceStyle: PortalSurfaceStyle
     private var surfaceCornerRadius: CGFloat
     private var observation: PortalMaterialObservation?
     private var observationGeneration: UInt64 = 0
@@ -51,6 +52,7 @@ final class PortalChromeMaterialView: NSView {
         contentView: NSView,
         backgroundStyle: PortalBackgroundStyle = .lowTransparency,
         portalTint: PortalTint = .default,
+        surfaceStyle: PortalSurfaceStyle = .translucent,
         cornerRadius: CGFloat = 24,
         accessibilityProvider: @escaping AccessibilityProvider = {
             PortalAccessibilityOptions.current()
@@ -62,6 +64,7 @@ final class PortalChromeMaterialView: NSView {
         self.notificationCenter = notificationCenter
         self.backgroundStyle = backgroundStyle
         self.portalTint = portalTint
+        self.surfaceStyle = surfaceStyle
         surfaceCornerRadius = cornerRadius
         accessibility = accessibilityProvider()
         materialPath = PortalChromeMaterialResolver.resolve(accessibility: accessibility)
@@ -120,6 +123,13 @@ final class PortalChromeMaterialView: NSView {
         applySurfaceStyle()
     }
 
+    func updateSurfaceStyle(_ surfaceStyle: PortalSurfaceStyle) {
+        guard self.surfaceStyle != surfaceStyle else { return }
+        self.surfaceStyle = surfaceStyle
+        applyContrastStyle()
+        applySurfaceStyle()
+    }
+
     func updateCornerRadius(_ cornerRadius: CGFloat) {
         guard surfaceCornerRadius != cornerRadius else { return }
         surfaceCornerRadius = cornerRadius
@@ -155,13 +165,13 @@ final class PortalChromeMaterialView: NSView {
 
     private func makeMaterialView() -> NSView {
         switch materialPath {
-        case .translucent:
-            let translucent = PortalStaticTranslucentChromeView()
-            translucent.layer?.cornerRadius = cornerRadius
-            translucent.layer?.masksToBounds = true
-            installChromeContent(in: translucent)
-            return translucent
-        case .opaque:
+        case .styled:
+            let surface = PortalStaticSurfaceView()
+            surface.layer?.cornerRadius = cornerRadius
+            surface.layer?.masksToBounds = true
+            installChromeContent(in: surface)
+            return surface
+        case .accessibilityOpaque:
             let opaque = PortalOpaqueChromeView()
             opaque.layer?.cornerRadius = cornerRadius
             opaque.layer?.masksToBounds = true
@@ -184,18 +194,54 @@ final class PortalChromeMaterialView: NSView {
     private func applyContrastStyle() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
             layer?.backgroundColor = NSColor.clear.cgColor
-            layer?.borderWidth = accessibility.increaseContrast ? 2 : 0
+            layer?.borderWidth = accessibility.increaseContrast ? 2 : (surfaceStyle == .outline ? 1 : 0)
             layer?.borderColor = accessibility.increaseContrast
                 ? NSColor.separatorColor.cgColor
-                : nil
+                : (surfaceStyle == .outline ? NSColor.labelColor.withAlphaComponent(0.35).cgColor : nil)
         }
     }
 
     private func applySurfaceStyle() {
-        guard materialPath == .translucent else { return }
-        materialView?.layer?.backgroundColor = staticSurfaceColor
-            .withAlphaComponent(staticSurfaceAlpha)
-            .cgColor
+        guard materialPath == .styled,
+              let material = materialView as? PortalStaticSurfaceView else { return }
+        let color: NSColor
+        let alpha: CGFloat
+        switch surfaceStyle {
+        case .translucent:
+            color = staticSurfaceColor
+            alpha = staticSurfaceAlpha
+        case .matte, .gradient, .paper:
+            color = tintedMatteColor
+            alpha = 1
+        case .smoke:
+            color = tintedMatteColor
+            alpha = 0.85 + (staticSurfaceAlpha - 0.32) * 0.25
+        case .softTint:
+            let tint = portalTint == .default
+                ? NSColor(srgbRed: 0.45, green: 0.56, blue: 0.49, alpha: 1)
+                : surfaceTintColor
+            color = matteColor.blended(withFraction: isDarkAppearance ? 0.24 : 0.18, of: tint) ?? matteColor
+            alpha = 1
+        case .outline:
+            color = staticSurfaceColor
+            alpha = 0.10 + (staticSurfaceAlpha - 0.32) * 0.25
+        }
+        material.configure(
+            color: color.withAlphaComponent(alpha),
+            style: surfaceStyle,
+            isDark: isDarkAppearance
+        )
+    }
+
+    private var matteColor: NSColor {
+        isDarkAppearance
+            ? NSColor(srgbRed: 0.105, green: 0.115, blue: 0.13, alpha: 1)
+            : NSColor(srgbRed: 0.955, green: 0.95, blue: 0.935, alpha: 1)
+    }
+
+    private var tintedMatteColor: NSColor {
+        guard portalTint != .default else { return matteColor }
+        return matteColor.blended(withFraction: 0.08, of: surfaceTintColor) ?? matteColor
     }
 
     private var staticSurfaceColor: NSColor {
@@ -235,7 +281,27 @@ final class PortalChromeMaterialView: NSView {
 }
 
 @MainActor
-private final class PortalStaticTranslucentChromeView: NSView {
+private final class PortalStaticSurfaceView: NSView {
+    private var surfaceStyle: PortalSurfaceStyle = .translucent
+    private var surfaceColor: NSColor = .clear
+    private var isDark = false
+
+    // A shared small tile keeps the paper finish deterministic and independent of panel size.
+    private static let paperTexture = NSImage(size: NSSize(width: 64, height: 64), flipped: false) { rect in
+        NSColor.clear.setFill()
+        rect.fill()
+        for y in 0..<64 {
+            for x in 0..<64 {
+                let value = (x * 73 + y * 151 + x * y * 17) % 101
+                if value < 18 {
+                    NSColor(white: value < 9 ? 0 : 1, alpha: 0.035).setFill()
+                    NSRect(x: x, y: y, width: 1, height: 1).fill()
+                }
+            }
+        }
+        return true
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
@@ -244,6 +310,37 @@ private final class PortalStaticTranslucentChromeView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         nil
+    }
+
+    func configure(color: NSColor, style: PortalSurfaceStyle, isDark: Bool) {
+        surfaceColor = color
+        surfaceStyle = style
+        self.isDark = isDark
+        needsDisplay = true
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        needsDisplay = true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        // One drawing path owns the base and decoration, including replacement of old translucent pixels.
+        surfaceColor.setFill()
+        dirtyRect.fill(using: .copy)
+        switch surfaceStyle {
+        case .gradient:
+            let highlight = surfaceColor.blended(withFraction: isDark ? 0.055 : 0.025, of: .white)
+                ?? surfaceColor
+            let shade = surfaceColor.blended(withFraction: 0.025, of: .black) ?? surfaceColor
+            NSGradient(starting: highlight, ending: shade)?.draw(in: bounds, angle: -90)
+        case .paper:
+            NSColor(patternImage: Self.paperTexture).setFill()
+            dirtyRect.fill(using: .sourceOver)
+        default:
+            break
+        }
     }
 }
 
